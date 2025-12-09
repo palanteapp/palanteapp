@@ -1,0 +1,207 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500&family=Inter:wght@400&display=swap');
+
+@theme {
+  /* Typography */
+  --font-display: "Poppins", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  /* Spa-Modern Color Palette */
+  --color-ivory: #F8F5F2;
+  --color-sage: #B5C2A3;
+  --color-pale-gold: #E5D6A7;
+  --color-warm-gray-green: #6F7B6D;
+  --color-sand-beige: #EDE4DA;
+
+  /* Legacy Luxe Gold (keep for compatibility) */
+  --color-luxe-gold: #E5D6A7;
+  /* Now maps to pale-gold */
+
+  /* Tier Colors (updated to spa palette) */
+  --color-zen-accent: #B5C2A3;
+  /* Sage */
+  --color-stoic-accent: #6F7B6D;
+  /* Warm gray-green */
+  --color-grit-accent: #E5D6A7;
+  /* Pale gold */
+}
+
+@layer utilities {
+
+  /* Spa-Modern Glass Panels */
+  .glass-panel {
+    background-color: rgba(248, 245, 242, 0.8);
+    border: 1px solid rgba(181, 194, 163, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(4px);
+  }
+
+  .glass-panel-dark {
+    background-color: rgba(111, 123, 109, 0.1);
+    border: 1px solid rgba(181, 194, 163, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Spa Shadows */
+  .shadow-spa {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-spa-lg {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  /* Gradients */
+  .bg-gradient-sage-beige {
+    background: linear-gradient(135deg, #B5C2A3 0%, #EDE4DA 100%);
+  }
+
+  .bg-gradient-sage-subtle {
+    background: linear-gradient(135deg, rgba(181, 194, 163, 0.1) 0%, rgba(237, 228, 218, 0.1) 100%);
+  }
+
+  /* Text Gradients */
+  .text-gradient-sage {
+    background: linear-gradient(to right, #B5C2A3, #6F7B6D);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  /* Theme Transitions - Slower for spa feel */
+  .theme-transition {
+    transition: all 1s ease-in-out;
+  }
+
+  /* Pulse Glow Animation */
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(181, 194, 163, 0.3);
+    }
+
+    50% {
+      box-shadow: 0 0 40px rgba(181, 194, 163, 0.6);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Expanding Circle Animation */
+  @keyframes expand-circle {
+    0% {
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+
+    100% {
+      transform: scale(1.2);
+      opacity: 0;
+    }
+  }
+
+  .animate-expand-circle {
+    animation: expand-circle 2s ease-out infinite;
+  }
+
+  /* Fade In Animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  /* Breathing Circle Animation */
+  @keyframes breathe {
+
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.3);
+    }
+  }
+
+  .animate-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+
+  /* Subtle Confetti */
+  @keyframes confetti {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-confetti {
+    animation: confetti 3s ease-out forwards;
+  }
+
+  /* Scale In Animation */
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  /* Rounded Corners Standard */
+  .rounded-card {
+    border-radius: 20px;
+  }
+
+  /* Large Tap Zones */
+  .tap-zone {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+body {
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  background-color: #F8F5F2;
+  /* Ivory */
+  color: #6F7B6D;
+  /* Warm gray-green */
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
