@@ -463,8 +463,8 @@ function AppContent() { // Renamed from App to AppContent
         />
       </div>
 
-      {/* Floating Header - Scroll Aware. Added safe-area handling. */}
-      <header className={`fixed left-0 right-0 z-30 px-4 md:px-8 pb-3 pt-[max(env(safe-area-inset-top),50px)] md:py-6 flex items-center justify-between transition-all duration-300 ${isNavVisible ? 'top-0 opacity-100' : '-top-32 opacity-0'}`}>
+      {/* Floating Header - Scroll Aware. Aggressive Safe Area Padding. */}
+      <header className={`fixed left-0 right-0 z-30 px-4 md:px-8 pb-4 pt-[calc(env(safe-area-inset-top)+40px)] md:py-8 flex items-center justify-between transition-all duration-300 ${isNavVisible ? 'top-0 opacity-100' : '-top-40 opacity-0'}`}>
         <button
           onClick={() => setShowProfile(true)}
           className={`tap-zone p-3 md:p-4 rounded-full backdrop-blur-xl border transition-all duration-300 hover:scale-110 ${headerBtnClass}`}
@@ -472,8 +472,8 @@ function AppContent() { // Renamed from App to AppContent
           <UserIcon size={20} />
         </button>
 
-        <div className="absolute left-1/2 -translate-x-1/2 top-[max(env(safe-area-inset-top),50px)] flex flex-col items-center justify-center pointer-events-none">
-          <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
+        <div className="absolute left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top)+40px)] flex flex-col items-center justify-center pointer-events-none">
+          <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
             Personalized Motivation
           </p>
           <img
@@ -504,7 +504,7 @@ function AppContent() { // Renamed from App to AppContent
       </header>
 
       {/* Main Content - Full Screen Sections */}
-      <main className="pt-36 pb-40">
+      <main className="pt-48 pb-40">
         {activeTab === 'home' && (
           <div className="min-h-screen px-6 pb-8 animate-fade-in max-w-5xl mx-auto">
             {/* 1. HERO: Quote of the Day */}
