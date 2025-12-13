@@ -1,0 +1,23 @@
+{
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/WKWebView+Capacitor.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WKWebView+Capacitor-b9942cdc0ead9c4fc8b67d1076e7be75.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WKWebView+Capacitor-b9942cdc0ead9c4fc8b67d1076e7be75.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WKWebView+Capacitor-b9942cdc0ead9c4fc8b67d1076e7be75.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WKWebView+Capacitor-b9942cdc0ead9c4fc8b67d1076e7be75.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WKWebView+Capacitor-b9942cdc0ead9c4fc8b67d1076e7be75.swiftdeps"
+  },
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewAssetHandler.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewAssetHandler.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewAssetHandler.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewAssetHandler.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewAssetHandler.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewAssetHandler.swiftdeps"
+  },
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/WebViewDelegationHandler.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewDelegationHandler.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewDelegationHandler.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewDelegationHandler.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewDelegationHandler.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebViewDelegationHandler.swiftdeps"
+  }
+}

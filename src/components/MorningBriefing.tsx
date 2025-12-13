@@ -150,7 +150,7 @@ export const MorningBriefing: React.FC<MorningBriefingProps> = ({ quote, onCompl
                             value={focus}
                             onChange={(e) => setFocus(e.target.value)}
                             placeholder="e.g., Deep work, Kindness, Recovery..."
-                            className="w-full bg-transparent border-b-2 border-white/20 text-3xl font-display text-center py-4 focus:outline-none focus:border-pale-gold placeholder-white/20 transition-colors mb-12"
+                            className="w-full bg-transparent border-b-2 border-white/20 text-3xl font-display text-center py-4 focus:outline-none focus:border-pale-gold placeholder-white/20 transition-colors mb-6"
                             autoFocus
                             onKeyDown={(e) => e.key === 'Enter' && focus && handleNext()}
                         />

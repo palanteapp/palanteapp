@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { JournalEntry } from '../types';
 import { Save, Calendar, Play, Pause, Music, Mic, X } from 'lucide-react';
-import type { SoundTrack } from '../App';
+import type { SoundTrack } from '../data/audioTracks';
 
 interface ReflectionsProps {
     onSave: (entry: JournalEntry) => void;

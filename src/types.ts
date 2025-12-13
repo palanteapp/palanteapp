@@ -7,9 +7,12 @@ export interface ActivityLog {
     date: string; // ISO date string (YYYY-MM-DD)
     type: ActivityType;
     count: number; // Number of times performed that day (or minutes, depending on metric)
+    duration?: number; // Total duration in minutes (useful for meditation/breathing)
+    details?: string; // Optional context (e.g., "Box Breathing", "Theta Waves")
 }
 
 export interface UserProfile {
+    id: string; // Authentication ID
     name: string;
     career: string;
     profession: string;

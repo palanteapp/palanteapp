@@ -11,7 +11,6 @@ interface MomentumProps {
     user: UserProfile;
     onUpdateUser: (user: UserProfile) => void;
     isDarkMode: boolean;
-    activityDatasets: any[]; // Using any for chart datasets for simplicity, matching TrendChart props
 }
 
 const BELL_URL = "https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73467.mp3?filename=tibetan-singing-bowl-reverberation-1-14782.mp3";
@@ -20,7 +19,6 @@ export const Momentum: React.FC<MomentumProps> = ({
     user,
     onUpdateUser,
     isDarkMode,
-    activityDatasets
 }) => {
     const bellRef = useRef<HTMLAudioElement | null>(null);
 
@@ -360,7 +358,6 @@ export const Momentum: React.FC<MomentumProps> = ({
             {/* Progress Dashboard (Unified) */}
             <ProgressDashboard
                 user={user}
-                activityDatasets={activityDatasets}
                 isDarkMode={isDarkMode}
             />
 

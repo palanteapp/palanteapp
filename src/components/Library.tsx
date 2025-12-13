@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Quote, FavoriteQuote, JournalEntry, MeditationReflection } from '../types';
 import { Heart, Share2, Volume2, BookHeart, BookOpen, Flower2, X, Facebook, Twitter, Linkedin, Instagram, MessageCircle, Mail } from 'lucide-react';
-import { getVoiceForId } from '../utils/voiceUtils';
+import { speak, stop as stopTTS, type OpenAIVoice } from '../utils/ttsService';
 
 interface LibraryProps {
     favoriteQuotes: FavoriteQuote[];
@@ -11,7 +11,7 @@ interface LibraryProps {
     isDarkMode: boolean;
     onRemoveFavorite: (quoteId: string) => void;
     onRemoveJournalEntry?: (entryId: string) => void;
-    voicePreference: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    voicePreference: OpenAIVoice;
 }
 
 type TabType = 'quotes' | 'journal' | 'meditations';
@@ -24,7 +24,7 @@ export const Library: React.FC<LibraryProps> = ({
     isDarkMode,
     onRemoveFavorite,
     onRemoveJournalEntry,
-    voicePreference = 'shimmer'
+    voicePreference = 'nova'
 }) => {
     const [activeTab, setActiveTab] = useState<TabType>('quotes');
     const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -44,33 +44,19 @@ export const Library: React.FC<LibraryProps> = ({
         .filter(q => q.id)
         .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
 
-    const handleSpeakText = (text: string, id: string) => {
+    const handleSpeakText = async (text: string, id: string) => {
         if (speakingId === id) {
-            window.speechSynthesis.cancel();
+            stopTTS();
             setSpeakingId(null);
         } else {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.9;
-            utterance.pitch = 1.0;
-
-
-
-            const voices = window.speechSynthesis.getVoices();
-            const selectedVoice = getVoiceForId(voicePreference || 'shimmer', voices);
-
-            if (selectedVoice) {
-                utterance.voice = selectedVoice;
-                // Slight pitch adjustments for specific known voices to enhance distinctness
-                if (selectedVoice.name.includes('Google')) {
-                    const isFemale = voicePreference === 'shimmer';
-                    utterance.pitch = isFemale ? 1.0 : 0.9;
-                }
-            }
-
-            utterance.onend = () => setSpeakingId(null);
-            window.speechSynthesis.speak(utterance);
+            stopTTS();
             setSpeakingId(id);
+            await speak(
+                text,
+                voicePreference,
+                () => { }, // onStart
+                () => setSpeakingId(null) // onEnd
+            );
         }
     };
 
@@ -157,7 +143,7 @@ export const Library: React.FC<LibraryProps> = ({
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-8 justify-center">
+                <div className="flex flex-col gap-3 mb-8 w-full max-w-sm mx-auto">
                     {tabs.map(tab => {
                         const Icon = tab.icon;
                         return (

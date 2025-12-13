@@ -1,0 +1,23 @@
+{
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/Plugins/WebView.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebView.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebView.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebView.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebView.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/WebView.swiftdeps"
+  },
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/TmpViewController.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/TmpViewController.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/TmpViewController.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/TmpViewController.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/TmpViewController.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/TmpViewController.swiftdeps"
+  },
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/UIColor.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/UIColor.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/UIColor.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/UIColor.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/UIColor.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/UIColor.swiftdeps"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/PluginCallResult.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginCallResult.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginCallResult.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginCallResult.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginCallResult.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginCallResult.swiftdeps"
+  },
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/PluginConfig.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginConfig.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginConfig.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginConfig.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginConfig.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/PluginConfig.swiftdeps"
+  },
+  "/Users/michaelvargas/Documents/AntiG/Palante App/node_modules/@capacitor/ios/Capacitor/Capacitor/Router.swift" : {
+    "const-values" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/Router.swiftconstvalues",
+    "dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/Router.d",
+    "diagnostics" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/Router.dia",
+    "object" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/Router.o",
+    "swift-dependencies" : "/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/Capacitor.build/Objects-normal/arm64/Router.swiftdeps"
+  }
+}

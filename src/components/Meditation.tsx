@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw, Sparkles, X, Volume2, Square, Mic } from 'lucide-react';
 import { Countdown } from './Countdown';
+import { speak, stop as stopTTS, type OpenAIVoice } from '../utils/ttsService';
 
 interface MeditationProps {
     isDarkMode: boolean;
     onComplete?: () => void;
-    voicePreference?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    voicePreference?: OpenAIVoice;
     onSaveReflection?: (reflection: { intention: string; duration: number; reflection: string; mantra: string }) => void;
 }
 
@@ -96,7 +97,7 @@ export const Meditation: React.FC<MeditationProps> = ({ isDarkMode, onComplete, 
 
         // Stop any speaking when component unmounts
         return () => {
-            window.speechSynthesis.cancel();
+            stopTTS();
         };
     }, []);
 
@@ -200,51 +201,20 @@ export const Meditation: React.FC<MeditationProps> = ({ isDarkMode, onComplete, 
         setShowReflectionModal(false);
     };
 
-    const handleSpeakMantra = () => {
+    const handleSpeakMantra = async () => {
         if (isSpeakingMantra) {
-            window.speechSynthesis.cancel();
+            stopTTS();
             setIsSpeakingMantra(false);
         } else {
-            const text = `${selectedMantra.sanskrit}. ${selectedMantra.meaning}. ${selectedMantra.description}`;
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.8;
-            utterance.pitch = 1.0;
-
-            // Use same voice selection as quotes
-            const voices = window.speechSynthesis.getVoices();
-            let selectedVoice = null;
-
-            const femaleVoices = ['nova', 'shimmer', 'alloy'];
-            const isFemale = femaleVoices.includes(voicePreference || 'nova');
-
-            if (isFemale) {
-                const femaleVoiceNames = ['Samantha', 'Google US English', 'Microsoft Zira', 'Victoria', 'Karen'];
-                for (const name of femaleVoiceNames) {
-                    selectedVoice = voices.find(v => v.name.includes(name));
-                    if (selectedVoice) break;
-                }
-            } else {
-                const maleVoiceNames = ['Alex', 'Google UK English Male', 'Microsoft David', 'Daniel', 'Fred'];
-                for (const name of maleVoiceNames) {
-                    selectedVoice = voices.find(v => v.name.includes(name));
-                    if (selectedVoice) break;
-                }
-            }
-
-            if (!selectedVoice) {
-                selectedVoice = voices.find(v => v.lang.startsWith('en'));
-            }
-
-            if (selectedVoice) {
-                utterance.voice = selectedVoice;
-                if (selectedVoice.name.includes('Google')) {
-                    utterance.pitch = isFemale ? 1.0 : 0.9;
-                }
-            }
-
-            utterance.onend = () => setIsSpeakingMantra(false);
-            window.speechSynthesis.speak(utterance);
             setIsSpeakingMantra(true);
+            const text = `${selectedMantra.sanskrit}. ${selectedMantra.meaning}. ${selectedMantra.description}`;
+            await speak(
+                text,
+                voicePreference,
+                () => { }, // onStart
+                () => setIsSpeakingMantra(false), // onEnd
+                0.8 // slower speed for mantras
+            );
         }
     };
 
@@ -459,12 +429,12 @@ export const Meditation: React.FC<MeditationProps> = ({ isDarkMode, onComplete, 
 
                 {/* Duration Selector (Only when paused) */}
                 {!isActive && (
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-3 md:flex gap-2 md:gap-4">
                         {[5, 10, 15, 20, 30, 60].map((m) => (
                             <button
                                 key={m}
                                 onClick={() => handleDurationChange(m)}
-                                className={`tap-zone px-4 py-2 rounded-full text-sm font-bold transition-all ${duration === m
+                                className={`tap-zone px-3 md:px-4 py-2 rounded-full text-sm font-bold transition-all ${duration === m
                                     ? isDarkMode ? 'bg-white text-warm-gray-green' : 'bg-sage text-white'
                                     : isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'
                                     }`}

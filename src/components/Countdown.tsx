@@ -8,6 +8,13 @@ interface CountdownProps {
 export const Countdown: React.FC<CountdownProps> = ({ onComplete, isActive }) => {
     const [count, setCount] = useState(5);
 
+    // Reset count to 5 when countdown becomes active
+    useEffect(() => {
+        if (isActive) {
+            setCount(5);
+        }
+    }, [isActive]);
+
     useEffect(() => {
         if (!isActive) return;
 
@@ -17,7 +24,7 @@ export const Countdown: React.FC<CountdownProps> = ({ onComplete, isActive }) =>
         } else {
             const timer = setTimeout(() => {
                 onComplete();
-            }, 500); // Small delay to show "Go" or "0" momentarily if desired, or just smooth transition
+            }, 500);
             return () => clearTimeout(timer);
         }
     }, [count, isActive, onComplete]);

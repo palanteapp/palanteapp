@@ -1,5 +1,6 @@
 import { QUOTES } from '../data/quotes';
 import type { UserProfile, Quote } from '../types';
+import { generateAffirmation, isAIAvailable } from './aiService';
 
 // Track seen quotes to prevent repetition
 const seenQuotes = new Set<string>();
@@ -73,6 +74,65 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
     }
 
     return quotes;
+};
+
+/**
+ * Generate a fresh AI-powered quote personalized for the user
+ */
+export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
+    const timeOfDay = getTimeOfDay();
+
+    if (!isAIAvailable()) {
+        // Return a fallback AI quote from the existing pool
+        const aiQuotes = QUOTES.filter(q => q.isAI && q.tier === user.tier);
+        if (aiQuotes.length > 0) {
+            return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
+        }
+    }
+
+    try {
+        const response = await generateAffirmation({
+            profession: user.profession,
+            focusGoal: user.career,
+            interests: user.interests,
+            tier: user.tier,
+            streak: user.streak,
+            timeOfDay,
+            userName: user.name,
+        });
+
+        return {
+            id: `ai_${Date.now()}`,
+            text: response.text,
+            author: response.author,
+            category: response.category,
+            tier: user.tier,
+            isAI: true,
+        };
+    } catch (error) {
+        console.error('Error generating AI quote:', error);
+        // Fallback to existing AI quotes
+        const aiQuotes = QUOTES.filter(q => q.isAI && q.tier === user.tier);
+        if (aiQuotes.length > 0) {
+            return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
+        }
+        // Ultimate fallback
+        return {
+            id: `ai_fallback_${Date.now()}`,
+            text: "Your potential is limitless. Keep moving forward.",
+            author: "Palante Coach",
+            category: "Motivation",
+            tier: user.tier,
+            isAI: true,
+        };
+    }
+};
+
+const getTimeOfDay = (): 'morning' | 'afternoon' | 'evening' => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
 };
 
 // Helper to reset seen quotes (useful for testing or user preference)

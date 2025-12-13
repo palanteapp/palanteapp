@@ -47,7 +47,7 @@ export const QuoteCardGenerator: React.FC<QuoteCardGeneratorProps> = ({ id, quot
     return (
         <div
             id={id}
-            className="relative overflow-hidden flex flex-col justify-between p-12"
+            className="relative overflow-hidden flex flex-col items-center p-0 bg-white"
             style={{
                 width: '1080px',
                 height: '1920px',
@@ -60,106 +60,113 @@ export const QuoteCardGenerator: React.FC<QuoteCardGeneratorProps> = ({ id, quot
         >
             {/* Background Ambience */}
             <div
-                className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[150px] translate-x-1/3 -translate-y-1/3"
+                className="absolute top-0 right-0 w-[900px] h-[900px] rounded-full blur-[150px] translate-x-1/3 -translate-y-1/3"
                 style={{
                     backgroundColor: isDarkMode ? colors.white : colors.sage,
                     opacity: 0.2
                 }}
             />
             <div
-                className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full blur-[100px] -translate-x-1/3 translate-y-1/3"
+                className="absolute bottom-0 left-0 w-[800px] h-[800px] rounded-full blur-[120px] -translate-x-1/3 translate-y-1/3"
                 style={{
                     backgroundColor: colors.paleGold,
                     opacity: 0.2
                 }}
             />
 
-            {/* Top Branding */}
-            <div className="relative z-10 flex justify-center pt-24">
-                <div className="flex flex-col items-center gap-4">
+            {/* Inner Safer Container to enforce padding */}
+            <div className="relative z-10 w-full h-full flex flex-col justify-between p-24">
+
+                {/* Top Branding */}
+                <div className="flex flex-col items-center gap-6 pt-16">
                     {/* Logo */}
                     <img
                         src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
                         alt="Palante"
-                        style={{ width: '120px', height: '120px', objectFit: 'contain' }}
+                        style={{ height: '140px', width: 'auto', objectFit: 'contain' }}
                     />
                     <div className="flex flex-col items-center gap-2">
                         <span
-                            className="text-4xl font-display font-medium tracking-tight"
+                            className="text-5xl font-display font-medium tracking-tight"
                             style={{ color: textPrimaryColor }}
                         >
                             Palante
                         </span>
                         <span
-                            className="text-xl font-body tracking-widest uppercase"
+                            className="text-xl font-body tracking-[0.2em] uppercase opacity-80"
                             style={{ color: finalTextSecondary }}
                         >
                             Personalized Progress, Delivered Daily
                         </span>
                     </div>
                 </div>
-            </div>
 
-            {/* Main Content */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-24">
-
-                {/* Decorative Element */}
-                <div
-                    className="text-9xl font-display opacity-20 mb-16"
-                    style={{ color: accentColor }}
-                >
-                    "
-                </div>
-
-                {/* Quote - Check length to adjust size if needed */}
-                <h1
-                    className={`${quote.text.length > 100 ? 'text-6xl' : 'text-7xl'} font-display font-medium leading-tight mb-20`}
-                    style={{ color: textPrimaryColor }}
-                >
-                    {quote.text}
-                </h1>
-
-                {/* Author */}
-                <div className="flex flex-col items-center gap-8">
+                {/* Main Quote Content */}
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-16">
+                    {/* Decorative Element */}
                     <div
-                        className="w-32 h-1 rounded-full"
-                        style={{ backgroundColor: isDarkMode ? colors.white20 : colors.sage20 }}
-                    />
-                    <p
-                        className="text-4xl font-body font-light"
+                        className="text-[12rem] font-display opacity-20 mb-12 leading-none font-serif"
+                        style={{ color: accentColor }}
+                    >
+                        "
+                    </div>
+
+                    {/* Quote Text - Dynamic Sizing */}
+                    <h1
+                        className={`font-display font-medium leading-tight mb-16 ${quote.text.length > 150 ? 'text-5xl' :
+                                quote.text.length > 80 ? 'text-6xl' : 'text-7xl'
+                            }`}
                         style={{ color: textPrimaryColor }}
                     >
-                        {quote.author}
+                        {quote.text}
+                    </h1>
+
+                    {/* Author Section */}
+                    <div className="flex flex-col items-center gap-8">
+                        <div
+                            className="w-24 h-1.5 rounded-full opacity-60"
+                            style={{ backgroundColor: isDarkMode ? colors.white20 : colors.sage20 }}
+                        />
+                        <p
+                            className="text-4xl font-body font-light tracking-wide"
+                            style={{ color: textPrimaryColor }}
+                        >
+                            {quote.author}
+                        </p>
+                    </div>
+
+                    {/* Category Tag */}
+                    <div
+                        className="mt-20 px-12 py-4 rounded-full border-2"
+                        style={{
+                            borderColor: isDarkMode ? colors.white20 : colors.sage20,
+                            color: isDarkMode ? colors.white60 : 'rgba(181, 194, 163, 0.9)'
+                        }}
+                    >
+                        <span className="text-2xl font-bold uppercase tracking-widest">
+                            {quote.category}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Footer - Explicitly Pinned */}
+                <div className="pb-16 flex flex-col items-center gap-4">
+                    <p
+                        className="text-2xl font-body font-medium tracking-wide uppercase opacity-70"
+                        style={{ color: finalTextSecondary }}
+                    >
+                        Sharing is caring, don't forget to tag us
                     </p>
-                </div>
-
-                {/* Category Tag */}
-                <div
-                    className="mt-24 px-10 py-5 rounded-full border"
-                    style={{
-                        borderColor: isDarkMode ? colors.white20 : colors.sage20,
-                        color: isDarkMode ? colors.white60 : 'rgba(181, 194, 163, 0.8)' // Sage text for tag
-                    }}
-                >
-                    <span className="text-2xl font-bold uppercase tracking-widest">
-                        {quote.category}
-                    </span>
+                    <div
+                        className="w-16 h-1 rounded-full opacity-40"
+                        style={{ backgroundColor: isDarkMode ? colors.white20 : colors.sage20 }}
+                    />
                 </div>
             </div>
 
-            {/* Footer */}
-            <div className="relative z-10 pb-24 text-center">
-                <p
-                    className="text-2xl font-body tracking-wider opacity-80"
-                    style={{ color: finalTextSecondary }}
-                >
-                    Sharing is caring, don't forget to tag us.
-                </p>
-            </div>
-
-            {/* Border Frame */}
+            {/* Aesthetic Border Frame */}
             <div
-                className="absolute inset-12 border rounded-[60px] pointer-events-none"
+                className="absolute inset-10 border-[3px] rounded-[50px] pointer-events-none opacity-40"
                 style={{ borderColor: isDarkMode ? colors.white10 : colors.sage10 }}
             />
         </div>

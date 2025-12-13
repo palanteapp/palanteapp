@@ -4,7 +4,9 @@ import { X, Sparkles } from 'lucide-react';
 interface CelebrationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    completedCount: number;
+    completedCount?: number;
+    title?: string;
+    message?: string;
     isDarkMode: boolean;
 }
 
@@ -23,6 +25,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
     isOpen,
     onClose,
     completedCount,
+    title,
+    message: customMessage,
     isDarkMode
 }) => {
     const [message, setMessage] = useState('');
@@ -30,8 +34,8 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
     useEffect(() => {
         if (isOpen) {
-            // Pick random encouraging message
-            setMessage(ENCOURAGING_MESSAGES[Math.floor(Math.random() * ENCOURAGING_MESSAGES.length)]);
+            // Use custom message or pick random encouraging message
+            setMessage(customMessage || ENCOURAGING_MESSAGES[Math.floor(Math.random() * ENCOURAGING_MESSAGES.length)]);
 
             // Generate confetti pieces
             const pieces = Array.from({ length: 50 }, (_, i) => ({
@@ -97,7 +101,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
 
                     <h2 className={`text-3xl font-display font-medium mb-4 ${isDarkMode ? 'text-white' : 'text-sage'
                         }`}>
-                        All Goals Complete!
+                        {title || "All Goals Complete!"}
                     </h2>
 
                     <p className={`text-xl font-body mb-6 ${isDarkMode ? 'text-white/80' : 'text-warm-gray-green'

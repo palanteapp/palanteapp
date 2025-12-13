@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Play, Pause } from 'lucide-react';
-import type { SoundTrack } from '../App';
+import type { SoundTrack } from '../data/audioTracks';
 
 interface SoundscapesProps {
     currentTrackId: string | null;
@@ -107,8 +107,8 @@ export const Soundscapes: React.FC<SoundscapesProps> = ({
                                 key={beat.id}
                                 onClick={() => onTogglePlay(beat.id)}
                                 className={`p-4 rounded-xl border-2 transition-all text-left ${currentTrackId === beat.id && isPlaying
-                                        ? 'bg-sage/10 border-sage shadow-spa'
-                                        : 'bg-white/60 border-sage/20 hover:border-sage/40 hover:shadow-spa'
+                                    ? 'bg-sage/10 border-sage shadow-spa'
+                                    : 'bg-white/60 border-sage/20 hover:border-sage/40 hover:shadow-spa'
                                     }`}
                             >
                                 <div className="flex items-center justify-between">

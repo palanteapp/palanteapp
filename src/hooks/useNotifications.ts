@@ -1,0 +1,138 @@
+import { useState, useEffect } from 'react';
+// unused import removed
+
+// Interface removed
+
+interface NotificationSettings {
+    enabled: boolean;
+    quietStart: string; // "22:00"
+    quietEnd: string;   // "08:00"
+}
+
+export const useNotifications = () => {
+    const [permission, setPermission] = useState<NotificationPermission>('default');
+    const [settings, setSettings] = useState<NotificationSettings>(() => {
+        const saved = localStorage.getItem('palante_notifications');
+        return saved ? JSON.parse(saved) : {
+            enabled: false,
+            quietStart: '22:00',
+            quietEnd: '08:00'
+        };
+    });
+
+    useEffect(() => {
+        if ('Notification' in window) {
+            setPermission(Notification.permission);
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('palante_notifications', JSON.stringify(settings));
+    }, [settings]);
+
+    const requestPermission = async () => {
+        if (!('Notification' in window)) {
+            alert('This browser does not support desktop notifications');
+            return false;
+        }
+
+        const result = await Notification.requestPermission();
+        setPermission(result);
+
+        if (result === 'granted') {
+            setSettings(prev => ({ ...prev, enabled: true }));
+            return true;
+        }
+        return false;
+    };
+
+    const toggleEnabled = async () => {
+        if (!settings.enabled) {
+            // Trying to enable
+            if (permission !== 'granted') {
+                const granted = await requestPermission();
+                if (!granted) return; // User denied
+            }
+            setSettings(prev => ({ ...prev, enabled: true }));
+        } else {
+            // Disabling
+            setSettings(prev => ({ ...prev, enabled: false }));
+        }
+    };
+
+    const updateQuietHours = (start: string, end: string) => {
+        setSettings(prev => ({ ...prev, quietStart: start, quietEnd: end }));
+    };
+
+    const isInQuietHours = (): boolean => {
+        if (!settings.enabled) return true; // Effectively quiet if disabled
+
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        const [startH, startM] = settings.quietStart.split(':').map(Number);
+        const [endH, endM] = settings.quietEnd.split(':').map(Number);
+
+        const startTotal = startH * 60 + startM;
+        const endTotal = endH * 60 + endM;
+
+        if (startTotal > endTotal) {
+            // Crosses midnight (e.g. 22:00 to 08:00)
+            return currentMinutes >= startTotal || currentMinutes < endTotal;
+        } else {
+            // Same day (e.g. 09:00 to 17:00 - rare for quiet hours but possible)
+            return currentMinutes >= startTotal && currentMinutes < endTotal;
+        }
+    };
+
+    const sendNotification = (title: string, options?: NotificationOptions) => {
+        if (!('Notification' in window)) return;
+
+        if (permission === 'granted' && settings.enabled && !isInQuietHours()) {
+            try {
+                // Check if Service Worker is active for better mobile support
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification(title, {
+                            icon: '/pwa-192x192.png',
+                            badge: '/pwa-192x192.png', // Android small icon
+                            ...options
+                        });
+                    });
+                } else {
+                    // Standard desktop notification
+                    new Notification(title, {
+                        icon: '/pwa-192x192.png',
+                        ...options
+                    });
+                }
+            } catch (error) {
+                console.error("Notification failed", error);
+            }
+        } else {
+            console.log("Notification suppressed (Quiet Hours or Permission denied)");
+        }
+    };
+
+    // Force send function for "Test Notification" button (ignores Quiet Hours)
+    const testNotification = () => {
+        if (permission === 'granted') {
+            new Notification("🔔 Palante Test", {
+                body: "Notifications are working! We'll keep quiet during your set hours.",
+                icon: '/pwa-192x192.png'
+            });
+        } else {
+            requestPermission();
+        }
+    };
+
+    return {
+        permission,
+        settings,
+        toggleEnabled,
+        updateQuietHours,
+        sendNotification,
+        testNotification,
+        isInQuietHours
+    };
+};

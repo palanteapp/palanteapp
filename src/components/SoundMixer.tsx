@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, VolumeX, CloudRain, Music, CloudLightning, Coffee, Minus, Plus } from 'lucide-react';
-import { TRACKS, type SoundTrack } from '../data/audioTracks';
+import React from 'react';
+import { VolumeX, Music } from 'lucide-react';
 
 interface SoundMixerProps {
     isDarkMode: boolean;
@@ -8,84 +7,7 @@ interface SoundMixerProps {
     onClose: () => void;
 }
 
-interface TrackState {
-    isPlaying: boolean;
-    volume: number;
-}
-
 export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode, isVisible, onClose }) => {
-    // State to track playing status and volume for each track
-    const [trackStates, setTrackStates] = useState<Record<string, TrackState>>(() => {
-        const initial: Record<string, TrackState> = {};
-        TRACKS.forEach(track => {
-            initial[track.id] = { isPlaying: false, volume: 0.5 };
-        });
-        return initial;
-    });
-
-    // Refs to hold Audio objects to persist between renders
-    const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
-
-    useEffect(() => {
-        // Initialize Audio objects
-        TRACKS.forEach(track => {
-            if (!audioRefs.current[track.id]) {
-                const audio = new Audio(track.url);
-                audio.loop = true;
-                audio.volume = 0.5;
-                audioRefs.current[track.id] = audio;
-            }
-        });
-
-        // Cleanup on unmount
-        return () => {
-            Object.values(audioRefs.current).forEach(audio => {
-                audio.pause();
-                audio.src = '';
-            });
-        };
-    }, []);
-
-    const toggleTrack = (trackId: string) => {
-        setTrackStates(prev => {
-            const newState = { ...prev };
-            const isPlaying = !newState[trackId].isPlaying;
-            newState[trackId] = { ...newState[trackId], isPlaying };
-
-            const audio = audioRefs.current[trackId];
-            if (audio) {
-                if (isPlaying) {
-                    audio.play().catch(e => console.error("Audio play failed", e));
-                } else {
-                    audio.pause();
-                }
-            }
-            return newState;
-        });
-    };
-
-    const updateVolume = (trackId: string, newVolume: number) => {
-        const volume = Math.max(0, Math.min(1, newVolume));
-        setTrackStates(prev => ({
-            ...prev,
-            [trackId]: { ...prev[trackId], volume }
-        }));
-
-        const audio = audioRefs.current[trackId];
-        if (audio) {
-            audio.volume = volume;
-        }
-    };
-
-    const getIcon = (id: string) => {
-        switch (id) {
-            case 'rain': return CloudRain;
-            case 'thunder': return CloudLightning;
-            case 'cafe': return Coffee;
-            default: return Music; // Fallback for Ocean/others
-        }
-    };
-
     if (!isVisible) return null;
 
     return (
@@ -98,7 +20,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode, isVisible, o
 
             {/* Mixer Panel */}
             <div
-                className={`w-full max-w-md pointer-events-auto transform transition-all duration-300 animate-slide-up-fade p-6 rounded-t-3xl sm:rounded-3xl shadow-2xl border ${isDarkMode
+                className={`relative z-10 w-full max-w-md pointer-events-auto transform transition-all duration-300 animate-slide-up-fade p-6 rounded-t-3xl sm:rounded-3xl shadow-2xl border ${isDarkMode
                     ? 'bg-warm-gray-green/95 border-white/10 text-white'
                     : 'bg-white/95 border-sage/20 text-warm-gray-green'
                     }`}
@@ -113,67 +35,19 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode, isVisible, o
                     </button>
                 </div>
 
-                <div className="space-y-6">
-                    {TRACKS.map(track => {
-                        const Icon = getIcon(track.id);
-                        const state = trackStates[track.id];
-
-                        return (
-                            <div key={track.id} className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <button
-                                        onClick={() => toggleTrack(track.id)}
-                                        className={`flex items-center gap-3 transition-opacity ${state.isPlaying ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}
-                                    >
-                                        <div className={`p-2 rounded-full ${state.isPlaying
-                                            ? isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'
-                                            : isDarkMode ? 'bg-white/10' : 'bg-sage/10'
-                                            }`}>
-                                            <Icon size={18} />
-                                        </div>
-                                        <span className="font-medium">{track.name}</span>
-                                    </button>
-
-                                    {state.isPlaying && (
-                                        <span className="text-xs font-mono opacity-60">
-                                            {Math.round(state.volume * 100)}%
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Volume Slider */}
-                                <div className={`flex items-center gap-3 transition-all duration-300 ${state.isPlaying ? 'h-6 opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
-                                    <button
-                                        onClick={() => updateVolume(track.id, state.volume - 0.1)}
-                                        className="p-1 opacity-60 hover:opacity-100"
-                                    >
-                                        <Minus size={14} />
-                                    </button>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.05"
-                                        value={state.volume}
-                                        onChange={(e) => updateVolume(track.id, parseFloat(e.target.value))}
-                                        className={`flex-1 h-1.5 rounded-full appearance-none cursor-pointer ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`}
-                                        style={{ accentColor: isDarkMode ? '#E5D6A7' : '#B5C2A3' }}
-                                    />
-                                    <button
-                                        onClick={() => updateVolume(track.id, state.volume + 0.1)}
-                                        className="p-1 opacity-60 hover:opacity-100"
-                                    >
-                                        <Plus size={14} />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                <div className="mt-8 text-center">
-                    <p className={`text-xs opacity-50 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                        Mix sounds to create your perfect sanctuary
+                {/* Coming Soon Message */}
+                <div className="text-center py-12">
+                    <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'
+                        }`}>
+                        <Music size={32} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                    </div>
+                    <h4 className={`text-lg font-display font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'
+                        }`}>
+                        Ambient Sounds Coming Soon
+                    </h4>
+                    <p className={`text-sm opacity-60 max-w-xs mx-auto ${isDarkMode ? 'text-white' : 'text-warm-gray-green'
+                        }`}>
+                        We're curating a collection of soothing soundscapes to enhance your experience.
                     </p>
                 </div>
             </div>

@@ -1,101 +1,67 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Share2, Heart, Twitter, MessageCircle, Volume2, Square, RefreshCw, Sparkles, User, X, Facebook, Linkedin, Instagram, Mail } from 'lucide-react';
 import type { Quote } from '../types';
-import { Share2, Sparkles, User, Volume2, Square, RefreshCw, Heart, X, Facebook, Twitter, Linkedin, Instagram, MessageCircle, Mail } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import { QuoteCardGenerator } from './QuoteCardGenerator';
+import html2canvas from 'html2canvas';
+import { speak, stop as stopTTS, type OpenAIVoice } from '../utils/ttsService';
 
 interface QuoteDisplayProps {
   quote: Quote;
   onNewQuote: (sourceOverride?: 'human' | 'ai') => void;
   isDarkMode: boolean;
-  voicePreference?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+  voicePreference: OpenAIVoice;
   isFavorited?: boolean;
   onToggleFavorite?: () => void;
 }
 
-export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, isDarkMode, voicePreference = 'nova', isFavorited = false, onToggleFavorite }) => {
-  const [isSpeaking, setIsSpeaking] = React.useState(false);
-  const [showShareMenu, setShowShareMenu] = React.useState(false);
-  const [isGeneratingImage, setIsGeneratingImage] = React.useState(false);
+export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
+  quote,
+  onNewQuote,
+  isDarkMode,
+  voicePreference = 'nova',
+  isFavorited = false,
+  onToggleFavorite
+}) => {
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  React.useEffect(() => {
-    window.speechSynthesis.cancel();
+  // Cancel speech when quote changes
+  useEffect(() => {
+    stopTTS();
     setIsSpeaking(false);
   }, [quote]);
 
-
-  const handleSpeak = () => {
+  const handleSpeak = async () => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      stopTTS();
       setIsSpeaking(false);
     } else {
-      const utterance = new SpeechSynthesisUtterance(`${quote.text} ... by ${quote.author}`);
-      utterance.rate = 0.9; // Slightly slower for more natural feel
-      utterance.pitch = 1.0;
-
-      const voices = window.speechSynthesis.getVoices();
-      let selectedVoice = null;
-
-      // Map new voice preferences to gender preferences
-      const femaleVoices = ['nova', 'shimmer', 'alloy'];
-      const isFemale = femaleVoices.includes(voicePreference || 'nova');
-
-      if (isFemale) {
-        // Priority list for female voices
-        const femaleVoiceNames = ['Samantha', 'Google US English', 'Microsoft Zira', 'Victoria', 'Karen'];
-        for (const name of femaleVoiceNames) {
-          selectedVoice = voices.find(v => v.name.includes(name));
-          if (selectedVoice) break;
-        }
-      } else {
-        // Priority list for male voices
-        const maleVoiceNames = ['Alex', 'Google UK English Male', 'Microsoft David', 'Daniel', 'Fred'];
-        for (const name of maleVoiceNames) {
-          selectedVoice = voices.find(v => v.name.includes(name));
-          if (selectedVoice) break;
-        }
-      }
-
-      // Fallback if no specific gender match found
-      if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.lang.startsWith('en'));
-      }
-
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        // Adjust pitch slightly based on voice to sound more natural
-        if (selectedVoice.name.includes('Google')) {
-          utterance.pitch = isFemale ? 1.0 : 0.9;
-        }
-      }
-
-      utterance.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
       setIsSpeaking(true);
+      await speak(
+        `${quote.text} ... by ${quote.author}`,
+        voicePreference,
+        () => { }, // onStart
+        () => setIsSpeaking(false) // onEnd
+      );
     }
-  };
-
-  const handleShare = async () => {
-    setShowShareMenu(!showShareMenu);
   };
 
   const handleGenerateImage = async () => {
     setIsGeneratingImage(true);
-    // Slight delay to ensure render
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       const element = document.getElementById('quote-card-generator');
       if (element) {
         const canvas = await html2canvas(element, {
-          scale: 1, // Already at high res
+          scale: 1,
           backgroundColor: null,
-          useCORS: true, // For images if any
+          useCORS: true,
         });
 
         const image = canvas.toDataURL('image/png');
 
-        // Check for native share support of files
         if (navigator.share) {
           try {
             const blob = await (await fetch(image)).blob();
@@ -133,117 +99,195 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
     }
   };
 
-  const shareToEmail = () => {
-    const subject = 'Inspiring Quote from Palante';
-    const body = `"${quote.text}"\n\n- ${quote.author}\n\nShared from Palante`;
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
-    setShowShareMenu(false);
-  };
+  const shareToEmail = async () => {
+    // Generate image first, then open email with attachment instruction
+    setIsGeneratingImage(true);
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-  const shareToSocial = (platform: 'facebook' | 'twitter' | 'linkedin' | 'instagram' | 'tiktok') => {
-    const text = `"${quote.text}" - ${quote.author}`;
-    const url = window.location.href;
+    try {
+      const element = document.getElementById('quote-card-generator');
+      if (element) {
+        const canvas = await html2canvas(element, {
+          scale: 1,
+          backgroundColor: null,
+          useCORS: true,
+        });
 
-    let shareUrl = '';
-    switch (platform) {
-      case 'facebook':
-        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`;
-        break;
-      case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-        break;
-      case 'linkedin':
-        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-        break;
-      case 'instagram':
-        // Instagram doesn't support web sharing, copy to clipboard instead
-        navigator.clipboard.writeText(text);
-        alert('Quote copied to clipboard! Open Instagram and paste to share.');
-        setShowShareMenu(false);
-        return;
-      case 'tiktok':
-        // TikTok doesn't support web sharing, copy to clipboard instead
-        navigator.clipboard.writeText(text);
-        alert('Quote copied to clipboard! Open TikTok and paste to share.');
-        setShowShareMenu(false);
-        return;
+        const image = canvas.toDataURL('image/png');
+
+        // Download the image first
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `palante_quote_${Date.now()}.png`;
+        link.click();
+
+        // Then open email composer
+        const subject = 'Inspiring Quote from Palante';
+        const body = `"${quote.text}"\n\n- ${quote.author}\n\n[Attach the downloaded image to this email]\n\nShared from Palante`;
+
+        setTimeout(() => {
+          window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+        }, 500);
+
+        alert('Image downloaded! Attach it to your email.');
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+    } finally {
+      setIsGeneratingImage(false);
+      setShowShareMenu(false);
     }
-
-    window.open(shareUrl, '_blank', 'width=600,height=400');
-    setShowShareMenu(false);
   };
 
+  const shareToSocial = async (platform: 'facebook' | 'twitter' | 'linkedin' | 'instagram' | 'tiktok') => {
+    // For all social platforms, generate image first
+    setIsGeneratingImage(true);
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      const element = document.getElementById('quote-card-generator');
+      if (element) {
+        const canvas = await html2canvas(element, {
+          scale: 1,
+          backgroundColor: null,
+          useCORS: true,
+        });
+
+        const image = canvas.toDataURL('image/png');
+        const blob = await (await fetch(image)).blob();
+        const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
+
+        // Try native share with image first (works on mobile)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Inspiration from Palante',
+            text: `"${quote.text}" - ${quote.author}`,
+          });
+          setShowShareMenu(false);
+          setIsGeneratingImage(false);
+          return;
+        }
+
+        // Fallback: Download image first, then provide platform-specific instructions
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `palante_quote_${Date.now()}.png`;
+        link.click();
+
+        const text = `"${quote.text}" - ${quote.author}`;
+
+        switch (platform) {
+          case 'instagram':
+          case 'tiktok':
+            // Try to open the app (best effort)
+            if (platform === 'instagram') {
+              window.location.href = 'instagram://story-camera';
+            }
+            alert(`Image downloaded! \n\n1. Open ${platform === 'instagram' ? 'Instagram' : 'TikTok'}\n2. Start a new Story/Post\n3. Select the image from your photos`);
+            break;
+          case 'twitter':
+            alert('Image downloaded! Opening Twitter - you can attach the image to your tweet.');
+            setTimeout(() => {
+              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
+            }, 500);
+            break;
+          case 'facebook':
+            alert('Image downloaded! Opening Facebook - you can attach the image to your post.');
+            setTimeout(() => {
+              window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
+            }, 500);
+            break;
+          case 'linkedin':
+            alert('Image downloaded! Opening LinkedIn - you can attach the image to your post.');
+            setTimeout(() => {
+              window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400');
+            }, 500);
+            break;
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    } finally {
+      setIsGeneratingImage(false);
+      setShowShareMenu(false);
+    }
+  };
+
+  const textColor = isDarkMode ? 'text-white' : 'text-warm-gray-green';
+  const subTextColor = isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60';
+  const iconColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
+  const buttonClass = isDarkMode
+    ? 'text-white/40 hover:text-white hover:bg-white/5'
+    : 'text-sage/40 hover:text-sage hover:bg-sage/5';
 
   return (
     <>
       <QuoteCardGenerator id="quote-card-generator" quote={quote} isDarkMode={isDarkMode} />
 
-      <div
-        className={`relative group ${isDarkMode ? 'bg-warm-gray-green' : 'bg-white'} p-6 rounded-2xl shadow-spa transition-all duration-300`}
-        style={{ minHeight: '220px' }}
-      >
-        {/* Background Glow */}
-        <div className="absolute inset-0 bg-gradient-sage-beige opacity-10 blur-2xl rounded-2xl pointer-events-none" />
+      <div className="relative w-full max-w-4xl mx-auto min-h-[500px] flex items-center justify-center p-4">
+        {/* Main Quote Card */}
+        <div className="relative w-full max-w-2xl z-10 flex flex-col items-center text-center">
 
-
-
-        {/* Quote Content */}
-        <div className="relative z-10 flex flex-col h-full justify-between items-center text-center px-8">
-
-          {/* Header: Category & Source */}
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`text-xs font-bold tracking-widest uppercase ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
-              {quote.category}
-            </span>
-            <div className={`w-1 h-1 rounded-full ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`} />
-            <button
-              onClick={() => onNewQuote(quote.isAI ? 'human' : 'ai')}
-              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${isDarkMode ? 'text-white/40 hover:text-white' : 'text-warm-gray-green/40 hover:text-warm-gray-green'}`}
-            >
-              {quote.isAI ? <Sparkles size={12} /> : <User size={12} />}
-              {quote.isAI ? 'Palante Coach' : 'Human'}
-            </button>
-          </div>
-
-          {/* Quote Text */}
-          <blockquote className="mb-4 flex-1 flex flex-col justify-center">
-            <p className={`text-xl md:text-2xl font-display font-medium leading-relaxed ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-              "{quote.text}"
-            </p>
-            <footer className={`mt-3 text-sm font-body ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-              — {quote.author}
-            </footer>
-          </blockquote>
-
-          {/* Source Toggle - Under Quote */}
-          <div className="flex items-center justify-center gap-3 mb-4">
+          {/* Source Toggle (Human / AI) */}
+          <div className="flex items-center gap-3 mb-6">
             <button
               onClick={() => onNewQuote('human')}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-all ${!quote.isAI
+              className={`px-4 py-2 rounded-full text-xs font-medium transition-all flex items-center gap-2 ${!quote.isAI
                 ? isDarkMode ? 'bg-pale-gold text-warm-gray-green shadow-spa' : 'bg-sage text-white shadow-spa'
-                : isDarkMode ? 'bg-white/10 border border-white/10 text-white/60 hover:bg-white/20 hover:text-white' : 'bg-white/40 border border-sage/20 text-warm-gray-green/60 hover:bg-white/60 hover:text-warm-gray-green'
+                : isDarkMode ? 'bg-white/10 border border-white/10 text-white/60 hover:bg-white/20' : 'bg-white/40 border border-sage/20 text-warm-gray-green/60 hover:bg-white/60'
                 }`}
             >
-              <div className="flex items-center gap-2">
-                <User size={14} />
-                <span>Human</span>
-              </div>
+              <User size={14} />
+              <span>Human</span>
             </button>
 
             <div className={`w-px h-4 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`} />
 
             <button
               onClick={() => onNewQuote('ai')}
-              className={`px-4 py-2 rounded-full text-xs font-medium transition-all ${quote.isAI
+              className={`px-4 py-2 rounded-full text-xs font-medium transition-all flex items-center gap-2 ${quote.isAI
                 ? isDarkMode ? 'bg-pale-gold text-warm-gray-green shadow-spa' : 'bg-sage text-white shadow-spa'
-                : isDarkMode ? 'bg-white/10 border border-white/10 text-white/60 hover:bg-white/20 hover:text-white' : 'bg-white/40 border border-sage/20 text-warm-gray-green/60 hover:bg-white/60 hover:text-warm-gray-green'
+                : isDarkMode ? 'bg-white/10 border border-white/10 text-white/60 hover:bg-white/20' : 'bg-white/40 border border-sage/20 text-warm-gray-green/60 hover:bg-white/60'
                 }`}
             >
-              <div className="flex items-center gap-2">
-                <Sparkles size={14} />
-                <span>Palante Coach</span>
-              </div>
+              <Sparkles size={14} />
+              <span>Palante Coach</span>
             </button>
+          </div>
+
+          {/* Category Badge */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className={`px-4 py-1 rounded-full border ${isDarkMode ? 'border-white/20 text-white/60' : 'border-sage/20 text-sage'} text-xs font-medium uppercase tracking-widest`}>
+              {quote.category}
+            </div>
+            {quote.isAI && (
+              <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
+                <Sparkles size={12} />
+                <span>Generated for you</span>
+              </div>
+            )}
+          </div>
+
+          {/* Quote Text */}
+          <div className="mb-10 relative px-4">
+            <span className={`absolute -top-8 -left-2 md:-left-6 text-6xl font-serif opacity-20 ${iconColor}`}>
+              "
+            </span>
+            <h1 className={`text-3xl md:text-5xl font-display font-medium leading-tight ${textColor} transition-all duration-500`}>
+              {quote.text}
+            </h1>
+            <span className={`absolute -bottom-4 -right-2 md:-right-6 text-6xl font-serif opacity-20 ${iconColor}`}>
+              "
+            </span>
+          </div>
+
+          {/* Author & Divider */}
+          <div className="flex flex-col items-center gap-4 mb-12">
+            <div className={`w-12 h-0.5 rounded-full opacity-40 ${isDarkMode ? 'bg-white' : 'bg-sage'}`}></div>
+            <p className={`text-lg font-body ${subTextColor}`}>
+              {quote.author}
+            </p>
           </div>
 
           {/* Action Bar */}
@@ -254,19 +298,21 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
                 onClick={onToggleFavorite}
                 className={`p-2 rounded-full transition-all ${isFavorited
                   ? 'text-rose-500 bg-rose-500/10'
-                  : isDarkMode ? 'text-white/40 hover:text-rose-300 hover:bg-white/5' : 'text-sage/40 hover:text-rose-400 hover:bg-sage/5'}`}
+                  : buttonClass
+                  }`}
                 aria-label={isFavorited ? "Unsave" : "Save"}
               >
                 <Heart size={18} fill={isFavorited ? "currentColor" : "none"} />
               </button>
             )}
 
-            {/* Listen */}
+            {/* Audio Playback */}
             <button
               onClick={handleSpeak}
               className={`p-2 rounded-full transition-all ${isSpeaking
                 ? isDarkMode ? 'text-pale-gold bg-pale-gold/10' : 'text-sage bg-sage/10'
-                : isDarkMode ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-sage/40 hover:text-sage hover:bg-sage/5'}`}
+                : buttonClass
+                }`}
               aria-label="Listen"
             >
               {isSpeaking ? <Square size={18} fill="currentColor" /> : <Volume2 size={18} />}
@@ -274,17 +320,17 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
 
             {/* Share */}
             <button
-              onClick={handleShare}
-              className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-sage/40 hover:text-sage hover:bg-sage/5'}`}
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              className={`p-2 rounded-full transition-all ${buttonClass}`}
               aria-label="Share"
             >
               <Share2 size={18} />
             </button>
 
-            {/* Refresh (Explicit) */}
+            {/* Refresh / New Quote */}
             <button
               onClick={() => onNewQuote()}
-              className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-sage/40 hover:text-sage hover:bg-sage/5'}`}
+              className={`p-2 rounded-full transition-all ${buttonClass}`}
               aria-label="New Quote"
             >
               <RefreshCw size={18} />
@@ -318,36 +364,67 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
                   Share Quote
                 </h3>
 
-                {/* Quote Preview Card */}
-                <div className={`mb-6 p-8 rounded-xl border-2 ${isDarkMode ? 'bg-white/5 border-sage/20' : 'bg-gradient-to-br from-sage/5 to-pale-gold/5 border-sage/20'}`}>
-                  {/* Logo and Branding */}
-                  <div className="flex flex-col items-center mb-6">
-                    <img
-                      src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
-                      alt="Palante"
-                      className="w-12 h-12 object-contain mb-3"
-                    />
-                    <h4 className={`text-2xl font-display font-medium tracking-tight ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                      Palante
-                    </h4>
-                    <p className={`text-xs font-body tracking-widest uppercase mt-1 ${isDarkMode ? 'text-white/50' : 'text-warm-gray-green/50'}`}>
-                      Personalized Progress, Delivered Daily
-                    </p>
-                  </div>
+                {/* Quote Preview Card - Matches QuoteCardGenerator aesthetic */}
+                <div
+                  className={`relative mb-6 rounded-3xl overflow-hidden mx-auto ${isDarkMode ? 'bg-warm-gray-green' : 'bg-gradient-to-br from-ivory via-sand-beige to-sage/20'}`}
+                  style={{ aspectRatio: '9/16', maxHeight: '400px', width: '225px' }}
+                >
+                  {/* Background Circles (Geometric) */}
+                  <div
+                    className={`absolute top-0 right-0 w-32 h-32 rounded-full translate-x-1/3 -translate-y-1/3 opacity-20 ${isDarkMode ? 'bg-white' : 'bg-sage'}`}
+                  />
+                  <div
+                    className="absolute bottom-0 left-0 w-24 h-24 rounded-full -translate-x-1/3 translate-y-1/3 bg-pale-gold opacity-20"
+                  />
 
-                  {/* Quote */}
-                  <blockquote className="mb-6">
-                    <p className={`text-lg font-display font-medium leading-relaxed mb-3 text-center ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      "{quote.text}"
-                    </p>
-                    <footer className={`text-sm font-body text-center ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                      — {quote.author}
-                    </footer>
-                  </blockquote>
+                  {/* Border Frame */}
+                  <div className={`absolute inset-3 border rounded-2xl pointer-events-none ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`} />
 
-                  {/* Sharing Message */}
-                  <div className={`pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>
-                    <p className={`text-xs font-body text-center ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                  {/* Content */}
+                  <div className="relative z-10 h-full flex flex-col items-center justify-center p-8 gap-6">
+                    {/* Logo and Branding */}
+                    <div className="flex flex-col items-center gap-1 pt-2">
+                      <img
+                        src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
+                        alt="Palante"
+                        className="w-8 h-8 object-contain"
+                      />
+                      <span className={`text-sm font-display font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Palante
+                      </span>
+                      <span className={`text-[8px] font-body tracking-widest uppercase ${isDarkMode ? 'text-white/50' : 'text-warm-gray-green/50'}`}>
+                        Personalized Motivation, Delivered Daily
+                      </span>
+                    </div>
+
+                    {/* Quote Section */}
+                    <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
+                      {/* Decorative Quote Mark */}
+                      <span className={`text-3xl font-display opacity-20 mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
+                        "
+                      </span>
+
+                      {/* Quote Text */}
+                      <p className={`text-sm font-display font-medium leading-snug mb-3 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        {quote.text.length > 80 ? quote.text.substring(0, 80) + '...' : quote.text}
+                      </p>
+
+                      {/* Divider */}
+                      <div className={`w-8 h-0.5 rounded-full mb-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`} />
+
+                      {/* Author */}
+                      <p className={`text-xs font-body ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                        {quote.author}
+                      </p>
+
+                      {/* Category Pill */}
+                      <div className={`mt-3 px-2 py-0.5 rounded-full border text-[8px] font-bold uppercase tracking-widest ${isDarkMode ? 'border-white/20 text-white/60' : 'border-sage/20 text-sage/80'}`}>
+                        {quote.category}
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <p className={`text-[8px] font-body opacity-60 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
                       Sharing is caring, don't forget to tag us
                     </p>
                   </div>
@@ -355,7 +432,7 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
 
                 {/* Share Options */}
                 <div className="space-y-3">
-                  {/* NEW: Instagram Story / Image Generator */}
+                  {/* Instagram Story / Image Generator */}
                   <button
                     onClick={handleGenerateImage}
                     disabled={isGeneratingImage}
@@ -376,21 +453,21 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
                         Share to Instagram Story
                       </span>
                       <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>
-                        Create beautiful 9:16 quote art
+                        {'share' in navigator ? 'Share directly or download image' : 'Download image & open Instagram'}
                       </span>
                     </div>
                   </button>
 
-                  {/* SMS - Now uses Image */}
+                  {/* Text Message */}
                   <button
-                    onClick={handleGenerateImage} // Reuse image generation for "Text Message" to share the card
+                    onClick={handleGenerateImage}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
                       ? 'bg-white/5 border-white/10 hover:bg-white/10'
                       : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
                       }`}
                   >
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-sage/20' : 'bg-sage/10'}`}>
-                      <MessageCircle size={20} className={isDarkMode ? 'text-sage' : 'text-sage'} />
+                      <MessageCircle size={20} className="text-sage" />
                     </div>
                     <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
                       Text Message
@@ -406,7 +483,7 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
                       }`}
                   >
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20' : 'bg-pale-gold/10'}`}>
-                      <Mail size={20} className={isDarkMode ? 'text-pale-gold' : 'text-pale-gold'} />
+                      <Mail size={20} className="text-pale-gold" />
                     </div>
                     <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
                       Email
@@ -482,5 +559,3 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({ quote, onNewQuote, i
     </>
   );
 };
-
-
