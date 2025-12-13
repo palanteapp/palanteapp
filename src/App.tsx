@@ -368,9 +368,6 @@ function AppContent() { // Renamed from App to AppContent
 
     const updatedUser = { ...user, favoriteQuotes: updatedFavorites };
     setUser(updatedUser);
-
-    // Also save to database
-    await api.updateUserProfile(user.id, updatedUser);
   };
 
   const handleRemoveFavorite = (quoteId: string) => {

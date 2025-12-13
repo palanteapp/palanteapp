@@ -267,10 +267,21 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                   <div className={`absolute inset-3 border rounded-2xl pointer-events-none ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`} />
 
                   {/* Content */}
-                  <div className="text-center mb-6">
-                    <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      Share Quote
-                    </h3>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                    {/* Branding */}
+                    <div className="flex flex-col items-center gap-2 mb-4">
+                      <span className={`text-[10px] font-medium tracking-widest uppercase ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                        Personalized Motivation
+                      </span>
+                      <img
+                        src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
+                        alt="Palante"
+                        className="w-12 h-12 object-contain"
+                      />
+                      <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Palante
+                      </span>
+                    </div>
                   </div>
 
                   {/* Preview */}
