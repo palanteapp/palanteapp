@@ -100,7 +100,6 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
   };
 
   const shareToEmail = async () => {
-    // Generate image first, then open email with attachment instruction
     setIsGeneratingImage(true);
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -114,25 +113,35 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
         });
 
         const image = canvas.toDataURL('image/png');
+        const blob = await (await fetch(image)).blob();
+        const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
 
-        // Download the image first
-        const link = document.createElement('a');
-        link.href = image;
-        link.download = `palante_quote_${Date.now()}.png`;
-        link.click();
+        // Try Web Share API first (works on mobile)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Inspiring Quote from Palante',
+            text: `"${quote.text}" - ${quote.author}`,
+          });
+        } else {
+          // Fallback: Download image and open email
+          const link = document.createElement('a');
+          link.href = image;
+          link.download = `palante_quote_${Date.now()}.png`;
+          link.click();
 
-        // Then open email composer
-        const subject = 'Inspiring Quote from Palante';
-        const body = `"${quote.text}"\n\n- ${quote.author}\n\n[Attach the downloaded image to this email]\n\nShared from Palante`;
+          const subject = 'Inspiring Quote from Palante';
+          const body = `"${quote.text}"\n\n- ${quote.author}\n\nShared from Palante`;
 
-        setTimeout(() => {
-          window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
-        }, 500);
+          setTimeout(() => {
+            window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+          }, 500);
 
-        alert('Image downloaded! Attach it to your email.');
+          alert('Image downloaded! Attach it to your email.');
+        }
       }
     } catch (error) {
-      console.error('Error generating image:', error);
+      console.error('Error sharing via email:', error);
     } finally {
       setIsGeneratingImage(false);
       setShowShareMenu(false);
@@ -208,6 +217,43 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
       }
     } catch (error) {
       console.error('Error sharing:', error);
+    } finally {
+      setIsGeneratingImage(false);
+      setShowShareMenu(false);
+    }
+  };
+
+  const shareViaTextMessage = async () => {
+    setIsGeneratingImage(true);
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    try {
+      const element = document.getElementById('quote-card-generator');
+      if (element) {
+        const canvas = await html2canvas(element, {
+          scale: 1,
+          backgroundColor: null,
+          useCORS: true,
+        });
+
+        const image = canvas.toDataURL('image/png');
+        const blob = await (await fetch(image)).blob();
+        const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Inspiration from Palante',
+            text: `"${quote.text}" - ${quote.author}`,
+          });
+        } else {
+          // Fallback: open SMS with text only
+          const text = `"${quote.text}" - ${quote.author}\n\nShared from Palante`;
+          window.open(`sms:?&body=${encodeURIComponent(text)}`, '_self');
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing via text:', error);
     } finally {
       setIsGeneratingImage(false);
       setShowShareMenu(false);
@@ -432,7 +478,7 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
 
                 {/* Share Options */}
                 <div className="space-y-3">
-                  {/* Instagram Story / Image Generator */}
+                  {/* Download Quote Image */}
                   <button
                     onClick={handleGenerateImage}
                     disabled={isGeneratingImage}
@@ -445,22 +491,22 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                       {isGeneratingImage ? (
                         <div className="animate-spin h-5 w-5 border-2 border-pink-500 rounded-full border-t-transparent" />
                       ) : (
-                        <Sparkles size={20} className="text-pink-500" />
+                        <Instagram size={20} className="text-pink-500" />
                       )}
                     </div>
                     <div className="text-left">
                       <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Share to Instagram Story
+                        Download for Instagram
                       </span>
                       <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>
-                        {'share' in navigator ? 'Share directly or download image' : 'Download image & open Instagram'}
+                        Save image to share on Instagram Story
                       </span>
                     </div>
                   </button>
 
                   {/* Text Message */}
                   <button
-                    onClick={handleGenerateImage}
+                    onClick={shareViaTextMessage}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
                       ? 'bg-white/5 border-white/10 hover:bg-white/10'
                       : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
@@ -469,9 +515,14 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-sage/20' : 'bg-sage/10'}`}>
                       <MessageCircle size={20} className="text-sage" />
                     </div>
-                    <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      Text Message
-                    </span>
+                    <div className="text-left">
+                      <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Text Message
+                      </span>
+                      <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                        Share quote via SMS
+                      </span>
+                    </div>
                   </button>
 
                   {/* Email */}
@@ -485,9 +536,14 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20' : 'bg-pale-gold/10'}`}>
                       <Mail size={20} className="text-pale-gold" />
                     </div>
-                    <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      Email
-                    </span>
+                    <div className="text-left">
+                      <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Email
+                      </span>
+                      <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                        Share quote via email
+                      </span>
+                    </div>
                   </button>
 
                   {/* Social Media Grid */}
