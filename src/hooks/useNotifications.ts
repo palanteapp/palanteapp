@@ -115,14 +115,20 @@ export const useNotifications = () => {
     };
 
     // Force send function for "Test Notification" button (ignores Quiet Hours)
-    const testNotification = () => {
+    const testNotification = async () => {
         if (permission === 'granted') {
             new Notification("🔔 Palante Test", {
                 body: "Notifications are working! We'll keep quiet during your set hours.",
                 icon: '/pwa-192x192.png'
             });
         } else {
-            requestPermission();
+            const granted = await requestPermission();
+            if (granted) {
+                new Notification("🔔 Palante Test", {
+                    body: "Notifications are working! We'll keep quiet during your set hours.",
+                    icon: '/pwa-192x192.png'
+                });
+            }
         }
     };
 

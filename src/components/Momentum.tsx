@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Mic, Settings } from 'lucide-react';
+import { Plus, Mic, Settings, Target } from 'lucide-react';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
 import { ProgressDashboard } from './ProgressDashboard';
@@ -59,37 +59,48 @@ export const Momentum: React.FC<MomentumProps> = ({
     };
 
     const startFocusDictation = () => {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert('Speech recognition is not supported in your browser. Please use Chrome or Edge.');
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
             return;
         }
 
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
+        try {
+            const recognition = new SpeechRecognition();
 
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
 
-        recognition.onstart = () => {
-            setIsListeningFocus(true);
-        };
+            recognition.onstart = () => {
+                console.log('Speech recognition started');
+                setIsListeningFocus(true);
+            };
 
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            setNewFocusText(prev => prev ? `${prev} ${transcript}` : transcript);
-        };
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                console.log('Transcript:', transcript);
+                setNewFocusText(prev => prev ? `${prev} ${transcript}` : transcript);
+            };
 
-        recognition.onerror = (event: any) => {
-            console.error('Speech recognition error:', event.error);
+            recognition.onerror = (event: any) => {
+                console.error('Speech recognition error:', event.error);
+                alert(`Speech recognition error: ${event.error}`);
+                setIsListeningFocus(false);
+            };
+
+            recognition.onend = () => {
+                console.log('Speech recognition ended');
+                setIsListeningFocus(false);
+            };
+
+            recognition.start();
+        } catch (error) {
+            console.error('Failed to start speech recognition:', error);
+            alert('Failed to start speech recognition. Please try again.');
             setIsListeningFocus(false);
-        };
-
-        recognition.onend = () => {
-            setIsListeningFocus(false);
-        };
-
-        recognition.start();
+        }
     };
 
     const handleToggleFocus = (id: string) => {
@@ -185,8 +196,9 @@ export const Momentum: React.FC<MomentumProps> = ({
                             <Settings size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                         </div>
                         <div className="text-left">
-                            <div className={`font-display font-medium ${textPrimary}`}>
-                                Nudge Settings
+                            <div className={`font-display font-medium flex items-center gap-2 ${textPrimary}`}>
+                                <Target size={18} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                                Accountability Coach
                             </div>
                             <div className={`text-sm ${textSecondary}`}>
                                 {user.coachSettings?.nudgeEnabled
@@ -256,11 +268,10 @@ export const Momentum: React.FC<MomentumProps> = ({
 
                                     <div className="flex gap-2">
                                         <div className="relative flex-1">
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 value={newFocusText}
                                                 onChange={(e) => setNewFocusText(e.target.value)}
-                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddFocus(e); } }}
+                                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddFocus(e); } }}
                                                 onBlur={() => !newFocusText && setIsListeningFocus(false)}
                                                 placeholder={
                                                     !user.coachSettings?.nudgeEnabled
@@ -268,7 +279,8 @@ export const Momentum: React.FC<MomentumProps> = ({
                                                         : "What's your focus today?"
                                                 }
                                                 disabled={!user.coachSettings?.nudgeEnabled}
-                                                className={`w-full px-4 py-3 rounded-xl font-body transition-all ${!user.coachSettings?.nudgeEnabled
+                                                rows={3}
+                                                className={`w-full px-4 py-3 rounded-xl font-body transition-all resize-none ${!user.coachSettings?.nudgeEnabled
                                                     ? isDarkMode
                                                         ? 'bg-white/5 border-2 border-white/10 text-white/40 cursor-not-allowed'
                                                         : 'bg-sage/5 border-2 border-sage/20 text-warm-gray-green/40 cursor-not-allowed'
