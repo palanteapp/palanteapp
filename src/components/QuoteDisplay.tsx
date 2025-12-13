@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Heart, Twitter, MessageCircle, Volume2, Square, RefreshCw, Sparkles, User, X, Facebook, Linkedin, Instagram, Mail } from 'lucide-react';
+import { Share2, Heart, Volume2, Square, RefreshCw, Sparkles, User, X } from 'lucide-react';
 import type { Quote } from '../types';
 import { QuoteCardGenerator } from './QuoteCardGenerator';
 import html2canvas from 'html2canvas';
@@ -99,120 +99,6 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
     }
   };
 
-  const shareToEmail = async () => {
-    // Generate image first, then open email with attachment instruction
-    setIsGeneratingImage(true);
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    try {
-      const element = document.getElementById('quote-card-generator');
-      if (element) {
-        const canvas = await html2canvas(element, {
-          scale: 1,
-          backgroundColor: null,
-          useCORS: true,
-        });
-
-        const image = canvas.toDataURL('image/png');
-
-        // Download the image first
-        const link = document.createElement('a');
-        link.href = image;
-        link.download = `palante_quote_${Date.now()}.png`;
-        link.click();
-
-        // Then open email composer
-        const subject = 'Inspiring Quote from Palante';
-        const body = `"${quote.text}"\n\n- ${quote.author}\n\n[Attach the downloaded image to this email]\n\nShared from Palante`;
-
-        setTimeout(() => {
-          window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
-        }, 500);
-
-        alert('Image downloaded! Attach it to your email.');
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-    } finally {
-      setIsGeneratingImage(false);
-      setShowShareMenu(false);
-    }
-  };
-
-  const shareToSocial = async (platform: 'facebook' | 'twitter' | 'linkedin' | 'instagram' | 'tiktok') => {
-    // For all social platforms, generate image first
-    setIsGeneratingImage(true);
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    try {
-      const element = document.getElementById('quote-card-generator');
-      if (element) {
-        const canvas = await html2canvas(element, {
-          scale: 1,
-          backgroundColor: null,
-          useCORS: true,
-        });
-
-        const image = canvas.toDataURL('image/png');
-        const blob = await (await fetch(image)).blob();
-        const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
-
-        // Try native share with image first (works on mobile)
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Inspiration from Palante',
-            text: `"${quote.text}" - ${quote.author}`,
-          });
-          setShowShareMenu(false);
-          setIsGeneratingImage(false);
-          return;
-        }
-
-        // Fallback: Download image first, then provide platform-specific instructions
-        const link = document.createElement('a');
-        link.href = image;
-        link.download = `palante_quote_${Date.now()}.png`;
-        link.click();
-
-        const text = `"${quote.text}" - ${quote.author}`;
-
-        switch (platform) {
-          case 'instagram':
-          case 'tiktok':
-            // Try to open the app (best effort)
-            if (platform === 'instagram') {
-              window.location.href = 'instagram://story-camera';
-            }
-            alert(`Image downloaded! \n\n1. Open ${platform === 'instagram' ? 'Instagram' : 'TikTok'}\n2. Start a new Story/Post\n3. Select the image from your photos`);
-            break;
-          case 'twitter':
-            alert('Image downloaded! Opening Twitter - you can attach the image to your tweet.');
-            setTimeout(() => {
-              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
-            }, 500);
-            break;
-          case 'facebook':
-            alert('Image downloaded! Opening Facebook - you can attach the image to your post.');
-            setTimeout(() => {
-              window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
-            }, 500);
-            break;
-          case 'linkedin':
-            alert('Image downloaded! Opening LinkedIn - you can attach the image to your post.');
-            setTimeout(() => {
-              window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400');
-            }, 500);
-            break;
-        }
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    } finally {
-      setIsGeneratingImage(false);
-      setShowShareMenu(false);
-    }
-  };
 
   const textColor = isDarkMode ? 'text-white' : 'text-warm-gray-green';
   const subTextColor = isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60';
