@@ -113,11 +113,6 @@ export const QuoteCardGenerator: React.FC<QuoteCardGeneratorProps> = ({ id, quot
                         "
                     </div>
 
-                    {/* Tagline */}
-                    <p className="text-xs font-medium tracking-widest uppercase" style={{ color: finalTextSecondary, marginBottom: '1.5rem' }}>
-                        Personalized Motivation, Delivered Daily
-                    </p>
-
                     {/* Quote Text - Dynamic Sizing */}
                     <h1
                         className={`font-display font-medium leading-tight mb-16 ${quote.text.length > 150 ? 'text-5xl' :

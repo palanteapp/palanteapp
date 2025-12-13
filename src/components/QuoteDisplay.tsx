@@ -267,95 +267,100 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                   <div className={`absolute inset-3 border rounded-2xl pointer-events-none ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`} />
 
                   {/* Content */}
-                  <div className="relative z-10 h-full flex flex-col items-center justify-center p-8 gap-6">
-                    {/* Logo and Branding */}
-                    <div className="flex flex-col items-center gap-1 pt-2">
-                      <img
-                        src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
-                        alt="Palante"
-                        className="w-8 h-8 object-contain"
-                      />
-                      <span className={`text-sm font-display font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                        Palante
-                      </span>
-                      <span className={`text-[8px] font-body tracking-widest uppercase ${isDarkMode ? 'text-white/50' : 'text-warm-gray-green/50'}`}>
-                        Personalized Motivation, Delivered Daily
-                      </span>
-                    </div>
-
-                    {/* Quote Section */}
-                    <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
-                      {/* Decorative Quote Mark */}
-                      <span className={`text-3xl font-display opacity-20 mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
-                        "
-                      </span>
-
-                      {/* Quote Text */}
-                      <p className={`text-sm font-display font-medium leading-snug mb-3 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                        {quote.text.length > 80 ? quote.text.substring(0, 80) + '...' : quote.text}
-                      </p>
-
-                      {/* Divider */}
-                      <div className={`w-8 h-0.5 rounded-full mb-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`} />
-
-                      {/* Author */}
-                      <p className={`text-xs font-body ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                        {quote.author}
-                      </p>
-
-                      {/* Category Pill */}
-                      <div className={`mt-3 px-2 py-0.5 rounded-full border text-[8px] font-bold uppercase tracking-widest ${isDarkMode ? 'border-white/20 text-white/60' : 'border-sage/20 text-sage/80'}`}>
-                        {quote.category}
-                      </div>
-                    </div>
-
-                    {/* Footer */}
-                    <p className={`text-[8px] font-body opacity-60 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      Sharing is caring, don't forget to tag us
-                    </p>
+                  <div className="text-center mb-6">
+                    <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                      Share Quote
+                    </h3>
                   </div>
-                </div>
 
-                {/* Share Options */}
-                <div className="space-y-4">
-                  {/* Single Download Button */}
-                  <button
-                    onClick={handleGenerateImage}
-                    disabled={isGeneratingImage}
-                    className={`w-full flex items-center justify-center gap-3 p-5 rounded-2xl border-2 transition-all ${isDarkMode
-                      ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 border-white/20 hover:border-pink-500/50 hover:shadow-lg'
-                      : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 hover:border-pink-400 hover:shadow-spa'
-                      }`}
-                  >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
-                      {isGeneratingImage ? (
-                        <div className="animate-spin h-6 w-6 border-3 border-pink-500 rounded-full border-t-transparent" />
-                      ) : (
-                        <Sparkles size={24} className="text-pink-500" />
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <span className={`block text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {isGeneratingImage ? 'Generating...' : 'Download Quote Image'}
-                      </span>
-                      <span className={`block text-xs mt-1 ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
-                        Save and share on any platform
-                      </span>
-                    </div>
-                  </button>
+                  {/* Preview */}
+                  <div className="mb-6">
+                    <div className={`relative aspect-[9/16] rounded-2xl overflow-hidden border-2 ${isDarkMode ? 'border-white/10' : 'border-sage/20'
+                      }`}>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center p-6">
+                          <div className={`text-6xl mb-4 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>"</div>
+                          <p className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                            {quote.text.length > 80 ? quote.text.substring(0, 80) + '...' : quote.text}
+                          </p>
+                          <p className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                            {quote.author}
+                          </p>
+                        </div>
+                      </div>
 
-                  {/* Info Message */}
-                  <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-sage/5 border-sage/20'}`}>
-                    <p className={`text-xs text-center ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                      💡 Download the image and share it on Instagram, Facebook, Twitter, or any platform you like
-                    </p>
+                      {/* Footer */}
+                      <p className={`text-[8px] font-body opacity-60 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Sharing is caring, don't forget to tag us
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Share Options */}
+                  <div className="space-y-3">
+                    {/* Download Image */}
+                    <button
+                      onClick={handleGenerateImage}
+                      disabled={isGeneratingImage}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${isDarkMode
+                        ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 border-white/20 hover:border-pink-500/50'
+                        : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 hover:border-pink-400 hover:shadow-spa'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
+                        {isGeneratingImage ? (
+                          <div className="animate-spin h-5 w-5 border-2 border-pink-500 rounded-full border-t-transparent" />
+                        ) : (
+                          <Sparkles size={20} className="text-pink-500" />
+                        )}
+                      </div>
+                      <div className="text-left flex-1">
+                        <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          Download Image
+                        </span>
+                        <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
+                          Save to share anywhere
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Text Message */}
+                    <button
+                      onClick={handleGenerateImage}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-sage/20' : 'bg-sage/10'}`}>
+                        <Share2 size={20} className="text-sage" />
+                      </div>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Text Message
+                      </span>
+                    </button>
+
+                    {/* Email */}
+                    <button
+                      onClick={handleGenerateImage}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                    >
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20' : 'bg-pale-gold/10'}`}>
+                        <Share2 size={20} className="text-pale-gold" />
+                      </div>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Email
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
           )}
-        </div>
+            </div>
       </div>
-    </>
-  );
+      </>
+      );
 };
