@@ -205,3 +205,26 @@ h6 {
   font-family: var(--font-display);
   font-weight: 500;
 }
+
+/* Safe Area Utilities for Mobile */
+.safe-padding-top {
+  padding-top: env(safe-area-inset-top, 20px);
+}
+
+.safe-padding-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+.safe-padding {
+  padding-top: env(safe-area-inset-top, 20px);
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Ensure full height on mobile */
+#root {
+  min-height: 100vh;
+  /* Use svh if supported for better mobile viewport handling */
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}

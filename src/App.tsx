@@ -539,276 +539,199 @@ function AppContent() { // Renamed from App to AppContent
                           // Toggle Goal Logic (Optimistic + API)
                           const updatedFocuses = user.dailyFocuses!.map(f =>
                             f.id === focus.id ? { ...f, isCompleted: !f.isCompleted } : f
-                          );
-
-                          // API Call
-                          api.toggleGoal(focus.id, !focus.isCompleted);
-
-                          const updatedUser = { ...user, dailyFocuses: updatedFocuses };
-                          setUser(updatedUser);
-                          // We rely on optimistic update here for speed
-                        }}
-                        className={`text-left p-4 rounded-xl border transition-all ${focus.isCompleted
-                          ? isDarkMode ? 'bg-sage/20 border-sage/30' : 'bg-sage/10 border-sage/20'
-                          : isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/50 border-sage/10 hover:bg-white'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${focus.isCompleted
-                            ? 'bg-sage border-sage'
-                            : isDarkMode ? 'border-white/30' : 'border-sage/30'
-                            }`}>
-                            {focus.isCompleted && (
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </div>
-                          <span className={`text-sm font-medium ${focus.isCompleted
-                            ? isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'
-                            : isDarkMode ? 'text-white' : 'text-warm-gray-green'
-                            }`}>
-                            {focus.text}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('momentum')}
-                    className={`text-sm font-medium transition-colors ${isDarkMode ? 'text-pale-gold hover:text-white' : 'text-sage hover:text-warm-gray-green'}`}
-                  >
-                    Manage Goals →
+                onClick = {() => setActiveTab('reflect')}
+                    className={`p-6 rounded-2xl border transition-all hover:scale-105 ${isDarkMode
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                      : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                      }`}
+              >
+                    <div className="flex flex-col items-center">
+                      <BookOpen size={32} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
+                      <p className={`text-sm font-medium mt-2 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Reflect
+                      </p>
+                    </div>
                   </button>
-                </>
-              ) : (
-                <div className="text-center py-8">
-                  <p className={`text-sm mb-4 ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                    No goals set for today
-                  </p>
                   <button
-                    onClick={() => setActiveTab('momentum')}
-                    className={`px-6 py-3 rounded-full font-medium transition-all ${isDarkMode
-                      ? 'bg-sage text-white hover:bg-sage/90'
-                      : 'bg-sage text-white hover:bg-sage/90'
+                    onClick={() => setActiveTab('meditate')}
+                    className={`p-6 rounded-2xl border transition-all hover:scale-105 ${isDarkMode
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                      : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
                       }`}
                   >
-                    Set Your First Goal
+                    <div className="flex flex-col items-center">
+                      <Flower size={32} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
+                      <p className={`text-sm font-medium mt-2 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                        Meditate
+                      </p>
+                    </div>
                   </button>
                 </div>
-              )}
             </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-4">
-              <button
-                onClick={() => setActiveTab('breath')}
-                className={`p-6 rounded-2xl border transition-all hover:scale-105 ${isDarkMode
-                  ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                  : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                  }`}
-              >
-                <div className="flex flex-col items-center">
-                  <Wind size={32} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
-                  <p className={`text-sm font-medium mt-2 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                    Breathe
-                  </p>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('reflect')}
-                className={`p-6 rounded-2xl border transition-all hover:scale-105 ${isDarkMode
-                  ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                  : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                  }`}
-              >
-                <div className="flex flex-col items-center">
-                  <BookOpen size={32} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
-                  <p className={`text-sm font-medium mt-2 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                    Reflect
-                  </p>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('meditate')}
-                className={`p-6 rounded-2xl border transition-all hover:scale-105 ${isDarkMode
-                  ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                  : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                  }`}
-              >
-                <div className="flex flex-col items-center">
-                  <Flower size={32} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
-                  <p className={`text-sm font-medium mt-2 ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                    Meditate
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
         )}
 
-        <Suspense fallback={
-          <div className="flex justify-center items-center min-h-[60vh]">
-            <div className={`animate-spin rounded-full h-12 w-12 border-4 border-t-transparent ${isDarkMode ? 'border-white' : 'border-sage'}`}></div>
-          </div>
-        }>
-          {activeTab === 'momentum' && (
-            <Momentum
-              user={user}
-              onUpdateUser={async (updatedUser) => {
-                setUser(updatedUser);
-                // Save to API database
-                await api.updateUserProfile(updatedUser.id, updatedUser);
-              }}
-              isDarkMode={isDarkMode}
-            />
-          )}
+            <Suspense fallback={
+              <div className="flex justify-center items-center min-h-[60vh]">
+                <div className={`animate-spin rounded-full h-12 w-12 border-4 border-t-transparent ${isDarkMode ? 'border-white' : 'border-sage'}`}></div>
+              </div>
+            }>
+              {activeTab === 'momentum' && (
+                <Momentum
+                  user={user}
+                  onUpdateUser={async (updatedUser) => {
+                    setUser(updatedUser);
+                    // Save to API database
+                    await api.updateUserProfile(updatedUser.id, updatedUser);
+                  }}
+                  isDarkMode={isDarkMode}
+                />
+              )}
 
-          {activeTab === 'breath' && (
-            <div className="min-h-screen flex items-center justify-center px-6 pb-8 animate-fade-in">
-              <Breathing isDarkMode={isDarkMode} accentColor={isDarkMode ? 'text-pale-gold' : 'text-sage'} onComplete={() => handleActivity('breath')} />
-            </div>
-          )}
+              {activeTab === 'breath' && (
+                <div className="min-h-screen flex items-center justify-center px-6 pb-8 animate-fade-in">
+                  <Breathing isDarkMode={isDarkMode} accentColor={isDarkMode ? 'text-pale-gold' : 'text-sage'} onComplete={() => handleActivity('breath')} />
+                </div>
+              )}
 
-          {activeTab === 'meditate' && (
-            <div className="min-h-screen px-6 pb-8 animate-fade-in">
-              <Meditation
-                isDarkMode={isDarkMode}
-                onComplete={() => handleActivity('meditate')}
-                voicePreference={user.voicePreference}
-                onSaveReflection={handleSaveMeditationReflection}
-              />
-            </div>
-          )}
+              {activeTab === 'meditate' && (
+                <div className="min-h-screen px-6 pb-8 animate-fade-in">
+                  <Meditation
+                    isDarkMode={isDarkMode}
+                    onComplete={() => handleActivity('meditate')}
+                    voicePreference={user.voicePreference}
+                    onSaveReflection={handleSaveMeditationReflection}
+                  />
+                </div>
+              )}
 
-          {activeTab === 'reflect' && (
-            <div className="min-h-screen px-6 pb-8 animate-fade-in">
-              <Reflections
-                onSave={async (entry: JournalEntry) => {
-                  console.log('=== SAVING DAILY REFLECTION ===');
-                  if (!user) return;
+              {activeTab === 'reflect' && (
+                <div className="min-h-screen px-6 pb-8 animate-fade-in">
+                  <Reflections
+                    onSave={async (entry: JournalEntry) => {
+                      console.log('=== SAVING DAILY REFLECTION ===');
+                      if (!user) return;
 
-                  // 1. API Call
-                  await api.createJournalEntry(user.id, entry);
+                      // 1. API Call
+                      await api.createJournalEntry(user.id, entry);
 
-                  // 2. Prepare Local Update
-                  const existingEntries = user.journalEntries || [];
-                  const filteredEntries = existingEntries.filter(e => e.date !== entry.date);
-                  const newJournalEntries = [...filteredEntries, entry];
+                      // 2. Prepare Local Update
+                      const existingEntries = user.journalEntries || [];
+                      const filteredEntries = existingEntries.filter(e => e.date !== entry.date);
+                      const newJournalEntries = [...filteredEntries, entry];
 
-                  const updatedUser: UserProfile = {
-                    ...user,
-                    journalEntries: newJournalEntries,
-                    points: (user.points || 0) + 10
-                  };
+                      const updatedUser: UserProfile = {
+                        ...user,
+                        journalEntries: newJournalEntries,
+                        points: (user.points || 0) + 10
+                      };
 
-                  // 3. Chain to Activity Log (Log activity allows passing the "current" user state to build upon)
-                  handleActivity('reflect', updatedUser);
-                }}
-                isDarkMode={isDarkMode}
-                currentTrackId={currentTrackId}
-                isPlaying={isPlaying}
-                onTogglePlay={togglePlay}
-                tracks={TRACKS}
-              />
-            </div>
-          )}
+                      // 3. Chain to Activity Log (Log activity allows passing the "current" user state to build upon)
+                      handleActivity('reflect', updatedUser);
+                    }}
+                    isDarkMode={isDarkMode}
+                    currentTrackId={currentTrackId}
+                    isPlaying={isPlaying}
+                    onTogglePlay={togglePlay}
+                    tracks={TRACKS}
+                  />
+                </div>
+              )}
 
-          {activeTab === 'library' && (
-            <div className="min-h-screen px-6 pb-8 animate-fade-in">
-              <Library
-                key={`library-${user.journalEntries?.length || 0}-${user.favoriteQuotes?.length || 0}`}
-                favoriteQuotes={user.favoriteQuotes || []}
-                allQuotes={allQuotes}
-                journalEntries={user.journalEntries || []}
-                meditationReflections={user.meditationReflections || []}
-                onRemoveFavorite={handleRemoveFavorite}
-                onRemoveJournalEntry={handleRemoveJournalEntry}
-                isDarkMode={isDarkMode}
-                voicePreference={user.voicePreference || 'nova'}
-              />
-            </div>
-          )}
-        </Suspense>
-      </main>
+              {activeTab === 'library' && (
+                <div className="min-h-screen px-6 pb-8 animate-fade-in">
+                  <Library
+                    key={`library-${user.journalEntries?.length || 0}-${user.favoriteQuotes?.length || 0}`}
+                    favoriteQuotes={user.favoriteQuotes || []}
+                    allQuotes={allQuotes}
+                    journalEntries={user.journalEntries || []}
+                    meditationReflections={user.meditationReflections || []}
+                    onRemoveFavorite={handleRemoveFavorite}
+                    onRemoveJournalEntry={handleRemoveJournalEntry}
+                    isDarkMode={isDarkMode}
+                    voicePreference={user.voicePreference || 'nova'}
+                  />
+                </div>
+              )}
+            </Suspense>
+          </main>
 
       {/* Premium Bottom Navigation - Scroll Aware */}
-      <nav className={`fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isNavVisible ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'}`}>
-        <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass}`}>
-          {[
-            { id: 'home', icon: Home, label: 'Home' },
-            { id: 'momentum', icon: TrendingUp, label: 'Coach' },
-            { id: 'breath', icon: Wind, label: 'Breath' },
-            { id: 'meditate', icon: Flower, label: 'Meditate' },
-            { id: 'reflect', icon: BookOpen, label: 'Reflect' },
-            { id: 'library', icon: BookHeart, label: 'Library' },
-          ].map((tab) => {
-            const Icon = tab.icon;
+        <nav className={`fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isNavVisible ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'}`}>
+          <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass}`}>
+            {[
+              { id: 'home', icon: Home, label: 'Home' },
+              { id: 'momentum', icon: TrendingUp, label: 'Coach' },
+              { id: 'breath', icon: Wind, label: 'Breath' },
+              { id: 'meditate', icon: Flower, label: 'Meditate' },
+              { id: 'reflect', icon: BookOpen, label: 'Reflect' },
+              { id: 'library', icon: BookHeart, label: 'Library' },
+            ].map((tab) => {
+              const Icon = tab.icon;
 
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-2 md:px-4 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
-                  ? isDarkMode
-                    ? 'bg-white/10 text-white'
-                    : 'bg-sage/20 text-sage'
-                  : isDarkMode
-                    ? 'text-white/50 hover:text-white/80 hover:bg-white/5'
-                    : 'text-sage/60 hover:text-sage hover:bg-sage/10'
-                  }`}
-              >
-                <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
-                <span className="text-[10px] md:text-xs font-medium hidden sm:block">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav >
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-2 md:px-4 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
+                    ? isDarkMode
+                      ? 'bg-white/10 text-white'
+                      : 'bg-sage/20 text-sage'
+                    : isDarkMode
+                      ? 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                      : 'text-sage/60 hover:text-sage hover:bg-sage/10'
+                    }`}
+                >
+                  <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
+                  <span className="text-[10px] md:text-xs font-medium hidden sm:block">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav >
 
-      {/* Profile Modal */}
-      {
-        showProfile && (
-          <Profile
-            user={user}
-            onUpdate={handleProfileUpdate}
-            isDarkMode={isDarkMode}
-            onToggleTheme={toggleTheme}
-            onClose={() => setShowProfile(false)}
-          />
-        )
-      }
+        {/* Profile Modal */}
+        {
+          showProfile && (
+            <Profile
+              user={user}
+              onUpdate={handleProfileUpdate}
+              isDarkMode={isDarkMode}
+              onToggleTheme={toggleTheme}
+              onClose={() => setShowProfile(false)}
+            />
+          )
+        }
 
-      {/* Morning Briefing Overlay */}
-      {
-        showBriefing && user && currentQuote && (
-          <MorningBriefing
-            quote={currentQuote}
-            username={user.name}
-            onComplete={handleBriefingComplete}
-            onDismiss={() => setShowBriefing(false)}
-          />
-        )
-      }
+        {/* Morning Briefing Overlay */}
+        {
+          showBriefing && user && currentQuote && (
+            <MorningBriefing
+              quote={currentQuote}
+              username={user.name}
+              onComplete={handleBriefingComplete}
+              onDismiss={() => setShowBriefing(false)}
+            />
+          )
+        }
 
-      {/* Soundscape Mixer - Global */}
-      <SoundMixer
-        isVisible={showSoundMixer}
-        onClose={() => setShowSoundMixer(false)}
-        isDarkMode={isDarkMode}
-      />
+        {/* Soundscape Mixer - Global */}
+        <SoundMixer
+          isVisible={showSoundMixer}
+          onClose={() => setShowSoundMixer(false)}
+          isDarkMode={isDarkMode}
+        />
 
 
 
-      <audio ref={audioRef} loop className="hidden" />
-      {/* Onboarding Celebration */}
-      <CelebrationModal
-        isOpen={showCelebration}
-        onClose={() => setShowCelebration(false)}
-        title="Welcome, Friend!"
-        message="Your daily journey begins now. Let's make today count!"
-        isDarkMode={isDarkMode}
-      />
+        <audio ref={audioRef} loop className="hidden" />
+        {/* Onboarding Celebration */}
+        <CelebrationModal
+          isOpen={showCelebration}
+          onClose={() => setShowCelebration(false)}
+          title="Welcome, Friend!"
+          message="Your daily journey begins now. Let's make today count!"
+          isDarkMode={isDarkMode}
+        />
     </div >
   );
 }
