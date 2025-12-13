@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Heart, MessageCircle, Volume2, Square, RefreshCw, Sparkles, User, X, Instagram, Mail } from 'lucide-react';
+import { Share2, Heart, Twitter, MessageCircle, Volume2, Square, RefreshCw, Sparkles, User, X, Facebook, Linkedin, Instagram, Mail } from 'lucide-react';
 import type { Quote } from '../types';
 import { QuoteCardGenerator } from './QuoteCardGenerator';
 import html2canvas from 'html2canvas';
@@ -100,6 +100,7 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
   };
 
   const shareToEmail = async () => {
+    // Generate image first, then open email with attachment instruction
     setIsGeneratingImage(true);
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -113,43 +114,33 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
         });
 
         const image = canvas.toDataURL('image/png');
-        const blob = await (await fetch(image)).blob();
-        const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
 
-        // Try Web Share API first (works on mobile)
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Inspiring Quote from Palante',
-            text: `"${quote.text}" - ${quote.author}`,
-          });
-        } else {
-          // Fallback: Download image and open email
-          const link = document.createElement('a');
-          link.href = image;
-          link.download = `palante_quote_${Date.now()}.png`;
-          link.click();
+        // Download the image first
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `palante_quote_${Date.now()}.png`;
+        link.click();
 
-          const subject = 'Inspiring Quote from Palante';
-          const body = `"${quote.text}"\n\n- ${quote.author}\n\nShared from Palante`;
+        // Then open email composer
+        const subject = 'Inspiring Quote from Palante';
+        const body = `"${quote.text}"\n\n- ${quote.author}\n\n[Attach the downloaded image to this email]\n\nShared from Palante`;
 
-          setTimeout(() => {
-            window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
-          }, 500);
+        setTimeout(() => {
+          window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+        }, 500);
 
-          alert('Image downloaded! Attach it to your email.');
-        }
+        alert('Image downloaded! Attach it to your email.');
       }
     } catch (error) {
-      console.error('Error sharing via email:', error);
+      console.error('Error generating image:', error);
     } finally {
       setIsGeneratingImage(false);
       setShowShareMenu(false);
     }
   };
 
-
-  const shareViaTextMessage = async () => {
+  const shareToSocial = async (platform: 'facebook' | 'twitter' | 'linkedin' | 'instagram' | 'tiktok') => {
+    // For all social platforms, generate image first
     setIsGeneratingImage(true);
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -166,20 +157,57 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
         const blob = await (await fetch(image)).blob();
         const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
 
+        // Try native share with image first (works on mobile)
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
             title: 'Inspiration from Palante',
             text: `"${quote.text}" - ${quote.author}`,
           });
-        } else {
-          // Fallback: open SMS with text only
-          const text = `"${quote.text}" - ${quote.author}\n\nShared from Palante`;
-          window.open(`sms:?&body=${encodeURIComponent(text)}`, '_self');
+          setShowShareMenu(false);
+          setIsGeneratingImage(false);
+          return;
+        }
+
+        // Fallback: Download image first, then provide platform-specific instructions
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `palante_quote_${Date.now()}.png`;
+        link.click();
+
+        const text = `"${quote.text}" - ${quote.author}`;
+
+        switch (platform) {
+          case 'instagram':
+          case 'tiktok':
+            // Try to open the app (best effort)
+            if (platform === 'instagram') {
+              window.location.href = 'instagram://story-camera';
+            }
+            alert(`Image downloaded! \n\n1. Open ${platform === 'instagram' ? 'Instagram' : 'TikTok'}\n2. Start a new Story/Post\n3. Select the image from your photos`);
+            break;
+          case 'twitter':
+            alert('Image downloaded! Opening Twitter - you can attach the image to your tweet.');
+            setTimeout(() => {
+              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
+            }, 500);
+            break;
+          case 'facebook':
+            alert('Image downloaded! Opening Facebook - you can attach the image to your post.');
+            setTimeout(() => {
+              window.open(`https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}`, '_blank', 'width=600,height=400');
+            }, 500);
+            break;
+          case 'linkedin':
+            alert('Image downloaded! Opening LinkedIn - you can attach the image to your post.');
+            setTimeout(() => {
+              window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400');
+            }, 500);
+            break;
         }
       }
     } catch (error) {
-      console.error('Error sharing via text:', error);
+      console.error('Error sharing:', error);
     } finally {
       setIsGeneratingImage(false);
       setShowShareMenu(false);
@@ -404,7 +432,7 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
 
                 {/* Share Options */}
                 <div className="space-y-3">
-                  {/* Download Quote Image */}
+                  {/* Instagram Story / Image Generator */}
                   <button
                     onClick={handleGenerateImage}
                     disabled={isGeneratingImage}
@@ -417,22 +445,22 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                       {isGeneratingImage ? (
                         <div className="animate-spin h-5 w-5 border-2 border-pink-500 rounded-full border-t-transparent" />
                       ) : (
-                        <Instagram size={20} className="text-pink-500" />
+                        <Sparkles size={20} className="text-pink-500" />
                       )}
                     </div>
                     <div className="text-left">
                       <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Download for Instagram
+                        Share to Instagram Story
                       </span>
                       <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>
-                        Save image to share on Instagram Story
+                        {'share' in navigator ? 'Share directly or download image' : 'Download image & open Instagram'}
                       </span>
                     </div>
                   </button>
 
                   {/* Text Message */}
                   <button
-                    onClick={shareViaTextMessage}
+                    onClick={handleGenerateImage}
                     className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
                       ? 'bg-white/5 border-white/10 hover:bg-white/10'
                       : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
@@ -441,14 +469,9 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-sage/20' : 'bg-sage/10'}`}>
                       <MessageCircle size={20} className="text-sage" />
                     </div>
-                    <div className="text-left">
-                      <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                        Text Message
-                      </span>
-                      <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                        Share quote via SMS
-                      </span>
-                    </div>
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                      Text Message
+                    </span>
                   </button>
 
                   {/* Email */}
@@ -462,27 +485,77 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20' : 'bg-pale-gold/10'}`}>
                       <Mail size={20} className="text-pale-gold" />
                     </div>
-                    <div className="text-left">
-                      <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                        Email
-                      </span>
-                      <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                        Share quote via email
-                      </span>
-                    </div>
+                    <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
+                      Email
+                    </span>
                   </button>
 
-                  {/* Info Message */}
-                  <div className={`mt-4 p-4 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-sage/5 border-sage/20'}`}>
-                    <p className={`text-xs text-center ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                      💡 Download the image and share it manually on your favorite social platform
-                    </p>
+                  {/* Social Media Grid */}
+                  <div className="grid grid-cols-5 gap-2 pt-2">
+                    {/* Instagram */}
+                    <button
+                      onClick={() => shareToSocial('instagram')}
+                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                      title="Instagram"
+                    >
+                      <Instagram size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
+                    </button>
+                    {/* TikTok */}
+                    <button
+                      onClick={() => shareToSocial('tiktok')}
+                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                      title="TikTok"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}>
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" fill="currentColor" />
+                      </svg>
+                    </button>
+                    {/* Twitter */}
+                    <button
+                      onClick={() => shareToSocial('twitter')}
+                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                      title="Twitter / X"
+                    >
+                      <Twitter size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
+                    </button>
+                    {/* Facebook */}
+                    <button
+                      onClick={() => shareToSocial('facebook')}
+                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                      title="Facebook"
+                    >
+                      <Facebook size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
+                    </button>
+                    {/* LinkedIn */}
+                    <button
+                      onClick={() => shareToSocial('linkedin')}
+                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
+                        }`}
+                      title="LinkedIn"
+                    >
+                      <Linkedin size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           )}
         </div>
-      </>
-      );
+      </div>
+    </>
+  );
 };
