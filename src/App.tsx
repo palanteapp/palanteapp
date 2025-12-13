@@ -347,27 +347,51 @@ function AppContent() { // Renamed from App to AppContent
     const isFavorited = favorites.some(fav => fav.quoteId === currentQuote.id);
 
     let updatedFavorites;
-    if (isFavorited) {
-      updatedFavorites = favorites.filter(fav => fav.quoteId !== currentQuote.id);
-      try {
+    try {
+      if (isFavorited) {
+        updatedFavorites = favorites.filter(fav => fav.quoteId !== currentQuote.id);
         await api.toggleFavorite(user.id, currentQuote.id, false);
-        console.log('✓ Removed from favorites');
-      } catch (error) {
-        console.error('Failed to remove favorite:', error);
-      }
-    } else {
-      updatedFavorites = [...favorites, { quoteId: currentQuote.id, savedAt: new Date().toISOString() }];
-      try {
+      } else {
+        updatedFavorites = [...favorites, { quoteId: currentQuote.id, savedAt: new Date().toISOString() }];
         await api.toggleFavorite(user.id, currentQuote.id, true);
-        console.log('✓ Added to favorites');
         handleActivity('quote');
-      } catch (error) {
-        console.error('Failed to add favorite:', error);
       }
+      const updatedUser = { ...user, favoriteQuotes: updatedFavorites };
+      setUser(updatedUser);
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      // Revert optimistic update
+      const revertedUser = { ...user, favoriteQuotes: favorites };
+      setUser(revertedUser);
+      alert(`Error saving favorite: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  };
 
-    const updatedUser = { ...user, favoriteQuotes: updatedFavorites };
-    setUser(updatedUser);
+  const handleNewQuote = async (mode?: 'human' | 'ai') => {
+    if (!user) return;
+    const targetMode = mode || user.sourcePreference || 'ai';
+
+    try {
+      let quote: Quote;
+      if (targetMode === 'human') {
+        const relevantQuotes = getRelevantQuotes(user);
+        // Filter to ensure we get human quotes if requested, though getRelevantQuotes handles prefs
+        const humanQuotes = relevantQuotes.filter(q => !q.isAI);
+        if (humanQuotes.length > 0) {
+          quote = humanQuotes[Math.floor(Math.random() * humanQuotes.length)];
+        } else {
+          // Fallback if no human quotes found (rare)
+          quote = relevantQuotes[0] || await getAIQuote(user);
+        }
+      } else {
+        quote = await getAIQuote(user);
+      }
+
+      setCurrentQuote(quote);
+    } catch (error) {
+      console.error('Failed to get new quote:', error);
+      alert('Failed to load quote. Please check connection.');
+    }
   };
 
   const handleRemoveFavorite = (quoteId: string) => {
@@ -666,6 +690,19 @@ function AppContent() { // Renamed from App to AppContent
           {activeTab === 'breath' && (
             <div className="min-h-screen flex items-center justify-center px-6 pb-8 animate-fade-in">
               <Breathing isDarkMode={isDarkMode} accentColor={isDarkMode ? 'text-pale-gold' : 'text-sage'} onComplete={() => handleActivity('breath')} />
+            </div>
+          )}
+
+          {activeTab === 'home' && currentQuote && (
+            <div className="animate-fade-in flex-1 flex flex-col justify-center">
+              <QuoteDisplay
+                quote={currentQuote}
+                onNewQuote={handleNewQuote}
+                isDarkMode={isDarkMode}
+                voicePreference={user.voicePreference || 'nova'}
+                isFavorited={user.favoriteQuotes?.some(fav => fav.quoteId === currentQuote.id) || false}
+                onToggleFavorite={handleToggleFavorite}
+              />
             </div>
           )}
 
