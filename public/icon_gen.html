@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Icon Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #333;
+            /* Dark background to see the icon clearly */
+        }
+
+        #icon-container {
+            width: 1024px;
+            height: 1024px;
+            /* Olive Green / Sage Gradient Background */
+            background: linear-gradient(135deg, #6F7B6D 0%, #8F9B8D 50%, #B5C2A3 100%);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* The Glossy Sheen (Top Half) - Adjusted for darker background */
+        .sheen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border-bottom-left-radius: 100% 20%;
+            border-bottom-right-radius: 100% 20%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Subtle Inner Border/Glow */
+        .inner-glow {
+            position: absolute;
+            inset: 0;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            z-index: 20;
+        }
+
+        /* The Logo */
+        img.logo {
+            width: 600px;
+            height: 600px;
+            object-fit: contain;
+            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.2));
+            z-index: 5;
+            /* Slight gradient map effect hack via opacity mixing if needed, 
+               but pure logo usually best */
+        }
+
+        /* Decorative Background Elements (Subtle) */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 1;
+        }
+
+        .orb-1 {
+            width: 600px;
+            height: 600px;
+            background: rgba(181, 194, 163, 0.3);
+            /* Sage */
+            top: -100px;
+            right: -100px;
+        }
+
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.6);
+            bottom: -50px;
+            left: -50px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="icon-container">
+        <div class="sheen"></div>
+        <div class="inner-glow"></div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <!-- Using Light Logo for contrast against Olive Green background -->
+        <img src="/logo-light.png" class="logo" alt="Logo">
+    </div>
+</body>
+
+</html>

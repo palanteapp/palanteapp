@@ -40,9 +40,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDarkMode }) => {
                     alt="Palante"
                     className="w-20 h-20 object-contain mx-auto mb-6 drop-shadow-xl"
                 />
-                <h1 className="text-4xl font-display font-medium mb-2">Welcome Back</h1>
+                <h1 className="text-4xl font-display font-medium mb-2">Welcome</h1>
                 <p className={`text-lg mb-8 ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
-                    Sign in to sync your progress
+                    Sign in to start your journey
                 </p>
 
                 <form onSubmit={handleLogin} className="space-y-4 text-left">
