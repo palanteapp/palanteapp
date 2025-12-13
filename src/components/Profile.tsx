@@ -227,7 +227,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             </div>
                             <div>
                                 <label className={labelClasses}>Focus Goal</label>
-                                <input value={career} onChange={e => setCareer(e.target.value)} className={inputClasses} placeholder="What are you working towards?" />
+                                <input value={career} onChange={e => setCareer(e.target.value)} className={inputClasses} placeholder="e.g., Launch my business, Get promoted, Build healthy habits, Write a book" />
                             </div>
                             <div>
                                 <label className={labelClasses}>Interests</label>

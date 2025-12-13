@@ -155,6 +155,30 @@ export const api = {
     },
 
     // --- SETTINGS / PROFILE UPDATE ---
+    async updateUserProfile(userId: string, profile: UserProfile) {
+        // Update profile table
+        await supabase.from('profiles').update({
+            full_name: profile.name,
+            tier: profile.tier,
+            voice_preference: profile.voicePreference
+        }).eq('id', userId);
+
+        // Update goals (dailyFocuses)
+        if (profile.dailyFocuses) {
+            // Delete existing goals and recreate (simpler than sync)
+            await supabase.from('goals').delete().eq('user_id', userId);
+
+            for (const focus of profile.dailyFocuses) {
+                await supabase.from('goals').insert({
+                    user_id: userId,
+                    text: focus.text,
+                    is_completed: focus.isCompleted,
+                    created_at: focus.createdAt
+                });
+            }
+        }
+    },
+
     async updateTier(userId: string, tier: Tier) {
         await supabase.from('profiles').update({ tier }).eq('id', userId);
     }

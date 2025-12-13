@@ -36,7 +36,7 @@ function AppContent() { // Renamed from App to AppContent
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const [allQuotes, setAllQuotes] = useState<Quote[]>([]);
   const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'breath' | 'reflect' | 'meditate' | 'library'>('home');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
   const [currentTrackId, setCurrentTrackId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -645,9 +645,10 @@ function AppContent() { // Renamed from App to AppContent
           {activeTab === 'momentum' && (
             <Momentum
               user={user}
-              onUpdateUser={(updatedUser) => {
+              onUpdateUser={async (updatedUser) => {
                 setUser(updatedUser);
-                localStorage.setItem('motiv8_user', JSON.stringify(updatedUser));
+                // Save to API database
+                await api.updateUserProfile(updatedUser.id, updatedUser);
               }}
               isDarkMode={isDarkMode}
             />
