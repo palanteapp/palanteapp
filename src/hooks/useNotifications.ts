@@ -116,19 +116,51 @@ export const useNotifications = () => {
 
     // Force send function for "Test Notification" button (ignores Quiet Hours)
     const testNotification = async () => {
-        if (permission === 'granted') {
-            new Notification("🔔 Palante Test", {
-                body: "Notifications are working! We'll keep quiet during your set hours.",
-                icon: '/pwa-192x192.png'
-            });
-        } else {
-            const granted = await requestPermission();
-            if (granted) {
+        console.log('🔔 Test notification button clicked');
+        console.log('Current permission:', permission);
+
+        try {
+            if (!('Notification' in window)) {
+                alert('❌ Notifications are not supported in this browser.');
+                console.error('Notifications not supported');
+                return;
+            }
+
+            if (permission === 'denied') {
+                alert('❌ Notifications are blocked. Please enable them in your browser settings.');
+                console.error('Permission denied');
+                return;
+            }
+
+            if (permission === 'granted') {
+                console.log('✅ Permission already granted, showing notification');
                 new Notification("🔔 Palante Test", {
                     body: "Notifications are working! We'll keep quiet during your set hours.",
                     icon: '/pwa-192x192.png'
                 });
+                alert('✅ Test notification sent! Check your notifications.');
+            } else {
+                console.log('⚠️ Requesting permission...');
+                alert('⚠️ Please allow notifications when prompted.');
+
+                const result = await Notification.requestPermission();
+                console.log('Permission result:', result);
+
+                if (result === 'granted') {
+                    console.log('✅ Permission granted, showing notification');
+                    new Notification("🔔 Palante Test", {
+                        body: "Notifications are working! We'll keep quiet during your set hours.",
+                        icon: '/pwa-192x192.png'
+                    });
+                    alert('✅ Test notification sent! Check your notifications.');
+                } else {
+                    alert('❌ Permission denied. Please enable notifications in browser settings.');
+                    console.error('Permission denied after request');
+                }
             }
+        } catch (error) {
+            console.error('❌ Notification error:', error);
+            alert(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
