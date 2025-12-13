@@ -463,8 +463,8 @@ function AppContent() { // Renamed from App to AppContent
         />
       </div>
 
-      {/* Floating Header - Scroll Aware */}
-      <header className={`fixed left-0 right-0 z-30 px-4 md:px-8 py-3 md:py-6 flex items-center justify-between transition-all duration-300 ${isNavVisible ? 'top-0 opacity-100' : '-top-24 opacity-0'}`}>
+      {/* Floating Header - Scroll Aware. Added safe-area handling. */}
+      <header className={`fixed left-0 right-0 z-30 px-4 md:px-8 pb-3 pt-[max(env(safe-area-inset-top),50px)] md:py-6 flex items-center justify-between transition-all duration-300 ${isNavVisible ? 'top-0 opacity-100' : '-top-32 opacity-0'}`}>
         <button
           onClick={() => setShowProfile(true)}
           className={`tap-zone p-3 md:p-4 rounded-full backdrop-blur-xl border transition-all duration-300 hover:scale-110 ${headerBtnClass}`}
@@ -472,14 +472,14 @@ function AppContent() { // Renamed from App to AppContent
           <UserIcon size={20} />
         </button>
 
-        <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center justify-center">
+        <div className="absolute left-1/2 -translate-x-1/2 top-[max(env(safe-area-inset-top),50px)] flex flex-col items-center justify-center pointer-events-none">
           <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
-            Personalized Motivation, Delivered Daily
+            Personalized Motivation
           </p>
           <img
             src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
             alt="Palante"
-            className="w-10 h-10 object-contain drop-shadow-lg"
+            className="w-8 h-8 object-contain drop-shadow-lg"
           />
         </div>
 
@@ -504,7 +504,7 @@ function AppContent() { // Renamed from App to AppContent
       </header>
 
       {/* Main Content - Full Screen Sections */}
-      <main className="pt-20 pb-28">
+      <main className="pt-36 pb-40">
         {activeTab === 'home' && (
           <div className="min-h-screen px-6 pb-8 animate-fade-in max-w-5xl mx-auto">
             {/* 1. HERO: Quote of the Day */}
