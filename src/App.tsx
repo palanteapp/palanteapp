@@ -349,15 +349,28 @@ function AppContent() { // Renamed from App to AppContent
     let updatedFavorites;
     if (isFavorited) {
       updatedFavorites = favorites.filter(fav => fav.quoteId !== currentQuote.id);
-      await api.toggleFavorite(user.id, currentQuote.id, false);
+      try {
+        await api.toggleFavorite(user.id, currentQuote.id, false);
+        console.log('✓ Removed from favorites');
+      } catch (error) {
+        console.error('Failed to remove favorite:', error);
+      }
     } else {
       updatedFavorites = [...favorites, { quoteId: currentQuote.id, savedAt: new Date().toISOString() }];
-      await api.toggleFavorite(user.id, currentQuote.id, true);
-      handleActivity('quote');
+      try {
+        await api.toggleFavorite(user.id, currentQuote.id, true);
+        console.log('✓ Added to favorites');
+        handleActivity('quote');
+      } catch (error) {
+        console.error('Failed to add favorite:', error);
+      }
     }
 
     const updatedUser = { ...user, favoriteQuotes: updatedFavorites };
     setUser(updatedUser);
+
+    // Also save to database
+    await api.updateUserProfile(user.id, updatedUser);
   };
 
   const handleRemoveFavorite = (quoteId: string) => {
