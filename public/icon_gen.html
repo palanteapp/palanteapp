@@ -51,15 +51,22 @@
             z-index: 20;
         }
 
-        /* The Logo */
-        img.logo {
-            width: 600px;
-            height: 600px;
-            object-fit: contain;
-            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.2));
+        /* The Logo (Masked for Gold Color) */
+        .logo {
+            width: 760px;
+            height: 760px;
+            /* The Gold Color */
+            background-color: #E5D6A7;
+            /* Masking */
+            mask-image: url('/logo-light.png');
+            mask-size: contain;
+            mask-repeat: no-repeat;
+            mask-position: center;
+            -webkit-mask-image: url('/logo-light.png');
+            -webkit-mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            -webkit-mask-position: center;
             z-index: 5;
-            /* Slight gradient map effect hack via opacity mixing if needed, 
-               but pure logo usually best */
         }
 
         /* Decorative Background Elements (Subtle) */
@@ -95,8 +102,9 @@
         <div class="inner-glow"></div>
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
-        <!-- Using Light Logo for contrast against Olive Green background -->
-        <img src="/logo-light.png" class="logo" alt="Logo">
+
+        <!-- CSS Mask Logo: Guarantees Exact Gold Color (#E5D6A7) and Cleaner Edges -->
+        <div class="logo"></div>
     </div>
 </body>
 
