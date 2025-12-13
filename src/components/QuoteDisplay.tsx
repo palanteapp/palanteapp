@@ -431,124 +431,38 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
                 </div>
 
                 {/* Share Options */}
-                <div className="space-y-3">
-                  {/* Instagram Story / Image Generator */}
+                <div className="space-y-4">
+                  {/* Single Download Button */}
                   <button
                     onClick={handleGenerateImage}
                     disabled={isGeneratingImage}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
-                      ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 border-white/10 hover:border-pink-500/50'
-                      : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 hover:border-pink-300 hover:shadow-spa'
+                    className={`w-full flex items-center justify-center gap-3 p-5 rounded-2xl border-2 transition-all ${isDarkMode
+                      ? 'bg-gradient-to-r from-purple-900/40 to-pink-900/40 border-white/20 hover:border-pink-500/50 hover:shadow-lg'
+                      : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 hover:border-pink-400 hover:shadow-spa'
                       }`}
                   >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-white'}`}>
                       {isGeneratingImage ? (
-                        <div className="animate-spin h-5 w-5 border-2 border-pink-500 rounded-full border-t-transparent" />
+                        <div className="animate-spin h-6 w-6 border-3 border-pink-500 rounded-full border-t-transparent" />
                       ) : (
-                        <Sparkles size={20} className="text-pink-500" />
+                        <Sparkles size={24} className="text-pink-500" />
                       )}
                     </div>
-                    <div className="text-left">
-                      <span className={`block text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Share to Instagram Story
+                    <div className="text-center">
+                      <span className={`block text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {isGeneratingImage ? 'Generating...' : 'Download Quote Image'}
                       </span>
-                      <span className={`block text-xs ${isDarkMode ? 'text-white/60' : 'text-gray-500'}`}>
-                        {'share' in navigator ? 'Share directly or download image' : 'Download image & open Instagram'}
+                      <span className={`block text-xs mt-1 ${isDarkMode ? 'text-white/60' : 'text-gray-600'}`}>
+                        Save and share on any platform
                       </span>
                     </div>
                   </button>
 
-                  {/* Text Message */}
-                  <button
-                    onClick={handleGenerateImage}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
-                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                      : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                      }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-sage/20' : 'bg-sage/10'}`}>
-                      <MessageCircle size={20} className="text-sage" />
-                    </div>
-                    <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      Text Message
-                    </span>
-                  </button>
-
-                  {/* Email */}
-                  <button
-                    onClick={shareToEmail}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${isDarkMode
-                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                      : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                      }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20' : 'bg-pale-gold/10'}`}>
-                      <Mail size={20} className="text-pale-gold" />
-                    </div>
-                    <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-warm-gray-green'}`}>
-                      Email
-                    </span>
-                  </button>
-
-                  {/* Social Media Grid */}
-                  <div className="grid grid-cols-5 gap-2 pt-2">
-                    {/* Instagram */}
-                    <button
-                      onClick={() => shareToSocial('instagram')}
-                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                        }`}
-                      title="Instagram"
-                    >
-                      <Instagram size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
-                    </button>
-                    {/* TikTok */}
-                    <button
-                      onClick={() => shareToSocial('tiktok')}
-                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                        }`}
-                      title="TikTok"
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}>
-                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" fill="currentColor" />
-                      </svg>
-                    </button>
-                    {/* Twitter */}
-                    <button
-                      onClick={() => shareToSocial('twitter')}
-                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                        }`}
-                      title="Twitter / X"
-                    >
-                      <Twitter size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
-                    </button>
-                    {/* Facebook */}
-                    <button
-                      onClick={() => shareToSocial('facebook')}
-                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                        }`}
-                      title="Facebook"
-                    >
-                      <Facebook size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
-                    </button>
-                    {/* LinkedIn */}
-                    <button
-                      onClick={() => shareToSocial('linkedin')}
-                      className={`aspect-square rounded-xl border transition-all flex items-center justify-center ${isDarkMode
-                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
-                        : 'bg-white/60 border-sage/20 hover:bg-white hover:shadow-spa'
-                        }`}
-                      title="LinkedIn"
-                    >
-                      <Linkedin size={24} className={isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'} />
-                    </button>
+                  {/* Info Message */}
+                  <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-sage/5 border-sage/20'}`}>
+                    <p className={`text-xs text-center ${isDarkMode ? 'text-white/60' : 'text-warm-gray-green/60'}`}>
+                      💡 Download the image and share it on Instagram, Facebook, Twitter, or any platform you like
+                    </p>
                   </div>
                 </div>
               </div>

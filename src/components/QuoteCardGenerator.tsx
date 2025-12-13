@@ -79,26 +79,28 @@ export const QuoteCardGenerator: React.FC<QuoteCardGeneratorProps> = ({ id, quot
 
                 {/* Top Branding */}
                 <div className="flex flex-col items-center gap-6 pt-16">
-                    {/* Logo */}
+                    {/* Tagline First */}
+                    <span
+                        className="text-xl font-body tracking-[0.2em] uppercase opacity-80"
+                        style={{ color: finalTextSecondary }}
+                    >
+                        Personalized Progress, Delivered Daily
+                    </span>
+
+                    {/* Logo Second */}
                     <img
                         src={isDarkMode ? '/logo-dark.png' : '/logo-light.png'}
                         alt="Palante"
                         style={{ height: '140px', width: 'auto', objectFit: 'contain' }}
                     />
-                    <div className="flex flex-col items-center gap-2">
-                        <span
-                            className="text-5xl font-display font-medium tracking-tight"
-                            style={{ color: textPrimaryColor }}
-                        >
-                            Palante
-                        </span>
-                        <span
-                            className="text-xl font-body tracking-[0.2em] uppercase opacity-80"
-                            style={{ color: finalTextSecondary }}
-                        >
-                            Personalized Progress, Delivered Daily
-                        </span>
-                    </div>
+
+                    {/* Palante Text Third */}
+                    <span
+                        className="text-5xl font-display font-medium tracking-tight"
+                        style={{ color: textPrimaryColor }}
+                    >
+                        Palante
+                    </span>
                 </div>
 
                 {/* Main Quote Content */}
