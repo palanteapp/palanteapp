@@ -361,6 +361,7 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
             </div>
           )}
         </div>
-      </>
-      );
+      </div>
+    </>
+  );
 };
