@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Share2, Heart, Clock, Settings, RefreshCw } from 'lucide-react';
 import type { Quote } from '../types';
-import { QuoteCardGenerator } from './QuoteCardGenerator';
 import { ShareModal } from './ShareModal';
 import html2canvas from 'html2canvas';
 
@@ -16,7 +15,6 @@ interface DashboardQuoteCardProps {
     onRefresh?: () => void;
 }
 
-// Adaptive font size based on quote length (adjusted for new box layout)
 function getQuoteFontSize(len: number): string {
     if (len > 180) return '16px';
     if (len > 140) return '18px';
@@ -26,17 +24,32 @@ function getQuoteFontSize(len: number): string {
     return '28px';
 }
 
-const ModernArtBackground = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} preserveAspectRatio="xMidYMid slice">
-        {/* Soft mist green base */}
-        <rect width="400" height="520" fill="#879582" />
-        <circle cx="80" cy="100" r="220" fill="#9BAC98" opacity="0.9" />
-        <circle cx="360" cy="140" r="200" fill="#E8DEC9" opacity="0.9" />
-        <circle cx="320" cy="380" r="240" fill="#D6B8A0" opacity="0.8" />
-        <circle cx="120" cy="460" r="260" fill="#C5AE91" opacity="0.9" />
-        <circle cx="200" cy="260" r="180" fill="#E5D6C5" opacity="0.4" mixBlendMode="overlay" />
-    </svg>
-);
+const DynamicArtBackground = ({ seed }: { seed: string }) => {
+    const getRand = (s: string, i: number) => {
+        let hash = 0;
+        for (let j = 0; j < s.length; j++) hash = ((hash << 5) - hash) + s.charCodeAt(j);
+        const x = Math.sin(hash + i) * 10000;
+        return x - Math.floor(x);
+    };
+    const colors = ['#F59E0B', '#FCD34D', '#FF8A65', '#4FD1C5', '#F472B6'];
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            preserveAspectRatio="xMidYMid slice">
+            <rect width="400" height="520" fill={colors[Math.floor(getRand(seed, 0) * colors.length)]} opacity="0.8" />
+            {[1, 2, 3, 4, 5].map((i) => (
+                <circle key={i}
+                    cx={50 + getRand(seed, i * 10) * 300}
+                    cy={50 + getRand(seed, i * 20) * 420}
+                    r={150 + getRand(seed, i * 30) * 150}
+                    fill={colors[Math.floor(getRand(seed, i * 40) * colors.length)]}
+                    opacity={0.4 + getRand(seed, i * 50) * 0.4}
+                    style={{ mixBlendMode: 'multiply' }}
+                />
+            ))}
+        </svg>
+    );
+};
 
 export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     quote,
@@ -51,95 +64,122 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     const [showShareModal, setShowShareModal] = useState(false);
 
     const MAX_REFRESHES = 3;
-
     const getTodayKey = () => {
-        const today = new Date();
-        return `quote_refresh_${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+        const t = new Date();
+        return `quote_refresh_${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`;
     };
-
     const getRefreshCount = (): number => {
-        try {
-            const stored = localStorage.getItem(getTodayKey());
-            return stored ? parseInt(stored, 10) : 0;
-        } catch { return 0; }
+        try { const s = localStorage.getItem(getTodayKey()); return s ? parseInt(s, 10) : 0; }
+        catch { return 0; }
     };
-
     const [refreshCount, setRefreshCount] = useState(getRefreshCount());
-
     const incrementRefreshCount = () => {
-        const newCount = refreshCount + 1;
-        setRefreshCount(newCount);
-        try { localStorage.setItem(getTodayKey(), newCount.toString()); } catch { /* ignore */ }
+        const n = refreshCount + 1;
+        setRefreshCount(n);
+        try { localStorage.setItem(getTodayKey(), n.toString()); } catch { /* ignore */ }
     };
 
     const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' || quote.author === 'Palante Coach' || quote.isAI;
+    const quoteText   = quote?.text   || 'Keep moving forward.';
+    const quoteAuthor = quote?.author || 'Palante Coach';
+    const seed = `${quote.id}-${new Date().toLocaleDateString()}-${refreshCount}`;
 
+    // ── Share ──────────────────────────────────────────────────────────────
     const handleShare = async () => {
         setIsGeneratingImage(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            const element = document.getElementById('dashboard-quote-share-generator');
-            if (element) {
-                const canvas = await html2canvas(element, {
-                    scale: 2,
-                    backgroundColor: null,
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false,
-                    onclone: (doc) => {
-                        const el = doc.getElementById('dashboard-quote-share-generator');
-                        if (el) { el.style.opacity = '1'; el.style.visibility = 'visible'; }
-                    }
-                });
-                const image = canvas.toDataURL('image/png');
-                try {
-                    const { Share } = await import('@capacitor/share');
-                    const { Directory, Filesystem } = await import('@capacitor/filesystem');
-                    const fileName = `palante_quote_${Date.now()}.png`;
-                    const savedFile = await Filesystem.writeFile({ path: fileName, data: image.split(',')[1], directory: Directory.Cache });
-                    await Share.share({
-                        title: 'Inspiration from Palante',
-                        text: isTierQuote ? `"${quote.text}"\n\n- @palante.app` : `"${quote.text}" - ${quote.author}\n\n- @palante.app`,
-                        url: savedFile.uri,
-                    });
-                    setIsGeneratingImage(false);
-                    return;
-                } catch { /* fall through */ }
-                const link = document.createElement('a');
-                link.href = image;
-                link.download = `palante_quote_${Date.now()}.png`;
-                link.click();
-            }
+            const element = document.getElementById('share-preview-container');
+            if (!element) throw new Error('Preview element not found');
+            const canvas = await html2canvas(element, {
+                scale: 8, backgroundColor: null, useCORS: true, allowTaint: true, logging: false,
+            });
+            const base64Data = canvas.toDataURL('image/png').split(',')[1];
+            const { Directory, Filesystem } = await import('@capacitor/filesystem');
+            const savedFile = await Filesystem.writeFile({
+                path: `palante_quote_${Date.now()}.png`, data: base64Data, directory: Directory.Cache,
+            });
+            const { Share } = await import('@capacitor/share');
+            await Share.share({ title: 'Inspiration from Palante', files: [savedFile.uri], dialogTitle: 'Share your inspiration' });
         } catch (error) {
-            console.error('Error generating image:', error);
+            console.error('[Palante] Share error:', error);
             try {
                 const { Share } = await import('@capacitor/share');
                 await Share.share({
                     title: 'Inspiration from Palante',
-                    text: isTierQuote ? `"${quote.text}"\n\n- @palante.app` : `"${quote.text}" - ${quote.author}\n\n- @palante.app`,
+                    text: isTierQuote ? `"${quoteText}"\n\n— @palante.app` : `"${quoteText}" — ${quoteAuthor}\n\n@palante.app`,
                 });
-            } catch { /* ignore */ }
+            } catch { /* share cancelled */ }
         } finally {
             setIsGeneratingImage(false);
         }
     };
 
-    const fontSize   = getQuoteFontSize(quote.text.length);
-    const lineHeight = quote.text.length > 120 ? 1.48 : 1.38;
+    // ── Parallax ──────────────────────────────────────────────────────────
+    // Raw input [-0.5, 0.5] on each axis
+    const rawX = useMotionValue(0);
+    const rawY = useMotionValue(0);
 
-    // Action button colors over the art background
-    const btnColor = "rgba(40,50,40,0.6)";
-    const btnHoverColor = "rgba(40,50,40,0.9)";
+    // Smooth physics — gentle stiffness for a weighty-card feel
+    const springCfg = { stiffness: 70, damping: 18, mass: 1 };
+    const springX = useSpring(rawX, springCfg);
+    const springY = useSpring(rawY, springCfg);
+
+    // 1. Card 3D tilt — perspective is on the wrapper div below
+    const rotateY = useTransform(springX, [-0.5, 0.5], [-10, 10]);
+    const rotateX = useTransform(springY, [-0.5, 0.5], [ 8, -8]);
+
+    // 2. Background drifts WITH tilt (feels like it's on a far layer)
+    const bgX = useTransform(springX, [-0.5, 0.5], ['-12%', '12%']);
+    const bgY = useTransform(springY, [-0.5, 0.5], [ '-8%',  '8%']);
+
+    // 3. Quote box counter-drifts AGAINST tilt (feels elevated / close)
+    const boxX = useTransform(springX, [-0.5, 0.5], [ 8, -8]);
+    const boxY = useTransform(springY, [-0.5, 0.5], [ 6, -6]);
+
+    // 4. Dynamic shadow shifts opposite to tilt
+    const shadowX = useTransform(springX, [-0.5, 0.5], [ 14, -14]);
+    const shadowY = useTransform(springY, [-0.5, 0.5], [ 24,   6]);
+    const boxShadow = useTransform(
+        [shadowX, shadowY] as const,
+        ([sx, sy]: number[]) =>
+            `${sx}px ${sy}px 48px -8px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.12)`,
+    );
+
+    // 5. Specular gloss — a soft highlight that sweeps left→right as card tilts
+    const glossLeft  = useTransform(springX, [-0.5, 0.5], ['-20%', '120%']);
+    const glossOpacity = useTransform(springX, [-0.5, 0.5], [0.22, 0.06]);
+
+    // Gyroscope (device) input
+    useEffect(() => {
+        const handle = (e: DeviceOrientationEvent) => {
+            if (e.gamma === null || e.beta === null) return;
+            // Natural hold ≈ 45° beta; normalize to [-0.5, 0.5]
+            rawX.set(Math.max(-0.5, Math.min(0.5, e.gamma / 45)));
+            rawY.set(Math.max(-0.5, Math.min(0.5, (e.beta - 45) / 45)));
+        };
+        if (typeof DeviceOrientationEvent !== 'undefined') {
+            window.addEventListener('deviceorientation', handle, true);
+        }
+        return () => window.removeEventListener('deviceorientation', handle, true);
+    }, [rawX, rawY]);
+
+    // Mouse input (desktop preview)
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        rawX.set((e.clientX - r.left) / r.width  - 0.5);
+        rawY.set((e.clientY - r.top)  / r.height - 0.5);
+    };
+    const handleMouseLeave = () => {
+        rawX.set(0);
+        rawY.set(0);
+    };
+
+    const fontSize   = getQuoteFontSize(quoteText.length);
+    const lineHeight = quoteText.length > 120 ? 1.48 : 1.38;
+    const btnColor   = 'rgba(40,50,40,0.6)';
 
     return (
         <>
-            {/* Hidden share generator — off-screen, only rendered during share */}
-            {isGeneratingImage && (
-                <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -50, opacity: 0, pointerEvents: 'none' }}>
-                    <QuoteCardGenerator id="dashboard-quote-share-generator" quote={quote} isDarkMode={isDarkMode} />
-                </div>
-            )}
-
             <AnimatePresence mode="wait">
                 <motion.div
                     key={quote.id}
@@ -148,44 +188,78 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                     exit={{ opacity: 0, y: -12, scale: 0.97 }}
                     transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
                     className="w-full"
+                    /* perspective on the WRAPPER — this is the camera */
+                    style={{ perspective: '900px', perspectiveOrigin: '50% 50%' }}
+                    onMouseMove={handleMouseMove}
+                    onMouseLeave={handleMouseLeave}
                 >
-                    {/* ── Card shell ── */}
-                    <div style={{
-                        position: 'relative',
-                        borderRadius: '32px',
-                        overflow: 'hidden',
-                        backgroundColor: '#5A6351', // Base color behind SVG
-                        boxShadow: '0 20px 40px -8px rgba(0,0,0,0.25)',
-                        display: 'flex',
-                        flexDirection: 'column'
-                    }}>
+                    {/* ── 3D tilting card ── */}
+                    <motion.div
+                        style={{
+                            rotateX,
+                            rotateY,
+                            boxShadow,
+                            position: 'relative',
+                            borderRadius: '32px',
+                            overflow: 'hidden',           // clips bg art to rounded corners
+                            backgroundColor: '#B5C2B1',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            willChange: 'transform',
+                        }}
+                    >
+                        {/* ── Background art — drifts WITH tilt ── */}
+                        <motion.div
+                            style={{
+                                position: 'absolute',
+                                inset: '-12%',
+                                x: bgX,
+                                y: bgY,
+                                pointerEvents: 'none',
+                            }}
+                        >
+                            <DynamicArtBackground seed={seed} />
+                        </motion.div>
 
-                        {/* ── Background SVG art ── */}
-                        <ModernArtBackground />
-
-                        {/* ── Subtle noise grain overlay ── */}
+                        {/* ── Grain overlay ── */}
                         <div aria-hidden="true" style={{
                             position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`,
                         }} />
 
-                        {/* ── Inner White Quote Box ── */}
-                        <div style={{
-                            position: 'relative',
-                            zIndex: 4,
-                            margin: '40px 32px 24px 32px',
-                            backgroundColor: '#FDFBF7',
-                            borderRadius: '24px',
-                            padding: '40px 24px 32px 24px',
-                            boxShadow: '0 12px 32px rgba(0,0,0,0.1)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                        }}>
+                        {/* ── Specular gloss sweep — moves with tilt ── */}
+                        <motion.div
+                            aria-hidden="true"
+                            style={{
+                                position: 'absolute', inset: 0, zIndex: 3, pointerEvents: 'none',
+                                background: useTransform(glossLeft, (gl) =>
+                                    `radial-gradient(ellipse 55% 80% at ${gl} 20%, rgba(255,255,255,0.55) 0%, transparent 65%)`
+                                ),
+                                opacity: glossOpacity,
+                            }}
+                        />
+
+                        {/* ── Quote box — counter-drifts AGAINST tilt ── */}
+                        <motion.div
+                            style={{
+                                position: 'relative',
+                                zIndex: 4,
+                                margin: '40px 32px 24px 32px',
+                                x: boxX,
+                                y: boxY,
+                                backgroundColor: '#FDFBF7',
+                                borderRadius: '24px',
+                                padding: '40px 24px 32px 24px',
+                                boxShadow: '0 16px 40px rgba(0,0,0,0.13)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                textAlign: 'center',
+                            }}
+                        >
                             <AnimatePresence mode="wait">
                                 <motion.p
-                                    key={quote.text}
+                                    key={quoteText}
                                     initial={{ opacity: 0, y: 12 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -8 }}
@@ -195,92 +269,70 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                                         fontWeight: 600,
                                         fontSize,
                                         lineHeight,
-                                        color: '#6F4E37',
+                                        color: '#2D3E33',
                                         letterSpacing: '-0.02em',
                                         marginBottom: isTierQuote ? '0px' : '24px',
                                     }}
                                 >
-                                    {quote.text}
+                                    {quoteText}
                                 </motion.p>
                             </AnimatePresence>
 
                             {!isTierQuote && (
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                    <div style={{ width: '20px', height: '1px', backgroundColor: '#B68D73' }} />
+                                    <div style={{ width: '20px', height: '1px', backgroundColor: '#879582', opacity: 0.4 }} />
                                     <p style={{
                                         fontFamily: '"Inter", sans-serif',
                                         fontWeight: 500,
                                         fontSize: '13px',
                                         letterSpacing: '0.15em',
                                         textTransform: 'uppercase',
-                                        color: '#A0806B',
+                                        color: '#879582',
                                     }}>
-                                        {quote.author}
+                                        {quoteAuthor}
                                     </p>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
 
                         <div style={{ flex: 1 }} />
 
-                        {/* ── Action bar (no logo/branding) ── */}
+                        {/* ── Action bar ── */}
                         <div style={{
                             position: 'relative', zIndex: 4,
                             padding: '0 16px 24px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         }}>
                             {onToggleFavorite && (
-                                <motion.button
-                                    whileTap={{ scale: 0.85 }}
-                                    onClick={onToggleFavorite}
+                                <motion.button whileTap={{ scale: 0.85 }} onClick={onToggleFavorite}
                                     aria-label={isFavorited ? 'Unfavorite' : 'Favorite'}
-                                    style={{
-                                        padding: '12px',
-                                        borderRadius: '50%',
-                                        border: 'none',
+                                    style={{ padding: '12px', borderRadius: '50%', border: 'none',
                                         background: isFavorited ? 'rgba(224,90,90,0.15)' : 'rgba(255,255,255,0.4)',
-                                        cursor: 'pointer',
-                                        color: isFavorited ? '#E05A5A' : btnColor,
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                                        backdropFilter: 'blur(10px)',
-                                    }}
-                                >
+                                        cursor: 'pointer', color: isFavorited ? '#E05A5A' : btnColor,
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
                                     <Heart size={18} fill={isFavorited ? 'currentColor' : 'none'} strokeWidth={2} />
                                 </motion.button>
                             )}
 
                             {onOpenHistory && (
-                                <motion.button
-                                    whileTap={{ scale: 0.85 }}
-                                    onClick={onOpenHistory}
-                                    style={{ padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)', cursor: 'pointer', color: btnColor, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}
-                                >
+                                <motion.button whileTap={{ scale: 0.85 }} onClick={onOpenHistory}
+                                    style={{ padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer', color: btnColor, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
                                     <Clock size={18} strokeWidth={2} />
                                 </motion.button>
                             )}
 
-                            <motion.button
-                                whileTap={{ scale: 0.85 }}
-                                onClick={() => setShowShareModal(true)}
-                                disabled={isGeneratingImage}
-                                style={{
-                                    padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
-                                    cursor: isGeneratingImage ? 'default' : 'pointer', color: btnColor, opacity: isGeneratingImage ? 0.6 : 1,
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)'
-                                }}
-                            >
+                            <motion.button whileTap={{ scale: 0.85 }} onClick={() => setShowShareModal(true)} disabled={isGeneratingImage}
+                                style={{ padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
+                                    cursor: isGeneratingImage ? 'default' : 'pointer', color: btnColor,
+                                    opacity: isGeneratingImage ? 0.6 : 1, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
                                 {isGeneratingImage
                                     ? <div style={{ width: 18, height: 18, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                                    : <Share2 size={18} strokeWidth={2} />
-                                }
+                                    : <Share2 size={18} strokeWidth={2} />}
                             </motion.button>
 
                             {onRefresh && (
-                                <motion.button
-                                    whileTap={{ scale: 0.85 }}
+                                <motion.button whileTap={{ scale: 0.85 }}
                                     onClick={() => {
                                         if (refreshCount < MAX_REFRESHES) {
                                             import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
@@ -289,23 +341,16 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                                         }
                                     }}
                                     disabled={refreshCount >= MAX_REFRESHES}
-                                    style={{
-                                        position: 'relative', padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
+                                    style={{ position: 'relative', padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
                                         cursor: refreshCount >= MAX_REFRESHES ? 'not-allowed' : 'pointer',
                                         color: refreshCount >= MAX_REFRESHES ? 'rgba(40,50,40,0.3)' : btnColor,
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)'
-                                    }}
-                                >
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
                                     <RefreshCw size={18} strokeWidth={2} />
                                     {refreshCount > 0 && refreshCount < MAX_REFRESHES && (
-                                        <span style={{
-                                            position: 'absolute', top: '2px', right: '2px',
-                                            width: '16px', height: '16px', borderRadius: '50%',
-                                            backgroundColor: '#FDFBF7', color: '#6F4E37',
-                                            fontSize: '9px', fontWeight: 800,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                                        }}>
+                                        <span style={{ position: 'absolute', top: '2px', right: '2px', width: '16px', height: '16px',
+                                            borderRadius: '50%', backgroundColor: '#FDFBF7', color: '#2D3E33',
+                                            fontSize: '9px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                                             {refreshCount}
                                         </span>
                                     )}
@@ -313,17 +358,14 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             )}
 
                             {onOpenSettings && (
-                                <motion.button
-                                    whileTap={{ scale: 0.85 }}
-                                    onClick={onOpenSettings}
-                                    style={{ padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)', cursor: 'pointer', color: btnColor, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}
-                                >
+                                <motion.button whileTap={{ scale: 0.85 }} onClick={onOpenSettings}
+                                    style={{ padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer', color: btnColor, boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
                                     <Settings size={18} strokeWidth={2} />
                                 </motion.button>
                             )}
                         </div>
-
-                    </div>
+                    </motion.div>
                 </motion.div>
             </AnimatePresence>
 
@@ -334,6 +376,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                 isDarkMode={isDarkMode}
                 onGenerateImage={handleShare}
                 isGeneratingImage={isGeneratingImage}
+                seed={seed}
             />
         </>
     );

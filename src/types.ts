@@ -114,6 +114,8 @@ export interface UserProfile {
     focusAreas?: ('stress' | 'focus' | 'sleep' | 'confidence' | 'relationships' | 'productivity')[]; // What user is working on
     restDays?: string[]; // ISO date strings of intentional rest days (preserves streak)
     futureLetters?: FutureLetter[]; // Letters written to future self for tough days
+    weightGoal?: number; // Target weight in lbs
+    weightHistory?: { date: string; weight: number }[]; // History of weight logs
 }
 
 export interface DailyEveningPractice {
@@ -131,10 +133,11 @@ export interface FutureLetter {
     id: string;
     content: string; // The encouraging message
     writtenDate: string; // ISO date string when letter was written
-    context: 'meditation' | 'goal_achievement' | 'streak_milestone' | 'manual'; // What triggered the letter
+    context: 'meditation' | 'goal_achievement' | 'streak_milestone' | 'manual' | 'onboarding'; // What triggered the letter
     contextDetails?: string; // e.g., "7-day streak", "Completed morning meditation"
     hasBeenDelivered: boolean; // Has this letter been shown to the user yet?
     deliveredDate?: string; // ISO date string when letter was delivered
+    scheduledDeliveryDate?: string; // ISO date — deliver on/after this date regardless of energy level
 }
 
 
@@ -319,6 +322,7 @@ export interface CoachSettings {
     nudgeFrequency: 'hourly' | 'every-2-hours' | 'every-4-hours' | 'morning-evening' | 'off';
     nudgeEnabled: boolean;
     tipsEnabled?: boolean; // New toggle for Global Tips
+    waterRemindersEnabled?: boolean; // Professional accountability for hydration
     lastNudgeTime?: string;
 }
 

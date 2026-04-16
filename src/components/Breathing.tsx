@@ -694,13 +694,25 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
         if (activePhaseIndex !== phaseIndexRef.current) {
             triggerHapticRef.current('heavy');
             phaseIndexRef.current = activePhaseIndex;
-        } else if (enhancements.immersiveHaptics && !isPausedRef.current) {
-            // SUB-MICRO HAPTICS: Medium pulses during inhale/exhale
+        } else if (!isPausedRef.current) {
             const phase = phases[activePhaseIndex];
-            if (phase.name === 'Inhale' || phase.name === 'Exhale') {
-                // Pulse every 500ms
-                if (Math.floor(timeInCurrentPhase / 500) !== Math.floor((timeInCurrentPhase - 16) / 500)) {
-                    triggerHapticRef.current('medium');
+            if (enhancements.hapticDarkMode) {
+                // DARK SENSORY MODE: Rhythmic light pulses every 1s during breath phases
+                if (phase.name === 'Inhale' || phase.name === 'Exhale') {
+                    if (Math.floor(timeInCurrentPhase / 1000) !== Math.floor((timeInCurrentPhase - 16) / 1000)) {
+                        triggerHapticRef.current('light');
+                    }
+                } else {
+                    // Hold phases: selection pulse every 1s
+                    if (Math.floor(timeInCurrentPhase / 1000) !== Math.floor((timeInCurrentPhase - 16) / 1000)) {
+                        triggerHapticRef.current('selection');
+                    }
+                }
+            } else if (enhancements.immersiveHaptics) {
+                if (phase.name === 'Inhale' || phase.name === 'Exhale') {
+                    if (Math.floor(timeInCurrentPhase / 500) !== Math.floor((timeInCurrentPhase - 16) / 500)) {
+                        triggerHapticRef.current('medium');
+                    }
                 }
             }
         }
@@ -733,7 +745,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
         }
 
         requestRef.current = requestAnimationFrame(tick);
-    }, [reset, enhancements.immersiveHaptics]);
+    }, [reset, enhancements.immersiveHaptics, enhancements.hapticDarkMode]);
 
     useEffect(() => {
         if (status === 'active' && !isPaused) {
@@ -807,6 +819,27 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
             onMouseMove={() => { setShowControls(true); setTimeout(() => setShowControls(false), 3000); }}
             onTouchStart={() => setShowControls(true)}
         >
+            {/* Dark Sensory Mode Overlay — screen goes black, haptics only */}
+            {enhancements.hapticDarkMode && status === 'active' && (
+                <div
+                    className="fixed inset-0 z-[500] bg-black flex flex-col items-center justify-center select-none"
+                    onDoubleClick={() => reset()}
+                >
+                    <div className="text-center">
+                        <p className="text-white/20 text-[9px] uppercase tracking-[0.35em] mb-12">Dark Sensory Mode</p>
+                        <div className="text-white text-6xl font-display font-light tracking-[0.15em] mb-4">
+                            {isPaused ? 'PAUSED' : phaseName}
+                        </div>
+                        <div className="text-white/30 text-5xl font-mono font-light tabular-nums">{timeLeftInPhase}s</div>
+                        <div className="text-white/15 font-mono text-sm mt-10">
+                            {Math.floor(totalSecondsLeft / 60)}:{String(totalSecondsLeft % 60).padStart(2, '0')} remaining
+                        </div>
+                    </div>
+                    <div className="absolute bottom-14 text-center">
+                        <p className="text-white/15 text-[9px] uppercase tracking-[0.3em]">Double-tap to exit</p>
+                    </div>
+                </div>
+            )}
             {enhancements.natureParticles && (status === 'active' || status === 'countdown') && <SakuraPetals isDarkMode={isDarkMode} />}
             <div className={`relative z-50 w-full px-6 flex items-center justify-center transition-opacity duration-700 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
 
@@ -898,7 +931,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                 <div className="flex flex-col items-center gap-6 w-full max-w-sm px-6">
 
                     {/* Technique Selector (Always Visible) */}
-                    <div className="flex p-0.5 bg-[#3A1700]/10 backdrop-blur-xl rounded-full border border-white/5 relative z-50">
+                    <div className="flex p-0.5 bg-black/20 backdrop-blur-xl rounded-full border border-white/5 relative z-50">
                         {(Object.keys(TECHNIQUES) as Technique[]).map((tech) => (
                             <button key={tech} onClick={() => {
                                 haptics.selection();

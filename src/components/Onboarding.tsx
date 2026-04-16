@@ -1,9 +1,9 @@
 
 
 import { useState, useEffect } from 'react';
-import type { UserProfile, QuoteIntensity, ContentType, QuoteSource } from '../types';
+import type { UserProfile, QuoteIntensity, ContentType, QuoteSource, FutureLetter } from '../types';
 import { Logo } from './Logo';
-import { Sun, Moon, ArrowRight, ArrowLeft, Sparkles, Focus, Flame, Rocket, Palette, BookOpen, Activity, Briefcase, Monitor, Compass, Quote, User, Bot, Blend } from 'lucide-react';
+import { Sun, Moon, ArrowRight, ArrowLeft, Sparkles, Focus, Flame, Rocket, Palette, BookOpen, Activity, Briefcase, Monitor, Compass, Quote, User, Bot, Blend, Heart } from 'lucide-react';
 
 interface OnboardingProps {
     onComplete: (profile: Omit<UserProfile, 'id'>) => void;
@@ -32,7 +32,7 @@ interface StepIndicatorProps {
 
 const StepIndicator: React.FC<StepIndicatorProps> = ({ step, isDarkMode }) => (
     <div className="flex gap-2 justify-center mt-8">
-        {[1, 2, 3, 4, 5].map(s => (
+        {[1, 2, 3, 4, 5, 6].map(s => (
             <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${s === step
                 ? `w-8 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`
                 : `w-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`
@@ -65,6 +65,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, isDarkMode, 
     const [tier, setTier] = useState<QuoteIntensity>(1);
     const [contentType, setContentType] = useState<ContentType>('quotes');
     const [quoteSource, setQuoteSource] = useState<QuoteSource>('mix');
+    const [onboardingLetter, setOnboardingLetter] = useState('');
 
     // Initial load animation
     const [showWelcome, setShowWelcome] = useState(false);
@@ -78,6 +79,19 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, isDarkMode, 
 
 
     const handleSubmit = () => {
+        let futureLetters: FutureLetter[] | undefined;
+        if (onboardingLetter.trim()) {
+            const deliveryDate = new Date();
+            deliveryDate.setDate(deliveryDate.getDate() + 90);
+            futureLetters = [{
+                id: `letter_${Date.now()}`,
+                content: onboardingLetter.trim(),
+                writtenDate: new Date().toISOString(),
+                context: 'onboarding',
+                hasBeenDelivered: false,
+                scheduledDeliveryDate: deliveryDate.toISOString(),
+            }];
+        }
         onComplete({
             name,
             coachName: coachName || 'Palante Coach',
@@ -96,6 +110,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, isDarkMode, 
             goals: [],
             activityHistory: [],
             favoriteQuotes: [],
+            ...(futureLetters ? { futureLetters } : {}),
         });
     };
 
@@ -486,10 +501,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, isDarkMode, 
                             <ArrowLeft className={textSecondary} size={24} />
                         </button>
                         <button
-                            onClick={handleSubmit}
+                            onClick={() => setStep(6)}
                             className={`px-10 py-4 rounded-full font-bold text-lg transition-all shadow-xl hover:shadow-2xl hover:scale-105 ${'bg-terracotta-500 text-white hover:scale-105'}`}
                         >
-                            Begin Journey
+                            Next
                         </button>
                     </div>
                     <StepIndicator step={step} isDarkMode={isDarkMode} />
@@ -498,6 +513,63 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, isDarkMode, 
         );
     }
 
-    // --- STEP 5: REMOVED (Voice Selection) ---
+    // --- STEP 6: LETTER TO FUTURE SELF (90-Day Time Capsule) ---
+    if (step === 6) {
+        const d = new Date();
+        d.setDate(d.getDate() + 90);
+        const deliveryDateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        return (
+            <div className={`min-h-screen flex flex-col items-center pt-16 pb-6 px-6 transition-colors duration-500 ${bgClass}`}>
+                <ThemeToggle onToggleTheme={onToggleTheme} isDarkMode={isDarkMode} />
+                <div className="w-full max-w-lg animate-fade-in flex flex-col h-full">
+                    <div className="flex justify-center mb-6">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/10'}`}>
+                            <Heart size={28} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                        </div>
+                    </div>
+                    <h2 className={`text-3xl font-display font-medium text-center mb-2 ${textPrimary}`}>
+                        A letter to {name || 'yourself'}.
+                    </h2>
+                    <p className={`text-sm text-center mb-6 ${textSecondary}`}>
+                        Write something to your future self — from this moment of beginning. You'll receive it in 90 days.
+                    </p>
+
+                    <textarea
+                        rows={7}
+                        value={onboardingLetter}
+                        onChange={(e) => setOnboardingLetter(e.target.value)}
+                        placeholder={`Dear ${name || 'future me'},\n\nI'm starting this journey because...`}
+                        className={`w-full p-4 rounded-2xl border text-sm font-body leading-relaxed resize-none focus:outline-none transition-colors ${
+                            isDarkMode
+                                ? 'bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-pale-gold/40'
+                                : 'bg-white border-sage/15 text-sage-dark placeholder-sage/30 focus:border-sage/40'
+                        }`}
+                    />
+
+                    <p className={`text-xs text-center mt-3 mb-6 ${isDarkMode ? 'text-white/25' : 'text-sage/40'}`}>
+                        Sealed until {deliveryDateStr}
+                    </p>
+
+                    <div className="flex flex-col gap-3 mt-auto">
+                        <button
+                            onClick={handleSubmit}
+                            className="w-full py-4 rounded-full font-bold text-lg bg-terracotta-500 text-white shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+                        >
+                            Seal the Letter &amp; Begin
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            className={`text-sm text-center py-2 ${isDarkMode ? 'text-white/30 hover:text-white/60' : 'text-sage/40 hover:text-sage/70'} transition-colors`}
+                        >
+                            Skip — Begin Journey
+                        </button>
+                    </div>
+                    <StepIndicator step={step} isDarkMode={isDarkMode} />
+                </div>
+            </div>
+        );
+    }
+
     return null;
 };

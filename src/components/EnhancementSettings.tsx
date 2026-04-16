@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, ShieldCheck, Sparkles, Zap, Heart, Leaf } from 'lucide-react';
+import { Check, X, ShieldCheck, Sparkles, Zap, Heart, Leaf, EyeOff } from 'lucide-react';
 import { haptics } from '../utils/haptics';
 import { SlideUpModal } from './SlideUpModal';
 import { STORAGE_KEYS } from '../constants/storageKeys';
@@ -10,6 +10,7 @@ export interface EnhancementOptions {
     smoothTransitions: boolean;
     groundingHeartbeat: boolean;
     natureParticles: boolean;
+    hapticDarkMode: boolean;
 }
 
 const DEFAULT_OPTIONS: EnhancementOptions = {
@@ -17,7 +18,8 @@ const DEFAULT_OPTIONS: EnhancementOptions = {
     dynamicBackgrounds: false,
     smoothTransitions: false,
     groundingHeartbeat: false,
-    natureParticles: false
+    natureParticles: false,
+    hapticDarkMode: false,
 };
 
 interface EnhancementSettingsProps {
@@ -80,7 +82,7 @@ const SettingRow = ({
         {/* Right Toggle (The "Hole") - Re-refined */}
         <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-500 ${options[id]
             ? 'bg-pale-gold border-pale-gold shadow-[0_0_15px_rgba(229,214,167,0.4)] scale-110'
-            : 'border-white/10 bg-[#3A1700]/5'
+            : 'border-white/10 bg-black/20'
             }`}>
             {options[id] && <Check size={12} strokeWidth={4} className="text-warm-gray-green animate-scale-in" />}
         </div>
@@ -258,10 +260,27 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
                             />
                         )}
                     </div>
+
+                    {!exclude.includes('hapticDarkMode') && (
+                        <p className="px-3 pt-3 pb-1.5 text-[8px] font-black uppercase tracking-[0.25em] opacity-25">Sensory</p>
+                    )}
+                    <div className="space-y-1">
+                        {!exclude.includes('hapticDarkMode') && (
+                            <SettingRow
+                                id="hapticDarkMode"
+                                label="Dark Sensory Mode"
+                                description="Screen goes black. Eyes closed, guided only by haptic pulse."
+                                icon={EyeOff}
+                                options={options}
+                                onToggle={toggleOption}
+                                isDarkMode={isDarkMode}
+                            />
+                        )}
+                    </div>
                 </div>
 
                 {/* Footer - Minimalist */}
-                <div className={`mt-2 p-4 bg-[#3A1700]/5 flex items-start gap-3 ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>
+                <div className={`mt-2 p-4 bg-black/20 flex items-start gap-3 ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>
                     <ShieldCheck size={14} className="mt-0.5" />
                     <p className="text-[8px] font-medium leading-tight">
                         Real-time enhancements optimized for your device. Adjust to find your perfect balance.

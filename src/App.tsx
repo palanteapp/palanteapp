@@ -60,7 +60,9 @@ const CinematicIntro = lazy(() => import('./components/CinematicIntro').then(mod
 const MorningMessageCard = lazy(() => import('./components/MorningMessageCard').then(module => ({ default: module.MorningMessageCard })));
 const EveningMessageCard = lazy(() => import('./components/EveningMessageCard').then(module => ({ default: module.EveningMessageCard })));
 const JapaneseWisdomView = lazy(() => import('./components/JapaneseWisdomView').then(m => ({ default: m.JapaneseWisdomView })));
+const GardenOfGrowth = lazy(() => import('./components/GardenOfGrowth').then(m => ({ default: m.GardenOfGrowth })));
 import { PomodoroTimer } from './components/PomodoroTimer';
+import { RitualShelf } from './components/RitualShelf';
 // const PomodoroTimer = lazy(() => import('./components/PomodoroTimer').then(m => ({ default: m.PomodoroTimer })));
 
 import { CoachView } from './components/CoachView';
@@ -72,9 +74,9 @@ import { WeeklyHighlightsModal, computeWeeklyHighlights } from './components/Wee
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { Logo } from './components/Logo';
 import {
-  Home, TrendingUp, User as UserIcon, Moon,
+  Home, TrendingUp, User as UserIcon, Moon, Sun,
   BookMarked, Music, MessageCircle, Bell, ChevronDown, Check,
-  Target, Sparkles, ChevronRight, ChevronLeft, Waves, Mic, Compass, Heart,
+  Target, Sparkles, ChevronRight, ChevronLeft, Waves, Mic, Wrench, Heart,
   CheckCircle2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -118,7 +120,7 @@ function AppContent() {
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const [isQuoteLoading, setIsQuoteLoading] = useState(true);
   const [allQuotes, setAllQuotes] = useState<Quote[]>(() => [...QUOTES, ...AFFIRMATIONS]);
-  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'explore' | 'fasting' | 'reflect' | 'breath' | 'meditate' | 'wisdom' | 'coach' | 'pomodoro' | 'soundscapes' | 'routines'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'fasting' | 'reflect' | 'breath' | 'meditate' | 'wisdom' | 'coach' | 'pomodoro' | 'soundscapes' | 'routines'>('home');
 
 
   const { isDarkMode } = useTheme();
@@ -177,6 +179,22 @@ function AppContent() {
   const [showMorningSuccess, setShowMorningSuccess] = useState(false);
   const [showEveningSuccess, setShowEveningSuccess] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<Quote | null>(null);
+
+  // Synchronize browser overscroll color with Palante theme
+  useEffect(() => {
+    const color = isDarkMode ? '#3D4A3A' : '#F2EBE0'; // Sage Mid or Ivory
+    document.body.style.backgroundColor = color;
+    document.documentElement.style.backgroundColor = color;
+    
+    // Also update meta theme-color for mobile status bars
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute('content', color);
+  }, [isDarkMode]);
 
   // Refresh Daily Quote logic
   const refreshDailyQuote = useCallback((force = false) => {
@@ -336,9 +354,11 @@ function AppContent() {
   const [showMilestone, setShowMilestone] = useState<{
     isOpen: boolean;
     milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year' | null;
+    streakDays?: number;
   }>({
     isOpen: false,
-    milestone: null
+    milestone: null,
+    streakDays: undefined
   });
 
   // Routine Stack Runner
@@ -461,25 +481,37 @@ function AppContent() {
     setCurrentLetter(null);
   };
 
-  // Check for letter delivery on low energy days
+  // Check for letter delivery — scheduled (90-day) or on low-energy days
   useEffect(() => {
     if (!user || !user.futureLetters || user.futureLetters.length === 0) return;
     if (showLetterRead) return; // Don't show multiple letters at once
 
-    // Check if user has low energy (1 or 2) and hasn't seen a letter today
-    const hasLowEnergy = user.currentEnergy && user.currentEnergy <= 2;
     const letterShownToday = sessionStorage.getItem(SESSION_KEYS.LETTER_SHOWN_TODAY);
+    if (letterShownToday) return;
 
-    if (hasLowEnergy && !letterShownToday) {
-      // Find an undelivered letter
-      const undeliveredLetters = user.futureLetters.filter(l => !l.hasBeenDelivered);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      if (undeliveredLetters.length > 0) {
-        // Pick the oldest letter
-        const oldestLetter = undeliveredLetters.sort((a, b) =>
+    // Priority 1: Scheduled delivery (90-day letters) — show regardless of energy
+    const scheduledDue = user.futureLetters
+      .filter(l => !l.hasBeenDelivered && l.scheduledDeliveryDate && new Date(l.scheduledDeliveryDate) <= today)
+      .sort((a, b) => new Date(a.scheduledDeliveryDate!).getTime() - new Date(b.scheduledDeliveryDate!).getTime());
+
+    if (scheduledDue.length > 0) {
+      setCurrentLetter(scheduledDue[0]);
+      setShowLetterRead(true);
+      sessionStorage.setItem(SESSION_KEYS.LETTER_SHOWN_TODAY, 'true');
+      return;
+    }
+
+    // Priority 2: Low-energy delivery for non-scheduled letters
+    const hasLowEnergy = user.currentEnergy && user.currentEnergy <= 2;
+    if (hasLowEnergy) {
+      const undelivered = user.futureLetters.filter(l => !l.hasBeenDelivered && !l.scheduledDeliveryDate);
+      if (undelivered.length > 0) {
+        const oldestLetter = undelivered.sort((a, b) =>
           new Date(a.writtenDate).getTime() - new Date(b.writtenDate).getTime()
         )[0];
-
         setCurrentLetter(oldestLetter);
         setShowLetterRead(true);
         sessionStorage.setItem(SESSION_KEYS.LETTER_SHOWN_TODAY, 'true');
@@ -612,6 +644,9 @@ function AppContent() {
   }, [hour, user, userLoading, loadNewQuote]);
 
 
+  // PRO-ACTIVE COACH SESSION INITIALIZATION Logic Moved to Line 1082 Area to ensure initialization order
+
+
 
   // Initialize notifications
   useEffect(() => {
@@ -739,7 +774,37 @@ function AppContent() {
   };
 
   const handleActivity = async (type: ActivityType) => {
-    logActivity(type);
+    if (!user) return;
+    const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
+    const oldStreak = user.streak || 0;
+    
+    await logActivity(type);
+    
+    // We need the updated user state, but since logActivity just fired, 
+    // we can calculate what happened.
+    const updatedCount = currentPracticeData.totalPractices + 1;
+    const { milestone, isNew } = checkMilestone(updatedCount, currentPracticeData.milestones);
+    
+    if (milestone && isNew) {
+      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year'> = {
+        'practices_1': 'first', 'practices_3': 'three', 'practices_7': 'week',
+        'practices_14': 'fortnight', 'practices_30': 'month', 'practices_50': 'fifty',
+        'practices_100': 'century', 'practices_200': 'twohundred', 'practices_365': 'year'
+      };
+      setShowMilestone({ isOpen: true, milestone: milestoneMap[milestone] || 'week' });
+    }
+
+    // Also check for STREAK milestones (7, 30, 100 days)
+    // Note: UserContext updates streak during logActivity
+    // If it was their first activity today, streak incremented.
+    const today = new Date().toISOString().split('T')[0];
+    const hadActivityTodayBefore = (user.activityHistory || []).some(log => log.date === today);
+    if (!hadActivityTodayBefore) {
+      const newStreak = oldStreak + 1;
+      if (newStreak === 7 || newStreak === 30 || newStreak === 100 || newStreak === 365) {
+        setShowMilestone({ isOpen: true, milestone: null, streakDays: newStreak });
+      }
+    }
   };
 
   const handleSaveMeditationReflection = async (reflectionData: { intention: string; duration: number; reflection: string; mantra: string }) => {
@@ -780,38 +845,74 @@ function AppContent() {
   };
 
   const handleQuickAction = (id: string) => {
+    console.log('Quick Action Triggered:', id);
     haptics.selection();
     switch (id) {
       case 'fasting':
         setActiveTab('fasting');
+        setToastMessage('Fasting Tracker');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
         break;
       case 'breath':
         setActiveTab('breath');
         break;
       case 'meditate':
+      case 'meditation':
         setActiveTab('meditate');
+        setToastMessage('Mindfulness Space');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
         break;
       case 'coach':
         setActiveTab('coach');
+        setToastMessage('Palante Coach');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
         break;
       case 'wisdom':
         setActiveTab('wisdom');
+        setToastMessage('Library of Wisdom');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
         break;
       case 'pomodoro':
+      case 'timer':
         setActiveTab('pomodoro');
+        setToastMessage('Focus Timer');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
         break;
       case 'reflect':
+      case 'journal':
         setActiveTab('reflect');
+        setToastMessage('Daily Journal');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+        break;
+      case 'toolkit':
+      case 'explore':
+        setActiveTab('toolkit');
+        setToastMessage('Explore Toolkit');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
+        break;
+      case 'momentum':
+        setActiveTab('momentum');
+        setToastMessage('Daily Momentum');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
         break;
       case 'soundscapes':
+        setMixerSource('dashboard');
         setShowSoundMixer(true);
         break;
       case 'routines':
         setShowStackWizard(true);
         break;
       default:
+        console.warn('Unknown quick action ID:', id);
     }
-
   };
 
   // Handle practice updates when a practice is completed (NO STREAK PRESSURE)
@@ -1025,6 +1126,60 @@ function AppContent() {
   const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const todaysPriming = user?.dailyPriming?.find(p => p.date === todayDate);
 
+  // PRO-ACTIVE COACH SESSION INITIALIZATION
+  const sessionInitialized = useRef(false);
+  useEffect(() => {
+    if (user && !userLoading && !sessionInitialized.current && !showIntroSequence) {
+      sessionInitialized.current = true;
+
+      // Check for meaningful check-in opportunities
+      const coachInterventions: CoachIntervention[] = [];
+      const today = new Date().toISOString().split('T')[0];
+      const goalsCompletedToday = (user.dailyFocuses || []).filter(f => f.isCompleted && f.createdAt?.startsWith(today));
+      const goalsPendingToday = (user.dailyFocuses || []).filter(f => !f.isCompleted);
+      const dailyIntention = todaysPriming?.dailyIntention;
+
+      if (goalsCompletedToday.length > 0) {
+        coachInterventions.push({
+          id: `compliment-${Date.now()}`,
+          type: 'encouragement',
+          priority: 'medium',
+          message: `Good job finishing "${goalsCompletedToday[goalsCompletedToday.length - 1].text}"! You're making real progress today.`,
+          dismissed: false,
+          accepted: false
+        });
+      } else if (goalsPendingToday.length > 0) {
+        coachInterventions.push({
+          id: `nudge-${Date.now()}`,
+          type: 'suggestion',
+          priority: 'medium',
+          message: `How's it going with "${goalsPendingToday[0].text}"? I'm here if you need a quick reset or strategy boost.`,
+          action: { type: 'suggest_goal', label: 'View Goal' },
+          dismissed: false,
+          accepted: false
+        });
+      }
+
+      if (dailyIntention && goalsCompletedToday.length === 0) {
+        coachInterventions.push({
+          id: `intention-${Date.now()}`,
+          type: 'check_in',
+          priority: 'high',
+          message: `Checking in: Are you still feeling aligned with your intention to "${dailyIntention}"?`,
+          dismissed: false,
+          accepted: false
+        });
+      }
+
+      if (coachInterventions.length > 0) {
+        // Add to user's active interventions
+        const existing = user.coachInterventions || [];
+        const updated = [...coachInterventions, ...existing].slice(0, 5); // Keep recent 5
+        updateProfile({ ...user, coachInterventions: updated });
+      }
+    }
+  }, [user, userLoading, showIntroSequence, todaysPriming?.dailyIntention, updateProfile]);
+
   const handleRemoveJournalEntry = (entryId: string) => {
     if (!user) return;
     const updatedUser = { ...user };
@@ -1033,7 +1188,7 @@ function AppContent() {
       // Remove from individual localStorage if exists
       const entryToRemove = user.journalEntries?.find(e => e.id === entryId);
       if (entryToRemove) {
-        localStorage.removeItem(`palante_journal_${entryToRemove.date} `);
+        localStorage.removeItem(`${STORAGE_KEYS.JOURNAL_ENTRY}_${entryToRemove.date}`);
       }
       updateProfile(updatedUser);
     }
@@ -1087,12 +1242,12 @@ function AppContent() {
   }
 
   // LOGGED IN AND HAS PROFILE -> MAIN APP
-  const bgClass = isDarkMode ? 'bg-sage-mid text-white' : 'bg-ivory text-sage-dark';
+  const bgClass = isDarkMode ? 'bg-elevated-dark text-white' : 'bg-ivory text-sage-dark';
   const headerBtnClass = isDarkMode
-    ? 'bg-white/5 border-white/5 hover:bg-white/10 text-white backdrop-blur-md'
-    : 'bg-white/30 border-sage/5 hover:bg-sage/5 text-sage backdrop-blur-md';
+    ? 'bg-white/5 border-pale-gold/20 hover:bg-pale-gold/10 text-pale-gold backdrop-blur-md'
+    : 'bg-white/30 border-sage/10 hover:bg-sage/5 text-sage backdrop-blur-md';
   const navClass = isDarkMode
-    ? 'bg-sage-mid/80 border-white/5 shadow-2xl backdrop-blur-2xl'
+    ? 'bg-sage-mid/80 border-pale-gold/10 shadow-2xl backdrop-blur-2xl'
     : 'bg-white/40 border-sage/5 shadow-spa-lg backdrop-blur-2xl';
 
   const appJsx = (
@@ -1110,8 +1265,8 @@ function AppContent() {
       )}
 
 
-      {/* Global Ambient Background (The "Circles") */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-10">
+      {/* Global Ambient Background (The "Circles" restored from earlier today) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {/* Top Right Concentric Circle */}
         <Target
           className={`absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 transition-colors duration-500 opacity-[0.075] ${isDarkMode ? 'text-[#E8E2D9]' : 'text-sage'
@@ -1124,6 +1279,27 @@ function AppContent() {
         />
       </div>
 
+      {/* ZEN HEART - Message to Self (Repositioned under the FAB on the right) */}
+      <div className="fixed inset-0 pointer-events-none z-[60]">
+        <motion.button
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.1, rotate: 10 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => {
+            haptics.medium();
+            setLetterContext('manual');
+            setShowLetterWrite(true);
+          }}
+          className={`absolute bottom-8 right-6 w-12 h-12 rounded-full flex items-center justify-center pointer-events-auto backdrop-blur-xl border shadow-2xl transition-all ${
+            isDarkMode ? 'bg-white/10 text-pale-gold/70 border-white/20' : 'bg-white/60 text-sage/50 border-sage/10'
+          }`}
+          title="Message to Self"
+        >
+          <Heart size={20} fill="currentColor" />
+        </motion.button>
+      </div>
+
       {/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
@@ -1133,19 +1309,13 @@ function AppContent() {
         {/* Top: Tagline & Logo */}
         <div className="w-full max-w-md flex flex-col items-center">
 
-          {/* Tagline Compact */}
-          <div className={`w-full flex items-center gap-4 mb-1.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage'} `}>
-            <div className="h-px flex-1 bg-current opacity-20 rounded-full"></div>
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] shrink-0 opacity-40">
-              Palante
-            </p>
-            <div className="h-px flex-1 bg-current opacity-20 rounded-full"></div>
+          {/* LOGO ONLY */}
+          <div className="mb-3">
+            <Logo
+              className="h-7 w-auto drop-shadow-md text-pale-gold"
+              color="#E5D6A7"
+            />
           </div>
-
-          <Logo
-            className="h-6 w-auto drop-shadow-md text-pale-gold"
-            color="#E5D6A7"
-          />
         </div>
 
         {/* Bottom: Action Buttons Row (Profile, Theme, Noise, Sounds, Chat, Momentum) */}
@@ -1159,10 +1329,10 @@ function AppContent() {
             <UserIcon size={16} />
           </button>
 
-          {/* 2. Library (Sparse Amber) */}
+          {/* 2. Library */}
           <button
             onClick={() => setShowLibrary(true)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-300 hover:scale-105 shadow-md ${isDarkMode ? 'bg-amber/20 text-amber border border-amber/30 hover:bg-amber/30' : 'bg-amber text-sage-dark hover:bg-amber/90'} `}
+            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${headerBtnClass} `}
             title="Library"
           >
             <BookMarked size={16} />
@@ -1186,8 +1356,8 @@ function AppContent() {
               setMixerSource('dashboard');
               setShowSoundMixer(!showSoundMixer);
             }}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-110 ${showSoundMixer
-              ? isDarkMode ? 'bg-pale-gold border-pale-gold text-warm-gray-green' : 'bg-sage border-sage text-white'
+            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border-[1.5px] transition-all duration-300 hover:scale-110 ${showSoundMixer
+              ? isDarkMode ? 'bg-white/10 border-pale-gold text-pale-gold shadow-[0_0_15px_rgba(229,214,167,0.3)]' : 'bg-sage border-sage text-white'
               : headerBtnClass
               } `}
             title="Soundscapes"
@@ -1230,19 +1400,19 @@ function AppContent() {
           <PageTransition>
             <div className="min-h-screen px-8 pb-8 max-w-md mx-auto">
               {/* 1. HERO: Cinematic Greeting + Quote */}
-              <div className="w-full mb-6 animate-fade-in-slow text-center">
-                <h1 className={`text-3xl font-display font-bold mb-1 tracking-tight ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                  {getGreeting()}, {user?.name?.split(' ')[0] || 'Friend'}
+              <div className="w-full mb-8 mt-12 animate-fade-in-slow text-center relative z-10">
+                <h1 className={`text-4xl font-display font-medium mb-1 tracking-tight ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                  {getGreeting()}, {(user?.name || '').split(' ')[0] || 'Friend'}
                 </h1>
-                <p className={`text-sm font-medium opacity-60 mb-6 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                <p className={`text-base font-sans font-medium mb-12 ${isDarkMode ? 'text-amber' : 'text-sage/80'}`}>
                   {new Date().getHours() < 12 ? 'Ready to rise?' : new Date().getHours() < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
                 </p>
 
                 {/* Evening Wind-Down Banner */}
                 {shouldShowEveningMode && (
-                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-sage/20 to-amber/20 border border-sage/30 backdrop-blur-sm animate-fade-in shadow-lg">
+                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-terracotta/20 via-amber/5 to-terracotta/20 border border-terracotta/20 backdrop-blur-sm animate-fade-in shadow-lg">
                     <div className="flex items-center gap-3 mb-2">
-                      <Moon size={20} className="text-pale-gold" />
+                      <Moon size={20} className="text-terracotta" />
                       <h3 className={`font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'}`}>Wind Down for the Night</h3>
                     </div>
                     <p className={`text-sm ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
@@ -1279,6 +1449,42 @@ function AppContent() {
                     )}
                   </Suspense>
                 </div>
+
+                {/* 2. RITUAL SHELF: Glanceable Growth */}
+                <RitualShelf 
+                  streak={Number(user?.streak) || 0}
+                  points={Number(user?.points) || 0}
+                  isDarkMode={isDarkMode}
+                  fastingActive={(() => {
+                    try {
+                      const status = localStorage.getItem(STORAGE_KEYS.FASTING_STATUS);
+                      return status === 'active';
+                    } catch (e) { return false; }
+                  })()}
+                  fastingTime={(() => {
+                    try {
+                      const startTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
+                      if (!startTime) return '';
+                      const start = new Date(startTime).getTime();
+                      const now = Date.now();
+                      const elapsed = now - start;
+                      if (isNaN(elapsed) || elapsed < 0) return '';
+                      const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                      const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                      return `${hours}h ${mins}m`;
+                    } catch (e) { return ''; }
+                  })()}
+                  onGardenClick={() => setShowProfile(true)}
+                  onStreakClick={() => {/* maybe open a history modal */}}
+                  onFastingClick={() => {
+                    const fastingStartTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
+                    if (fastingStartTime) {
+                      setActiveTab('fasting');
+                    } else {
+                      setActiveTab('momentum');
+                    }
+                  }}
+                />
               </div>
 
               {/* Profile Completion Prompt */}
@@ -1371,14 +1577,10 @@ function AppContent() {
                 // 4. Today's Goals (todays_goals)
                 // 5. Coach/Progress (accountability_coach)
 
-                const defaultOrder = ['start_ritual', 'morning_practice', 'daily_quote', 'todays_goals', 'quick_routines', 'accountability_coach'];
+                const defaultOrder = ['morning_practice', 'daily_quote', 'todays_goals', 'accountability_coach'];
                 let displayOrder = (user?.dashboardOrder && user.dashboardOrder.length > 0) ? [...user.dashboardOrder] : [...defaultOrder];
-                // Auto-migration: Append any new default sections that are missing from user's saved order
-                defaultOrder.forEach(sec => {
-                  if (!displayOrder.includes(sec)) displayOrder.push(sec);
-                });
-                // Ensure removed features are gone
-                displayOrder = displayOrder.filter((id) => id !== 'daily_mosaic');
+                // Remove legacy features that shouldn't live on Home full-time
+                displayOrder = displayOrder.filter((id) => id !== 'daily_mosaic' && id !== 'quick_routines' && id !== 'future_letter' && id !== 'start_ritual');
 
                 return (
                   <div className="flex flex-col gap-0">
@@ -1386,34 +1588,13 @@ function AppContent() {
                     {/* Customize Button moved to bottom */}
                     {displayOrder.map((sectionId) => (
                       <div key={sectionId} id={`${sectionId}-section`} className="relative">
-                        {sectionId === 'start_ritual' && (
-                          <div className="mb-6">
-                            {/* Morning Practice Fade Out Logic */}
-                            {showMorningSuccess ? (
-                              <div className="w-full py-4 text-center animate-fade-in">
-                                <div className="mb-4">
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'}`}>
-                                    <Check size={24} />
-                                  </div>
-                                  <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'}`}>Practice Complete.</h3>
-                                </div>
-                              </div>
-                            ) : showEveningSuccess ? (
-                              <div className="text-center py-8 animate-fade-in">
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
-                                  <Moon size={24} />
-                                </div>
-                                <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'}`}>Sleep well, friend.</h3>
-                              </div>
-                            ) : null}
-                          </div>
-                        )}
+
 
                         {sectionId === 'morning_practice' && user && (
                           <div className="mb-6 relative group">
                             {!todaysPriming?.dailyIntention ? (
                               <DailyMorningPracticeWidget
-                                userName={user.name}
+                                userName={user?.name || "Friend"}
                                 onComplete={(data) => {
                                   handlePrimingComplete(data);
                                 }}
@@ -1436,8 +1617,8 @@ function AppContent() {
                             ) : (
                               <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
                                 <MorningMessageCard
-                                  intention={todaysPriming.dailyIntention}
-                                  message={todaysPriming.messageOfTheDay}
+                                  intention={todaysPriming?.dailyIntention || ""}
+                                  message={todaysPriming?.messageOfTheDay || ""}
                                   isDarkMode={isDarkMode}
                                   onRefresh={() => {
                                     if (!user) return;
@@ -1462,7 +1643,14 @@ function AppContent() {
                             {(user.dailyEveningPractice || []).find(p => p.date === todayDate) ? (
                               <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
                                 <EveningMessageCard
-                                  practice={(user.dailyEveningPractice || []).find(p => p.date === todayDate)!}
+                                  practice={user.dailyEveningPractice?.find(p => p.date === todayDate) || {
+                                    id: 'temp',
+                                    date: todayDate,
+                                    gratitude: '',
+                                    learning: '',
+                                    accomplishment: '',
+                                    delight: ''
+                                  }}
                                   isDarkMode={isDarkMode}
                                   onRefresh={() => {
                                     const updatedPractice = (user.dailyEveningPractice || []).filter(p => p.date !== todayDate);
@@ -1685,6 +1873,40 @@ function AppContent() {
                     ))}
 
 
+                    {/* Garden of Growth — scroll-reveal entrance, plants grow upward into frame */}
+                    {user && (() => {
+                      const pts = user.points || 0;
+                      const gardenLevel = pts >= 5000 ? 'Master' : pts >= 1000 ? 'Guide' : pts >= 500 ? 'Seeker' : 'Beginner';
+                      const streakText = (user.streak || 0) > 0 ? ` · ${user.streak}-day streak` : '';
+                      return (
+                        <motion.div
+                          className="mt-6 mb-6"
+                          initial={{ opacity: 0, y: 60, scale: 0.92 }}
+                          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                          viewport={{ once: true, amount: 0.1 }}
+                          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        >
+                          {/* Caption header */}
+                          <div className="px-1 mb-3 text-center">
+                            <p className={`text-sm font-semibold tracking-wide ${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>
+                              Your Garden of Growth
+                            </p>
+                            <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-white/35' : 'text-sage/55'}`}>
+                              {gardenLevel} · {pts.toLocaleString()} pts{streakText}
+                            </p>
+                          </div>
+                          <Suspense fallback={null}>
+                            <GardenOfGrowth
+                              points={pts}
+                              streak={user.streak || 0}
+                              name={user.name || ''}
+                              isDarkMode={isDarkMode}
+                            />
+                          </Suspense>
+                        </motion.div>
+                      );
+                    })()}
+
                     {/* Customize Dashboard Button (Moved to bottom) */}
                     <div className="flex justify-center mt-8 mb-4 opacity-50 hover:opacity-100 transition-opacity">
                       <button
@@ -1708,9 +1930,6 @@ function AppContent() {
                         { id: 'morning_practice', label: 'Morning Practice' },
                         { id: 'daily_quote', label: 'Daily Inspiration' },
                         { id: 'todays_goals', label: 'Goals' },
-                        { id: 'quick_routines', label: 'Routine Stacks' },
-                        { id: 'accountability_coach', label: 'Progress & Coach' },
-
                       ]}
                       currentOrder={displayOrder}
                       onSave={(newOrder) => {
@@ -1727,39 +1946,7 @@ function AppContent() {
                 );
               })()}
 
-              {/* Future Letter Button - Moved to bottom */}
-              {user && (
-                <button
-                  onClick={() => {
-                    haptics.medium();
-                    setLetterContext('manual');
-                    setLetterContextDetails('');
-                    setShowLetterWrite(true);
-                  }}
-                  className={`w-full p-4 rounded-2xl transition-all flex items-center justify-between mb-6 ${isDarkMode
-                    ? 'bg-pale-gold/10 border border-pale-gold/20 hover:bg-pale-gold/20'
-                    : 'bg-sage/10 border border-sage/20 hover:bg-sage/20'
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Heart size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} fill="currentColor" />
-                    <div className="text-left">
-                      <p className={`font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                        Write to Future You
-                      </p>
-                      <p className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                        Leave yourself an encouraging note
-                      </p>
-                    </div>
-                  </div>
-                  {user.futureLetters && user.futureLetters.length > 0 && (
-                    <div className={`text-xs px-2 py-1 rounded-full ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/20 text-sage'
-                      }`}>
-                      {user.futureLetters.filter(l => !l.hasBeenDelivered).length} saved
-                    </div>
-                  )}
-                </button>
-              )}
+              {/* Future Letter Button removed from homepage scroll as per request */}
 
 
 
@@ -1820,7 +2007,7 @@ function AppContent() {
             </ErrorBoundary>
           )}
 
-          {activeTab === 'explore' && (
+          {activeTab === 'toolkit' && (
             <ErrorBoundary name="Explore">
             <PageTransition>
               <div className="min-h-screen max-w-md mx-auto">
@@ -1843,11 +2030,20 @@ function AppContent() {
             </ErrorBoundary>
           )}
 
-          {activeTab === 'fasting' && (
+          {activeTab === 'fasting' && user && (
             <ErrorBoundary name="Fasting">
             <PageTransition>
               <div className="min-h-screen max-w-md mx-auto">
-                <Fasting isDarkMode={isDarkMode} />
+                <Fasting 
+                  user={user} 
+                  isDarkMode={isDarkMode} 
+                  onUpdateProfile={(updates) => handleProfileUpdate((prev) => prev ? ({ ...prev, ...updates }) : prev!)}
+                  onOpenCoach={(msg) => {
+                    handleQuickAction('coach');
+                    // We might need a small delay or a state to pass the initial message
+                    // but usually coach has a way to receive message
+                  }}
+                />
               </div>
             </PageTransition>
             </ErrorBoundary>
@@ -2066,7 +2262,7 @@ function AppContent() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[100] bg-[#3A1700] overflow-hidden"
+            className="fixed inset-0 z-[100] bg-black/20 overflow-hidden"
           >
             <CoachView
               user={user}
@@ -2152,7 +2348,7 @@ function AppContent() {
           {[
             { id: 'home', icon: Home, label: 'Home' },
             { id: 'momentum', icon: TrendingUp, label: 'Progress' },
-            { id: 'explore', icon: Compass, label: 'Toolkit' },
+            { id: 'toolkit', icon: Wrench, label: 'Toolkit' },
           ].map((tab) => {
             const Icon = tab.icon;
 
@@ -2172,7 +2368,15 @@ function AppContent() {
                     : 'text-sage/60 hover:text-sage hover:bg-sage/10'
                   } `}
               >
-                <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
+                <div className="relative">
+                  <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
+                  {tab.id === 'momentum' && (user?.streak ?? 0) > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#355E3B] animate-pulse"
+                      style={{ boxShadow: '0 0 4px rgba(53,94,59,0.8)' }}
+                    />
+                  )}
+                </div>
                 <span className="text-[10px] md:text-xs font-medium">{tab.label}</span>
               </button>
             );
@@ -2301,11 +2505,12 @@ function AppContent() {
 
       {/* Milestone Celebration */}
       {
-        showMilestone.milestone && (
+        showMilestone.isOpen && (
           <MilestoneCelebration
-            milestone={showMilestone.milestone}
+            milestone={showMilestone.milestone || undefined}
+            streakDays={showMilestone.streakDays}
             isOpen={showMilestone.isOpen}
-            onClose={() => setShowMilestone({ isOpen: false, milestone: null })}
+            onClose={() => setShowMilestone({ isOpen: false, milestone: null, streakDays: undefined })}
           />
         )
       }
@@ -2444,6 +2649,7 @@ function AppContent() {
               showCloseButton={false}
               fixedHeight={true}
               isDarkMode={isDarkMode}
+              position="bottom"
             >
               <div className="bg-transparent">
                 <Profile

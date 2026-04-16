@@ -20,15 +20,18 @@
   --color-ivory-warm:  #EDE3D4; /* slightly deeper — card surfaces          */
   --color-sand-beige:  #EDE4DA; /* legacy alias → ivory-warm               */
 
-  /* Sage / Olive family */
-  --color-sage:        #4E5C4C; /* primary sage — buttons, dark mode bg     */
-  --color-sage-mid:    #3D4A3A; /* secondary text, subtle borders           */
-  --color-sage-dark:   #2E3B2B; /* body text on light backgrounds           */
-  --color-warm-gray-green: #4E5C4C; /* legacy alias → sage                 */
+  /* Hunter Green family (updated Apr 2026) */
+  --color-sage:        #355E3B; /* hunter green — buttons, dark mode bg     */
+  --color-sage-mid:    #2A4B2F; /* darker hunter green — secondary bg       */
+  --color-sage-dark:   #1F3824; /* deepest hunter green — body text         */
+  --color-olive:       #355E3B; /* legacy alias → hunter green              */
+  --color-warm-gray-green: #355E3B; /* legacy alias → sage                 */
 
   /* Gold family */
   --color-pale-gold:   #E5D6A7; /* pale gold — highlights, quote accents    */
   --color-amber:       #F59E0B; /* rich amber — active/hover gold states    */
+  --color-amber-soft:  rgba(245, 158, 11, 0.4);
+  --color-gold-text:   #A0806B; /* deeper bronze/gold for readable text     */
   --color-luxe-gold:   #E5D6A7; /* legacy alias → pale-gold                */
 
   /* Terracotta — PRIMARY CTA only */
@@ -38,9 +41,14 @@
   --color-terra-light: #D4895A; /* light — hover state                      */
 
   /* Tier accent aliases */
-  --color-zen-accent:    #4E5C4C; /* Gentle  → sage                         */
-  --color-stoic-accent:  #4E5C4C; /* Balanced → sage                        */
+  --color-zen-accent:    #355E3B; /* Gentle  → hunter green                 */
+  --color-stoic-accent:  #355E3B; /* Balanced → hunter green                */
   --color-grit-accent:   #C96A3A; /* Intense  → terracotta                   */
+
+  /* Elevated High-End Dark (Fasting Vibe) */
+  --color-deep-olive:    #3D4535; /* the new favorite background            */
+  --color-glass-white:   rgba(255, 255, 255, 0.05); /* subtle surface       */
+  --color-gold-muted:    rgba(229, 214, 167, 0.4);  /* for secondary lines  */
 }
 
 @layer utilities {
@@ -115,8 +123,28 @@
   }
 
   .shadow-spa-lg {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.12);
   }
+
+  /* Elevated Vibe Utils */
+  .bg-elevated-dark {
+    background-color: #3D4535;
+  }
+
+  .glass-surface {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .rounded-premium {
+    border-radius: 2.5rem;
+  }
+
+  .rounded-card-premium {
+    border-radius: 2rem;
+  }
+
 
   /* Gradients */
   .bg-gradient-sage-beige {
@@ -200,12 +228,12 @@
   /* Expanding Circle Animation */
   @keyframes expand-circle {
     0% {
-      transform: scale(0.8);
-      opacity: 0.5;
+      transform: scale(0.7);
+      opacity: 0.1;
     }
 
     100% {
-      transform: scale(1.2);
+      transform: scale(1.3);
       opacity: 0;
     }
   }

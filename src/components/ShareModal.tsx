@@ -21,6 +21,7 @@ interface ShareModalProps {
     isDarkMode: boolean;
     onGenerateImage?: () => Promise<void>;
     isGeneratingImage?: boolean;
+    seed?: string;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -31,7 +32,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     text,
     isDarkMode,
     onGenerateImage,
-    isGeneratingImage = false
+    isGeneratingImage = false,
+    seed
 }) => {
     if (!isOpen) return null;
 
@@ -39,10 +41,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
             <div className="p-6 flex flex-col items-center w-full">
 
-                {/* Content Preview */}
-                <div className="mb-8 flex justify-center shadow-2xl rounded-3xl overflow-hidden animate-slide-up">
+                {/* Content Preview — ID used as html2canvas capture target */}
+                <div id="share-preview-container" className="mb-8 flex justify-center shadow-2xl rounded-3xl overflow-hidden animate-slide-up">
                     {quote ? (
-                        <SharedQuotePreview quote={quote} />
+                        <SharedQuotePreview quote={quote} seed={seed} />
                     ) : reflection ? (
                         <SharedReflectionPreview
                             date={reflection.date}
@@ -69,7 +71,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                 disabled={isGeneratingImage}
                                 className={`w-full py-4 px-6 rounded-2xl font-bold text-sm tracking-wide transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 ${isDarkMode
                                     ? 'bg-pale-gold text-sage-dark shadow-lg'
-                                    : 'bg-[#4E5C4C] text-white shadow-md' // Olive green for light mode
+                                    : 'bg-[#355E3B] text-white shadow-md' // Hunter green for light mode
                                     } ${isGeneratingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 {isGeneratingImage ? (

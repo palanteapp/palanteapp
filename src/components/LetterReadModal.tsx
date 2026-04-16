@@ -18,6 +18,8 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
         return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     };
 
+    const isScheduledDelivery = !!letter.scheduledDeliveryDate;
+
     const getContextMessage = () => {
         switch (letter.context) {
             case 'meditation':
@@ -28,11 +30,13 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                 return `when you reached ${letter.contextDetails}`;
             case 'manual':
                 return 'during a moment of strength';
+            case 'onboarding':
+                return 'on the day you started your journey';
         }
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-20 bg-[#3A1700]/40 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-20 bg-black/20 backdrop-blur-md animate-fade-in">
             <div className={`relative w-full max-w-lg p-8 rounded-[2.5rem] shadow-2xl animate-in fade-in zoom-in duration-300 ${isDarkMode ? 'bg-sage-mid border border-white/10' : 'bg-white border border-sage/10'
                 }`}>
                 {/* Close Button */}
@@ -58,7 +62,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                 {/* Title */}
                 <h3 className={`text-2xl font-display font-medium text-center mb-2 ${isDarkMode ? 'text-white' : 'text-sage'
                     }`}>
-                    A Letter from Your Past Self
+                    {isScheduledDelivery ? '90 Days Later' : 'A Letter from Your Past Self'}
                 </h3>
 
                 {/* Context */}
@@ -96,7 +100,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                 {/* Message */}
                 <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'
                     }`}>
-                    You wrote this for yourself. You've got this. 💛
+                    {isScheduledDelivery ? 'You wrote this 90 days ago. Look how far you have come.' : "You wrote this for yourself. You've got this."}
                 </p>
             </div>
         </div>

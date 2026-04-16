@@ -239,9 +239,10 @@ export const useAppProcess = ({
             contentType: user?.contentTypePreference,
             coachName: user?.coachName,
             enabled: notificationSettings.enabled,
-            v: 4 // Force update
+            frequency: user?.notificationFrequency, // user profile frequency drives scheduling
+            v: 4
         });
-    }, [activeFocuses, user?.quoteIntensity, user?.contentTypePreference, user?.coachName, notificationSettings.enabled]);
+    }, [activeFocuses, user?.quoteIntensity, user?.contentTypePreference, user?.coachName, notificationSettings.enabled, user?.notificationFrequency]);
 
     useEffect(() => {
         if (permission !== 'granted' || !user) return;
@@ -249,7 +250,12 @@ export const useAppProcess = ({
         // Only reschedule if config actually changed
         if (configKey !== lastNotificationConfigRef.current) {
             lastNotificationConfigRef.current = configKey;
-            rescheduleAll(undefined, activeFocuses, user.quoteIntensity, user.contentTypePreference, user.coachName);
+            // Merge user's profile frequency into notification settings so the
+            // number of daily quote notifications matches what the user chose in onboarding/profile
+            const targetSettings = user.notificationFrequency
+                ? { ...notificationSettings, frequency: user.notificationFrequency }
+                : notificationSettings;
+            rescheduleAll(targetSettings, activeFocuses, user.quoteIntensity, user.contentTypePreference, user.coachName);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
@@ -258,7 +264,8 @@ export const useAppProcess = ({
         configKey,
         activeFocuses,
         user?.quoteIntensity,
-        user?.contentTypePreference
+        user?.contentTypePreference,
+        user?.notificationFrequency
         // NOTE: rescheduleAll is intentionally NOT in dependencies to avoid infinite loop
     ]);
 
