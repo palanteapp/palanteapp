@@ -54,7 +54,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-fade-in">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-[#3A1700]/40 backdrop-blur-xl transition-all duration-500"
+                className="absolute inset-0 bg-black/20 backdrop-blur-xl transition-all duration-500"
                 onClick={onClose}
             />
 

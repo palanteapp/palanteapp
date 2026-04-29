@@ -63,7 +63,7 @@ export const EnergyCheckIn: React.FC<EnergyCheckInProps> = ({
                                     : 'bg-sage text-white shadow-spa scale-105'
                                 : isDarkMode
                                     ? 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                                    : 'bg-white/40 text-sage/70 hover:bg-white/60 hover:text-sage'
+                                    : 'bg-white/40 text-sage hover:bg-white/60'
                                 }`}
                             title={energy.description}
                         >
@@ -116,7 +116,7 @@ export const EnergyCheckIn: React.FC<EnergyCheckInProps> = ({
                                             : 'bg-sage text-white'
                                         : isDarkMode
                                             ? 'bg-white/5 text-white/70 hover:bg-white/10'
-                                            : 'bg-white/40 text-sage/70 hover:bg-white/60'
+                                            : 'bg-white/40 text-sage hover:bg-white/60'
                                         }`}
                                 >
                                     <div className="font-medium text-sm">{vibe.label}</div>

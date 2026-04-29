@@ -92,14 +92,14 @@ export const VibeCheck: React.FC<VibeCheckProps> = ({ isOpen, onSelect, onSkip, 
         <SlideUpModal
             isOpen={isOpen}
             onClose={onSkip}
-            isDarkMode={isDarkMode}
+            isDarkMode={true}
         >
-            <div className={`p-6 w-full max-w-sm mx-auto space-y-6 ${isDarkMode ? 'text-white' : 'text-primary'}`}>
+            <div className="p-6 w-full max-w-sm mx-auto space-y-6">
                 <div className="text-center space-y-2 mt-2">
-                    <p className={`text-xs font-medium uppercase tracking-widest opacity-60 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                    <p className="text-xs font-bold uppercase tracking-widest text-white/60">
                         {getGreeting()}, {userName.split(' ')[0]}
                     </p>
-                    <h1 className={`text-2xl font-display font-medium leading-tight px-2 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                    <h1 className="text-2xl font-display font-bold leading-tight px-2 text-white">
                         What type of motivation would you like today?
                     </h1>
                 </div>
@@ -114,28 +114,25 @@ export const VibeCheck: React.FC<VibeCheckProps> = ({ isOpen, onSelect, onSkip, 
                                 key={vibe.id}
                                 onClick={() => handleSelect(vibe.tier)}
                                 style={{ animationDelay: `${index * 50}ms` }}
-                                className={`group relative w-full h-20 rounded-xl border flex items-center px-5 transition-all duration-300 tap-zone hover:scale-[1.01] animate-fade-in-up ${isSelected
-                                    ? `${vibe.bg} ${vibe.border} ring-1 ring-offset-1 ring-offset-black/5 ${vibe.ring}`
-                                    : isDarkMode
-                                        ? 'bg-white/10 border-white/10 hover:bg-white/20'
-                                        : 'bg-white border-sage/10 hover:border-sage/30 shadow-sm hover:shadow-md'
+                                className={`group relative w-full h-20 rounded-xl border flex items-center px-5 transition-all duration-300 tap-zone animate-fade-in-up ${isSelected
+                                    ? 'bg-[#C96A3A] border-[#C96A3A]'
+                                    : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
                                     }`}
                             >
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 transition-transform group-hover:scale-110 ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'
-                                    }`}>
-                                    <Icon size={20} className={vibe.color} />
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 transition-transform group-hover:scale-110 ${isSelected ? 'bg-white/20' : 'bg-white/[0.12]'}`}>
+                                    <Icon size={20} className="text-white" />
                                 </div>
 
                                 <div className="text-left flex-1">
-                                    <h3 className={`text-lg font-display font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                                    <h3 className="text-lg font-display font-bold text-white">
                                         {vibe.label}
                                     </h3>
-                                    <p className={`text-xs ${isDarkMode ? 'text-white/50' : 'text-sage/60'}`}>
+                                    <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-white/50'}`}>
                                         {vibe.desc}
                                     </p>
                                 </div>
 
-                                <div className={`opacity-0 group-hover:opacity-100 transition-opacity -mr-2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity -mr-2 text-white/40">
                                     <ArrowRight size={18} />
                                 </div>
                             </button>
@@ -146,23 +143,19 @@ export const VibeCheck: React.FC<VibeCheckProps> = ({ isOpen, onSelect, onSkip, 
                 <div className="space-y-5">
                     {/* Content Type Selector */}
                     <div className="space-y-2">
-                        <p className={`text-center text-xs font-medium ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>What do you need?</p>
-                        <div className={`grid grid-cols-3 gap-2 p-1 rounded-lg ${isDarkMode ? 'bg-white/10' : 'bg-sage/5'}`}>
+                        <p className="text-center text-xs font-medium text-white/60">What do you need?</p>
+                        <div className="grid grid-cols-3 gap-2 p-1 rounded-lg bg-white/[0.06]">
                             {[
-                                { id: 'quotes', label: 'Quotes', icon: MessageSquareQuote, desc: 'Wisdom' },
-                                { id: 'mix', label: 'Both', icon: Layers, desc: 'Mixed' },
-                                { id: 'affirmations', label: 'Affirmations', icon: Sparkles, desc: 'Self-belief' }
+                                { id: 'quotes', label: 'Quotes', icon: MessageSquareQuote },
+                                { id: 'mix', label: 'Both', icon: Layers },
+                                { id: 'affirmations', label: 'Affirmations', icon: Sparkles }
                             ].map((c) => (
                                 <button
                                     key={c.id}
-                                    onClick={() => {
-                                        haptics.light();
-                                        setContent(c.id as ContentType);
-                                    }}
+                                    onClick={() => { haptics.light(); setContent(c.id as ContentType); }}
                                     className={`flex flex-col items-center justify-center py-2.5 rounded-md transition-all duration-200 ${content === c.id
-                                        ? 'bg-pale-gold text-warm-gray-green shadow-sm'
-                                        : isDarkMode ? 'text-white/60 hover:bg-white/5' : 'text-sage/60 hover:bg-sage/10'
-                                        }`}
+                                        ? 'bg-[#E5D6A7] text-[#1B4332] shadow-sm'
+                                        : 'text-white/60 hover:bg-white/10'}`}
                                 >
                                     <c.icon size={16} className="mb-1" />
                                     <span className="text-[10px] font-bold uppercase tracking-wide">{c.label}</span>
@@ -173,23 +166,19 @@ export const VibeCheck: React.FC<VibeCheckProps> = ({ isOpen, onSelect, onSkip, 
 
                     {/* Source Selector */}
                     <div className="space-y-2">
-                        <p className={`text-center text-xs font-medium ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>Who from?</p>
-                        <div className={`grid grid-cols-3 gap-2 p-1 rounded-lg ${isDarkMode ? 'bg-white/10' : 'bg-sage/5'}`}>
+                        <p className="text-center text-xs font-medium text-white/60">Who from?</p>
+                        <div className="grid grid-cols-3 gap-2 p-1 rounded-lg bg-white/[0.06]">
                             {[
-                                { id: 'human', label: 'Human', icon: User, desc: 'Classic' },
-                                { id: 'mix', label: 'Both', icon: Layers, desc: 'Best of both' },
-                                { id: 'ai', label: 'Coach', icon: Sparkles, desc: 'Personal' }
+                                { id: 'human', label: 'Human', icon: User },
+                                { id: 'mix', label: 'Both', icon: Layers },
+                                { id: 'ai', label: 'Coach', icon: Sparkles }
                             ].map((s) => (
                                 <button
                                     key={s.id}
-                                    onClick={() => {
-                                        haptics.light();
-                                        setSource(s.id as QuoteSource);
-                                    }}
+                                    onClick={() => { haptics.light(); setSource(s.id as QuoteSource); }}
                                     className={`flex flex-col items-center justify-center py-2.5 rounded-md transition-all duration-200 ${source === s.id
-                                        ? 'bg-pale-gold text-warm-gray-green shadow-sm'
-                                        : isDarkMode ? 'text-white/60 hover:bg-white/5' : 'text-sage/60 hover:bg-sage/10'
-                                        }`}
+                                        ? 'bg-[#E5D6A7] text-[#1B4332] shadow-sm'
+                                        : 'text-white/60 hover:bg-white/10'}`}
                                 >
                                     <s.icon size={16} className="mb-1" />
                                     <span className="text-[10px] font-bold uppercase tracking-wide">{s.label}</span>
@@ -202,10 +191,7 @@ export const VibeCheck: React.FC<VibeCheckProps> = ({ isOpen, onSelect, onSkip, 
                 {/* Primary Action Button */}
                 <button
                     onClick={handleConfirm}
-                    className={`w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 transform active:scale-95 shadow-lg mt-2 ${selected
-                        ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                        : isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'
-                        }`}
+                    className="w-full py-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all active:scale-95 mt-2 bg-[#C96A3A] text-white shadow-lg"
                 >
                     {selected ? 'Activate Vibe' : 'Keep my current vibe'}
                 </button>

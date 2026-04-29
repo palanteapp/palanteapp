@@ -17,8 +17,9 @@ export const FocusItem: React.FC<FocusItemProps> = ({
     onDelete,
 }) => {
     const { isDarkMode } = useTheme();
-    const bgClass = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20';
+    const bgClass = isDarkMode ? 'glass-surface' : 'bg-white/60 border-sage/20';
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
+    const roundedClass = 'rounded-card-premium';
 
     // Editing State
     const [isEditing, setIsEditing] = useState(false);
@@ -156,7 +157,11 @@ export const FocusItem: React.FC<FocusItemProps> = ({
                     scale: focus.isCompleted ? [1, 1.02, 1] : 1
                 }}
                 transition={{
-                    scale: { duration: 0.3 },
+                    scale: { 
+                        type: 'spring', 
+                        stiffness: 400, 
+                        damping: 10 
+                    },
                     transform: { type: 'spring', damping: 25, stiffness: 300 }
                 }}
                 className={`group relative flex items-center justify-between p-5 rounded-2xl border transition-all duration-200 ease-out select-none ${bgClass} ${focus.isCompleted ? 'opacity-60' : 'hover:scale-[1.01] hover:shadow-spa'} ${isEditing ? 'border-pale-gold ring-2 ring-amber/20 animate-pulse-subtle' : ''}`}
@@ -182,7 +187,7 @@ export const FocusItem: React.FC<FocusItemProps> = ({
                             }
                         }}
                         className={`relative flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 ${focus.isCompleted
-                            ? 'bg-sage border-sage text-white'
+                            ? 'bg-terracotta border-terracotta text-white'
                             : isDarkMode ? 'border-white/30 hover:border-pale-gold' : 'border-sage/30 hover:border-sage'
                             }`}
                     >
@@ -192,7 +197,7 @@ export const FocusItem: React.FC<FocusItemProps> = ({
                                 initial={{ scale: 0, opacity: 0.5 }}
                                 animate={{ scale: 2, opacity: 0 }}
                                 transition={{ duration: 0.5 }}
-                                className="absolute inset-0 rounded-full bg-sage"
+                                className="absolute inset-0 rounded-full bg-terracotta"
                             ></motion.span>
                         )}
                     </button>
@@ -220,7 +225,7 @@ export const FocusItem: React.FC<FocusItemProps> = ({
 
                         <div className={`h-1.5 w-full rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`}>
                             <motion.div
-                                className={`h-full rounded-full ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`}
+                                className={`h-full rounded-full ${isDarkMode ? 'bg-amber' : 'bg-terracotta'}`}
                                 initial={{ width: focus.isCompleted ? '0%' : '0%' }}
                                 animate={{ width: focus.isCompleted ? '100%' : '0%' }}
                                 transition={{ duration: 0.5, ease: "easeOut" }}

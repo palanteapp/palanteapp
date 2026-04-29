@@ -18,6 +18,7 @@ interface NotificationSettings {
     eveningReminderTime: string; // "20:00"
     nudgeEnabled: boolean;
     nudgeFrequency: 'hourly' | 'every-2-hours' | 'every-4-hours' | 'morning-evening' | 'off';
+    waterRemindersEnabled: boolean; // Accountability toggle
 }
 
 export const useNotifications = () => {
@@ -33,7 +34,8 @@ export const useNotifications = () => {
                 eveningReminderEnabled: parsed.eveningReminderEnabled ?? true,
                 eveningReminderTime: parsed.eveningReminderTime ?? '20:00',
                 nudgeEnabled: parsed.nudgeEnabled ?? true,
-                nudgeFrequency: parsed.nudgeFrequency ?? 'every-2-hours'
+                nudgeFrequency: parsed.nudgeFrequency ?? 'every-2-hours',
+                waterRemindersEnabled: parsed.waterRemindersEnabled ?? false
             };
         }
         return {
@@ -46,7 +48,8 @@ export const useNotifications = () => {
             eveningReminderEnabled: true,
             eveningReminderTime: '20:00',
             nudgeEnabled: true,
-            nudgeFrequency: 'every-2-hours'
+            nudgeFrequency: 'every-2-hours',
+            waterRemindersEnabled: false
         };
     });
 
@@ -151,7 +154,7 @@ export const useNotifications = () => {
         } catch (e: unknown) {
             console.error('Error requesting notification permissions:', e);
             // Show the actual error message for debugging
-            alert(`Unable to request notifications: ${e instanceof Error ? e.message : JSON.stringify(e)}`);
+            console.error('Unable to request notifications:', e);
             return false;
         }
     };
@@ -211,13 +214,21 @@ export const useNotifications = () => {
         }
     };
 
-    const scheduleMorningReminder = async (enabled: boolean, timeStr: string, coachName?: string) => {
+    const scheduleMorningReminder = async (enabled: boolean, timeStr: string, coachName?: string, userName?: string) => {
         if (permission !== 'granted') return;
-
-        // Cancel existing morning reminder (ID 2000)
         await LocalNotifications.cancel({ notifications: [{ id: 2000 }] });
-
         if (!enabled) return;
+
+        const first = userName?.split(' ')[0];
+        const morningBodies = first ? [
+            `Good morning, ${first}. Your intentions are waiting. Let's design the day.`,
+            `${first}, the morning belongs to you. Set the tone before the world does.`,
+            `Rise with purpose, ${first}. Five minutes of intention changes everything.`,
+        ] : [
+            "Your morning practice is ready. Set your intentions before the world sets them for you.",
+            "The most powerful hour is the first. Start yours with purpose.",
+        ];
+        const body = morningBodies[Math.floor(Math.random() * morningBodies.length)];
 
         const [hour, minute] = timeStr.split(':').map(Number);
         try {
@@ -225,7 +236,7 @@ export const useNotifications = () => {
                 notifications: [{
                     id: 2000,
                     title: coachName || "Rise & Shine",
-                    body: "Time to set your intentions. Meditate, move, and design your day.",
+                    body,
                     schedule: { on: { hour, minute }, allowWhileIdle: true },
                     sound: 'beep.caf',
                     smallIcon: 'ic_stat_icon_config_sample',
@@ -236,13 +247,21 @@ export const useNotifications = () => {
         }
     };
 
-    const scheduleEveningReminder = async (enabled: boolean, timeStr: string, coachName?: string) => {
+    const scheduleEveningReminder = async (enabled: boolean, timeStr: string, coachName?: string, userName?: string) => {
         if (permission !== 'granted') return;
-
-        // Cancel existing evening reminder (ID 4000)
         await LocalNotifications.cancel({ notifications: [{ id: 4000 }] });
-
         if (!enabled) return;
+
+        const first = userName?.split(' ')[0];
+        const eveningBodies = first ? [
+            `${first}, how did today feel? Your G.L.A.D. reflection is waiting.`,
+            `Before you close the day, ${first} — what are you grateful for right now?`,
+            `${first}, one honest reflection tonight compounds into clarity tomorrow.`,
+        ] : [
+            "How did today feel? Your evening reflection takes 3 minutes and builds lasting clarity.",
+            "The day is winding down. What went well? What did you learn?",
+        ];
+        const body = eveningBodies[Math.floor(Math.random() * eveningBodies.length)];
 
         const [hour, minute] = timeStr.split(':').map(Number);
         try {
@@ -250,7 +269,7 @@ export const useNotifications = () => {
                 notifications: [{
                     id: 4000,
                     title: coachName ? `${coachName} • Evening Reflection` : "Evening Reflection",
-                    body: "Time for your G.L.A.D. nightly recap. End your day with gratitude and growth.",
+                    body,
                     schedule: { on: { hour, minute }, allowWhileIdle: true },
                     sound: 'beep.caf',
                     smallIcon: 'ic_stat_icon_config_sample',
@@ -348,7 +367,7 @@ export const useNotifications = () => {
         }
     };
 
-    const scheduleNudges = async (nudgeFreqIdx: string, quietStart: string, quietEnd: string, activeFocuses: string[] = [], intensity: number = 2, coachName?: string) => {
+    const scheduleNudges = async (nudgeFreqIdx: string, quietStart: string, quietEnd: string, activeFocuses: string[] = [], intensity: number = 2, coachName?: string, userName?: string) => {
         if (permission !== 'granted' || nudgeFreqIdx === 'off') return;
 
         const map: Record<string, number> = {
@@ -447,33 +466,32 @@ export const useNotifications = () => {
             let bodyText = "";
 
             if (activeFocuses.length > 0) {
-                // 100% chance to use user's own goals with intensity-specific templates
                 const goal = activeFocuses[Math.floor(Math.random() * activeFocuses.length)];
+                const first = userName?.split(' ')[0];
+                const n = first ? `${first}, ` : '';
+                const nCap = first ? `${first} — ` : '';
 
                 const templatesByIntensity: Record<number, string[]> = {
                     1: [ // Gentle & Reflective
-                        `Gentle reminder to honor your intention: ${goal}`,
-                        `Your soul called, it's time to ${goal}`,
-                        `Let's flow toward: ${goal}`,
-                        `Remember the beauty in ${goal}`,
-                        `Your journey includes: ${goal}`,
-                        `Embrace this moment to ${goal}`
+                        `${n}a gentle nudge toward: ${goal}`,
+                        `${nCap}how does ${goal} feel calling to you right now?`,
+                        `You set an intention to ${goal}. Is this a good moment?`,
+                        `${n}your heart knows the way. ${goal} is waiting.`,
+                        `Small step, big ripple: ${goal}`,
                     ],
                     2: [ // Direct & Clear
-                        `Time to take action: ${goal}`,
-                        `Don't forget to ${goal}`,
-                        `Stay on track: ${goal}`,
-                        `Next up: ${goal}`,
-                        `Keep your commitment: ${goal}`,
-                        `Focus now: ${goal}`
+                        `${n}time to move on: ${goal}`,
+                        `${nCap}you committed to ${goal}. Now's the moment.`,
+                        `Stay on track${first ? ', ' + first : ''}: ${goal}`,
+                        `Next up for you: ${goal}`,
+                        `${n}your future self will thank you for this: ${goal}`,
                     ],
                     3: [ // Bold & Empowered
-                        `Step into your power: ${goal}`,
-                        `You are stronger than this: ${goal}`,
-                        `Lead the way: ${goal}`,
-                        `Your vision matters: ${goal}`,
-                        `Honor your word to yourself: ${goal}`,
-                        `Make it count: ${goal}`
+                        `${n}step into it: ${goal}`,
+                        `${nCap}you said ${goal}. Honor that.`,
+                        `Your word to yourself: ${goal} — make it count.`,
+                        `${n}the gap between who you are and who you want to be closes here: ${goal}`,
+                        `Now. ${goal}. Go.`,
                     ]
                 };
 
@@ -506,28 +524,82 @@ export const useNotifications = () => {
         }
     };
 
-    const rescheduleAll = useCallback(async (targetSettings: NotificationSettings = settings, currentFocuses: string[] = [], intensity: number = 2, contentType: ContentType = 'mix', coachName?: string) => {
+    const scheduleWaterReminders = async (enabled: boolean, quietStart: string, quietEnd: string, coachName?: string) => {
+        if (permission !== 'granted' || !enabled) {
+            const ids = [5001, 5002, 5003, 5004, 5005];
+            await LocalNotifications.cancel({ notifications: ids.map(id => ({ id })) });
+            return;
+        }
+
+        // Cancel existing (IDs 5001-5005)
+        await LocalNotifications.cancel({ notifications: [5001, 5002, 5003, 5004, 5005].map(id => ({ id })) });
+
+        const waterNudges = [
+            "Flush time: Your cells are cleaning house. Give them the water they need.",
+            "Quick win: 8oz of cold water. Right now. No excuses.",
+            "Accountability check: Every sip is a step forward. Hydrate now.",
+            "Stall the hunger, boost the burning. One glass of water. Go.",
+            "Your metabolic engine runs on hydrogen. Get some H2O in there now."
+        ];
+
+        // Distribution logic
+        const [startH, startM] = quietStart.split(':').map(Number);
+        const [endH, endM] = quietEnd.split(':').map(Number);
+        let activeStart = endH * 60 + endM;
+        let activeEnd = startH * 60 + startM;
+        if (activeEnd < activeStart) activeEnd += 24 * 60;
+        const totalMin = activeEnd - activeStart;
+
+        const notifications = [];
+        const interval = Math.floor(totalMin / 5);
+
+        for (let i = 0; i < 5; i++) {
+            let scheduleMin = activeStart + (i * interval) + Math.floor(Math.random() * 30) + 15;
+            if (scheduleMin >= 24 * 60) scheduleMin -= 24 * 60;
+
+            notifications.push({
+                id: 5001 + i,
+                title: coachName ? `${coachName} • Hydration` : "Water Accountability",
+                body: waterNudges[i],
+                schedule: { on: { hour: Math.floor(scheduleMin / 60), minute: scheduleMin % 60 }, allowWhileIdle: true },
+                sound: 'beep.caf',
+                smallIcon: 'ic_stat_icon_config_sample'
+            });
+        }
+
+        try {
+            await LocalNotifications.schedule({ notifications });
+        } catch (e) {
+            console.error('Error scheduling water reminders:', e);
+        }
+    };
+
+    const rescheduleAll = useCallback(async (targetSettings: NotificationSettings = settings, currentFocuses: string[] = [], intensity: number = 2, contentType: ContentType = 'mix', coachName?: string, userName?: string) => {
         if (permission !== 'granted' || !targetSettings.enabled) {
             // Cancel everything just in case
             const allIds = [
                 2000,
                 4000,
                 ...Array.from({ length: 50 }, (_, i) => 1000 + i),
-                ...Array.from({ length: 50 }, (_, i) => 3000 + i)
+                ...Array.from({ length: 50 }, (_, i) => 3000 + i),
+                5001, 5002, 5003, 5004, 5005
             ].map(id => ({ id }));
             await LocalNotifications.cancel({ notifications: allIds });
             return;
         }
 
-        await scheduleMorningReminder(targetSettings.morningReminderEnabled, targetSettings.morningReminderTime, coachName);
-        await scheduleEveningReminder(targetSettings.eveningReminderEnabled, targetSettings.eveningReminderTime, coachName);
+        await scheduleMorningReminder(targetSettings.morningReminderEnabled, targetSettings.morningReminderTime, coachName, userName);
+        await scheduleEveningReminder(targetSettings.eveningReminderEnabled, targetSettings.eveningReminderTime, coachName, userName);
         await scheduleEncouragement(targetSettings.frequency, targetSettings.quietStart, targetSettings.quietEnd, contentType, coachName);
+
         if (targetSettings.nudgeEnabled) {
-            await scheduleNudges(targetSettings.nudgeFrequency, targetSettings.quietStart, targetSettings.quietEnd, currentFocuses, intensity, coachName);
+            await scheduleNudges(targetSettings.nudgeFrequency, targetSettings.quietStart, targetSettings.quietEnd, currentFocuses, intensity, coachName, userName);
         } else {
             const nudgeIds = Array.from({ length: 50 }, (_, i) => ({ id: 3000 + i }));
             await LocalNotifications.cancel({ notifications: nudgeIds });
         }
+
+        await scheduleWaterReminders(targetSettings.waterRemindersEnabled, targetSettings.quietStart, targetSettings.quietEnd, coachName);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [permission, settings]);
 
@@ -577,26 +649,10 @@ export const useNotifications = () => {
         updateMorningReminderConfig: async (enabled: boolean, time: string) => {
             if (enabled && permission !== 'granted') {
                 const granted = await requestPermission();
-                if (!granted) {
-                    console.warn('Cannot enable morning reminder: Permission denied');
-                    // Continue to save settings? Maybe better to stay disabled.
-                    // For now, we save it but rescheduleAll will drop it.
-                    // Ideally we'd return a success/fail but this is a hook.
-                }
+                if (!granted) return;
             }
-            // Permission might have updated async, so we assume if granted it's good.
-            // But we need to make sure rescheduleAll checks the *latest* status.
-            // Since `permission` state updates on next render, we'll rely on rescheduleAll checking internal logic 
-            // OR we pass a flag. But simple valid check:
             const newSettings = { ...settings, morningReminderEnabled: enabled, morningReminderTime: time };
             setSettings(newSettings);
-            // We pass the potentially new permission state context? 
-            // Actually rescheduleAll checks `permission` state variable which is stale.
-            // Pivot: pass explicit forcePermission flag or move permission check inside rescheduleAll?
-            // Cleanest: Wait for effect. But user wants instant feedback.
-            // Let's modify rescheduleAll to accept an override permission status.
-
-            // Re-implementing reschedule logic partially here safely:
             setTimeout(() => rescheduleAll(newSettings), 100);
         },
         updateEveningReminderConfig: async (enabled: boolean, time: string) => {
@@ -614,7 +670,7 @@ export const useNotifications = () => {
             if (enabled && permission !== 'granted') {
                 const granted = await requestPermission();
                 if (!granted) {
-                    alert('Please enable notifications to receive nudges.');
+                    console.warn('Nudge notifications require permission.');
                     return;
                 }
             }
@@ -627,6 +683,18 @@ export const useNotifications = () => {
             const newSettings = { ...settings, frequency };
             setSettings(newSettings);
             rescheduleAll(newSettings, [], intensity, contentType);
+        },
+        updateWaterRemindersConfig: async (enabled: boolean) => {
+            if (enabled && permission !== 'granted') {
+                const granted = await requestPermission();
+                if (!granted) {
+                    console.warn('Water reminders require notification permission.');
+                    return;
+                }
+            }
+            const newSettings = { ...settings, waterRemindersEnabled: enabled };
+            setSettings(newSettings);
+            setTimeout(() => rescheduleAll(newSettings), 100);
         },
         rescheduleAll
     };

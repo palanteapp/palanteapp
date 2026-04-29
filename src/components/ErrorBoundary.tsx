@@ -41,9 +41,22 @@ export class ErrorBoundary extends Component<Props, State> {
                     <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
                         Something went wrong
                     </h2>
-                    <p className="text-sm opacity-70 mb-8 max-w-xs mx-auto">
+                    <p className="text-sm opacity-70 mb-4 max-w-xs mx-auto">
                         {this.props.name ? `The ${this.props.name} encountered an error.` : 'We encountered an unexpected issue.'}
                     </p>
+                    {this.state.error && (
+                        <div className="mb-6 p-4 bg-black/5 dark:bg-white/5 rounded-xl text-left overflow-auto max-w-md mx-auto">
+                            <p className="text-xs font-mono text-red-500 mb-2 break-words">
+                                ERROR: {this.state.error.message}
+                            </p>
+                            <details className="cursor-pointer">
+                                <summary className="text-[10px] uppercase tracking-widest opacity-50">View Details</summary>
+                                <pre className="text-[10px] opacity-40 mt-2 font-mono whitespace-pre-wrap">
+                                    {this.state.error.stack}
+                                </pre>
+                            </details>
+                        </div>
+                    )}
 
                     <div className="flex gap-3">
                         {this.props.onReset && (

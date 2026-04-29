@@ -47,7 +47,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-[#3A1700]/60 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
                 onClick={!isLoading ? onClose : undefined}
             />
 

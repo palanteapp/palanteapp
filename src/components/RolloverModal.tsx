@@ -40,7 +40,7 @@ export const RolloverModal: React.FC<RolloverModalProps> = ({
     const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-[#3A1700]/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm animate-fade-in">
             <div className={`w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden animate-slide-up ${bgClass}`}>
 
                 {/* Header */}

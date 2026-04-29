@@ -1,8 +1,26 @@
 import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
 import type { UserProfile, Quote } from '../types';
-import { generateAffirmation, isAIAvailable } from './aiService';
+import { generateAffirmation, isAIAvailable, getMomentumState } from './aiService';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+
+// Themes that resonate most with each momentum state
+const MOMENTUM_THEMES: Record<string, string[]> = {
+    recovering:  ['resilience', 'grace', 'healing', 'return', 'patience', 'forgiveness', 'self-compassion', 'rest', 'beginning', 'renewal', 'gentleness', 'peace'],
+    on_a_roll:   ['momentum', 'consistency', 'discipline', 'progress', 'growth', 'habit', 'commitment', 'focus', 'work', 'drive', 'dedication'],
+    breakthrough:['legacy', 'purpose', 'mastery', 'impact', 'excellence', 'vision', 'leadership', 'greatness', 'elevation', 'transformation'],
+    steady:      ['wisdom', 'presence', 'mindfulness', 'gratitude', 'balance', 'reflection', 'clarity', 'simplicity', 'contentment'],
+};
+
+// Mood → themes that soothe or energize
+const MOOD_THEMES: Record<string, string[]> = {
+    Anxious:   ['peace', 'calm', 'breath', 'present', 'trust', 'release', 'grounding', 'safety'],
+    Stressed:  ['peace', 'calm', 'release', 'simplicity', 'ease', 'rest', 'flow'],
+    Tired:     ['rest', 'gentleness', 'renewal', 'grace', 'patience', 'recovery'],
+    Happy:     ['momentum', 'growth', 'gratitude', 'joy', 'abundance', 'expansion'],
+    Energetic: ['momentum', 'action', 'drive', 'focus', 'discipline', 'growth', 'ambition'],
+    Calm:      ['wisdom', 'presence', 'mindfulness', 'gratitude', 'depth', 'stillness'],
+};
 
 // Track seen quotes with timestamps to ensure 6-month rotation
 // key: quoteId, value: timestamp (ms)
@@ -174,6 +192,28 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
                 if (quote.category.toLowerCase().includes(interest.toLowerCase())) {
                     score += 20;
                 }
+            });
+        }
+
+        // PRIORITY 4: Momentum state — boost quotes whose category/text aligns with where user is right now
+        const momentum = getMomentumState(user);
+        const momentumKeywords = MOMENTUM_THEMES[momentum] || [];
+        const quoteSearchText = `${quote.text} ${quote.category} ${quote.tags?.join(' ') || ''}`.toLowerCase();
+        momentumKeywords.forEach(keyword => {
+            if (quoteSearchText.includes(keyword)) score += 60;
+        });
+
+        // PRIORITY 5: Current mood — surface what they need to feel right now
+        if (user.currentMood && MOOD_THEMES[user.currentMood]) {
+            MOOD_THEMES[user.currentMood].forEach(keyword => {
+                if (quoteSearchText.includes(keyword)) score += 40;
+            });
+        }
+
+        // PRIORITY 6: Focus areas — align quote themes with what user is actively working on
+        if (user.focusAreas?.length) {
+            user.focusAreas.forEach(area => {
+                if (quoteSearchText.includes(area)) score += 30;
             });
         }
 

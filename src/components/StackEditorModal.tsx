@@ -85,7 +85,7 @@ const SortableStepItem = ({
             </div>
 
             {/* Duration Input (seconds) */}
-            <div className="flex items-center gap-1 bg-[#3A1700]/5 dark:bg-white/10 px-2 py-1 rounded-md">
+            <div className="flex items-center gap-1 bg-black/20 dark:bg-white/10 px-2 py-1 rounded-md">
                 <Clock size={12} className="opacity-50" />
                 <input
                     type="number"
@@ -207,12 +207,12 @@ export const StackEditorModal: React.FC<StackEditorModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-[#3A1700]/40 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm animate-fade-in">
             <div className={`w-full max-w-lg rounded-3xl p-6 shadow-2xl relative flex flex-col max-h-[90vh] ${bgClass}`}>
 
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-display font-medium">Edit Routine</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-[#3A1700]/5 dark:hover:bg-white/5">
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-black/20 dark:hover:bg-white/5">
                         <X size={20} className="opacity-50" />
                     </button>
                 </div>

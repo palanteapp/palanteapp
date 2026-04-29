@@ -112,7 +112,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
             </p>
             <button
                 onClick={handleNext}
-                className={`px-8 py-3 rounded-full font-medium transition-all hover:scale-105 ${'bg-terracotta-500 text-white hover:scale-105'}`}
+                className="px-8 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
             >
                 Begin Reflection
             </button>
@@ -190,7 +190,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
 
                         <button
                             onClick={handleFinish}
-                            className={`mt-12 px-10 py-3 rounded-full font-medium shadow-lg transition-all hover:scale-105 active:scale-95 ${'bg-terracotta-500 text-white hover:scale-105'}`}
+                            className="mt-12 px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
                         >
                             Complete Reflection
                         </button>

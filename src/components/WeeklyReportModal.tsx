@@ -31,7 +31,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-[#3A1700]/80 backdrop-blur-xl transition-all duration-500"
+                className="absolute inset-0 bg-black/20 backdrop-blur-xl transition-all duration-500"
                 onClick={onClose}
             />
 
@@ -224,7 +224,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-6 pt-4 bg-[#3A1700]/20 border-t border-white/10">
+                <div className="p-6 pt-4 bg-black/20 border-t border-white/10">
                     <button
                         onClick={onClose}
                         className="w-full py-4 rounded-2xl bg-pale-gold text-sage-dark font-bold text-lg hover:bg-pale-gold/90 transition-all hover:scale-[1.02] active:scale-95"

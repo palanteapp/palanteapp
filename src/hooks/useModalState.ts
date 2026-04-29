@@ -9,7 +9,9 @@ export const useModalState = () => {
     const [showKoiPond, setShowKoiPond] = useState(false);
     const [showLibrary, setShowLibrary] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
-    const [showWelcome, setShowWelcome] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(
+        () => localStorage.getItem('palante_onboarding_completed') !== 'true'
+    );
     const [showClearNoise, setShowClearNoise] = useState(false);
     const [showSoundMixer, setShowSoundMixer] = useState(false);
     const [mixerSource, setMixerSource] = useState<'meditation' | 'dashboard'>('dashboard');

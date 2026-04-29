@@ -275,11 +275,11 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         <p className={`text-xs ${textSecondary} mt-1`}>Evening reflection</p>
                                     </button>
                                     <button
-                                        onClick={() => { onNavigate('pomodoro'); onClose(); }}
+                                        onClick={() => { onNavigate('focus'); onClose(); }}
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Timer size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Pomodoro</h4>
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Focus Timer</h4>
                                         <p className={`text-xs ${textSecondary} mt-1`}>Time-boxed focus</p>
                                     </button>
                                 </div>

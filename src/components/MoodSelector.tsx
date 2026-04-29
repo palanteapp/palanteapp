@@ -47,7 +47,7 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({ currentMood, onSelec
                                     : 'bg-sage text-white shadow-spa scale-105'
                                 : isDarkMode
                                     ? 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                                    : 'bg-white/40 text-sage/70 hover:bg-white/60 hover:text-sage'
+                                    : 'bg-white/40 text-sage hover:bg-white/60'
                                 }`}
                         >
                             <Icon size={14} />

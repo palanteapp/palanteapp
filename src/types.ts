@@ -97,6 +97,7 @@ export interface UserProfile {
     dailyEveningPractice?: DailyEveningPractice[]; // NEW: Evening GLAD method
     dashboardOrder?: string[];
     exploreOrder?: string[];
+    homeEssentialTools?: string[];
     savedMixes?: SoundMix[];
     streakData?: StreakData; // DEPRECATED: Use practiceData instead
     practiceData?: PracticeData; // NEW: Pressure-free practice tracking
@@ -116,6 +117,16 @@ export interface UserProfile {
     futureLetters?: FutureLetter[]; // Letters written to future self for tough days
     weightGoal?: number; // Target weight in lbs
     weightHistory?: { date: string; weight: number }[]; // History of weight logs
+    userNarrative?: {
+        text: string;        // 4-5 sentence synthesized growth memoir
+        generatedAt: string; // ISO timestamp — refreshed weekly
+    };
+    monthlyPattern?: {
+        insight: string;     // The warm discovery sentence
+        dataPoint: string;   // The specific number or fact that grounds it
+        generatedAt: string; // ISO timestamp — refreshed monthly
+        dismissed: boolean;  // User has acknowledged it
+    };
 }
 
 export interface DailyEveningPractice {
@@ -470,12 +481,22 @@ export const calculateAge = (dateOfBirth: string): number => {
     return age;
 };
 
+// Set to true when payment is live to enforce subscription gating on AI features.
+const AI_REQUIRES_SUBSCRIPTION = false;
+
 export const canUseAI = (user: UserProfile | null | undefined): boolean => {
-    if (!user) return true; // Default to allowed if no user
-    if (user.aiDisabled) return false; // User has disabled AI
-    if (!user.dateOfBirth) return true; // Default to allowed if not set (backward compatibility)
+    if (!user) return false;
+    if (user.aiDisabled) return false;
+    if (AI_REQUIRES_SUBSCRIPTION && user.subscriptionTier === 'free') return false;
+    if (!user.dateOfBirth) return true; // backward compat — no DOB means adult assumed
     const age = calculateAge(user.dateOfBirth);
     return age >= 13; // COPPA compliance
+};
+
+// Ready-to-use premium check — wire into any feature that should be behind paywall.
+export const isPremiumUser = (user: UserProfile | null | undefined): boolean => {
+    if (!user) return false;
+    return user.subscriptionTier === 'premium' || user.subscriptionTier === 'pro';
 };
 
 export const isMinor = (user: UserProfile | null | undefined): boolean => {

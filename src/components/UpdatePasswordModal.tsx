@@ -61,7 +61,7 @@ export const UpdatePasswordModal: React.FC<UpdatePasswordModalProps> = ({ isOpen
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 animate-fade-in">
-            <div className="absolute inset-0 bg-[#3A1700]/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
 
             <div className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-xl animate-slide-up border ${isDarkMode ? 'bg-sage-mid border-white/10' : 'bg-white border-sage/20'}`}>
                 <button

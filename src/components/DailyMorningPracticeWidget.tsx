@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Sun, Sparkles, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DailyMorningPractice } from '../types';
-import { generateMorningPracticeMessage } from '../utils/aiService';
+import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
+import type { UserProfile } from '../types';
 import { MORNING_PROMPTS } from '../data/smartPrompts';
 import { getDailyRotatedItems } from '../utils/dailyRotation';
 
@@ -14,9 +15,10 @@ interface DailyMorningPracticeProps {
     userName?: string;
     hideEnergyCheckIn?: boolean;
     onFinish: () => void;
+    user?: UserProfile;
 }
 
-export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish }) => {
+export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, user }) => {
     const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
     const [gratitudes, setGratitudes] = useState<string[]>(['', '', '', '', '']);
     const [affirmations, setAffirmations] = useState<string[]>(['', '', '', '', '']);
@@ -82,7 +84,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 generateMorningPracticeMessage(userName || "Friend", {
                     gratitudes: activeGratitudes,
                     affirmations: activeAffirmations,
-                    intention: intention
+                    intention: intention,
+                    narrative: user?.userNarrative?.text,
+                    momentumState: user ? getMomentumState(user) : undefined,
                 }).then(msg => {
                     setGeneratedMessage(msg);
                     setIsGenerating(false);
@@ -152,7 +156,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 onClick={handleNext}
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                className={`px-8 py-3 rounded-full font-medium transition-all ${'bg-terracotta-500 text-white hover:scale-105'}`}
+                className="px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
             >
                 Start Practice
             </motion.button>
@@ -341,7 +345,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
 
                         <button
                             onClick={handleNext}
-                            className={`mt-12 px-10 py-3 rounded-full font-medium shadow-lg transition-all hover:scale-105 active:scale-95 ${'bg-terracotta-500 text-white hover:scale-105'}`}
+                            className="mt-12 px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
                         >
                             Embrace This
                         </button>
@@ -392,7 +396,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     onClick={onFinish}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className={`w-full py-4 rounded-xl text-lg font-bold tracking-wide transition-all shadow-lg ${'bg-terracotta-500 text-white hover:scale-105'}`}
+                    className="w-full py-4 bg-pale-gold text-sage-dark rounded-xl text-lg font-bold tracking-wide shadow-lg active:scale-95 transition-all"
                 >
                     Return to Dashboard
                 </motion.button>
@@ -442,7 +446,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     {step === 'affirmation' && renderInputs(
                         "Affirmations",
                         "List 5 truths about your highest self.",
-                        <Sparkles size={20} className="text-yellow-400" fill="currentColor" />,
+                        <Sparkles size={20} className="text-pale-gold" fill="currentColor" />,
                         affirmations,
                         setAffirmations,
                         "I am"
@@ -455,7 +459,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
 
             {/* Special Completion Effect (Sun Rise + Rays) */}
             {showSpecialEffect && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#3A1700]/60 backdrop-blur-md animate-fade-in">
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md animate-fade-in">
                     <div className="relative flex flex-col items-center">
                         {/* Sun Rays */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 pointer-events-none">

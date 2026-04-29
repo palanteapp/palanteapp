@@ -12,6 +12,8 @@ import { triggerConfetti, triggerHaptic } from '../utils/CelebrationEffects';
 import {
     checkMilestones
 } from '../utils/GamificationEngine';
+import { haptics } from '../utils/haptics';
+import { MilestoneCelebration } from './MilestoneCelebration';
 
 import { SlideUpModal } from './SlideUpModal';
 import { CoachGuidanceModal } from './CoachGuidanceModal';
@@ -57,6 +59,7 @@ export const Momentum: React.FC<MomentumProps> = ({
     // Removed levelUpData state - no more gamification
     const [showInsightsExplainer, setShowInsightsExplainer] = useState(false);
     const [showCoachGuidance, setShowCoachGuidance] = useState(false);
+    const [showStreakMilestone, setShowStreakMilestone] = useState<{ isOpen: boolean; days: number }>({ isOpen: false, days: 0 });
 
     const dailyFocuses = user.dailyFocuses || [];
     const completedCount = dailyFocuses.filter(f => f.isCompleted).length;
@@ -178,9 +181,12 @@ export const Momentum: React.FC<MomentumProps> = ({
                 if (milestone) {
                     updatedUser.unlockedBadges = [...(user.unlockedBadges || []), milestone.badge];
                     updatedUser.points = (user.points || 0) + milestone.bonusPoints;
+                    
+                    // Show Streak Milestone Celebration
+                    setShowStreakMilestone({ isOpen: true, days: newStreak });
                 }
 
-                if (lastCompletion !== today) {
+                if (lastCompletion !== today && !milestone) {
                     setShowCelebration(true);
                 }
             } else if (updatedUser.coachSettings?.tipsEnabled !== false) {
@@ -222,46 +228,60 @@ export const Momentum: React.FC<MomentumProps> = ({
         import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
     };
 
-    // handleSaveStack moved to App.tsx - routines managed at app level
-
-    const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
+    // handleSaveStack moved to App.tsx - routines managed    // Styles
+    const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
     const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const accentColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
+    const cardBg = isDarkMode ? 'glass-surface' : 'bg-white/60 border-sage/20 shadow-spa';
+    const roundedClass = 'rounded-card-premium';
 
     return (
-        <div className="w-full max-w-2xl mx-auto px-6 pt-6 pb-40 animate-fade-in">
+        <div className="w-full flex flex-col px-6 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
+            {/* 0. Header Area - Matching Fasting Vibe */}
+            <div className="w-full flex items-center justify-between mb-8">
+                <div className="flex flex-col gap-1">
+                    <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Journey</h2>
+                    <p className={`text-[10px] uppercase tracking-[0.3em] font-black ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>Progress & Growth</p>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => { haptics.light(); setShowCoachGuidance(true); }}
+                        className={`p-3 rounded-2xl transition-all ${isDarkMode ? 'glass-surface text-white/80 hover:bg-white/10' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+                    >
+                        <Lightbulb size={20} />
+                    </button>
+                    <button
+                        onClick={() => { haptics.light(); setShowSettings(true); }}
+                        className={`p-3 rounded-2xl transition-all ${isDarkMode ? 'glass-surface text-white/80 hover:bg-white/10' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+                    >
+                        <Settings size={20} />
+                    </button>
+                </div>
+            </div>
 
-            {/* 0. Coach Card (Restored) */}
-            <div className="mb-8">
+            {/* Coach Card - Premium Glass */}
+            <div className="mb-10">
                 <CoachCard
-                    userName={user.name.split(' ')[0]}
+                    userName={user.name}
                     focusCount={dailyFocuses.length}
                     completedCount={completedCount}
                     isDarkMode={isDarkMode}
                     totalPractices={user.practiceData?.totalPractices || 0}
-                    level={user.level || 1}
-                    xp={user.points || 0}
                     lastActivityDate={user.practiceData?.lastActivityDate || user.lastGoalCompletionDate}
-                    onClick={() => setShowCoachGuidance(true)}
+                    onShowTip={onShowTip}
                 />
             </div>
 
             {/* 1. Active Goals Management */}
             <div className="mb-10">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className={`text-lg font-display font-medium ${textPrimary}`}>
-                        Manage Goals
+                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                        Active Targets
                     </h3>
-                    <div className="flex items-center gap-3">
-                        <span className={`text-sm ${textSecondary}`}>
-                            {completedCount}/{dailyFocuses.length} Completed
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${isDarkMode ? 'text-pale-gold bg-white/5' : 'text-sage bg-sage/10'}`}>
+                            {completedCount}/{dailyFocuses.length} Done
                         </span>
-                        <button
-                            onClick={() => setShowSettings(true)}
-                            className={`p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-sage/10 text-sage/60 hover:text-sage'}`}
-                            title="Nudge Settings"
-                        >
-                            <Settings size={18} />
-                        </button>
                     </div>
                 </div>
 
@@ -271,12 +291,13 @@ export const Momentum: React.FC<MomentumProps> = ({
                             <FocusItem
                                 key={focus.id}
                                 focus={focus}
+                                isDarkMode={isDarkMode}
                                 onToggle={handleToggleFocus}
                                 onDelete={handleDeleteFocus}
                             />
                         ))
                     ) : (
-                        <div className={`text-center py-8 px-6 rounded-2xl border border-dashed ${isDarkMode ? 'border-white/10 text-white/30' : 'border-sage/20 text-sage/40'}`}>
+                        <div className={`text-center py-8 px-6 rounded-2xl border border-dashed ${isDarkMode ? 'border-white/20 text-white/60' : 'border-sage/20 text-sage/40'}`}>
                             <p className="text-sm">No active focus goals.</p>
                         </div>
                     )}
@@ -285,18 +306,16 @@ export const Momentum: React.FC<MomentumProps> = ({
                 {!isAdding ? (
                     <button
                         onClick={() => setIsAdding(true)}
-                        className={`w-full py-4 rounded-xl border border-dashed flex flex-col items-center justify-center gap-2 transition-all group ${isDarkMode
-                            ? 'border-white/10 text-white/40 hover:border-pale-gold/40 hover:bg-white/5 hover:text-white'
-                            : 'border-sage/20 text-sage/40 hover:border-sage/40 hover:bg-sage/5 hover:text-sage'
-                            }`}
+                        className={`w-full py-8 rounded-[2rem] flex flex-col items-center justify-center gap-3 transition-all group active:scale-[0.98] border border-dashed ${isDarkMode ? 'glass-surface border-white/20 hover:border-pale-gold/40' : 'bg-sage/5 border-sage/30 hover:border-sage/60'}`}
                     >
-                        <div className="p-2 rounded-full bg-transparent group-hover:scale-110 transition-transform">
-                            <Plus size={24} />
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'bg-white/5 group-hover:bg-white/10' : 'bg-sage/10 group-hover:bg-sage/20'}`}>
+                            <Plus size={24} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-widest">Add New Goal</span>
+                        <span className={`text-[10px] font-black uppercase tracking-[0.4em] transition-colors ${isDarkMode ? 'text-white/70 group-hover:text-white' : 'text-sage/70 group-hover:text-sage'}`}>Add New Goal</span>
                     </button>
                 ) : (
-                    <div className={`p-4 rounded-2xl border animate-in slide-in-from-top-4 duration-300 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20 shadow-spa'}`}>
+                    <div className={`p-6 rounded-[2rem] animate-slide-up-fade ${cardBg}`}>
+
                         <div className="flex gap-2 mb-4">
                             <div className="relative flex-1">
                                 <input
@@ -333,7 +352,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                                 onClick={() => handleAddFocus()}
                                 className={`flex-1 py-3 rounded-xl font-medium transition-all ${isDarkMode
                                     ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                                    : 'bg-terracotta-500 text-white hover:bg-sage-600 shadow-lg shadow-terracotta-500/20'}`}
+                                    : 'bg-[#1B4332] text-white hover:bg-sage-600 shadow-lg'}`}
                             >
                                 Create Focus
                             </button>
@@ -342,23 +361,23 @@ export const Momentum: React.FC<MomentumProps> = ({
                 )}
             </div>
 
-            {/* 3. Progress Dashboard (After goals - see your progress) */}
+            {/* 3. Progress Dashboard */}
             <div className="mb-10">
-                <div className="mb-4 space-y-2">
-                    <h3 className={`text-lg font-display font-medium ${textPrimary}`}>
-                        Momentum Tracker
-                    </h3>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 className={`text-xl font-display font-medium ${textPrimary}`}>
+                            Momentum Tracker
+                        </h3>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-pale-gold mt-1">Consistency Analysis</p>
+                    </div>
                     <button
                         onClick={onCreateRoutine}
-                        className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border transition-all inline-block ${isDarkMode
-                            ? 'border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
-                            : 'border-sage/20 text-sage/60 hover:bg-sage/10 hover:text-sage'
-                            }`}
+                        className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all ${isDarkMode ? 'glass-surface text-white/60 hover:text-white' : 'bg-sage/10 text-sage/70 hover:text-sage hover:bg-sage/20'}`}
                     >
                         + Create Routine
                     </button>
                 </div>
-                <div className={`w-full p-6 rounded-3xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                <div className={`w-full p-8 rounded-[2rem] ${cardBg}`}>
                     <ProgressDashboard
                         user={user}
                         isDarkMode={isDarkMode}
@@ -436,7 +455,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         onClick={() => setShowInsightsExplainer(false)}
                         className={`w-full py-4 mt-8 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${isDarkMode
                             ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                            : 'bg-terracotta-500 text-white hover:bg-sage-600'}`}
+                            : 'bg-[#1B4332] text-white hover:bg-sage-600'}`}
                     >
                         Got it, thanks Coach
                     </button>
@@ -474,6 +493,12 @@ export const Momentum: React.FC<MomentumProps> = ({
                 isOpen={showCelebration}
                 onClose={() => setShowCelebration(false)}
                 isDarkMode={isDarkMode}
+            />
+
+            <MilestoneCelebration
+                isOpen={showStreakMilestone.isOpen}
+                streakDays={showStreakMilestone.days}
+                onClose={() => setShowStreakMilestone({ isOpen: false, days: 0 })}
             />
 
 

@@ -40,49 +40,48 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
         }
     }, [isOpen, initialTab]);
 
-    // Color palette
-    const bgClass = isDarkMode ? 'bg-sage-mid' : 'bg-ivory';
-    const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/70' : 'text-sage-dark/70';
-    const accentColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
-    const accentBg = isDarkMode ? 'bg-pale-gold' : 'bg-sage';
-    const tabActiveBg = isDarkMode ? 'bg-pale-gold/20 border-pale-gold' : 'bg-sage/20 border-sage';
-    const tabInactiveBg = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-sage-mid/5 border-sage-dark/10';
+    // Color palette - Matching the new "Sanctuary" vibe
+    const textPrimary = 'text-white';
+    const textSecondary = 'text-white'; // Full opacity for readability
+    const accentColor = 'text-white/60 font-black text-[12px]'; // Darker, bolder Terracotta
+    const accentBg = 'bg-[#E5D6A7]'; // Solid Pale Gold
+    const tabActiveBg = 'bg-[#E5D6A7] shadow-sm border-[#E5D6A7] text-[#1B4332]';
+    const tabInactiveBg = 'bg-transparent border-white/10 text-white/50';
 
     return (
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode} showCloseButton={false}>
-            <div className={`${bgClass} ${textPrimary} rounded-t-3xl max-h-[85vh] overflow-y-auto`}>
+            <div className={`${textPrimary} rounded-t-3xl max-h-[85vh] overflow-y-auto`}>
                 {/* Header */}
-                <div className="sticky top-0 z-10 backdrop-blur-xl bg-inherit/95 border-b border-white/10 px-6 pt-6 pb-4">
+                <div className="sticky top-0 z-10 backdrop-blur-md bg-white/10 px-6 pt-6 pb-4">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className={`text-2xl font-display font-medium ${textPrimary}`}>
                             {featureName}
                         </h2>
                         <button
                             onClick={onClose}
-                            className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage-mid/10'}`}
+                            className={`p-2 rounded-full transition-colors hover:bg-white/[0.06]`}
                         >
                             <X size={24} className={textSecondary} />
                         </button>
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 p-1 bg-white/[0.06] rounded-2xl">
                         <button
                             onClick={() => setActiveTab('how')}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all border-2 ${activeTab === 'how' ? tabActiveBg : tabInactiveBg
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${activeTab === 'how' ? tabActiveBg : tabInactiveBg
                                 }`}
                         >
-                            <HelpCircle size={16} />
+                            <HelpCircle size={14} />
                             <span>How to Use</span>
                         </button>
                         {theScience && (
                             <button
                                 onClick={() => setActiveTab('science')}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all border-2 ${activeTab === 'science' ? tabActiveBg : tabInactiveBg
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${activeTab === 'science' ? tabActiveBg : tabInactiveBg
                                     }`}
                             >
-                                <Microscope size={16} />
+                                <Microscope size={14} />
                                 <span>The Science</span>
                             </button>
                         )}
@@ -92,29 +91,29 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                 {/* Content */}
                 <div className="px-6 pb-8 pt-6">
                     {activeTab === 'how' && (
-                        <div className="space-y-6 animate-fade-in">
+                        <div className="space-y-8 animate-fade-in">
                             {/* Description */}
-                            <div>
-                                <h3 className={`text-lg font-semibold mb-2 ${textPrimary}`}>
+                            <div className="p-6 rounded-[2rem] bg-white/[0.06] border border-white/10">
+                                <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
                                     {howToUse.title}
                                 </h3>
-                                <p className={`text-sm leading-relaxed ${textSecondary}`}>
+                                <p className={`text-sm leading-relaxed text-white/70`}>
                                     {howToUse.description}
                                 </p>
                             </div>
 
                             {/* Steps */}
                             <div>
-                                <h4 className={`text-sm font-bold uppercase tracking-wider mb-3 ${accentColor}`}>
-                                    Steps
+                                <h4 className={`text-xs font-black uppercase tracking-[0.2em] mb-5 ${accentColor}`}>
+                                    Mastery Steps
                                 </h4>
                                 <div className="space-y-3">
                                     {howToUse.steps.map((step, index) => (
-                                        <div key={index} className="flex gap-3">
-                                            <div className={`flex-shrink-0 w-6 h-6 rounded-full ${accentBg} flex items-center justify-center text-xs font-bold ${isDarkMode ? 'text-sage-dark' : 'text-white'}`}>
+                                        <div key={index} className="flex gap-4 p-4 rounded-2xl bg-white/[0.06] border border-white/10">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#E5D6A7] flex items-center justify-center text-sm font-black text-[#1B4332] shadow-sm">
                                                 {index + 1}
                                             </div>
-                                            <p className={`text-sm leading-relaxed pt-0.5 ${textSecondary}`}>
+                                            <p className="text-sm leading-relaxed pt-1.5 font-medium text-white/80">
                                                 {step}
                                             </p>
                                         </div>
@@ -124,14 +123,14 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
 
                             {/* Tips */}
                             {howToUse.tips && howToUse.tips.length > 0 && (
-                                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-pale-gold/10 border border-pale-gold/20' : 'bg-sage/10 border border-sage/20'}`}>
-                                    <h4 className={`text-sm font-bold uppercase tracking-wider mb-2 ${accentColor}`}>
-                                        💡 Pro Tips
+                                <div className="p-6 rounded-[2rem] bg-white/[0.06] border border-white/10">
+                                    <h4 className="text-xs font-black uppercase tracking-[0.2em] mb-3 text-white/60">
+                                        Palante Pro Tips
                                     </h4>
-                                    <ul className="space-y-2">
+                                    <ul className="space-y-3">
                                         {howToUse.tips.map((tip, index) => (
-                                            <li key={index} className={`text-sm ${textSecondary} flex gap-2`}>
-                                                <span className={accentColor}>•</span>
+                                            <li key={index} className="text-sm text-white/80 font-medium flex gap-3 items-start">
+                                                <span className="mt-1 text-[#E5D6A7] flex-shrink-0">·</span>
                                                 <span>{tip}</span>
                                             </li>
                                         ))}
@@ -142,27 +141,29 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                     )}
 
                     {activeTab === 'science' && theScience && (
-                        <div className="space-y-6 animate-fade-in">
+                        <div className="space-y-8 animate-fade-in">
                             {/* Overview */}
-                            <div>
-                                <h3 className={`text-lg font-semibold mb-2 ${textPrimary}`}>
+                            <div className="p-6 rounded-[2rem] bg-white/[0.06] border border-white/10">
+                                <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
                                     {theScience.title}
                                 </h3>
-                                <p className={`text-sm leading-relaxed ${textSecondary}`}>
-                                    {theScience.overview}
+                                <p className="text-sm leading-relaxed text-white/70 italic">
+                                    &ldquo;{theScience.overview}&rdquo;
                                 </p>
                             </div>
 
                             {/* Benefits */}
                             <div>
-                                <h4 className={`text-sm font-bold uppercase tracking-wider mb-3 ${accentColor}`}>
-                                    Research-Backed Benefits
+                                <h4 className={`text-xs font-black uppercase tracking-[0.2em] mb-5 ${accentColor}`}>
+                                    Informed Benefits
                                 </h4>
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                     {theScience.benefits.map((benefit, index) => (
-                                        <div key={index} className={`flex gap-3 p-3 rounded-lg ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
-                                            <span className={`${accentColor} text-lg`}>✓</span>
-                                            <p className={`text-sm ${textSecondary}`}>
+                                        <div key={index} className="flex gap-4 p-4 rounded-2xl bg-white/[0.06] border border-white/10">
+                                            <div className="w-8 h-8 rounded-xl bg-[#E5D6A7] flex items-center justify-center flex-shrink-0 shadow-sm">
+                                                <span className="text-[#1B4332] font-black text-sm">✓</span>
+                                            </div>
+                                            <p className="text-sm font-medium pt-1.5 text-white/80">
                                                 {benefit}
                                             </p>
                                         </div>
@@ -172,11 +173,11 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
 
                             {/* Research Note */}
                             {theScience.research && (
-                                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-pale-gold/10 border border-pale-gold/20' : 'bg-sage/10 border border-sage/20'}`}>
-                                    <h4 className={`text-sm font-bold uppercase tracking-wider mb-2 ${accentColor}`}>
-                                        🔬 Research Note
+                                <div className={`p-6 rounded-[2rem] bg-white/[0.12] border border-white/[0.12] shadow-xl`}>
+                                    <h4 className={`text-xs font-black uppercase tracking-[0.2em] mb-3 text-[#E5D6A7]`}>
+                                        🔬 The Research
                                     </h4>
-                                    <p className={`text-xs leading-relaxed ${textSecondary}`}>
+                                    <p className={`text-xs leading-relaxed text-white/90 font-light`}>
                                         {theScience.research}
                                     </p>
                                 </div>

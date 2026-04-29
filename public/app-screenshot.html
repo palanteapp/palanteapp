@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=428px, initial-scale=1.0">
+<title>Palante Screenshot</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 428px;
+    min-height: 926px;
+    background: #3A3D2E;
+    font-family: 'Inter', sans-serif;
+    color: #FAF7F3;
+    position: relative;
+    overflow: hidden;
+  }
+  .grain {
+    position: fixed;
+    inset: 0;
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .content {
+    position: relative;
+    z-index: 1;
+    padding: 56px 20px 100px;
+  }
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+  .greeting {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    color: #FAF7F3;
+  }
+  .greeting-sub {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    color: rgba(250,247,243,0.55);
+    margin-top: 2px;
+  }
+  .avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(201,106,58,0.2);
+    border: 1.5px solid rgba(201,106,58,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #C96A3A;
+  }
+  /* Quote Card */
+  .quote-card {
+    background: #FAF7F3;
+    border: 1px solid rgba(212,184,130,0.5);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  }
+  .quote-mark {
+    position: absolute;
+    top: 8px;
+    left: 16px;
+    font-size: 80px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    color: rgba(201,106,58,0.09);
+    line-height: 1;
+  }
+  .quote-text {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    color: #241A12;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .quote-divider {
+    width: 32px;
+    height: 2px;
+    background: #C96A3A;
+    margin-bottom: 10px;
+  }
+  .quote-author {
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: 13px;
+    color: #576355;
+  }
+  /* Streak Widget */
+  .streak-card {
+    background: rgba(250,247,243,0.06);
+    border: 1px solid rgba(212,184,130,0.2);
+    border-radius: 16px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .streak-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    color: rgba(250,247,243,0.55);
+    margin-bottom: 4px;
+  }
+  .streak-value {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    color: #C96A3A;
+    letter-spacing: -0.02em;
+  }
+  .streak-unit {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 13px;
+    color: rgba(250,247,243,0.55);
+  }
+  .streak-badge {
+    background: rgba(201,106,58,0.15);
+    border: 1px solid rgba(201,106,58,0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    color: #C96A3A;
+  }
+  /* Section label */
+  .section-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(250,247,243,0.4);
+    margin-bottom: 10px;
+    margin-top: 4px;
+  }
+  /* Practice Card */
+  .practice-card {
+    background: #241A12;
+    border: 1px solid rgba(212,184,130,0.2);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .practice-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(201,106,58,0.15);
+    border: 1px solid rgba(201,106,58,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .practice-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: #FAF7F3;
+    margin-bottom: 3px;
+  }
+  .practice-sub {
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    color: rgba(250,247,243,0.5);
+  }
+  .practice-arrow {
+    margin-left: auto;
+    color: rgba(250,247,243,0.3);
+    font-size: 18px;
+  }
+  /* CTA Button */
+  .cta-btn {
+    width: 100%;
+    background: #C96A3A;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: #FAF7F3;
+    margin-top: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  /* Nav bar */
+  .nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 428px;
+    background: rgba(45,50,35,0.9);
+    border-top: 1px solid rgba(212,184,130,0.15);
+    backdrop-filter: blur(20px);
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 0 28px;
+    z-index: 10;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .nav-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: rgba(250,247,243,0.1);
+  }
+  .nav-dot.active {
+    background: rgba(201,106,58,0.3);
+    border: 1px solid rgba(201,106,58,0.5);
+  }
+  .nav-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: rgba(250,247,243,0.4);
+  }
+  .nav-label.active {
+    color: #C96A3A;
+  }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg class="grain" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <filter id="g"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter>
+  <rect width="100%" height="100%" filter="url(#g)"/>
+</svg>
+
+<div class="content">
+  <div class="header">
+    <div>
+      <div class="greeting">Good Morning</div>
+      <div class="greeting-sub">Monday, April 27 · Keep going</div>
+    </div>
+    <div class="avatar">M</div>
+  </div>
+
+  <div class="quote-card">
+    <div class="quote-mark">"</div>
+    <div class="quote-text">The secret of getting ahead is getting started. One step at a time.</div>
+    <div class="quote-divider"></div>
+    <div class="quote-author">— Mark Twain</div>
+  </div>
+
+  <div class="streak-card">
+    <div>
+      <div class="streak-label">Current streak</div>
+      <div>
+        <span class="streak-value">14</span>
+        <span class="streak-unit"> days</span>
+      </div>
+    </div>
+    <div class="streak-badge">Keep it up</div>
+  </div>
+
+  <div class="section-label">Today's practices</div>
+
+  <div class="practice-card">
+    <div class="practice-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C96A3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </div>
+    <div>
+      <div class="practice-title">Morning Practice</div>
+      <div class="practice-sub">Intentions · Gratitude · Energy</div>
+    </div>
+    <div class="practice-arrow">›</div>
+  </div>
+
+  <div class="practice-card">
+    <div class="practice-icon" style="background:rgba(87,99,85,0.2);border-color:rgba(87,99,85,0.4);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#576355" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4l3 3"/></svg>
+    </div>
+    <div>
+      <div class="practice-title">Evening Check-In</div>
+      <div class="practice-sub">Reflect · Wind down · Rest</div>
+    </div>
+    <div class="practice-arrow">›</div>
+  </div>
+
+  <button class="cta-btn">Start Morning Practice</button>
+</div>
+
+<nav class="nav">
+  <div class="nav-item">
+    <div class="nav-dot active"></div>
+    <div class="nav-label active">Home</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-dot"></div>
+    <div class="nav-label">Momentum</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-dot"></div>
+    <div class="nav-label">Garden</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-dot"></div>
+    <div class="nav-label">Coach</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-dot"></div>
+    <div class="nav-label">Profile</div>
+  </div>
+</nav>
+</body>
+</html>

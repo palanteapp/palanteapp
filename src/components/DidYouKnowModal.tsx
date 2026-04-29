@@ -26,31 +26,31 @@ export const DidYouKnowModal: React.FC<DidYouKnowModalProps> = ({ isOpen, onClos
     };
 
     return (
-        <SlideUpModal isOpen={isOpen} onClose={handleClose} isDarkMode={isDarkMode} fullScreen={fullScreen} position="center">
+        <SlideUpModal
+            isOpen={isOpen}
+            onClose={handleClose}
+            isDarkMode={true}
+            fullScreen={fullScreen}
+            position="center"
+        >
             <div className="p-8 flex flex-col items-center text-center">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-lg transition-transform hover:scale-110 ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'
-                    }`}>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6 bg-white/[0.12] text-white">
                     <Lightbulb size={32} strokeWidth={2} />
                 </div>
 
                 <div className="flex items-center gap-2 mb-3">
-                    <Sparkles size={16} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
-                    <span className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-pale-gold' : 'text-sage'
-                        }`}>Did You Know?</span>
-                    <Sparkles size={16} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                    <Sparkles size={16} className="text-white/40" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-white/60">Did You Know?</span>
+                    <Sparkles size={16} className="text-white/40" />
                 </div>
 
-                <p className={`text-xl md:text-2xl font-display font-medium leading-relaxed mb-8 ${isDarkMode ? 'text-white' : 'text-sage-dark'
-                    }`}>
+                <p className="text-xl md:text-2xl font-display font-bold leading-relaxed mb-8 text-white">
                     "{fact?.fact || 'Loading...'}"
                 </p>
 
                 <button
                     onClick={handleClose}
-                    className={`w-full py-4 rounded-xl font-medium transition-all hover:scale-105 active:scale-95 ${isDarkMode
-                        ? 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
-                        : 'bg-sage/10 text-sage hover:bg-sage/20 border border-sage/10'
-                        }`}
+                    className="w-full py-4 rounded-xl font-bold bg-[#C96A3A] text-white shadow-xl transition-all active:scale-95"
                 >
                     Got it, thanks!
                 </button>

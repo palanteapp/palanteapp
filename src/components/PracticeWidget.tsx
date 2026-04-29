@@ -67,7 +67,7 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
                 {/* Left side: Total practices count */}
                 <div className="flex items-center gap-4">
                     <div className={`
-                        p-4 rounded-2xl bg-[#3A1700]/20 
+                        p-4 rounded-2xl bg-black/20 
                         ${hasPractices ? 'animate-glow' : ''}
                     `}>
                         <Sparkles
@@ -100,7 +100,7 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
                 <div className="flex flex-col items-end gap-2">
                     {/* Next milestone indicator */}
                     {nextMilestone && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3A1700]/20">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20">
                             <TrendingUp size={14} className={colors.text} />
                             <span className={`text-xs font-medium ${colors.text}`}>
                                 {nextMilestone.remaining} to {nextMilestone.name}
@@ -110,7 +110,7 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
 
                     {/* Milestone badge if reached major milestone */}
                     {totalPractices >= 365 && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3A1700]/20">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20">
                             <Award size={14} className={colors.text} />
                             <span className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage/60'} font-medium`}>
                                 Legend Status

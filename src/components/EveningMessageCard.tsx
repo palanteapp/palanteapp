@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Moon, Share2, RefreshCw, ChevronDown, ChevronUp, Heart, BookOpen, Award, Smile } from 'lucide-react';
 import { ShareModal } from './ShareModal';
-import { QuoteCardGenerator } from './QuoteCardGenerator';
 import type { Quote, DailyEveningPractice } from '../types';
-import html2canvas from 'html2canvas';
+import { generateShareImage } from '../utils/shareUtils';
 
 interface EveningMessageCardProps {
     practice: DailyEveningPractice;
@@ -37,53 +36,29 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
     const handleShare = async () => {
         setIsGeneratingImage(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 100)); // allow render
+            const image = await generateShareImage(mockQuote, mockQuote.id);
 
-            const element = document.getElementById('evening-msg-share-generator');
-            if (element) {
-                const canvas = await html2canvas(element, {
-                    scale: 2,
-                    backgroundColor: null,
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false,
-                    onclone: (doc) => {
-                        const el = doc.getElementById('evening-msg-share-generator');
-                        if (el) {
-                            el.style.opacity = '1';
-                            el.style.visibility = 'visible';
-                        }
-                    }
+            try {
+                const { Share } = await import('@capacitor/share');
+                const { Directory, Filesystem } = await import('@capacitor/filesystem');
+
+                const fileName = `palante_evening_${Date.now()}.png`;
+                const savedFile = await Filesystem.writeFile({
+                    path: fileName,
+                    data: image.split(',')[1],
+                    directory: Directory.Cache,
                 });
 
-                const image = canvas.toDataURL('image/png');
-
-                try {
-                    const { Share } = await import('@capacitor/share');
-                    const { Directory, Filesystem } = await import('@capacitor/filesystem');
-
-                    const fileName = `palante_evening_${Date.now()}.png`;
-
-                    const savedFile = await Filesystem.writeFile({
-                        path: fileName,
-                        data: image.split(',')[1],
-                        directory: Directory.Cache
-                    });
-
-                    await Share.share({
-                        title: 'Evening Reflection from Palante',
-                        text: `"${practice.reflectionMessage}"\n\n- @palante.app`,
-                        url: savedFile.uri,
-                    });
-
-                } catch {
-
-                    // Fallback for Web
-                    const link = document.createElement('a');
-                    link.href = image;
-                    link.download = `palante_evening_${Date.now()}.png`;
-                    link.click();
-                }
+                await Share.share({
+                    title: 'Evening Reflection from Palante',
+                    text: `"${practice.reflectionMessage}"\n\n- @palante.app`,
+                    url: savedFile.uri,
+                });
+            } catch {
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = `palante_evening_${Date.now()}.png`;
+                link.click();
             }
         } catch (error) {
             console.error('Error sharing evening message:', error);
@@ -91,10 +66,10 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
                 const { Share } = await import('@capacitor/share');
                 await Share.share({
                     title: 'Evening Reflection from Palante',
-                    text: `"${practice.reflectionMessage}"\n\n- @palante.app`
+                    text: `"${practice.reflectionMessage}"\n\n- @palante.app`,
                 });
             } catch (fallbackError) {
-                console.error('Share Failed completely', fallbackError);
+                console.error('Share failed completely', fallbackError);
             }
         } finally {
             setIsGeneratingImage(false);
@@ -189,13 +164,6 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
                     </button>
                 </div>
             </div>
-
-            {/* Hidden Generator for Sharing */}
-            {isGeneratingImage && (
-                <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -50, opacity: 0, pointerEvents: 'none' }}>
-                    <QuoteCardGenerator id="evening-msg-share-generator" quote={mockQuote} isDarkMode={isDarkMode} />
-                </div>
-            )}
 
             {showShareModal && (
                 <ShareModal

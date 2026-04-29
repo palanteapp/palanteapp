@@ -37,7 +37,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { haptics } from '../utils/haptics';
 
 interface ExploreViewProps {
-    onNavigate: (section: 'breath' | 'meditate' | 'reflect' | 'fasting' | 'soundscapes' | 'routines' | 'wisdom' | 'pomodoro') => void;
+    onNavigate: (section: 'breath' | 'meditate' | 'reflect' | 'fasting' | 'soundscapes' | 'routines' | 'wisdom' | 'focus') => void;
     isDarkMode: boolean;
     user: UserProfile | null;
     updateProfile: (updatedUser: UserProfile) => Promise<void>;
@@ -49,7 +49,7 @@ export const ExploreView = ({ onNavigate, isDarkMode, user, updateProfile }: Exp
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 500, tolerance: 5 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
@@ -97,8 +97,8 @@ export const ExploreView = ({ onNavigate, isDarkMode, user, updateProfile }: Exp
             icon: Utensils,
         },
         {
-            id: 'pomodoro',
-            title: 'Pomodoro',
+            id: 'focus',
+            title: 'Focus Timer',
             description: 'Master focus with work/rest cycles.',
             icon: Timer,
         }
@@ -226,7 +226,7 @@ export const ExploreView = ({ onNavigate, isDarkMode, user, updateProfile }: Exp
     );
 };
 
-type ToolId = 'breath' | 'meditate' | 'reflect' | 'fasting' | 'soundscapes' | 'routines' | 'wisdom' | 'pomodoro';
+type ToolId = 'breath' | 'meditate' | 'reflect' | 'fasting' | 'soundscapes' | 'routines' | 'wisdom' | 'focus';
 
 interface SortableToolCardProps {
     tool: {
@@ -282,25 +282,10 @@ const ToolCardContent = ({
                 className={`absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl pointer-events-none opacity-20 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`}
             />
 
-            {/* Icon + drag handle row */}
-            <div className="flex items-start justify-between w-full mb-3">
+            {/* Icon row */}
+            <div className="flex items-start w-full mb-3">
                 <div className={`p-2.5 rounded-[14px] ${isDarkMode ? 'bg-white/6' : 'bg-sage/8'} pointer-events-none`}>
                     <Icon className={`w-5 h-5 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
-                </div>
-                {/* Drag dots */}
-                <div className={`flex flex-col gap-[3px] items-center mt-1 mr-0.5 transition-opacity ${isOverlay ? 'opacity-80' : 'opacity-20'} ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                    <div className="flex gap-[3px]">
-                        <div className="w-[3px] h-[3px] rounded-full bg-current" />
-                        <div className="w-[3px] h-[3px] rounded-full bg-current" />
-                    </div>
-                    <div className="flex gap-[3px]">
-                        <div className="w-[3px] h-[3px] rounded-full bg-current" />
-                        <div className="w-[3px] h-[3px] rounded-full bg-current" />
-                    </div>
-                    <div className="flex gap-[3px]">
-                        <div className="w-[3px] h-[3px] rounded-full bg-current" />
-                        <div className="w-[3px] h-[3px] rounded-full bg-current" />
-                    </div>
                 </div>
             </div>
 
@@ -342,7 +327,8 @@ const SortableToolCard = ({
         <div
             ref={setNodeRef}
             style={style}
-            className="w-full h-full"
+            {...attributes}
+            className="relative w-full h-full"
         >
             {isDragging ? (
                 /* Ghost placeholder while dragging */
@@ -353,20 +339,41 @@ const SortableToolCard = ({
                     <div className={`w-8 h-1 rounded-full animate-pulse ${isDarkMode ? 'bg-pale-gold/40' : 'bg-sage/30'}`} />
                 </div>
             ) : (
-                <button
-                    {...attributes}
-                    {...listeners}
-                    onClick={() => onNavigate(tool.id)}
-                    className="w-full h-full p-0 m-0 bg-transparent border-none outline-none appearance-none block text-left touch-none"
-                >
-                    <ToolCardContent
-                        tool={tool}
-                        isDarkMode={isDarkMode}
-                        bgClass={bgClass}
-                        textClass={textClass}
-                        subTextClass={subTextClass}
-                    />
-                </button>
+                <>
+                    {/* Navigation tap — no drag listeners, allows native scroll */}
+                    <button
+                        onClick={() => onNavigate(tool.id)}
+                        className="w-full h-full p-0 m-0 bg-transparent border-none outline-none appearance-none block text-left touch-manipulation"
+                    >
+                        <ToolCardContent
+                            tool={tool}
+                            isDarkMode={isDarkMode}
+                            bgClass={bgClass}
+                            textClass={textClass}
+                            subTextClass={subTextClass}
+                        />
+                    </button>
+                    {/* Drag handle — only this element has listeners + touch-none */}
+                    <div
+                        {...listeners}
+                        className={`absolute top-3 right-3 p-2 z-10 touch-none cursor-grab active:cursor-grabbing ${isDarkMode ? 'text-white' : 'text-sage'}`}
+                    >
+                        <div className="flex flex-col gap-[3px] items-center opacity-30">
+                            <div className="flex gap-[3px]">
+                                <div className="w-[3px] h-[3px] rounded-full bg-current" />
+                                <div className="w-[3px] h-[3px] rounded-full bg-current" />
+                            </div>
+                            <div className="flex gap-[3px]">
+                                <div className="w-[3px] h-[3px] rounded-full bg-current" />
+                                <div className="w-[3px] h-[3px] rounded-full bg-current" />
+                            </div>
+                            <div className="flex gap-[3px]">
+                                <div className="w-[3px] h-[3px] rounded-full bg-current" />
+                                <div className="w-[3px] h-[3px] rounded-full bg-current" />
+                            </div>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );

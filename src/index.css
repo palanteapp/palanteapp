@@ -21,11 +21,11 @@
   --color-sand-beige:  #EDE4DA; /* legacy alias → ivory-warm               */
 
   /* Hunter Green family (updated Apr 2026) */
-  --color-sage:        #355E3B; /* hunter green — buttons, dark mode bg     */
-  --color-sage-mid:    #2A4B2F; /* darker hunter green — secondary bg       */
-  --color-sage-dark:   #1F3824; /* deepest hunter green — body text         */
-  --color-olive:       #355E3B; /* legacy alias → hunter green              */
-  --color-warm-gray-green: #355E3B; /* legacy alias → sage                 */
+  --color-sage:        #415D43; /* forest sage — richer than olive, softer than hunter */
+  --color-sage-mid:    #415D43; /* forest sage — modal overlays              */
+  --color-sage-dark:   #1F3824; /* deepest green — body text                */
+  --color-olive:       #415D43; /* forest sage primary                      */
+  --color-warm-gray-green: #415D43; /* forest sage alias                   */
 
   /* Gold family */
   --color-pale-gold:   #E5D6A7; /* pale gold — highlights, quote accents    */
@@ -41,12 +41,12 @@
   --color-terra-light: #D4895A; /* light — hover state                      */
 
   /* Tier accent aliases */
-  --color-zen-accent:    #355E3B; /* Gentle  → hunter green                 */
-  --color-stoic-accent:  #355E3B; /* Balanced → hunter green                */
+  --color-zen-accent:    #415D43; /* Gentle  → forest sage                  */
+  --color-stoic-accent:  #415D43; /* Balanced → forest sage                 */
   --color-grit-accent:   #C96A3A; /* Intense  → terracotta                   */
 
-  /* Elevated High-End Dark (Fasting Vibe) */
-  --color-deep-olive:    #3D4535; /* the new favorite background            */
+  /* Elevated High-End Dark */
+  --color-deep-olive:    #415D43; /* forest sage background                 */
   --color-glass-white:   rgba(255, 255, 255, 0.05); /* subtle surface       */
   --color-gold-muted:    rgba(229, 214, 167, 0.4);  /* for secondary lines  */
 }
@@ -128,7 +128,7 @@
 
   /* Elevated Vibe Utils */
   .bg-elevated-dark {
-    background-color: #3D4535;
+    background-color: #415D43;
   }
 
   .glass-surface {
@@ -632,6 +632,7 @@ div {
 
 * {
   -webkit-tap-highlight-color: transparent;
+  accent-color: #E5D6A7;
 }
 
 /* ── Component keyframes (moved from inline JS) ──────────────────────────── */
@@ -782,13 +783,13 @@ div {
 
 /* Gradients — updated to new palette */
 .bg-gradient-sage-beige {
-  background: linear-gradient(135deg, #4E5C4C 0%, #F2EBE0 100%);
+  background: linear-gradient(135deg, #355E3B 0%, #F2EBE0 100%);
 }
 .bg-gradient-sage-subtle {
-  background: linear-gradient(135deg, rgba(78, 92, 76, 0.08) 0%, rgba(242, 235, 224, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(53, 94, 59, 0.08) 0%, rgba(242, 235, 224, 0.08) 100%);
 }
 .text-gradient-sage {
-  background: linear-gradient(to right, #4E5C4C, #2E3B2B);
+  background: linear-gradient(to right, #415D43, #1F3824);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;

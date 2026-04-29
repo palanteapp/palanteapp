@@ -7,6 +7,9 @@ import { EXPANSION_QUOTES_VOL5 } from './expansionQuotesVol5';
 import { EXPANSION_QUOTES_VOL6 } from './expansionQuotesVol6';
 import { EXPANSION_QUOTES_VOL7 } from './expansionQuotesVol7';
 import { EXPANSION_QUOTES_VOL8 } from './expansionQuotesVol8';
+import { EXPANSION_QUOTES_VOL9 } from './expansionQuotesVol9';
+import { LATINO_QUOTES } from './latinoQuotes';
+import { EXPANSION_QUOTES_VOL10 } from './expansionQuotesVol10';
 
 export const QUOTES: Quote[] = [
     ...EXPANSION_QUOTES, // 300+ Expansion quotes
@@ -17,6 +20,9 @@ export const QUOTES: Quote[] = [
     ...EXPANSION_QUOTES_VOL6, // ~100 Leadership/Business quotes
     ...EXPANSION_QUOTES_VOL7, // ~100 Grit/Tenacity quotes
     ...EXPANSION_QUOTES_VOL8, // ~100 Creativity/Vision quotes
+    ...EXPANSION_QUOTES_VOL9, // 187 Global Proverbs
+    ...LATINO_QUOTES, // 100 Latino & Afro-Latino voices — Pa'lante roots
+    ...EXPANSION_QUOTES_VOL10, // 209 Verified + Unknown + Virgil Abloh + Kevin Kelly
     // ============================================
     // RELAXED & AFFIRMING (Gentle, Mindfulness)
     // ============================================
@@ -304,7 +310,7 @@ export const QUOTES: Quote[] = [
     { id: 'aw_65', text: "Doublethink means the power of holding two contradictory beliefs in one's mind simultaneously, and accepting both of them.", author: "George Orwell", category: "Psychology", intensity: 1 },
     { id: 'aw_66', text: "Perhaps one did not want to be loved so much as to be understood.", author: "George Orwell", category: "Understanding", intensity: 1 },
     { id: 'aw_67', text: "Happiness can exist only in acceptance.", author: "George Orwell", category: "Happiness", intensity: 1 },
-    { id: 'aw_68', text: "The essence of being human is that one does not seek perfection.", author: "George Orwell", category: "Humanity", intensity: 1 },
+    { id: 'aw_68', text: "Happiness can exist only in acceptance, and acceptance is the heart of being human.", author: "George Orwell", category: "Humanity", intensity: 1 },
 
     { id: 'aw_70', text: "Do not go where the path may lead, go instead where there is no path and leave a trail.", author: "Ralph Waldo Emerson", category: "Originality", intensity: 1 },
     { id: 'aw_71', text: "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment.", author: "Ralph Waldo Emerson", category: "Authenticity", intensity: 1 },
@@ -451,7 +457,7 @@ export const QUOTES: Quote[] = [
     { id: 'p_dev2', text: "Software is eating the world.", author: "Marc Andreessen", category: "Vision", intensity: 1, profession: "Developer" },
     { id: 'p_dev3', text: "The most dangerous phrase in the language is, 'We've always done it this way.'", author: "Grace Hopper", category: "Innovation", intensity: 2, profession: "Developer" },
     { id: 'p_dev4_fix', text: "Don't just share your code, share your knowledge.", author: "Unknown", category: "Community", intensity: 1, profession: "Developer" },
-    { id: 'p_dev5', text: "Simplicity is the essence of efficiency.", author: "Austin Freeman", category: "Efficiency", intensity: 1, profession: "Developer" },
+    { id: 'p_dev5', text: "Simplicity is the soul of efficiency.", author: "Austin Freeman", category: "Efficiency", intensity: 1, profession: "Developer" },
     { id: 'p_dev6', text: "Make it work, make it right, make it fast.", author: "Kent Beck", category: "Process", intensity: 2, profession: "Developer" },
     { id: 'p_dev7', text: "First, solve the problem. Then, write the code.", author: "John Johnson", category: "Problem Solving", intensity: 1, profession: "Developer" },
 

@@ -4,7 +4,14 @@ import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
 import { WidgetDataSync } from '../utils/widgetDataSync';
 import { STORAGE_KEYS } from '../constants/storageKeys';
-import { logPractice, migrateStreakToPractice } from '../utils/practiceUtils';
+import { logPractice, migrateStreakToPractice, getTodayDate } from '../utils/practiceUtils';
+import { generateUserNarrative, generateMonthlyPatternInsight } from '../utils/aiService';
+
+const getLocalYesterdayDate = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 interface UserContextType {
     user: UserProfile | null;
@@ -156,6 +163,69 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         loadProfile();
     }, [authUser]);
 
+    // Narrative Engine — silently regenerates the user's growth memoir weekly
+    useEffect(() => {
+        const currentUser = userRef.current;
+        if (!currentUser || currentUser.aiDisabled) return;
+
+        const lastGenerated = currentUser.userNarrative?.generatedAt;
+        const isStale = !lastGenerated ||
+            Date.now() - new Date(lastGenerated).getTime() > 7 * 24 * 60 * 60 * 1000;
+
+        if (!isStale) return;
+
+        generateUserNarrative(currentUser).then(text => {
+            if (!text) return;
+            const updated = {
+                ...userRef.current!,
+                userNarrative: { text, generatedAt: new Date().toISOString() }
+            };
+            setUser(updated);
+            userRef.current = updated;
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+            if (authUser) {
+                api.updateProfile(authUser.id, updated).catch(() => {});
+            }
+        }).catch(() => {});
+    // Run once after the profile is first populated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
+
+    // Monthly Pattern Engine — generates one specific behavioral insight after 30+ days
+    useEffect(() => {
+        const currentUser = userRef.current;
+        if (!currentUser || currentUser.aiDisabled) return;
+
+        const totalPractices = currentUser.practiceData?.totalPractices ?? 0;
+        if (totalPractices < 10) return; // Need meaningful data first
+
+        const lastGenerated = currentUser.monthlyPattern?.generatedAt;
+        const isStale = !lastGenerated ||
+            Date.now() - new Date(lastGenerated).getTime() > 30 * 24 * 60 * 60 * 1000;
+
+        if (!isStale) return;
+
+        generateMonthlyPatternInsight(currentUser).then(result => {
+            if (!result) return;
+            const updated = {
+                ...userRef.current!,
+                monthlyPattern: {
+                    insight: result.insight,
+                    dataPoint: result.dataPoint,
+                    generatedAt: new Date().toISOString(),
+                    dismissed: false,
+                }
+            };
+            setUser(updated);
+            userRef.current = updated;
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+            if (authUser) {
+                api.updateProfile(authUser.id, updated).catch(() => {});
+            }
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
+
     // Core Update Logic
     const updateProfile = useCallback(async (updateInput: UserProfile | ((prev: UserProfile | null) => UserProfile)) => {
 
@@ -193,7 +263,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         await updateProfile(prevUser => {
             if (!prevUser) return prevUser!;
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = getTodayDate();
             const updatedActivityHistory = [...(prevUser.activityHistory || [])];
 
             const existingLogIndex = updatedActivityHistory.findIndex(log => log.date === today && log.type === type);
@@ -207,23 +277,24 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 updatedActivityHistory.push({ date: today, type, count: 1 });
             }
 
-            // Simple streak update (full logic is complex to inline, but safe enough here for now)
-            // We can re-calculate streak based on prevUser
-            // ... (keeping legacy streak logic for safety)
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-            const hasActivityToday = updatedActivityHistory.some(log => log.date === today);
-            const hadActivityYesterday = updatedActivityHistory.some(log => log.date === yesterdayStr);
+            // Accurate Daily Streak Logic — uses local date to avoid midnight UTC boundary resets
+            const yesterdayStr = getLocalYesterdayDate();
+            
+            // Was there activity before this call today?
+            const hadActivityTodayBefore = (prevUser.activityHistory || []).some(log => log.date === today);
+            const hadActivityYesterday = (prevUser.activityHistory || []).some(log => log.date === yesterdayStr);
 
             let newStreak = prevUser.streak || 0;
-            if (hasActivityToday && hadActivityYesterday) {
-                newStreak = (prevUser.streak || 0) + 1;
-            } else if (hasActivityToday && !hadActivityYesterday) {
-                newStreak = 1;
-            } else if (!hasActivityToday) {
-                newStreak = 0;
+            if (!hadActivityTodayBefore) {
+                if (hadActivityYesterday) {
+                    newStreak = (prevUser.streak || 0) + 1;
+                } else {
+                    newStreak = 1;
+                }
             }
+            // If already had activity today, keep current streak.
+            // If no activity today and no activity yesterday, streak becomes 1 (today).
+            // (Note: streak resetting to 0 happens if a day passes without activity, usually checked on app launch)
 
             // Sync with new practice tracking system (Counts as a check-in)
             const currentPracticeData = prevUser.practiceData || migrateStreakToPractice(prevUser);
@@ -239,8 +310,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
         // API Log (Fire and Forget)
         if (authUser) {
-            const today = new Date().toISOString().split('T')[0];
-            api.logActivity(authUser.id, { date: today, type, count: 1 }).catch(console.error);
+            api.logActivity(authUser.id, { date: getTodayDate(), type, count: 1 }).catch(console.error);
         }
     }, [authUser, updateProfile]);
 

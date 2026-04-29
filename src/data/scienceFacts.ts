@@ -126,9 +126,9 @@ export const SCIENCE_FACTS: ScienceFact[] = [
         fact: "Visualizing the process (the steps) is actually more effective than visualizing the outcome alone (UCLA Study)."
     },
     {
-        id: 'prod-pomodoro',
+        id: 'prod-focus-timer',
         category: 'Productivity',
-        fact: "The 'Pomodoro Technique' works because it aligns with your body's ultradian rhythms of focus and rest."
+        fact: "Timed focus intervals work because they align with your body's ultradian rhythms of focus and rest."
     },
     {
         id: 'prod-accountability',

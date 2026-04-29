@@ -22,7 +22,7 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A1700]/60 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
             <div className={`w-full max-w-md p-8 rounded-3xl shadow-2xl ${isDarkMode ? 'bg-sage-mid border border-white/10' : 'bg-ivory border border-sage/10'
                 }`}>
                 {/* Close Button */}

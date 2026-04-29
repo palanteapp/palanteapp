@@ -14,7 +14,7 @@ export const Logo: React.FC<LogoProps> = ({
     ...props
 }) => {
     // Default fill based on variant or provided color
-    const defaultFill = variant === 'gold' ? '#E5D6A7' : '#4E5C4C';
+    const defaultFill = variant === 'gold' ? '#E5D6A7' : '#355E3B';
 
     return (
         <PalanteLogo

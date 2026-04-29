@@ -27,11 +27,37 @@ export interface UserContext {
     totalGoals: number;
     profession?: string;
     activeFocus?: string;
-    // New Memory Fields
     recentJournalEntries?: { date: string; highlight: string; lowlight: string }[];
     recentReflections?: { date: string; intention: string; reflection: string }[];
     energyTrends?: { timestamp: string; level: number }[];
+    // Narrative Engine
+    userNarrative?: string;
+    momentumState?: 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
+    currentMood?: string;
+    focusAreas?: string[];
 }
+
+export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
+
+export const getMomentumState = (user: UserProfile): MomentumState => {
+    const streak = user.streak || 0;
+    const pattern = user.behaviorPattern;
+    const consecutiveSkips = pattern?.patterns.skipPatterns.consecutiveSkips ?? 0;
+    const avgEnergy = pattern?.patterns.moodPatterns.averageEnergy ?? 3;
+    const goalRate = pattern?.patterns.goalCompletionRate ?? 0;
+
+    if (streak >= 14 && avgEnergy >= 3.5 && goalRate >= 0.7) return 'breakthrough';
+    if (streak >= 5 && consecutiveSkips === 0 && avgEnergy >= 3) return 'on_a_roll';
+    if (consecutiveSkips >= 2 || streak <= 1) return 'recovering';
+    return 'steady';
+};
+
+const MOMENTUM_GUIDANCE: Record<MomentumState, string> = {
+    breakthrough: 'They are in a breakthrough period — deep consistency, high energy, results compounding. Honor the depth of what they are creating.',
+    on_a_roll: 'They are building beautiful momentum. Let the message reflect their forward motion and affirm that it is working.',
+    recovering: 'They are finding their way back. Let the message be a warm welcome home — gentle, not a push. No pressure.',
+    steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of just showing up.',
+};
 
 import type { ChatMessage, UserProfile, UserBehaviorPattern, CoachIntervention } from '../types';
 
@@ -41,6 +67,110 @@ export interface AIAffirmationResponse {
     category: string;
     isAI: boolean;
 }
+
+/**
+ * Generates a 4-5 sentence "growth memoir" for the user by synthesizing
+ * their recent behavioral data. Stored on UserProfile and refreshed weekly.
+ * Fed into every AI prompt in the app so the coach always knows who they are.
+ */
+export const generateUserNarrative = async (user: UserProfile): Promise<string> => {
+    const recentMorning = (user.dailyMorningPractice || user.dailyPriming || []).slice(-3);
+    const recentEvening = (user.dailyEveningPractice || []).slice(-3);
+    const recentJournal = (user.journalEntries || []).slice(-3);
+    const recentMeditation = (user.meditationReflections || []).slice(-3);
+    const recentNoise = (user.noiseEntries || []).filter(n => !n.wasCleared).slice(-3);
+    const activeGoals = (user.goals || []).filter(g => !g.completedAt).slice(0, 3);
+    const totalPractices = user.practiceData?.totalPractices ?? 0;
+
+    const contextBlock = [
+        user.profession ? `Profession: ${user.profession}` : '',
+        `Current streak: ${user.streak || 0} days`,
+        `Total practices completed all-time: ${totalPractices}`,
+        user.currentMood ? `Current mood: ${user.currentMood}` : '',
+        user.currentEnergy ? `Current energy: ${user.currentEnergy}/5` : '',
+        user.focusAreas?.length ? `Working on: ${user.focusAreas.join(', ')}` : '',
+        activeGoals.length
+            ? `Active goals: ${activeGoals.map(g => g.title).join('; ')}`
+            : '',
+        recentMorning.length
+            ? `Recent morning gratitudes: ${recentMorning.flatMap(m => m.gratitudes).slice(0, 6).join(', ')}`
+            : '',
+        recentMorning.length
+            ? `Recent intentions: ${recentMorning.map(m => m.dailyIntention).filter(Boolean).join(', ')}`
+            : '',
+        recentEvening.length
+            ? `Recent evening delights: ${recentEvening.map(e => e.delight).filter(Boolean).join('; ')}`
+            : '',
+        recentEvening.length
+            ? `Recent accomplishments: ${recentEvening.map(e => e.accomplishment).filter(Boolean).join('; ')}`
+            : '',
+        recentJournal.length
+            ? `Recent journal highlights: ${recentJournal.map(j => j.highlight).filter(Boolean).join('; ')}`
+            : '',
+        recentMeditation.length
+            ? `Recent meditation intentions: ${recentMeditation.map(m => m.intention).filter(Boolean).join('; ')}`
+            : '',
+        recentNoise.length
+            ? `Current stressors they've named: ${recentNoise.map(n => n.text).join('; ')}`
+            : '',
+    ].filter(Boolean).join('\n');
+
+    const fallback = buildFallbackNarrative(user);
+
+    if (!GEMINI_API_KEY) return fallback;
+
+    const prompt = `You are Palante, a personal growth companion. Based on the data below, write a warm 3-4 sentence reflection that speaks directly to the user. This will appear on their profile as a personal note from Palante.
+
+Tone: supportive, specific, and human — like a trusted friend who has genuinely been paying attention. Always use second person ("you", "your"). Reference what they've actually been grateful for and what they're working toward — make it feel personal and seen. Never use the person's name. Never use generic filler. Weave details into flowing sentences, no lists.
+
+Start with "You're" or "You've" — never with their name.
+
+USER DATA:
+${contextBlock}
+
+Write the reflection now (3-4 sentences, second person, no headers, no lists):`;
+
+    try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.85, maxOutputTokens: 300, topP: 0.95 }
+            })
+        });
+
+        if (!response.ok) return fallback;
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        return text || fallback;
+    } catch {
+        return fallback;
+    }
+};
+
+const buildFallbackNarrative = (user: UserProfile): string => {
+    const streak = user.streak || 0;
+    const name = user.name || 'this person';
+    const profession = user.profession || 'their field';
+    const goals = (user.goals || []).filter(g => !g.completedAt).map(g => g.title);
+    const recentGratitude = user.dailyMorningPractice?.[user.dailyMorningPractice.length - 1]?.gratitudes?.[0];
+
+    const streakLine = streak > 0
+        ? `You're on a ${streak}-day streak — that kind of consistency builds something real.`
+        : `You're finding your way back to your practice, and that return takes courage.`;
+
+    const gratitudeLine = recentGratitude
+        ? ` You've been holding onto gratitude for ${recentGratitude} — that kind of awareness is rare and worth honoring.`
+        : '';
+
+    const goalsLine = goals.length
+        ? ` Right now you're working toward ${goals.slice(0, 2).join(' and ')}, and every small step you take here is part of that.`
+        : ` Whatever brought you here today, you showed up — and that\'s always the hardest part.`;
+
+    return `${streakLine}${gratitudeLine}${goalsLine}`.replace(/\s+/g, ' ').trim();
+};
 
 const getIntensityDescription = (intensity: 1 | 2 | 3): string => {
     switch (intensity) {
@@ -227,34 +357,38 @@ export const generateMorningPracticeMessage = async (
         gratitudes: string[];
         affirmations: string[];
         intention: string;
+        narrative?: string;
+        momentumState?: MomentumState;
     }
 ): Promise<string> => {
     if (!GEMINI_API_KEY) {
         return getFallbackMorningMessage(data);
     }
 
-    const prompt = `You are Palante Coach, a professional, supportive, and uplifting coach.
-Generate a short, powerful morning message for ${userName} that sets a high-vibe tone for the day.
+    const prompt = `You are Palante Coach — a soulful, poetic guide rooted in the spirit of "Pa'lante": ever forward, with grace and fire.
 
-INPUTS:
+Write a single, lyrical paragraph of morning upliftment for ${userName}. This is not a list. It is a poem in prose — intimate, alive, and personal.
+
+WHAT THEY BROUGHT TO PRACTICE TODAY:
 - Gratitudes: ${data.gratitudes.join(', ')}
 - Affirmations: ${data.affirmations.join(', ')}
-- Intention: ${data.intention}
+- Today's intention: ${data.intention}
+${data.narrative ? `\nWHO THEY'VE BEEN LATELY:\n${data.narrative}` : ''}
+${data.momentumState ? `\nTHEIR CURRENT MOMENTUM: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
 
-REQUIREMENTS:
-1. NEVER list the items out. Instead, weave them into a single, cohesive, and professional narrative.
-2. Be brief (strictly under 35 words).
-3. Opening: Always use a warm, professional greeting with their name (e.g., "Good morning, ${userName}!").
-4. Tone: Encouraging, supportive, and grounded. Avoid fluffy or overly sentimental language.
-5. Focus on how their gratitudes and affirmations fuel their intention of ${data.intention}.
-6. CRITICAL: Avoid violent or aggressive language in coaching advice (e.g., 'conquer', 'battle', 'destroy'). Use growth-oriented words instead. You may use the term 'Warrior' ONLY when referring to a user's 'Week Warrior' or 'Year Warrior' milestone achievement. Otherwise, stick to supportive language like 'thrive', 'blossom', 'flow', or 'create'.
+YOUR TASK:
+Weave their gratitudes, affirmations, and intention into one luminous paragraph that feels like morning light — warm, clear, and full of possibility. Let their own words breathe through yours. Do not name each element explicitly; instead, let them shimmer beneath the surface of the prose.
 
-Generate this brief, professional boost now:
+CRAFT REQUIREMENTS:
+1. 50–70 words. Not a word more, not a word less.
+2. Open with their name — gently, like a hand on the shoulder.
+3. Poetic but grounded. Think Rumi meets Maya Angelou meets the best version of their own inner voice.
+4. No clichés. No "rise and shine." No "you've got this." Find the fresh image, the unexpected truth.
+5. End on a note of quiet strength — not a battle cry, but a deep exhale of readiness.
+6. Language: growth, light, roots, flow, bloom, presence, clarity, becoming. Never: conquer, battle, destroy, crush.
 
-MEDICAL SAFETY GUIDE:
+MEDICAL SAFETY:
 - NEVER provide medical advice, diagnosis, or treatment recommendations.
-- NEVER suggest specific diets or medical interventions.
-- If the user asks for medical advice, gently redirect them to a healthcare professional.
 `;
 
     try {
@@ -264,9 +398,9 @@ MEDICAL SAFETY GUIDE:
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 0.9,
-                    maxOutputTokens: 150,
-                    topP: 0.95,
+                    temperature: 1.0,
+                    maxOutputTokens: 250,
+                    topP: 0.97,
                 }
             })
         });
@@ -282,6 +416,8 @@ MEDICAL SAFETY GUIDE:
 
         // Clean up quotes if AI adds them
         message = message.replace(/^["'']|["'']$/g, '').trim();
+        // Remove accidental spaces before punctuation (e.g. "today ." → "today.")
+        message = message.replace(/ +([.,;:!?])/g, '$1');
 
         return message;
     } catch (error) {
@@ -436,20 +572,35 @@ export const chatWithCoach = async (
         ? `Current Energy: ${context.energyLevel}/5. ${context.energyLevel <= 2 ? 'User is feeling low energy.' : 'User is feeling energized.'}`
         : '';
 
+    const narrativeBlock = context.userNarrative
+        ? `THEIR GROWTH STORY (synthesized from recent weeks):\n${context.userNarrative}\n`
+        : '';
+
+    const momentumBlock = context.momentumState
+        ? `THEIR MOMENTUM RIGHT NOW: ${MOMENTUM_GUIDANCE[context.momentumState]}\n`
+        : '';
+
+    const moodBlock = context.currentMood ? `Current mood: ${context.currentMood}` : '';
+    const focusBlock = context.focusAreas?.length ? `Focus areas: ${context.focusAreas.join(', ')}` : '';
+
     // Construct System Prompt
     const systemPrompt = `You are Palante Coach, a warm, nurturing, and deeply supportive friend and mentor.
-    
+
     USER CONTEXT:
     - Name: ${context.name}
     - Profession: ${context.profession || 'Undisclosed'}
     - Streak: ${context.currentStreak} days
     - Today's Progress: ${context.completedGoals}/${context.totalGoals} goals completed.
     - Time: ${timeOfDay}
-    
+    ${moodBlock}
+    ${focusBlock}
+
+    ${narrativeBlock}
+    ${momentumBlock}
     ${energyMemory}
     ${journalMemory}
     ${reflectionMemory}
-    
+
     YOUR PERSONA:
     - Tone: Deeply conversational, empathetic, and patient. ${intensityDesc}
     - Memory: You have context on their recent wins, challenges, and meditations. Reference them naturally if they are relevant to the current conversation (e.g., "I remember you were working on [X] yesterday...").
@@ -467,10 +618,19 @@ export const chatWithCoach = async (
     `;
 
     // Format History for Gemini
+    // Filter out init-greeting messages (they're represented by the fake model ack below),
+    // and drop the last message if it's the current user message to avoid duplication.
+    const cleanHistory = history
+        .filter(msg => !msg.id?.startsWith('init-'))
+        .slice(-10);
+    const historyForAPI = cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === 'user'
+        ? cleanHistory.slice(0, -1)
+        : cleanHistory;
+
     const contents = [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'model', parts: [{ text: "Got it! I'm ready to be a friendly, feature-focused guide." }] },
-        ...history.slice(-10).map(msg => ({
+        ...historyForAPI.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
             parts: [{ text: msg.text }]
         })),
@@ -532,7 +692,7 @@ The user has come to you because they are struggling to concentrate, stay on tas
 
 YOUR APPROACH:
 - Start by understanding what kind of focus they need (deep work, task-switching, procrastination, etc.).
-- Offer specific, science-backed strategies: Pomodoro, single-tasking, environment design, reducing friction.
+- Offer specific, science-backed strategies: timed focus intervals, single-tasking, environment design, reducing friction.
 - Help them identify and remove the root obstacle to their focus (fear of failure? perfectionism? unclear priorities?).
 - Reference their current goals and energy level if available.
 - Be direct and practical — they need a plan, not just encouragement.
@@ -611,6 +771,14 @@ export const chatWithCoachPillar = async (
         ? `Current Energy: ${context.energyLevel}/5. ${context.energyLevel <= 2 ? 'User is feeling low energy.' : 'User is feeling energized.'}`
         : '';
 
+    const narrativeBlockPillar = context.userNarrative
+        ? `THEIR GROWTH STORY (synthesized from recent weeks):\n${context.userNarrative}\n`
+        : '';
+
+    const momentumBlockPillar = context.momentumState
+        ? `THEIR MOMENTUM RIGHT NOW: ${MOMENTUM_GUIDANCE[context.momentumState]}\n`
+        : '';
+
     const systemPrompt = `${pillarPrompt}
 
 USER CONTEXT:
@@ -619,7 +787,11 @@ USER CONTEXT:
 - Streak: ${context.currentStreak} days
 - Today's Progress: ${context.completedGoals}/${context.totalGoals} goals completed.
 - Time: ${timeOfDay}
+${context.currentMood ? `- Mood: ${context.currentMood}` : ''}
+${context.focusAreas?.length ? `- Focus areas: ${context.focusAreas.join(', ')}` : ''}
 
+${narrativeBlockPillar}
+${momentumBlockPillar}
 ${energyMemory}
 ${journalMemory}
 ${reflectionMemory}
@@ -632,10 +804,18 @@ MEDICAL SAFETY GUIDE:
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI coach and they should consult a professional.`;
 
+    // Filter out init-greeting messages and drop last message if it's the current user message (avoid duplication)
+    const cleanHistoryPillar = history
+        .filter(msg => !msg.id?.startsWith('init-'))
+        .slice(-10);
+    const historyForAPIPillar = cleanHistoryPillar.length > 0 && cleanHistoryPillar[cleanHistoryPillar.length - 1].role === 'user'
+        ? cleanHistoryPillar.slice(0, -1)
+        : cleanHistoryPillar;
+
     const contents = [
         { role: 'user', parts: [{ text: systemPrompt }] },
         { role: 'model', parts: [{ text: `Understood. I'm ready to be a focused ${pillar} coach for ${context.name}.` }] },
-        ...history.slice(-10).map(msg => ({
+        ...historyForAPIPillar.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
             parts: [{ text: msg.text }]
         })),
@@ -712,18 +892,20 @@ const getCategoryFromRequest = (request: AIAffirmationRequest): string => {
 
 const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
     const { gratitudes, affirmations, intention } = data;
-    const gratitudeText = gratitudes.length > 0 ? gratitudes[0].toLowerCase() : "the abundance in your life";
-    const affirmationText = affirmations.length > 0 ? affirmations[0].toLowerCase() : "your inner power";
+    const g = gratitudes.length > 0 ? gratitudes[0].trim().toLowerCase() : "what is already here";
+    const a = affirmations.length > 0 ? affirmations[0].trim().toLowerCase() : "everything you already are";
+    const i = intention ? intention.trim().toLowerCase() : "moving forward";
 
     const templates = [
-        `Today, I carry the intent of ${gratitudeText} as my foundation. Step into the world knowing that I am ${affirmationText} and believing in all of my dreams. Let ${intention.toUpperCase()} be my guide.`,
-        `Good morning! With ${gratitudeText} in your mind and the power of being ${affirmationText}, you are unstoppable today. Let ${intention} lead the way.`,
-        `Your journey today starts with ${gratitudeText}. Remember that you are ${affirmationText}. Trust in your path and let ${intention} be your North Star.`,
-        `A beautiful day begins with ${gratitudeText}. You are ${affirmationText}, and your intention of ${intention} will guide you to greatness.`,
-        `Sending you a boost of energy! Ground yourself in ${gratitudeText}, embrace that you are ${affirmationText}, and let ${intention} shine through everything you do.`
+        `There is a quiet power in beginning here — with ${g} as your ground and the knowing that you are ${a}. Let that be enough. Let that be everything. Today, your whole being leans toward ${i}, and the world leans back.`,
+        `Something opened when you named ${g}. Something ancient in you recognized the truth of ${a}. Carry that recognition into this day like a lantern. Let ${i} be the path your feet already know.`,
+        `This morning arrived with ${g} already woven into it. You meet it as ${a} — not striving, but belonging. Move through this day in the direction of ${i}, and trust that each step is its own arrival.`,
+        `You rose. That is the first act of ${i}. And in the rising, you brought ${g} with you — a seed already unfurling. The truth that you are ${a} needs no proof today. Only presence.`,
+        `Let ${g} soften whatever needs softening. Let the truth of ${a} steady whatever feels uncertain. Then turn, gently, toward ${i} — not as a finish line, but as a living thing you tend with each breath.`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    const msg = templates[Math.floor(Math.random() * templates.length)];
+    return msg.replace(/ +([.,;:!?])/g, '$1');
 };
 
 const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals: number; totalGoals: number }): string => {
@@ -832,6 +1014,164 @@ const getFallbackReflectionAnalysis = (): ReflectionAnalysis => {
         praise: "You've taken the time to pause and reflect, which is the first step to mastery.",
         powerMove: "Tomorrow, focus on one small action that moves the needle on your biggest goal."
     };
+};
+
+// ─── Monthly Pattern Insight Engine ──────────────────────────────────────────
+
+interface PatternFact {
+    label: string;
+    value: string;
+    dataPoint: string;
+}
+
+function computePatternFacts(user: UserProfile): PatternFact[] {
+    const facts: PatternFact[] = [];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString().split('T')[0];
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // Most active day of week
+    const practicesByDay: Record<number, number> = {};
+    (user.practiceData?.activityHistory || [])
+        .filter(a => a.date >= thirtyDaysAgo)
+        .forEach(a => {
+            const day = new Date(a.date + 'T12:00:00').getDay();
+            practicesByDay[day] = (practicesByDay[day] || 0) + a.practices.length;
+        });
+    const mostActiveEntry = Object.entries(practicesByDay).sort(([, a], [, b]) => b - a)[0];
+    if (mostActiveEntry && Number(mostActiveEntry[1]) > 1) {
+        facts.push({
+            label: 'most_active_day',
+            value: DAY_NAMES[parseInt(mostActiveEntry[0])],
+            dataPoint: `${mostActiveEntry[1]} practices`,
+        });
+    }
+
+    // Highest energy day of week
+    const energyByDay: Record<number, number[]> = {};
+    (user.energyHistory || []).forEach(e => {
+        const day = new Date(e.timestamp).getDay();
+        if (!energyByDay[day]) energyByDay[day] = [];
+        energyByDay[day].push(e.level);
+    });
+    const energySorted = Object.entries(energyByDay)
+        .filter(([, levels]) => levels.length >= 2)
+        .map(([day, levels]) => ({ day: parseInt(day), avg: levels.reduce((a, b) => a + b, 0) / levels.length }))
+        .sort((a, b) => b.avg - a.avg);
+    if (energySorted[0]) {
+        facts.push({
+            label: 'highest_energy_day',
+            value: DAY_NAMES[energySorted[0].day],
+            dataPoint: `${energySorted[0].avg.toFixed(1)}/5 avg`,
+        });
+    }
+
+    // Gratitudes written this month
+    const gratitudeCount = (user.dailyMorningPractice || user.dailyPriming || [])
+        .filter(p => p.date >= thirtyDaysAgo)
+        .reduce((sum, p) => sum + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
+    if (gratitudeCount > 0) {
+        facts.push({ label: 'gratitudes_written', value: `${gratitudeCount} gratitudes`, dataPoint: `${gratitudeCount}` });
+    }
+
+    // Top practice type
+    const typeCounts: Record<string, number> = {};
+    (user.practiceData?.activityHistory || [])
+        .filter(a => a.date >= thirtyDaysAgo)
+        .forEach(a => a.practices.forEach(p => { typeCounts[p] = (typeCounts[p] || 0) + 1; }));
+    const topType = Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0];
+    if (topType) {
+        const labels: Record<string, string> = {
+            morning_practice: 'morning practice', meditation: 'meditation',
+            breath: 'breathwork', reflect: 'reflection', quote: 'quote saving',
+        };
+        facts.push({ label: 'top_practice', value: labels[topType[0]] || topType[0], dataPoint: `${topType[1]} times` });
+    }
+
+    // Journal entries this month
+    const journalCount = (user.journalEntries || []).filter(e => e.date >= thirtyDaysAgo).length;
+    if (journalCount > 0) {
+        facts.push({ label: 'journal_count', value: `${journalCount} reflections`, dataPoint: `${journalCount}` });
+    }
+
+    // Evening GLAD sessions this month
+    const eveningCount = (user.dailyEveningPractice || []).filter(e => e.date >= thirtyDaysAgo).length;
+    if (eveningCount > 0) {
+        facts.push({ label: 'evening_count', value: `${eveningCount} evenings`, dataPoint: `${eveningCount}` });
+    }
+
+    return facts;
+}
+
+const buildFallbackInsight = (facts: PatternFact[]): { insight: string; dataPoint: string } | null => {
+    const mostActive = facts.find(f => f.label === 'most_active_day');
+    if (mostActive) return {
+        insight: `Your practice naturally gravitates toward ${mostActive.value}s — your most consistent day of the month.`,
+        dataPoint: mostActive.value,
+    };
+    const highEnergy = facts.find(f => f.label === 'highest_energy_day');
+    if (highEnergy) return {
+        insight: `Your energy consistently peaks on ${highEnergy.value}s. Your body has its own wisdom.`,
+        dataPoint: highEnergy.value,
+    };
+    const gratitudes = facts.find(f => f.label === 'gratitudes_written');
+    if (gratitudes) return {
+        insight: `You've written ${gratitudes.dataPoint} this month. Gratitude is becoming a real practice for you.`,
+        dataPoint: gratitudes.dataPoint,
+    };
+    return null;
+};
+
+/**
+ * Analyzes 30 days of behavioral data and generates one specific, surprising
+ * pattern insight the user likely hasn't consciously noticed about themselves.
+ */
+export const generateMonthlyPatternInsight = async (
+    user: UserProfile
+): Promise<{ insight: string; dataPoint: string } | null> => {
+    const facts = computePatternFacts(user);
+    if (facts.length < 2) return null;
+
+    const fallback = buildFallbackInsight(facts);
+    if (!GEMINI_API_KEY) return fallback;
+
+    const factsText = facts.map(f => `- ${f.label}: ${f.value} (${f.dataPoint})`).join('\n');
+
+    const prompt = `You have 30 days of behavioral data for a wellness app user. Pick the ONE most interesting, specific, and surprising pattern — something they might not have consciously noticed.
+
+DATA:
+${factsText}
+
+RULES:
+1. Choose the single most meaningful fact. Avoid the obvious. Prefer the specific.
+2. Write ONE sentence (under 20 words) framing it as a warm discovery. Start with "You" or "Your".
+3. Extract the most concrete data point (a day name, a number, a count).
+4. Bad: "You practice regularly." Good: "Your energy consistently peaks on Thursdays."
+
+Respond in JSON only:
+{"insight": "...", "dataPoint": "..."}`;
+
+    try {
+        const res = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.7, maxOutputTokens: 120, responseMimeType: 'application/json' }
+            })
+        });
+        if (!res.ok) return fallback;
+
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (!text) return fallback;
+
+        const result = JSON.parse(text.replace(/```json\n?|\n?```/g, '').trim());
+        if (result.insight && result.dataPoint) return { insight: result.insight, dataPoint: result.dataPoint };
+        return fallback;
+    } catch {
+        return fallback;
+    }
 };
 
 // ─── Behavior Analysis & Coach Interventions (consolidated from aiCoach) ───────

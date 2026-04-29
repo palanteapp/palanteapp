@@ -135,9 +135,9 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                         Palante
                     </h1>
 
-                    <p className={`${fadeUp} text-lg text-pale-gold/90 font-body tracking-wide mb-12 flex flex-col`} style={{ animationDelay: '0.4s' }}>
+                    <p className={`${fadeUp} text-lg text-pale-gold/90 font-display font-medium tracking-wide mb-12 flex flex-col`} style={{ animationDelay: '0.4s' }}>
                         <span>Your Personal</span>
-                        <span>Growth Companion</span>
+                        <span>Growth Partner</span>
                     </p>
 
                     <div className="mt-8" style={{ animationDelay: '0.8s' }}>
@@ -170,7 +170,7 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Your name"
-                                className="w-full px-5 py-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 outline-none focus:border-pale-gold transition-all text-lg"
+                                className="w-full px-5 py-4 rounded-2xl bg-black/10 border border-white/10 text-white placeholder-white/30 outline-none focus:border-pale-gold/50 transition-all text-lg shadow-inner"
                                 autoFocus
                             />
                         </div>
@@ -189,10 +189,11 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                                             key={interest}
                                             type="button"
                                             onClick={() => toggleInterest(interest)}
-                                            className={`px-4 py-3 rounded-xl border-2 transition-all font-medium text-sm ${isSelected
-                                                ? 'bg-pale-gold/20 border-pale-gold text-white scale-105'
-                                                : 'bg-white/5 border-white/20 text-white/70 hover:border-white/40 hover:bg-white/10'
+                                            className={`px-4 py-3 rounded-2xl border transition-all font-medium text-sm outline-none focus:ring-0 ${isSelected
+                                                ? 'border-[#C96A3A] text-white'
+                                                : 'bg-black/10 border-white/10 text-white/70 hover:border-white/20 hover:bg-black/20'
                                                 }`}
+                                            style={isSelected ? { background: '#C96A3A', boxShadow: '0 0 16px rgba(201,106,58,0.4)' } : {}}
                                         >
                                             {interest}
                                         </button>
@@ -200,7 +201,7 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                                 })}
                             </div>
                             {selectedInterests.length === 3 && (
-                                <p className="text-pale-gold text-xs mt-2">Maximum 3 selections reached</p>
+                                <p className="text-xs mt-2" style={{ color: '#C96A3A' }}>Maximum 3 selections reached</p>
                             )}
                         </div>
                     </div>
@@ -210,9 +211,9 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                         <button
                             onClick={handleNext}
                             disabled={!name.trim() || selectedInterests.length === 0}
-                            className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${name.trim() && selectedInterests.length > 0
-                                ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
-                                : 'bg-white/10 text-white/40 cursor-not-allowed'
+                            className={`w-full py-4 rounded-2xl font-bold text-lg transition-all shadow-xl active:scale-[0.98] ${name.trim() && selectedInterests.length > 0
+                                ? 'bg-pale-gold text-sage-dark hover:brightness-105'
+                                : 'bg-white/10 text-white/20 cursor-not-allowed'
                                 }`}
                         >
                             Continue →
@@ -241,59 +242,38 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                         <div>
                             <label className="block text-white/80 text-sm font-medium mb-3">Content Style</label>
                             <div className="space-y-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setContentType('affirmations')}
-                                    className={`w-full p-4 rounded-xl border-2 transition-all text-left ${contentType === 'affirmations'
-                                        ? 'bg-pale-gold/20 border-pale-gold'
-                                        : 'bg-white/5 border-white/20 hover:border-white/40'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Sparkles size={24} className={contentType === 'affirmations' ? 'text-pale-gold' : 'text-white/60'} />
-                                        <div>
-                                            <div className="font-medium text-white">Affirmations</div>
-                                            <div className="text-xs text-white/60">Power statements for confidence</div>
-                                        </div>
-                                    </div>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setContentType('quotes')}
-                                    className={`w-full p-4 rounded-xl border-2 transition-all text-left ${contentType === 'quotes'
-                                        ? 'bg-pale-gold/20 border-pale-gold'
-                                        : 'bg-white/5 border-white/20 hover:border-white/40'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <Focus size={24} className={contentType === 'quotes' ? 'text-pale-gold' : 'text-white/60'} />
-                                        <div>
-                                            <div className="font-medium text-white">Quotes</div>
-                                            <div className="text-xs text-white/60">Wisdom & insight from thinkers</div>
-                                        </div>
-                                    </div>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setContentType('mix')}
-                                    className={`w-full p-4 rounded-xl border-2 transition-all text-left ${contentType === 'mix'
-                                        ? 'bg-pale-gold/20 border-pale-gold'
-                                        : 'bg-white/5 border-white/20 hover:border-white/40'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex gap-1">
-                                            <Sparkles size={20} className={contentType === 'mix' ? 'text-pale-gold' : 'text-white/60'} />
-                                            <Focus size={20} className={contentType === 'mix' ? 'text-pale-gold' : 'text-white/60'} />
-                                        </div>
-                                        <div>
-                                            <div className="font-medium text-white">Both</div>
-                                            <div className="text-xs text-white/60">Balanced mix</div>
-                                        </div>
-                                    </div>
-                                </button>
+                                {(['affirmations', 'quotes', 'mix'] as ContentType[]).map((type) => {
+                                    const isActive = contentType === type;
+                                    const Icon = type === 'affirmations' ? Sparkles : Focus;
+                                    const label = type === 'affirmations' ? 'Affirmations' : type === 'quotes' ? 'Quotes' : 'Both';
+                                    const desc = type === 'affirmations' ? 'Power statements for confidence' : type === 'quotes' ? 'Wisdom & insight from thinkers' : 'Balanced mix';
+                                    return (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => setContentType(type)}
+                                            className="w-full p-4 rounded-2xl border transition-all text-left outline-none"
+                                            style={isActive
+                                                ? { background: '#C96A3A', borderColor: '#C96A3A' }
+                                                : { background: 'rgba(0,0,0,0.1)', borderColor: 'rgba(255,255,255,0.1)' }
+                                            }
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {type === 'mix'
+                                                    ? <div className="flex gap-1">
+                                                        <Sparkles size={20} color={isActive ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} />
+                                                        <Focus size={20} color={isActive ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} />
+                                                      </div>
+                                                    : <Icon size={24} color={isActive ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} />
+                                                }
+                                                <div>
+                                                    <div style={{ fontWeight: 500, color: '#FAF7F3' }}>{label}</div>
+                                                    <div style={{ fontSize: '12px', color: 'rgba(250,247,243,0.55)' }}>{desc}</div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -309,14 +289,15 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                                             key={option.quoteIntensity}
                                             type="button"
                                             onClick={() => setQuoteIntensity(option.quoteIntensity)}
-                                            className={`p-4 rounded-xl border-2 transition-all ${isSelected
-                                                ? 'bg-pale-gold/20 border-pale-gold text-white'
-                                                : 'bg-white/5 border-white/20 text-white/60 hover:border-white/40'
-                                                }`}
+                                            className="p-4 rounded-2xl border transition-all outline-none"
+                                            style={isSelected
+                                                ? { background: '#C96A3A', borderColor: '#C96A3A' }
+                                                : { background: 'rgba(0,0,0,0.1)', borderColor: 'rgba(255,255,255,0.1)' }
+                                            }
                                         >
-                                            <Icon size={24} className={`mx-auto mb-2 ${isSelected ? 'text-pale-gold' : 'text-white/60'}`} />
-                                            <div className="text-xs font-medium text-center">{option.label}</div>
-                                            <div className="text-[10px] text-white/50 text-center mt-1">{option.description}</div>
+                                            <Icon size={24} color={isSelected ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} className="mx-auto mb-2" />
+                                            <div style={{ fontSize: '12px', fontWeight: 500, textAlign: 'center', color: '#FAF7F3' }}>{option.label}</div>
+                                            <div style={{ fontSize: '10px', textAlign: 'center', marginTop: '4px', color: 'rgba(250,247,243,0.5)' }}>{option.description}</div>
                                         </button>
                                     );
                                 })}
@@ -329,9 +310,9 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
                         <button
                             onClick={handleComplete}
                             disabled={isCompleting}
-                            className={`w-full py-4 font-bold rounded-xl transition-all text-lg ${isCompleting
+                            className={`w-full py-4 font-bold rounded-2xl transition-all text-lg shadow-xl active:scale-[0.98] ${isCompleting
                                 ? 'bg-pale-gold/50 text-sage-dark/50 cursor-not-allowed'
-                                : 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
+                                : 'bg-pale-gold text-sage-dark hover:brightness-105'
                                 }`}
                         >
                             {isCompleting ? 'Setting up your experience...' : "Let's Go! →"}
@@ -354,7 +335,7 @@ export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSetting
     ];
 
     return (
-        <div className="fixed inset-0 z-[100] bg-sage overflow-hidden font-display">
+        <div className="fixed inset-0 z-[100] bg-[#415D43] overflow-hidden font-display">
             {/* Background Ambience */}
             <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-white/5 rounded-full blur-[100px]" />

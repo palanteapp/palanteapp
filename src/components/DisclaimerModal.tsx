@@ -32,7 +32,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
     // Softer accents
     const iconColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
     const mutedColor = isDarkMode ? 'text-white/70' : 'text-sage-dark/70';
-    const cardBg = isDarkMode ? 'bg-[#3A1700]/20 border-white/5' : 'bg-sage/5 border-sage/10';
+    const cardBg = isDarkMode ? 'bg-black/20 border-white/5' : 'bg-sage/5 border-sage/10';
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-sage-mid/40 backdrop-blur-md animate-fade-in duration-700">

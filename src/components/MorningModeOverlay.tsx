@@ -31,7 +31,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-20 animate-fade-in backdrop-blur-sm bg-[#3A1700]/40">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-20 animate-fade-in backdrop-blur-sm bg-black/20">
             {/* Background Gradient/Blur */}
             <div className="absolute inset-0 bg-gradient-to-br from-sage/20 via-amber/20 to-ivory/20 pointer-events-none" />
 

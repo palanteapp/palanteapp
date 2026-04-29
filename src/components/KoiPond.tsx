@@ -526,12 +526,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                             angle += angleDiff * 0.05 * dt;
 
                             // 2. Gentle Approach: Slow down as we get closer (Tranquil, not rushed)
-                            // Ease in speed from 100% at distance 150 to ~30% at distance 20
-                            const approachFactor = Math.max(0.3, Math.min(1.0, dist / 150));
+                            // Ease in speed from 100% at distance 150 to ~40% at distance 20
+                            const approachFactor = Math.max(0.4, Math.min(1.0, dist / 150));
                             const finalMoveSpeed = moveSpeed * approachFactor;
 
-                            x += Math.cos(angle) * finalMoveSpeed;
-                            y += Math.sin(angle) * finalMoveSpeed;
+                            x += Math.cos(angle) * (finalMoveSpeed * 1.5); // Slightly faster approach for responsiveness
+                            y += Math.sin(angle) * (finalMoveSpeed * 1.5);
 
                             // "Eating" detection
                             if (dist < 15) {
@@ -912,11 +912,14 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                 y,
                 size: 3 + Math.random() * 2
             });
+            // Visual feedback
+            addRipple(x, y);
+            haptics.light();
+        } else {
+            // Always add ripple and repulsion for mouse/single-tap feedback
+            addRipple(x, y);
+            tapsRef.current.push({ x, y, time: performance.now() });
         }
-
-        // Always add ripple and repulsion for mouse/single-tap feedback
-        addRipple(x, y);
-        tapsRef.current.push({ x, y, time: performance.now() });
     };
 
     // Rain Logic
@@ -940,7 +943,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
     return (
         // Wrapper starts Black, transitions content opacity
         <div
-            className="fixed inset-0 z-50 bg-[#3A1700] transition-colors duration-[3000ms] overflow-hidden cursor-pointer"
+            className="fixed inset-0 z-50 bg-black/20 transition-colors duration-[3000ms] overflow-hidden cursor-pointer"
             onTouchStart={handleTouchStart}
             onMouseDown={handleMouseDown}
         >
@@ -1166,13 +1169,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                     </div>
                 ))}
 
-                {/* 6. Sakura Particles & Food Canvas (Z-4) */}
-                {/* Moved Z-index below fish (Z-5) and lotuses (Z-10) */}
+                {/* 6. Sakura Particles & Food Canvas (Z-25) */}
                 <canvas
                     ref={canvasRef}
                     width={window.innerWidth}
                     height={window.innerHeight}
-                    className={`absolute inset-0 pointer-events-none z-[4] transition-opacity duration-1000 ${showParticles ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 pointer-events-none z-[25] transition-opacity duration-1000 opacity-100`}
                 />
             </div>
 
@@ -1194,7 +1196,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
 
             {/* Top Control Bar */}
             <div
-                className={`fixed bottom-12 left-1/2 -translate-x-1/2 p-2 px-4 rounded-full bg-[#3A1700]/20 backdrop-blur-md z-50 flex gap-4 transition-all duration-500 transform pointer-events-auto ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+                className={`fixed bottom-12 left-1/2 -translate-x-1/2 p-2 px-4 rounded-full bg-black/20 backdrop-blur-md z-50 flex gap-4 transition-all duration-500 transform pointer-events-auto ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
                     }`}
             >
                 <div className="relative">
@@ -1246,7 +1248,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                                     </span>
                                     <div className={`w-6 h-4 rounded-full relative transition-colors ${item.state
                                         ? isDarkMode ? 'bg-pale-gold' : 'bg-sage'
-                                        : isDarkMode ? 'bg-white/20' : 'bg-[#3A1700]/10'
+                                        : isDarkMode ? 'bg-white/20' : 'bg-black/20'
                                         }`}>
                                         <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform ${item.state ? 'translate-x-2' : 'translate-x-0'
                                             }`} />

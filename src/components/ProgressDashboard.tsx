@@ -54,14 +54,14 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ user, isDa
     return (
         <div className="animate-fade-in relative">
             <div className={`p-5 rounded-2xl relative overflow-hidden transition-all shadow-md ${isDarkMode
-                ? 'bg-[#4E5C4C]/10 border border-pale-gold/20'
-                : 'bg-white/80 border border-[#4E5C4C]/10 backdrop-blur-md'}`}>
+                ? 'bg-[#355E3B]/10 border border-pale-gold/20'
+                : 'bg-white/80 border border-[#355E3B]/10 backdrop-blur-md'}`}>
                 
                 {/* Header elements */}
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                        <Activity className={isDarkMode ? 'text-pale-gold' : 'text-[#4E5C4C]'} size={18} />
-                        <h3 className={`text-sm font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-[#4E5C4C]'}`}>
+                        <Activity className={isDarkMode ? 'text-pale-gold' : 'text-[#355E3B]'} size={18} />
+                        <h3 className={`text-sm font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-[#355E3B]'}`}>
                             Momentum Tracker
                         </h3>
                     </div>
@@ -70,45 +70,42 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ user, isDa
                 {/* Main Stats Row */}
                 <div className="flex items-center justify-between mb-5 px-1 whitespace-nowrap">
                     <div className="flex flex-col">
-                        <span className={`text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1 ${isDarkMode ? 'text-pale-gold' : 'text-[#4E5C4C]'}`}>
-                            Total Flow
+                        <span className={`text-2xl font-display font-bold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            {practiceStats.total}
                         </span>
-                        <div className="flex items-baseline gap-1">
-                            <span className={`text-3xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-[#4E5C4C]'}`}>
-                                {practiceStats.total}
-                            </span>
-                            <span className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-[#4E5C4C]/60'}`}>sessions</span>
-                        </div>
+                        <span className={`text-[10px] uppercase tracking-widest font-bold opacity-60 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            Total Sessions
+                        </span>
                     </div>
-                    <div className="h-10 w-px bg-current opacity-10" />
+                    <div className="h-10 w-px bg-current opacity-20" />
                     <div className="flex flex-col items-center">
-                        <span className={`text-[10px] uppercase tracking-widest opacity-60 mb-1 ${isDarkMode ? 'text-pale-gold' : 'text-[#4E5C4C]'}`}>
+                        <span className={`text-[10px] uppercase tracking-widest opacity-80 mb-1 ${isDarkMode ? 'text-pale-gold' : 'text-[#355E3B]'}`}>
                             This Week
                         </span>
-                        <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-[#4E5C4C]'}`}>
+                        <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-[#355E3B]'}`}>
                             {practiceStats.thisWeek}
                         </span>
                     </div>
-                    <div className="h-10 w-px bg-current opacity-10" />
+                    <div className="h-10 w-px bg-current opacity-20" />
                     <div className="flex flex-col items-end">
-                        <span className={`text-[10px] uppercase tracking-widest opacity-60 mb-1 ${isDarkMode ? 'text-pale-gold' : 'text-[#4E5C4C]'}`}>
+                        <span className={`text-[10px] uppercase tracking-widest opacity-80 mb-1 ${isDarkMode ? 'text-pale-gold' : 'text-[#355E3B]'}`}>
                             This Month
                         </span>
-                        <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-[#4E5C4C]'}`}>
+                        <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-[#355E3B]'}`}>
                             {practiceStats.thisMonth}
                         </span>
                     </div>
                 </div>
 
                 {/* Compact Bar Chart */}
-                <div className={`p-4 rounded-xl flex flex-col justify-end h-32 relative ${isDarkMode ? 'bg-black/20' : 'bg-[#4E5C4C]/5'}`}>
+                <div className={`p-4 rounded-xl flex flex-col justify-end h-32 relative ${isDarkMode ? 'bg-black/20' : 'bg-[#355E3B]/5'}`}>
                     {/* Range Toggles (Compact style absolute positioned) */}
                     <div className="absolute top-2 right-2 flex gap-1 z-10">
                         <button
                             onClick={() => setTimeRange('week')}
                             className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${timeRange === 'week'
-                                ? (isDarkMode ? 'bg-pale-gold text-[#2E3B2B]' : 'bg-[#4E5C4C] text-white')
-                                : (isDarkMode ? 'text-white/40 hover:text-white' : 'text-[#4E5C4C]/40 hover:text-[#4E5C4C]')
+                                ? (isDarkMode ? 'bg-pale-gold text-[#2E3B2B]' : 'bg-[#355E3B] text-white')
+                                : (isDarkMode ? 'text-white/40 hover:text-white' : 'text-[#355E3B]/40 hover:text-[#355E3B]')
                                 }`}
                         >
                             WK
@@ -116,8 +113,8 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ user, isDa
                         <button
                             onClick={() => setTimeRange('month')}
                             className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${timeRange === 'month'
-                                ? (isDarkMode ? 'bg-pale-gold text-[#2E3B2B]' : 'bg-[#4E5C4C] text-white')
-                                : (isDarkMode ? 'text-white/40 hover:text-white' : 'text-[#4E5C4C]/40 hover:text-[#4E5C4C]')
+                                ? (isDarkMode ? 'bg-pale-gold text-[#2E3B2B]' : 'bg-[#355E3B] text-white')
+                                : (isDarkMode ? 'text-white/40 hover:text-white' : 'text-[#355E3B]/40 hover:text-[#355E3B]')
                                 }`}
                         >
                             MO
@@ -131,13 +128,13 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ user, isDa
 
                             return (
                                 <div key={day.date} className="flex-1 flex flex-col justify-end items-center group relative h-full">
-                                    <div className={`absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded text-[10px] font-bold z-10 pointer-events-none whitespace-nowrap shadow-lg ${isDarkMode ? 'bg-white text-black' : 'bg-[#4E5C4C] text-white'}`}>
+                                    <div className={`absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded text-[10px] font-bold z-10 pointer-events-none whitespace-nowrap shadow-lg ${isDarkMode ? 'bg-white text-black' : 'bg-[#355E3B] text-white'}`}>
                                         {day.count} • {day.fullDay}
                                     </div>
                                     <div
                                         className={`w-full max-w-[8px] sm:max-w-[12px] rounded-t-sm transition-all duration-500 ease-out hover:opacity-80 ${isDarkMode
                                             ? (isToday ? 'bg-pale-gold' : 'bg-pale-gold/30')
-                                            : (isToday ? 'bg-[#D4A853]' : 'bg-[#4E5C4C]/20') // Active amber vs passive sage
+                                            : (isToday ? 'bg-[#D4A853]' : 'bg-[#355E3B]/20') // Active amber vs passive sage
                                             }`}
                                         style={{ height: `${heightPct}%` }}
                                     />
@@ -146,9 +143,9 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ user, isDa
                         })}
                     </div>
                     {timeRange === 'week' && (
-                        <div className="flex justify-between mt-2 pt-2 border-t border-current border-opacity-10 w-full px-1">
+                        <div className="flex justify-between mt-2 pt-2 border-t border-current border-opacity-20 w-full px-1">
                             {activityStats.map((day, i) => (
-                                <span key={day.date} className={`text-[8px] font-bold uppercase ${i === activityStats.length - 1 ? (isDarkMode ? 'text-pale-gold' : 'text-[#D4A853]') : (isDarkMode ? 'text-white/40' : 'text-[#4E5C4C]/40')}`}>
+                                <span key={day.date} className={`text-[8px] font-bold uppercase ${i === activityStats.length - 1 ? (isDarkMode ? 'text-pale-gold' : 'text-amber') : (isDarkMode ? 'text-white/60' : 'text-sage-dark/60')}`}>
                                     {day.dayLabel}
                                 </span>
                             ))}

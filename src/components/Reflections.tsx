@@ -8,6 +8,7 @@ import type { ReflectionAnalysis } from '../utils/aiService';
 import { FeatureInfoModal } from './FeatureInfoModal';
 import { FEATURE_INFO } from '../data/featureInfo';
 import { EVENING_PROMPTS } from '../data/smartPrompts';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 interface ReflectionsProps {
     onSave: (entry: JournalEntry) => void;
@@ -106,7 +107,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
         setPromptSetIndex(dayOfYear % PROMPT_SETS.length);
 
         // 2. Load Saved Data
-        const saved = localStorage.getItem(`motiv8_journal_${dateString}`);
+        const saved = localStorage.getItem(`${STORAGE_KEYS.JOURNAL_ENTRY}_${dateString}`);
         if (saved) {
             const entry = JSON.parse(saved);
             setQ1(entry.highlight || '');
@@ -167,7 +168,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
             lowlight: q3,
             freeform
         };
-        localStorage.setItem(`motiv8_journal_${today}`, JSON.stringify(entry));
+        localStorage.setItem(`${STORAGE_KEYS.JOURNAL_ENTRY}_${today}`, JSON.stringify(entry));
         onSave(entry);
         setSavedToday(true);
 
@@ -194,7 +195,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
     const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
     const borderClass = isDarkMode ? 'border-white/10' : 'border-sage/20';
-    const cardBg = isDarkMode ? 'bg-white/5' : 'bg-white/50';
+    const cardBg = isDarkMode ? 'glass-surface' : 'bg-white/50';
 
     // Component for calibration inputs
     const CalibrationInput = ({
@@ -212,7 +213,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
         setValue: (s: string) => void,
         fieldId: 'q1' | 'q2' | 'q3'
     }) => (
-        <div className={`p-6 rounded-2xl ${cardBg} border border-transparent focus-within:border-sage/30 transition-all group`}>
+        <div className={`p-8 rounded-[2rem] ${cardBg} border border-transparent focus-within:border-sage/30 transition-all group`}>
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'} ${textPrimary}`}>
@@ -327,9 +328,10 @@ export const Reflections: React.FC<ReflectionsProps> = ({
     return (
         <div className="w-full px-6 md:px-8 pt-6 animate-fade-in pb-32 max-w-md mx-auto">
 
-            {/* Header */}
-            <div className={`flex flex-col items-center text-center mb-8 pb-6 border-b ${borderClass}`}>
-                <h2 className={`text-3xl font-display font-medium mb-3 ${textPrimary}`}>Daily Reflection</h2>
+            {/* Header Area - Matching Fasting Vibe */}
+            <div className="w-full flex flex-col items-center text-center mb-10">
+                <h2 className="text-4xl font-display font-medium text-white mb-2">Reflect</h2>
+                <p className="text-[10px] text-white/50 uppercase tracking-[0.4em] font-black">Sync with Your Source</p>
 
                 <div className="flex items-center gap-2 mt-2">
                     <button
@@ -429,7 +431,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
                             onChange={(e) => setFreeform(e.target.value)}
                             placeholder={user?.journalPromptsEnabled !== false ? (currentSet as any).openJournalPrompt : ""}
                             className={`
-                                w-full p-8 rounded-2xl outline-none min-h-[300px] transition-all resize-none 
+                                w-full p-10 rounded-[2.5rem] outline-none min-h-[400px] transition-all resize-none 
                                 text-lg leading-relaxed border-2 journal-input-area
                                 ${cardBg} ${textPrimary}
                                 ${isDarkMode
@@ -465,7 +467,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
                         >
                             <div className={`w-10 h-6 rounded-full relative transition-colors ${wantsAssessment
                                 ? (isDarkMode ? 'bg-pale-gold' : 'bg-sage')
-                                : (isDarkMode ? 'bg-white/20' : 'bg-[#3A1700]/10')
+                                : (isDarkMode ? 'bg-white/20' : 'bg-black/20')
                                 }`}>
                                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${wantsAssessment ? 'left-5' : 'left-1'}`} />
                             </div>

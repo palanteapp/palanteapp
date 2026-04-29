@@ -15,12 +15,14 @@ export const STORAGE_KEYS = {
   LAST_QUOTE: 'palante_last_quote',
   SEEN_QUOTES: 'palante_seen_quotes',
   FAVORITE_QUOTES: 'palante_favorite_quotes',
+  PINNED_QUOTE: 'palante_pinned_quote',
   PENDING_QUOTE_CARD: 'palante_pending_quote_card',
 
   // Goals / Focus
   GOALS_EXPANDED: 'palante_goals_expanded',
 
-  // Fasting
+  // Fasting & Food Journal
+  FOOD_JOURNAL_ENTRIES: 'palante_food_journal_entries',
   FASTING_STATUS: 'palante_fasting_status',
   FASTING_START_TIME: 'palante_fasting_start_time',
   FASTING_TARGET: 'palante_fasting_target',
@@ -29,6 +31,7 @@ export const STORAGE_KEYS = {
   FASTING_HYDRATION: 'palante_fasting_hydration',
   FASTING_GOAL_WEIGHT: 'palante_fasting_goal_weight',
   FASTING_WEIGHTS: 'palante_fasting_weights',
+  WEIGHT_UNIT: 'palante_weight_unit',
   SEEN_AUTOPHAGY: 'palante_seen_autophagy',
 
   // Notifications
@@ -37,7 +40,8 @@ export const STORAGE_KEYS = {
 
   // Features
   ENHANCEMENTS: 'palante_enhancements',
-  POMODORO_SETTINGS: 'palante_pomodoro_settings',
+  FOCUS_SETTINGS: 'palante_focus_settings',
+  FOCUS_SESSION: 'palante_focus_session',
   SOUNDMIXER_HELP_SEEN: 'palante_soundmixer_help_seen',
 
   // Misc
@@ -52,6 +56,10 @@ export const STORAGE_KEYS = {
   // Profile card dismissal
   PROFILE_CARD_DISMISSED: 'palante_profile_card_dismissed',
   PROFILE_CARD_DISMISS_COUNT: 'palante_profile_card_dismiss_count',
+
+  // Journal / Reflections
+  JOURNAL_ENTRY: 'palante_journal', // Suffix with date string
+  EVENING_PRACTICE: 'palante_evening_practice', // Suffix with date string
 } as const;
 
 /** sessionStorage keys (not persisted across sessions) */

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, Bot, Mic, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
-    Zap, Flame, Mountain, Wind, Home, TrendingUp, Compass
+    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star
 } from 'lucide-react';
-import { chatWithCoach, chatWithCoachPillar } from '../utils/aiService';
+import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
 import type { CoachPillarKey } from '../utils/aiService';
 import type { UserProfile, ChatMessage, CoachSession, CoachPillar } from '../types';
 import { canUseAI } from '../types';
@@ -41,6 +42,7 @@ type PillarConfig = {
     border: (isDark: boolean) => string;
     iconBg: (isDark: boolean) => string;
     glowColor: string;
+    textColor: string;
     greeting: string;
 };
 
@@ -50,10 +52,11 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         label: 'Anxiety',
         hint: 'Ground yourself & find calm',
         icon: <Wind size={22} />,
-        bg: (d) => d ? 'rgba(121,134,203,0.12)' : '#E8EAF3',
-        border: (d) => d ? 'rgba(121,134,203,0.25)' : '#9FA8DA',
-        iconBg: (d) => d ? 'rgba(121,134,203,0.2)' : 'rgba(121,134,203,0.18)',
-        glowColor: '#7986CB',
+        bg: (d) => d ? 'rgba(255, 255, 255, 0.05)' : '#F2EBE0',
+        border: (d) => d ? 'rgba(229, 214, 167, 0.2)' : 'rgba(31, 56, 36, 0.1)',
+        iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
+        glowColor: '#E5D6A7',
+        textColor: '#1F3824',
         greeting: "I'm here with you. Take a breath — let's slow down together. What's weighing on you right now?",
     },
     {
@@ -61,10 +64,11 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         label: 'Focus',
         hint: 'Lock in & cut the noise',
         icon: <Zap size={22} />,
-        bg: (d) => d ? 'rgba(212,168,83,0.1)' : '#FFF8E7',
-        border: (d) => d ? 'rgba(212,168,83,0.25)' : '#FFD580',
-        iconBg: (d) => d ? 'rgba(212,168,83,0.2)' : 'rgba(212,168,83,0.18)',
-        glowColor: '#D4A853',
+        bg: (d) => d ? 'rgba(255, 255, 255, 0.05)' : '#F2EBE0',
+        border: (d) => d ? 'rgba(229, 214, 167, 0.2)' : 'rgba(31, 56, 36, 0.1)',
+        iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
+        glowColor: '#E5D6A7',
+        textColor: '#1F3824',
         greeting: "Let's sharpen that focus. What's the one thing you need to nail right now — and what's getting in the way?",
     },
     {
@@ -72,10 +76,11 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         label: 'Motivation',
         hint: 'Reignite your drive',
         icon: <Flame size={22} />,
-        bg: (d) => d ? 'rgba(201,106,58,0.1)' : '#FBF0EA',
-        border: (d) => d ? 'rgba(201,106,58,0.25)' : '#E08A5A',
-        iconBg: (d) => d ? 'rgba(201,106,58,0.2)' : 'rgba(201,106,58,0.18)',
-        glowColor: '#C96A3A',
+        bg: (d) => d ? 'rgba(255, 255, 255, 0.05)' : '#F2EBE0',
+        border: (d) => d ? 'rgba(229, 214, 167, 0.2)' : 'rgba(31, 56, 36, 0.1)',
+        iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
+        glowColor: '#E5D6A7',
+        textColor: '#1F3824',
         greeting: "The drive will come back — I promise. But first, tell me: when did you last feel truly fired up? What was different then?",
     },
     {
@@ -83,15 +88,14 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         label: 'Setbacks',
         hint: 'Rise through the friction',
         icon: <Mountain size={22} />,
-        bg: (d) => d ? 'rgba(78,92,76,0.12)' : '#EBF0EB',
-        border: (d) => d ? 'rgba(78,92,76,0.3)' : '#7A9178',
-        iconBg: (d) => d ? 'rgba(78,92,76,0.2)' : 'rgba(78,92,76,0.15)',
-        glowColor: '#4E5C4C',
+        bg: (d) => d ? 'rgba(255, 255, 255, 0.05)' : '#F2EBE0',
+        border: (d) => d ? 'rgba(229, 214, 167, 0.2)' : 'rgba(31, 56, 36, 0.1)',
+        iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
+        glowColor: '#E5D6A7',
+        textColor: '#1F3824',
         greeting: "I'm glad you came here. Whatever happened — it doesn't define you. Tell me what's going on. I'm listening.",
     },
 ];
-
-// ── Session helpers ───────────────────────────────────────────────────────────
 
 const loadSessions = (): CoachSession[] => {
     try {
@@ -103,7 +107,6 @@ const loadSessions = (): CoachSession[] => {
 };
 
 const saveSessions = (sessions: CoachSession[]) => {
-    // Keep latest 100 sessions
     const trimmed = sessions.slice(0, 100);
     localStorage.setItem(STORAGE_KEYS.COACH_SESSIONS, JSON.stringify(trimmed));
 };
@@ -136,25 +139,18 @@ const formatDate = (ms: number): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-// ── Component ─────────────────────────────────────────────────────────────────
-
 export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate }) => {
     const { isDarkMode } = useTheme();
-    // View state
     type ViewMode = 'home' | 'chat' | 'history';
     const [view, setView] = useState<ViewMode>('home');
-
-    // Session state
     const [sessions, setSessions] = useState<CoachSession[]>(() => loadSessions());
     const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
     const [historySearch, setHistorySearch] = useState('');
-
-    // Chat state
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isListening, setIsListening] = useState(false);
-
-    // Viewport
+    const [showCompletionMoment, setShowCompletionMoment] = useState(false);
+    const completionShownRef = useRef(false);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
 
@@ -162,7 +158,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const recognitionRef = useRef<{ stop: () => void } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // ── Viewport handling ──────────────────────────────────────────────────────
     useEffect(() => {
         const handleResize = () => {
             if (window.visualViewport) {
@@ -186,7 +181,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         };
     }, []);
 
-    // ── Auto-scroll ────────────────────────────────────────────────────────────
     const scrollToBottom = useCallback(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -199,12 +193,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             return () => clearTimeout(t);
         }
     }, [activeSession?.messages, isTyping, viewportHeight, view, scrollToBottom]);
-
-    // ── Session persistence ────────────────────────────────────────────────────
-    const persistSessions = useCallback((updated: CoachSession[]) => {
-        setSessions(updated);
-        saveSessions(updated);
-    }, []);
 
     const upsertSession = useCallback((session: CoachSession) => {
         setSessions(prev => {
@@ -221,23 +209,8 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         });
     }, []);
 
-    const deleteSession = useCallback((id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        haptics.light();
-        setSessions(prev => {
-            const next = prev.filter(s => s.id !== id);
-            saveSessions(next);
-            return next;
-        });
-        // If we're deleting the active session, go home
-        if (activeSession?.id === id) {
-            setActiveSession(null);
-            setView('home');
-        }
-    }, [activeSession]);
-
-    // ── Start a new pillar session ─────────────────────────────────────────────
     const startPillarSession = useCallback((pillar: CoachPillar) => {
+        completionShownRef.current = false;
         haptics.medium();
         const config = PILLAR_CONFIGS.find(p => p.key === pillar);
         const greeting = config?.greeting ?? "What's on your mind?";
@@ -251,7 +224,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         };
 
         const newSession: CoachSession = {
-            id: Date.now().toString(),
+            id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(),
             pillar,
             title: pillarLabel(pillar),
             messages: [greetingMsg],
@@ -265,15 +238,13 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         setView('chat');
     }, [user.name, upsertSession]);
 
-    // ── Resume an existing session ─────────────────────────────────────────────
     const resumeSession = useCallback((session: CoachSession) => {
         haptics.light();
         setActiveSession(session);
         setView('chat');
     }, []);
 
-    // ── Handle send ────────────────────────────────────────────────────────────
-    const buildContext = () => ({
+    const buildContext = useCallback(() => ({
         name: user.name,
         quoteIntensity: user.quoteIntensity,
         energyLevel: user.currentEnergy,
@@ -293,7 +264,11 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             reflection: r.reflection,
         })),
         energyTrends: user.energyHistory?.slice(-10),
-    });
+        userNarrative: user.userNarrative?.text,
+        momentumState: getMomentumState(user),
+        currentMood: user.currentMood,
+        focusAreas: user.focusAreas,
+    }), [user]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -306,7 +281,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             role: 'user',
         };
 
-        // Auto-title: use first real user message text
         const isFirstUserMsg = activeSession.messages.filter(m => m.role === 'user').length === 0;
         const updatedTitle = isFirstUserMsg ? autoTitle(inputText) : activeSession.title;
 
@@ -328,7 +302,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         const pillar = activeSession.pillar as CoachPillarKey;
 
         try {
-            // Use pillar-specific function for non-open sessions
             const responseText = pillar === 'open'
                 ? await chatWithCoach(userMsg.text, updatedSession.messages, context)
                 : await chatWithCoachPillar(userMsg.text, updatedSession.messages, context, pillar);
@@ -349,6 +322,17 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             setActiveSession(finalSession);
             upsertSession(finalSession);
             haptics.medium();
+
+            // After the 3rd coach reply in a session, surface a quiet completion moment
+            const coachMsgCount = finalSession.messages.filter(m => m.role === 'assistant').length;
+            if (coachMsgCount === 3 && !completionShownRef.current) {
+                completionShownRef.current = true;
+                setTimeout(() => {
+                    setShowCompletionMoment(true);
+                    haptics.success();
+                    setTimeout(() => setShowCompletionMoment(false), 4000);
+                }, 600);
+            }
         } catch (error) {
             console.error('Chat error:', error);
         } finally {
@@ -356,7 +340,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         }
     };
 
-    // ── Dictation ──────────────────────────────────────────────────────────────
     const startDictation = () => {
         if (isListening) {
             recognitionRef.current?.stop();
@@ -388,7 +371,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         recognition.start();
     };
 
-    // ── History filter ─────────────────────────────────────────────────────────
     const filteredSessions = sessions.filter(s => {
         if (!historySearch.trim()) return true;
         const q = historySearch.toLowerCase();
@@ -398,33 +380,38 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         );
     });
 
-    // ── Styles ─────────────────────────────────────────────────────────────────
-    const bg = isDarkMode ? '#3D4A3A' : 'white';
-    const text = isDarkMode ? 'text-white' : 'text-[#4A5D4E]';
-    const subText = isDarkMode ? 'text-white/40' : 'text-[#4A5D4E]/40';
-    const cardBg = isDarkMode ? 'rgba(255,255,255,0.04)' : 'white';
-    const borderColor = isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(78,92,76,0.1)';
+    // ── Design Tokens ──────────────────────────────────────────────────────────
+    const forestSage = '#415D43';
+    const hunterGreen = '#1B4332';
+    const deepestHunter = '#1F3824';
+    const paleGold = '#E5D6A7';
+    const ivory = '#F2EBE0';
+    const terracotta = '#C96A3A';
 
-    // ── Gate ───────────────────────────────────────────────────────────────────
+    const bg = forestSage; // User requested "New Forest Sage" background
+    const textPrimary = 'text-[#E5D6A7]'; // Pale Gold for premium titles
+    const textSecondary = 'text-white/60';
+    const cardBg = 'rgba(255, 255, 255, 0.05)';
+    const borderColor = 'rgba(229, 214, 167, 0.15)';
+
     if (!canUseAI(user)) {
         return (
-            <div className={`flex flex-col items-center justify-center min-h-[60vh] p-8 text-center space-y-6 ${text}`}>
-                <div className={`p-8 rounded-full ${isDarkMode ? 'bg-white/5' : 'bg-[#4A5D4E]/10'}`}>
-                    <Bot size={48} className="opacity-20" />
+            <div className={`flex flex-col items-center justify-center min-h-[60vh] p-8 text-center space-y-6 ${textPrimary}`}>
+                <div className="p-8 rounded-full bg-white/5">
+                    <Bot size={48} className="opacity-20 text-[#E5D6A7]" />
                 </div>
-                <h2 className="text-2xl font-display font-medium">Coming Soon</h2>
-                <p className="text-sm opacity-60 max-w-xs">Your AI Coach is currently calibrating for your journey.</p>
+                <h2 className="text-2xl font-display font-medium text-[#E5D6A7]">Coming Soon</h2>
+                <p className="text-sm opacity-60 max-w-xs text-[#E5D6A7]/60">Your AI Coach is currently calibrating for your journey.</p>
             </div>
         );
     }
 
-    // ── Common outer shell ─────────────────────────────────────────────────────
     return (
         <div
-            className={`fixed inset-0 z-[200] flex flex-col font-sans overflow-hidden`}
+            className="fixed inset-0 z-[200] flex flex-col font-sans overflow-hidden"
             style={{
                 background: bg,
-                color: isDarkMode ? 'white' : '#4A5D4E',
+                color: '#E5D6A7',
                 height: `${viewportHeight}px`,
                 top: `${viewportTop}px`,
                 left: 0,
@@ -434,82 +421,66 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         >
             {/* Ambient aura */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className={`absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[120px] opacity-20 ${isDarkMode ? 'bg-[#E2CF9F]' : 'bg-[#4A5D4E]'}`} />
-                <div className={`absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[100px] opacity-10 ${isDarkMode ? 'bg-[#4A5D4E]' : 'bg-[#E2CF9F]'}`} />
+                <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[120px] opacity-10 bg-[#E5D6A7]" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[100px] opacity-5 bg-[#C96A3A]" />
             </div>
 
             {/* ── HOME VIEW ──────────────────────────────────────────────── */}
             {view === 'home' && (
                 <>
-                    {/* Header */}
                     <header className="relative z-20 px-8 pt-16 pb-4">
                         <div className="flex items-center justify-between mb-6">
                             <button
                                 onClick={onBack}
-                                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-[#4A5D4E]/5 hover:bg-[#4A5D4E]/10'}`}
+                                className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
                             >
                                 <ChevronLeft size={20} />
                             </button>
                             <div className="flex items-center gap-2">
-                                {/* History button */}
                                 <button
                                     onClick={() => { haptics.light(); setView('history'); }}
-                                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-[#4A5D4E]/5 hover:bg-[#4A5D4E]/10'}`}
-                                    aria-label="Session history"
+                                    className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
                                 >
                                     <Clock size={17} />
                                 </button>
-                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 ${isDarkMode ? 'bg-white/5 text-[#E2CF9F] border border-white/5' : 'bg-[#4A5D4E]/5 text-[#4A5D4E] border border-[#4A5D4E]/5'}`}>
+                                <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 text-[#E5D6A7] border border-[#E5D6A7]/20">
                                     <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                                     Live
                                 </div>
                             </div>
                         </div>
-                        <h2 className="text-4xl font-display font-bold tracking-tight">
-                            {user.coachName ? (user.coachName.includes('Coach') ? user.coachName : `Coach ${user.coachName}`) : 'Palante Coach'}
+                        <h2 className="text-5xl font-display font-medium tracking-tight text-white mb-2">
+                            {user.coachName || 'Palante Coach'}
                         </h2>
-                        <p className={`text-base font-display italic mt-1 ${subText}`}>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${textSecondary}`}>
                             Guidance for your journey.
                         </p>
                     </header>
 
-                    {/* Scrollable body */}
-                    <div className="flex-1 overflow-y-auto px-5 py-2 relative z-10 space-y-3" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '7rem' }}>
-
-                        {/* Section label */}
-                        <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] px-1 pt-2 ${subText}`}>
+                    <div className="flex-1 overflow-y-auto px-6 py-2 relative z-10 space-y-4" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '7rem' }}>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-40 ${textPrimary}`}>
                             Choose your focus
                         </p>
 
-                        {/* Pillar grid */}
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             {PILLAR_CONFIGS.map((pillar) => (
                                 <button
                                     key={pillar.key}
                                     onClick={() => startPillarSession(pillar.key)}
-                                    className="relative overflow-hidden rounded-[22px] p-5 text-left transition-all duration-200 active:scale-95 hover:scale-[1.02]"
+                                    className="relative overflow-hidden rounded-[2.5rem] p-6 text-left transition-all duration-300 active:scale-95 group"
                                     style={{
-                                        background: pillar.bg(isDarkMode),
-                                        border: `1.5px solid ${pillar.border(isDarkMode)}`,
+                                        background: cardBg,
+                                        border: `2px solid ${borderColor}`,
                                     }}
                                 >
-                                    {/* Glow orb */}
-                                    <div
-                                        className="absolute -top-5 -right-5 w-20 h-20 rounded-full opacity-25 blur-xl pointer-events-none"
-                                        style={{ background: pillar.glowColor }}
-                                    />
-                                    {/* Icon */}
-                                    <div
-                                        className="w-11 h-11 rounded-[14px] flex items-center justify-center mb-3 relative z-10"
-                                        style={{ background: pillar.iconBg(isDarkMode), color: pillar.glowColor }}
-                                    >
+                                    <div className="w-14 h-14 rounded-2xl bg-[#E5D6A7] flex items-center justify-center mb-5 text-[#1B4332] shadow-sm transform group-hover:rotate-6 transition-transform">
                                         {pillar.icon}
                                     </div>
                                     <div className="relative z-10">
-                                        <p className="font-display font-bold text-[15px] tracking-tight leading-tight">
+                                        <p className="font-display font-medium text-[16px] tracking-tight text-[#E5D6A7]">
                                             {pillar.label}
                                         </p>
-                                        <p className={`text-[11px] mt-0.5 leading-snug ${subText}`}>
+                                        <p className="text-[11px] mt-1 font-medium text-white/40 leading-snug">
                                             {pillar.hint}
                                         </p>
                                     </div>
@@ -517,87 +488,33 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             ))}
                         </div>
 
-                        {/* Divider */}
-                        <div className="flex items-center gap-3 py-1">
-                            <div className="flex-1 h-px" style={{ background: borderColor }} />
-                            <span className={`text-[10px] font-medium uppercase tracking-[0.14em] ${subText}`}>
-                                or talk freely
+                        <div className="flex items-center gap-4 py-4">
+                            <div className="flex-1 h-px bg-[#E5D6A7]/10" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 text-[#E5D6A7]">
+                                OR TALK FREELY
                             </span>
-                            <div className="flex-1 h-px" style={{ background: borderColor }} />
+                            <div className="flex-1 h-px bg-[#E5D6A7]/10" />
                         </div>
 
-                        {/* Open Conversation button */}
                         <button
                             onClick={() => startPillarSession('open')}
-                            className="w-full flex items-center gap-4 px-5 py-4 rounded-[22px] transition-all duration-200 active:scale-[0.98] hover:opacity-90"
-                            style={{
-                                background: 'linear-gradient(135deg, #E3A33F, #A06421)',
-                                boxShadow: '0 4px 20px rgba(227,163,63,0.3)',
-                            }}
+                            className="w-full flex items-center gap-6 px-6 py-5 rounded-[2.5rem] transition-all bg-[#C96A3A] hover:bg-[#D4895A] active:scale-[0.98] shadow-xl group"
                         >
-                            <div className="w-10 h-10 rounded-[13px] bg-white/20 flex items-center justify-center flex-shrink-0">
-                                <MessageCircle size={18} className="text-white" />
+                            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0 text-white">
+                                <MessageCircle size={24} />
                             </div>
                             <div className="flex-1 text-left">
-                                <p className="font-display font-semibold text-[14px] text-white leading-tight">
+                                <p className="font-display font-medium text-lg text-white leading-tight">
                                     Open Conversation
                                 </p>
-                                <p className="text-[11px] text-white/50 mt-0.5">
-                                    Anything on your mind — let's talk
+                                <p className="text-[11px] text-white/60 font-medium">
+                                    Let's talk about anything.
                                 </p>
                             </div>
-                            <span className="text-white/30 text-lg">›</span>
+                            <span className="text-white opacity-40 font-light text-2xl group-hover:translate-x-1 transition-transform">›</span>
                         </button>
 
-                        {/* Recent sessions preview (if any) */}
-                        {sessions.length > 0 && (
-                            <>
-                                <div className="flex items-center justify-between pt-2 px-1">
-                                    <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${subText}`}>
-                                        Recent sessions
-                                    </p>
-                                    <button
-                                        onClick={() => setView('history')}
-                                        className={`text-[11px] font-medium ${isDarkMode ? 'text-[#E2CF9F]/70' : 'text-[#C96A3A]/80'}`}
-                                    >
-                                        See all →
-                                    </button>
-                                </div>
-                                <div className="space-y-2">
-                                    {sessions.slice(0, 3).map(s => {
-                                        const conf = PILLAR_CONFIGS.find(p => p.key === s.pillar);
-                                        return (
-                                            <button
-                                                key={s.id}
-                                                onClick={() => resumeSession(s)}
-                                                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all active:scale-[0.98]"
-                                                style={{
-                                                    background: cardBg,
-                                                    border: `1px solid ${borderColor}`,
-                                                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                                                }}
-                                            >
-                                                <div
-                                                    className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                                                    style={{ background: conf ? conf.bg(isDarkMode) : 'rgba(160,160,160,0.1)', color: conf?.glowColor ?? '#888' }}
-                                                >
-                                                    {pillarIcon(s.pillar, 15)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-display font-semibold text-[13px] truncate">{s.title}</p>
-                                                    <p className={`text-[11px] ${subText}`}>
-                                                        {pillarLabel(s.pillar)} · {formatDate(s.updatedAt)} · {s.messages.filter(m => m.role === 'user').length} msgs
-                                                    </p>
-                                                </div>
-                                                <ChevronLeft size={14} className={`rotate-180 flex-shrink-0 ${subText}`} />
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </>
-                        )}
-
-                        <div className="h-8" />
+                        <div className="h-4" />
                     </div>
                 </>
             )}
@@ -605,25 +522,16 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             {/* ── CHAT VIEW ──────────────────────────────────────────────── */}
             {view === 'chat' && activeSession && (
                 <>
-                    {/* Chat Header */}
                     <header className="relative z-20 px-6 pt-14 pb-4">
                         <div className="flex items-center justify-between mb-5">
                             <button
                                 onClick={() => { setView('home'); }}
-                                className={`w-10 h-10 flex items-center justify-center rounded-full transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-[#4A5D4E]/5 hover:bg-[#4A5D4E]/10'}`}
+                                className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
                             >
                                 <ChevronLeft size={20} />
                             </button>
-
                             <div className="flex items-center gap-2">
-                                {/* Pillar badge */}
-                                {activeSession.pillar !== 'open' && (
-                                    <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.15em] ${isDarkMode ? 'bg-white/5 text-white/60' : 'bg-[#4A5D4E]/5 text-[#4A5D4E]/60'}`}>
-                                        {pillarIcon(activeSession.pillar, 11)}
-                                        {pillarLabel(activeSession.pillar)}
-                                    </div>
-                                )}
-                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 ${isDarkMode ? 'bg-white/5 text-[#E2CF9F] border border-white/5' : 'bg-[#4A5D4E]/5 text-[#4A5D4E] border border-[#4A5D4E]/5'}`}>
+                                <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 text-[#E5D6A7] border border-[#E5D6A7]/20">
                                     <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                                     Live
                                 </div>
@@ -631,30 +539,29 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         </div>
 
                         <div>
-                            <h2 className="text-3xl font-display font-bold tracking-tight">
-                                {user.coachName ? (user.coachName.includes('Coach') ? user.coachName : `Coach ${user.coachName}`) : 'Palante Coach'}
+                            <h2 className="text-3xl font-display font-medium tracking-tight text-white">
+                                {user.coachName || 'Palante Coach'}
                             </h2>
-                            <p className={`text-sm font-display italic mt-0.5 ${subText}`}>
-                                {activeSession.pillar === 'open' ? 'Here for whatever you need.' : `${pillarLabel(activeSession.pillar)} session`}
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mt-1">
+                                {activeSession.pillar === 'open' ? 'HERE FOR YOU' : `${pillarLabel(activeSession.pillar)} SESSION`}
                             </p>
                         </div>
                     </header>
 
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto px-6 py-2 space-y-8 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '8rem' }}>
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2 space-y-10 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '9rem' }}>
                         {activeSession.messages.map((msg: ChatMessage) => (
-                            <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                            <div key={msg.id} className={`flex flex-col min-w-0 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 {msg.role === 'assistant' && (
-                                    <div className="flex items-center gap-2 mb-2 opacity-30 text-[10px] uppercase tracking-widest font-bold ml-1">
+                                    <div className="flex items-center gap-2 mb-3 opacity-30 text-[10px] font-black uppercase tracking-widest text-[#E5D6A7]">
                                         <Sparkles size={10} />
                                         {user.coachName || 'Coach'}
                                     </div>
                                 )}
                                 <div className={`
-                                    max-w-[90%] text-lg leading-relaxed font-body
+                                    max-w-[82%] text-lg leading-relaxed font-body break-words min-w-0
                                     ${msg.role === 'user'
-                                        ? `px-5 py-4 rounded-[2rem] shadow-lg ${isDarkMode ? 'bg-[#E2CF9F] text-[#3A453C] font-medium' : 'bg-[#4A5D4E] text-white font-medium'}`
-                                        : `${isDarkMode ? 'text-white/90' : 'text-[#4A5D4E]'}`
+                                        ? 'px-7 py-4 rounded-[2rem] bg-[#E5D6A7] text-[#1B4332] font-semibold shadow-lg'
+                                        : 'text-white font-medium opacity-90'
                                     }
                                 `}>
                                     {msg.text}
@@ -664,56 +571,49 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
 
                         {isTyping && (
                             <div className="flex flex-col items-start">
-                                <div className="flex items-center gap-2 mb-2 opacity-30 text-[10px] uppercase tracking-widest font-bold ml-1">
+                                <div className="flex items-center gap-2 mb-3 opacity-30 text-[10px] font-black uppercase tracking-widest text-[#E5D6A7]">
                                     Thinking...
                                 </div>
-                                <div className="flex gap-2 p-2">
-                                    <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-[#E2CF9F]' : 'bg-[#4A5D4E]'} animate-ping opacity-40`} />
-                                    <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-[#E2CF9F]' : 'bg-[#4A5D4E]'} animate-ping opacity-20`} style={{ animationDelay: '0.15s' }} />
-                                    <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-[#E2CF9F]' : 'bg-[#4A5D4E]'} animate-ping opacity-10`} style={{ animationDelay: '0.3s' }} />
+                                <div className="flex gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-[#E5D6A7] animate-bounce" />
+                                    <div className="w-2 h-2 rounded-full bg-[#E5D6A7] animate-bounce" style={{ animationDelay: '0.1s' }} />
+                                    <div className="w-2 h-2 rounded-full bg-[#E5D6A7] animate-bounce" style={{ animationDelay: '0.2s' }} />
                                 </div>
                             </div>
                         )}
 
-                        <div ref={messagesEndRef} className="h-16" />
+                        <div ref={messagesEndRef} className="h-24" />
                     </div>
 
-                    {/* Input */}
-                    <div className="relative z-30 px-4 pb-28 pt-3">
-                        <form onSubmit={handleSend} className="relative max-w-2xl mx-auto">
-                            <div className={`flex items-center gap-2 px-4 py-3 rounded-[3rem] border transition-all duration-300
-                                ${isDarkMode
-                                    ? 'bg-[#1a1c1a]/60 border-white/5 focus-within:border-[#E2CF9F]/40 backdrop-blur-2xl shadow-[0_0_50px_rgba(0,0,0,0.3)]'
-                                    : 'bg-white/90 border-[#4A5D4E]/10 focus-within:border-[#4A5D4E]/25 shadow-xl backdrop-blur-xl'
-                                }`}
-                            >
+                    <div className="fixed bottom-0 left-0 right-0 z-30 px-6 pb-12 pt-4">
+                        <form onSubmit={handleSend} className="max-w-xl mx-auto">
+                            <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
                                 <button
                                     type="button"
                                     onClick={startDictation}
-                                    className={`p-2 rounded-full transition-all ${isListening ? 'text-red-400 scale-125' : 'opacity-30 hover:opacity-80 hover:scale-110'}`}
+                                    className={`p-2 rounded-full transition-all ${isListening ? 'text-red-400 scale-125' : 'text-[#E5D6A7] opacity-60 hover:opacity-100'}`}
                                 >
-                                    <Mic size={14} />
+                                    <Mic size={20} />
                                 </button>
                                 <input
                                     ref={inputRef}
                                     type="text"
                                     value={inputText}
                                     onChange={e => setInputText(e.target.value)}
-                                    onFocus={scrollToBottom}
                                     placeholder="Speak your truth..."
-                                    className="flex-1 bg-transparent py-2 outline-none text-[16px] md:text-lg font-body placeholder:opacity-20"
-                                    style={{ fontSize: '16px' /* prevent iOS zoom */ }}
+                                    className="flex-1 bg-transparent py-2 outline-none text-white placeholder:text-white/20"
+                                    style={{ fontSize: '16px' }}
                                 />
                                 <button
                                     type="submit"
                                     disabled={!inputText.trim() || isTyping}
-                                    className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300
+                                    className={`w-12 h-12 flex items-center justify-center rounded-full transition-all
                                         ${!inputText.trim() || isTyping
-                                            ? 'opacity-0 scale-50 rotate-90 pointer-events-none'
-                                            : `${isDarkMode ? 'bg-[#E2CF9F] text-[#3A453C]' : 'bg-[#4A5D4E] text-white'} scale-100 rotate-0 hover:scale-105 active:scale-95 shadow-lg`
+                                            ? 'opacity-0 scale-50'
+                                            : 'bg-[#E5D6A7] text-[#1B4332] shadow-xl hover:scale-105 active:scale-95'
                                         }`}
                                 >
-                                    <Send size={17} strokeWidth={2.5} className="ml-0.5" />
+                                    <Send size={18} strokeWidth={3} />
                                 </button>
                             </div>
                         </form>
@@ -721,179 +621,89 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 </>
             )}
 
+            {/* ── COMPLETION MOMENT ──────────────────────────────────────── */}
+            <AnimatePresence>
+                {showCompletionMoment && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.8 }}
+                        onClick={() => setShowCompletionMoment(false)}
+                        className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-auto"
+                        style={{ background: 'rgba(65, 93, 67, 0.72)', backdropFilter: 'blur(18px)' }}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.6, delay: 0.15 }}
+                            className="text-center px-10"
+                        >
+                            <div className="w-16 h-px bg-[#E5D6A7]/30 mx-auto mb-8" />
+                            <p className="font-display text-4xl font-medium text-white leading-snug mb-4">
+                                You showed up<br />for yourself.
+                            </p>
+                            <p className="text-[#E5D6A7]/60 text-sm font-medium tracking-wide">
+                                That's the whole practice.
+                            </p>
+                            <div className="w-16 h-px bg-[#E5D6A7]/30 mx-auto mt-8" />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* ── HISTORY VIEW ───────────────────────────────────────────── */}
             {view === 'history' && (
                 <>
-                    {/* History Header */}
-                    <header className="relative z-20 px-6 pt-14 pb-2">
-                        <div className="flex items-center justify-between mb-5">
-                            <h2 className="text-4xl font-display font-extrabold tracking-tight">Sessions</h2>
+                    <header className="relative z-20 px-8 pt-16 pb-4">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className={`text-4xl font-display font-medium ${textPrimary}`}>Archive</h2>
                             <button
                                 onClick={() => { setHistorySearch(''); setView('home'); }}
-                                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-[#4A5D4E]/5 hover:bg-[#4A5D4E]/10'}`}
+                                className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-[#E5D6A7]"
                             >
-                                <X size={16} />
+                                <X size={20} />
                             </button>
                         </div>
 
-                        {/* Search */}
-                        <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl mb-1`}
-                            style={{ background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(78,92,76,0.06)', border: `1.5px solid ${borderColor}` }}
-                        >
-                            <Search size={14} className={`flex-shrink-0 ${subText}`} />
+                        <div className="flex items-center gap-4 px-6 py-4 rounded-[2rem] bg-white/5 border-2 border-[#E5D6A7]/10 focus-within:border-[#E5D6A7]/40 transition-all">
+                            <Search size={18} className="text-[#E5D6A7] opacity-40" />
                             <input
                                 type="text"
                                 value={historySearch}
                                 onChange={e => setHistorySearch(e.target.value)}
-                                placeholder="Search your sessions..."
-                                className={`flex-1 bg-transparent outline-none text-[14px] font-body ${subText} placeholder:opacity-70`}
+                                placeholder="Search sessions..."
+                                className="flex-1 bg-transparent outline-none text-[#E5D6A7] placeholder:opacity-30"
                                 style={{ fontSize: '16px' }}
                             />
-                            {historySearch && (
-                                <button onClick={() => setHistorySearch('')} className={`${subText}`}>
-                                    <X size={13} />
-                                </button>
-                            )}
                         </div>
                     </header>
 
-                    {/* Section label */}
-                    <div className="px-7 mb-3 relative z-10">
-                        <p className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${subText}`}>
-                            {filteredSessions.length === 0
-                                ? 'No sessions found'
-                                : `${filteredSessions.length} session${filteredSessions.length !== 1 ? 's' : ''}`}
-                        </p>
-                    </div>
-
-                    {/* List */}
-                    <div className="flex-1 overflow-y-auto px-5 relative z-10 space-y-2" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '7rem' }}>
-                        {filteredSessions.length === 0 && (
-                            <div className={`flex flex-col items-center justify-center py-20 ${subText}`}>
-                                <MessageCircle size={40} className="mb-4 opacity-20" />
-                                <p className="text-sm opacity-60">No sessions yet. Start one above.</p>
-                            </div>
-                        )}
-
+                    <div className="flex-1 overflow-y-auto px-6 py-4 relative z-10 space-y-3" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '7rem' }}>
                         {filteredSessions.map(s => {
                             const pillarConf = PILLAR_CONFIGS.find(p => p.key === s.pillar);
-                            const accentColor = pillarConf?.glowColor ?? '#B0B0B0';
                             return (
-                                <div
+                                <button
                                     key={s.id}
-                                    className="flex items-center gap-2"
+                                    onClick={() => resumeSession(s)}
+                                    className="w-full flex items-center gap-5 px-6 py-5 rounded-[2.5rem] bg-white/5 border-2 border-[#E5D6A7]/10 text-left transition-all active:scale-[0.98] hover:bg-white/10"
                                 >
-                                    {/* Tappable card row — fills all space except the X */}
-                                    <button
-                                        onClick={() => resumeSession(s)}
-                                        className="flex-1 flex items-center gap-4 px-4 py-4 rounded-[18px] text-left transition-all active:scale-[0.98] hover:opacity-90 relative overflow-hidden min-w-0"
-                                        style={{
-                                            background: cardBg,
-                                            border: `1px solid ${borderColor}`,
-                                            boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-                                        }}
-                                    >
-                                        {/* Left accent bar */}
-                                        <div
-                                            className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full"
-                                            style={{ background: accentColor }}
-                                        />
-                                        <div
-                                            className="w-9 h-9 rounded-[12px] flex items-center justify-center flex-shrink-0 ml-2"
-                                            style={{ background: pillarConf ? pillarConf.bg(isDarkMode) : 'rgba(160,160,160,0.1)', color: pillarConf?.glowColor ?? '#888' }}
-                                        >
-                                            {pillarIcon(s.pillar, 18)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-display font-semibold text-[13.5px] truncate tracking-tight">{s.title}</p>
-                                            <p className={`text-[11px] mt-0.5 ${subText}`}>
-                                                {pillarLabel(s.pillar)} · {formatDate(s.updatedAt)} · {s.messages.filter(m => m.role === 'user').length} messages
-                                            </p>
-                                        </div>
-                                        <ChevronLeft size={14} className={`rotate-180 flex-shrink-0 ${subText}`} />
-                                    </button>
-
-                                    {/* Delete X — dedicated column, never overlaps */}
-                                    <button
-                                        onClick={(e) => deleteSession(s.id, e)}
-                                        aria-label="Delete session"
-                                        className={`
-                                            flex-shrink-0 w-9 h-9 rounded-full
-                                            flex items-center justify-center
-                                            transition-all duration-150 active:scale-90
-                                            ${isDarkMode
-                                                ? 'bg-white/6 hover:bg-red-500/25 text-white/30 hover:text-red-300'
-                                                : 'bg-[#3A1700]/4 hover:bg-red-50 text-black/25 hover:text-red-400'
-                                            }
-                                        `}
-                                    >
-                                        <X size={13} strokeWidth={2.5} />
-                                    </button>
-                                </div>
+                                    <div className="w-12 h-12 rounded-2xl bg-[#E5D6A7] flex items-center justify-center text-[#1B4332] flex-shrink-0">
+                                        {pillarIcon(s.pillar, 20)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-display font-medium text-lg text-[#E5D6A7] truncate">{s.title}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#E5D6A7]/40 mt-1">
+                                            {pillarLabel(s.pillar)} · {formatDate(s.updatedAt)}
+                                        </p>
+                                    </div>
+                                    <ChevronLeft size={20} className="rotate-180 opacity-20 text-[#E5D6A7]" />
+                                </button>
                             );
                         })}
-
-                        <div className="h-6" />
-                    </div>
-
-                    {/* New Session Footer */}
-                    <div className="relative z-20 px-5 pb-28 pt-3">
-                        <button
-                            onClick={() => setView('home')}
-                            className="w-full flex items-center justify-center gap-3 py-4 rounded-[18px] transition-all active:scale-[0.98]"
-                            style={{
-                                background: 'linear-gradient(135deg, #C96A3A, #A8521F)',
-                                boxShadow: '0 4px 20px rgba(201,106,58,0.3)',
-                            }}
-                        >
-                            <Sparkles size={16} className="text-white" />
-                            <span className="font-display font-semibold text-[14px] text-white tracking-tight">
-                                Start a New Session
-                            </span>
-                        </button>
                     </div>
                 </>
-            )}
-            {/* ── BOTTOM NAV BAR ─────────────────────────────────────── */}
-            {onNavigate && (
-                <nav className="absolute bottom-0 left-0 right-0 z-40 flex justify-center pb-6 pt-2 pointer-events-none">
-                    <div
-                        className="flex items-center gap-1 px-3 py-3 rounded-full pointer-events-auto"
-                        style={{
-                            background: isDarkMode ? 'rgba(58,69,60,0.85)' : 'rgba(255,255,255,0.5)',
-                            border: isDarkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(78,92,76,0.08)',
-                            backdropFilter: 'blur(24px)',
-                            WebkitBackdropFilter: 'blur(24px)',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-                        }}
-                    >
-                        {[
-                            { id: 'home',     Icon: Home,        label: 'Home'    },
-                            { id: 'momentum', Icon: TrendingUp,  label: 'Progress' },
-                            { id: 'explore',  Icon: Compass,     label: 'Explore' },
-                        ].map(({ id, Icon, label }) => (
-                            <button
-                                key={id}
-                                onClick={() => {
-                                    if (id === 'coach') return; // already here
-                                    onNavigate(id);
-                                }}
-                                className="flex flex-col items-center gap-0.5 px-4 py-2 rounded-full transition-all duration-300"
-                                style={{
-                                    background: id === 'coach'
-                                        ? isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(78,92,76,0.12)'
-                                        : 'transparent',
-                                    color: id === 'coach'
-                                        ? isDarkMode ? 'white' : '#4A5D4E'
-                                        : isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(78,92,76,0.45)',
-                                }}
-                            >
-                                <Icon size={20} />
-                                <span className="text-[10px] font-medium">{label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </nav>
             )}
         </div>
     );

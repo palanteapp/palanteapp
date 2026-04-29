@@ -10,7 +10,8 @@ import {
     Timer,
     BookOpen,
     Layers,
-    Music
+    Music,
+    Wrench
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,15 +32,16 @@ export const QuickActionsFAB: React.FC<QuickActionsFABProps> = ({ onAction, isDa
     };
 
     const toolsDef = useMemo(() => [
-        { id: 'wisdom',     icon: <Sparkles size={14} />,     label: 'Wisdom'  },
-        { id: 'pomodoro',   icon: <Timer size={14} />,         label: 'Timer'   },
-        { id: 'routines',   icon: <Layers size={14} />,        label: 'Habits'  },
-        { id: 'reflect',    icon: <BookOpen size={14} />,      label: 'Journal' },
-        { id: 'meditate',   icon: <Flower size={14} />,        label: 'Meditate'},
-        { id: 'soundscapes',icon: <Music size={14} />,         label: 'Sounds'  },
-        { id: 'breath',     icon: <Wind size={14} />,          label: 'Breathe' },
-        { id: 'fasting',    icon: <Utensils size={14} />,      label: 'Fasting' },
-        { id: 'coach',      icon: <MessageCircle size={14} />, label: 'Coach'   },
+        { id: 'wisdom',      icon: <Sparkles size={14} />,     label: 'Wisdom'   },
+        { id: 'focus',       icon: <Timer size={14} />,         label: 'Focus'    },
+        { id: 'routines',    icon: <Layers size={14} />,        label: 'Habits'   },
+        { id: 'reflect',     icon: <BookOpen size={14} />,      label: 'Reflect'  },
+        { id: 'meditate',    icon: <Flower size={14} />,        label: 'Meditate' },
+        { id: 'soundscapes', icon: <Music size={14} />,         label: 'Sounds'   },
+        { id: 'breath',      icon: <Wind size={14} />,          label: 'Breathe'  },
+        { id: 'fasting',     icon: <Utensils size={14} />,      label: 'Fasting'  },
+        { id: 'coach',       icon: <MessageCircle size={14} />, label: 'Coach'    },
+        { id: 'toolkit',     icon: <Wrench size={14} />,        label: 'Toolkit'  },
     ], []);
 
     const actions = useMemo(() => {
@@ -55,9 +57,13 @@ export const QuickActionsFAB: React.FC<QuickActionsFABProps> = ({ onAction, isDa
     }, [userOrder, toolsDef]);
 
     const handleAction = (id: string) => {
+        console.log('FAB Action Triggered:', id);
         haptics.success();
-        onAction(id);
-        setIsOpen(false);
+        // Give a tiny moment for haptics/animation before switching
+        setTimeout(() => {
+            onAction(id);
+            setIsOpen(false);
+        }, 50);
     };
 
     // Ultra-smooth simple pop transition instead of heavy stagger physics
@@ -90,7 +96,7 @@ export const QuickActionsFAB: React.FC<QuickActionsFABProps> = ({ onAction, isDa
     };
 
     return (
-        <div className="fixed bottom-24 right-6 z-[100] flex flex-col items-end gap-3 pointer-events-none">
+        <div className="fixed bottom-24 right-6 z-[100] flex flex-col items-end gap-3 pointer-events-auto">
 
             {/* Action pills list */}
             <AnimatePresence>
@@ -106,16 +112,26 @@ export const QuickActionsFAB: React.FC<QuickActionsFABProps> = ({ onAction, isDa
                             <motion.button
                                 key={action.id}
                                 variants={itemVariants}
-                                onClick={() => handleAction(action.id)}
-                                className={`flex items-center gap-2 pr-1.5 pl-3 py-1.5 rounded-full shadow-lg
-                                           border transition-transform active:scale-95
-                                           ${'bg-terracotta-500 border-terracotta-500 text-white'}`}
-                                style={{ willChange: 'transform, opacity' }}
+                                onTap={(e) => {
+                                    e.stopPropagation();
+                                    handleAction(action.id);
+                                }}
+                                className={`flex items-center gap-3 pr-2 pl-4 py-2 rounded-full shadow-lg
+                                           border-l-2 ring-1 ring-black/5 transition-all active:scale-95
+                                           ${isDarkMode 
+                                                ? 'bg-[#2D6A4F]/80 text-white border-pale-gold border shadow-[0_0_15px_rgba(45,106,79,0.3)]' 
+                                                : 'bg-white/90 text-sage-dark border-sage/30 backdrop-blur-xl shadow-sage/10'}`}
+                                style={{ 
+                                    willChange: 'transform, opacity',
+                                    pointerEvents: 'auto' 
+                                }}
                             >
-                                <span className="text-[11px] font-bold uppercase tracking-widest text-white">
+                                <span className={`text-[11px] font-bold uppercase tracking-[0.15em] ${isDarkMode ? 'text-white/90' : 'text-sage-dark'}`}>
                                     {action.label}
                                 </span>
-                                <div className="w-7 h-7 rounded-full flex items-center justify-center bg-white/20 text-white shadow-inner">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-inner ${
+                                    isDarkMode ? 'bg-white/10 text-pale-gold' : 'bg-sage/10 text-sage'
+                                }`}>
                                     {action.icon}
                                 </div>
                             </motion.button>
@@ -129,15 +145,24 @@ export const QuickActionsFAB: React.FC<QuickActionsFABProps> = ({ onAction, isDa
                 onClick={toggleMenu}
                 aria-label={isOpen ? 'Close quick actions' : 'Quick actions'}
                 whileTap={{ scale: 0.88 }}
-                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-2xl
-                            pointer-events-auto backdrop-blur-xl border transition-colors duration-200
+                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-2xl
+                            pointer-events-auto backdrop-blur-xl border transition-all duration-500
                             ${isOpen
                                 ? (isDarkMode
-                                    ? 'bg-white/10 text-white border-white/10'
-                                    : 'bg-sage/5  text-sage  border-sage/10')
-                                : 'bg-terracotta-500 text-white border-terracotta-500/10'
+                                    ? 'bg-white/10 text-white border-white/20'
+                                    : 'bg-white/50 text-sage-dark border-white/30')
+                                : (isDarkMode 
+                                    ? 'bg-white/10 text-white border-white/20' 
+                                    : 'bg-white/40 text-sage-dark border-sage/10 backdrop-blur-md')
                             }`}
-                style={{ willChange: 'transform' }}
+                style={{ 
+                    willChange: 'transform',
+                    boxShadow: !isOpen 
+                        ? (isDarkMode 
+                            ? '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.2)' 
+                            : '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.4)')
+                        : 'none'
+                }}
             >
                 <motion.div
                     animate={{ rotate: isOpen ? 45 : 0 }}

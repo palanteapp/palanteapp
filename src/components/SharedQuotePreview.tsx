@@ -4,54 +4,82 @@ import type { Quote } from '../types';
 
 interface SharedQuotePreviewProps {
     quote: Quote;
+    seed?: string;
 }
 
-export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote }) => {
-    // Check if quote is from a tier
-    // Check if quote is from a tier or is AI/Palante Coach
-    const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' || quote.author === 'Palante Coach' || quote.isAI;
+const getRand = (s: string, i: number): number => {
+    let hash = 0;
+    for (let j = 0; j < s.length; j++) hash = ((hash << 5) - hash) + s.charCodeAt(j);
+    const x = Math.sin(hash + i) * 10000;
+    return x - Math.floor(x);
+};
 
-    const ModernArtBackground = () => (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} preserveAspectRatio="xMidYMid slice">
-            <rect width="400" height="520" fill="#879582" />
-            <circle cx="80" cy="100" r="220" fill="#9BAC98" opacity="0.9" />
-            <circle cx="360" cy="140" r="200" fill="#E8DEC9" opacity="0.9" />
-            <circle cx="320" cy="380" r="240" fill="#D6B8A0" opacity="0.8" />
-            <circle cx="120" cy="460" r="260" fill="#C5AE91" opacity="0.9" />
-            <circle cx="200" cy="260" r="180" fill="#E5D6C5" opacity="0.4" mixBlendMode="overlay" />
-        </svg>
-    );
+// Earthy palette — identical to DashboardQuoteCard so home card = share card
+const COLORS = ['#F59E0B', '#E5D6A7', '#C96A3A', '#355E3B', '#879582'];
+
+// Card dimensions (9:16)
+const W = 200;
+const H = 356;
+
+export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, seed }) => {
+    const isTierQuote =
+        quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' ||
+        quote.author === 'Palante Coach' || quote.isAI;
+
+    const finalSeed = seed || `${quote.id}-${new Date().toLocaleDateString()}`;
+
+    // Base colour picked by seed (matches DashboardQuoteCard SVG rect)
+    const baseColor = COLORS[Math.floor(getRand(finalSeed, 0) * COLORS.length)];
+
+    // Blobs scaled from SVG viewBox 400×520 → div 200×356
+    const blobs = [1, 2, 3, 4, 5].map(i => ({
+        cx:    25 + getRand(finalSeed, i * 10) * 150,
+        cy:    34 + getRand(finalSeed, i * 20) * 288,
+        r:     75 + getRand(finalSeed, i * 30) * 75,
+        color: COLORS[Math.floor(getRand(finalSeed, i * 40) * COLORS.length)],
+        opacity: 0.18 + getRand(finalSeed, i * 50) * 0.22,
+    }));
 
     return (
-        <div
-            className={`transition-shadow duration-300`}
-            style={{
-                aspectRatio: '9/16',
-                maxHeight: 'min(356px, 60vh)', // Responsive height constraint
-                width: 'min(200px, 80vw)',     // Restoring a compact preview width
-                background: '#5A6351',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                position: 'relative',
-                margin: '0 auto',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '20px 0' // Added some vertical breathing room inside the preview
-            }}
-        >
-            <ModernArtBackground />
-
-            {/* Noise grain overlay for texture */}
+        // NOTE: explicit px dimensions — html2canvas/WKWebView cannot resolve
+        // `aspectRatio`, `min()`, or CSS `inset` shorthand correctly.
+        <div style={{
+            width: `${W}px`,
+            height: `${H}px`,
+            backgroundColor: '#355E3B',
+            borderRadius: '16px',
+            overflow: 'hidden',
+            position: 'relative',
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+        }}>
+            {/* Base colour rect */}
             <div style={{
-                position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`,
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: baseColor, opacity: 0.85,
+                pointerEvents: 'none',
             }} />
 
+            {/* Art blobs — plain divs, no SVG, no mixBlendMode → html2canvas safe */}
+            {blobs.map((b, i) => (
+                <div key={i} style={{
+                    position: 'absolute',
+                    left: `${b.cx}px`,
+                    top: `${b.cy}px`,
+                    width: `${b.r * 2}px`,
+                    height: `${b.r * 2}px`,
+                    borderRadius: '50%',
+                    backgroundColor: b.color,
+                    opacity: b.opacity,
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                }} />
+            ))}
 
-            {/* CARD CONTAINER */}
+            {/* Content — relative so it sits above the absolute blobs */}
             <div style={{
                 position: 'relative',
                 zIndex: 10,
@@ -59,9 +87,9 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '12px',
             }}>
-                {/* White Card */}
+                {/* White quote card */}
                 <div style={{
                     backgroundColor: '#FDFBF7',
                     borderRadius: '12px',
@@ -69,9 +97,9 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
                     width: '100%',
                     textAlign: 'center',
                     position: 'relative',
-                    border: '1px solid rgba(0,0,0,0.02)'
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                 }}>
-                    {/* Badge at Top */}
+                    {/* Logo badge — always dark bg so it's never light-on-light */}
                     <div style={{
                         position: 'absolute',
                         top: '-10px',
@@ -80,30 +108,24 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
                         width: '20px',
                         height: '20px',
                         borderRadius: '50%',
-                        backgroundColor: '#FDFBF7',
+                        backgroundColor: '#355E3B',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
                     }}>
-                        <Logo
-                            color="#5A6351"
-                            style={{
-                                height: '10px',
-                                width: '10px'
-                            }}
-                        />
+                        <Logo color="#E5D6A7" style={{ height: '10px', width: '10px' }} />
                     </div>
 
-                    {/* Quote */}
+                    {/* Quote text */}
                     <p style={{
                         fontSize: quote.text.length > 100 ? '11px' : '14px',
                         fontWeight: 600,
                         lineHeight: 1.3,
-                        color: '#6F4E37',
+                        color: '#1A3320',
                         marginBottom: isTierQuote ? '3px' : '8px',
                         letterSpacing: '-0.02em',
-                        fontFamily: '"Poppins", sans-serif'
+                        fontFamily: '"Poppins", sans-serif',
                     }}>
                         {quote.text}
                     </p>
@@ -113,22 +135,23 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
                         <p style={{
                             fontSize: '7px',
                             fontWeight: 500,
-                            color: '#A0806B',
+                            color: '#4A7A52',
                             letterSpacing: '0.15em',
                             textTransform: 'uppercase',
                             opacity: 0.9,
-                            fontFamily: '"Inter", sans-serif'
+                            fontFamily: '"Inter", sans-serif',
                         }}>
                             — {quote.author}
                         </p>
                     )}
                 </div>
 
+                {/* Footer branding */}
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '3px'
+                    gap: '3px',
                 }}>
                     <p style={{
                         fontSize: '4px',
@@ -136,7 +159,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
                         letterSpacing: '0.25em',
                         textTransform: 'uppercase',
                         color: '#FDFBF7',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                     }}>
                         PERSONALIZED MOTIVATION, DELIVERED DAILY
                     </p>
@@ -145,7 +168,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
                         fontWeight: 800,
                         letterSpacing: '0.15em',
                         textTransform: 'uppercase',
-                        color: '#E8DEC9'
+                        color: '#E8DEC9',
                     }}>
                         @PALANTE.APP
                     </p>
@@ -154,4 +177,3 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote })
         </div>
     );
 };
-

@@ -81,7 +81,7 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({
                         onChange={(e) => setNewGoalTitle(e.target.value)}
                         placeholder="What is your intention?"
                         className={`w-full px-6 py-4 rounded-xl font-body outline-none border transition-all ${isDarkMode
-                            ? 'bg-[#3A1700]/20 border-white/10 focus:border-pale-gold text-white placeholder-white/30'
+                            ? 'bg-black/20 border-white/10 focus:border-pale-gold text-white placeholder-white/30'
                             : 'bg-white border-sage/20 focus:border-sage text-sage-dark placeholder-sage-dark/30'
                             }`}
                     />

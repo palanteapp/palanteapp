@@ -1,8 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, Clock, Target, ArrowRight, Check, Flame, Sparkles } from 'lucide-react';
 import type { RoutineStack, StackStep } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { SlideUpModal } from './SlideUpModal';
+import { haptics } from '../utils/haptics';
 
 interface StackWizardProps {
     isOpen: boolean;
@@ -24,41 +25,30 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
-            Promise.resolve().then(() => {
-                setStep('intro');
-                setAnswers({ duration: '', goal: '' });
-                setGeneratedStack(null);
-            });
+            setStep('intro');
+            setAnswers({ duration: '', goal: '' });
+            setGeneratedStack(null);
         }
     }, [isOpen]);
 
-    if (!isOpen) return null;
-
-    const bgClass = isDarkMode ? 'bg-sage-mid/95 text-white' : 'bg-sage-mid/95 text-white';
-    const cardClass = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-stone-200';
-
     const handleAnswer = (key: keyof typeof answers, value: string) => {
+        haptics.selection();
         setAnswers(prev => ({ ...prev, [key]: value }));
 
-        // Auto-advance
         if (key === 'duration') setStep('goal');
         if (key === 'goal') {
-            // Generate stack immediately after goal selection
             generateStack(value);
         }
     };
 
     const generateStack = (_finalAnswer: string) => {
-        // Logic to build stack based on answers
-        // This is a simplified generator
-        const duration = answers.duration; // '5', '15', '30'
-        const goal = answers.goal; // 'energy', 'calm', 'focus'
+        const duration = answers.duration;
+        const goal = answers.goal;
 
         const steps: StackStep[] = [];
         let name = "Custom Routine";
         let icon = "sun";
 
-        // Step 1: Always check-in
         steps.push({
             id: uuidv4(),
             type: 'checkin',
@@ -66,7 +56,6 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
             duration: 30
         });
 
-        // Step 2: Breathwork
         if (goal === 'energy') {
             steps.push({
                 id: uuidv4(),
@@ -98,7 +87,6 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
             icon = "target";
         }
 
-        // Step 3: Gratitude/Affirmation/Journal based on duration and goal
         if (duration !== '5') {
             if (goal === 'calm') {
                 steps.push({
@@ -124,7 +112,6 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
             }
         }
 
-        // Step 4: Quote
         steps.push({
             id: uuidv4(),
             type: 'quote',
@@ -142,71 +129,82 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
             themeColor: goal === 'energy' ? 'emerald' : (goal === 'calm' ? 'sage' : 'sky')
         };
 
-        // Don't save immediately, wait for confirmation
-        // Store it in state or just recreate it in confirm step?
-        // Let's store it in a ref or state
         setGeneratedStack(newStack);
         setStep('confirm');
     };
 
-
-
     const handleConfirm = (shouldLaunch: boolean) => {
         if (generatedStack) {
+            haptics.success();
             onSave(generatedStack, shouldLaunch);
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-[#3A1700]/60 backdrop-blur-sm animate-fade-in">
-            <div className={`w-full max-w-md rounded-3xl p-8 shadow-2xl relative overflow-hidden ${bgClass}`}>
+    const textPrimary = 'text-white';
+    const accentLabel = 'text-white/60 font-black text-[10px] uppercase tracking-[0.4em]';
 
-                {/* Close */}
+    return (
+        <SlideUpModal
+            isOpen={isOpen}
+            onClose={onClose}
+            isDarkMode={isDarkMode}
+            showCloseButton={false}
+        >
+            <div className="p-8 pb-12">
+                {/* Close Button */}
                 <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-[#3A1700]/5 dark:hover:bg-white/5 transition-colors"
+                    onClick={() => { haptics.light(); onClose(); }}
+                    className={`absolute top-6 right-6 p-2 rounded-full transition-all bg-white/[0.10] hover:bg-white/[0.18] shadow-sm ${textPrimary}`}
                 >
-                    <X size={20} className="opacity-50" />
+                    <X size={24} />
                 </button>
 
-                {/* Content */}
-                <div className="mt-2 min-h-[300px] flex flex-col items-center justify-center text-center">
+                <div className="mt-4 min-h-[400px] flex flex-col">
 
                     {step === 'intro' && (
-                        <div className="animate-fade-in space-y-6">
-                            <div className="w-16 h-16 rounded-full bg-pale-gold/10 border border-pale-gold/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-                                <Clock className="text-pale-gold" size={32} />
+                        <div className="flex flex-col items-center text-center animate-fade-in py-10">
+                            <div className="w-24 h-24 rounded-[2rem] bg-[#E5D6A7] flex items-center justify-center mb-8 shadow-md rotate-3">
+                                <Clock size={48} className={textPrimary} />
                             </div>
-                            <h2 className="text-2xl font-display font-medium">Let's build your flow.</h2>
-                            <p className="opacity-60">Answer 3 questions to create a perfect routine for right now.</p>
+                            <h2 className={`text-4xl font-display font-medium ${textPrimary} mb-4`}>
+                                Create your flow.
+                            </h2>
+                            <p className={`text-sm font-medium leading-relaxed max-w-[260px] mb-12 ${textPrimary}/60`}>
+                                Answer simple questions to design a personal ritual for this moment.
+                            </p>
                             <button
-                                onClick={() => setStep('duration')}
-                                className="px-8 py-3 bg-ink-black text-white dark:bg-white dark:text-warm-gray-green rounded-full font-medium active:scale-95 transition-all"
+                                onClick={() => { haptics.medium(); setStep('duration'); }}
+                                className="w-full py-5 bg-white/[0.15] text-white rounded-[2.5rem] font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all"
                             >
-                                Start
+                                Start Building
                             </button>
                         </div>
                     )}
 
                     {step === 'duration' && (
-                        <div className="animate-in slide-in-from-right duration-300 w-full">
-                            <h3 className="text-xl font-display mb-8">How much time do you have?</h3>
-                            <div className="space-y-3">
+                        <div className="animate-in slide-in-from-right duration-300 w-full flex flex-col">
+                            <div className="mb-10 text-center">
+                                <h3 className={`text-2xl font-display font-medium ${textPrimary} mb-2`}>How much time?</h3>
+                                <p className={accentLabel}>TIME INVESTMENT</p>
+                            </div>
+                            <div className="space-y-4">
                                 {[
-                                    { label: '5 Minutes', value: '5', sub: 'Quick reset' },
-                                    { label: '15 Minutes', value: '15', sub: 'Deep dive' },
-                                    { label: '30 Minutes', value: '30', sub: 'Full transformation' }
+                                    { label: '5 Minutes', value: '5', sub: 'The Quick Reset' },
+                                    { label: '15 Minutes', value: '15', sub: 'Deep Connection' },
+                                    { label: '30 Minutes', value: '30', sub: 'Full Transformation' }
                                 ].map(opt => (
                                     <button
                                         key={opt.value}
                                         onClick={() => handleAnswer('duration', opt.value)}
-                                        className={`w-full p-4 rounded-xl border flex items-center justify-between group hover:border-sage transition-all text-left ${cardClass}`}
+                                        className="w-full p-6 rounded-[2.5rem] bg-white/[0.08] border-2 border-white/10 hover:border-[#E5D6A7] hover:bg-white/[0.14] transition-all text-left flex items-center justify-between group active:scale-[0.98]"
                                     >
-                                        <div>
-                                            <div className="font-medium">{opt.label}</div>
-                                            <div className="text-xs opacity-50">{opt.sub}</div>
+                                        <div className="flex-1">
+                                            <div className={`font-black uppercase tracking-widest text-xs mb-1 ${textPrimary}`}>{opt.label}</div>
+                                            <div className={`text-[11px] font-medium ${textPrimary}/60`}>{opt.sub}</div>
                                         </div>
-                                        <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                                        <div className="w-10 h-10 rounded-full bg-[#E5D6A7]/20 flex items-center justify-center group-hover:bg-[#E5D6A7] transition-all">
+                                            <ArrowRight size={18} className={textPrimary} />
+                                        </div>
                                     </button>
                                 ))}
                             </div>
@@ -214,24 +212,34 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
                     )}
 
                     {step === 'goal' && (
-                        <div className="animate-in slide-in-from-right duration-300 w-full">
-                            <h3 className="text-xl font-display mb-8">What is your goal?</h3>
-                            <div className="space-y-3">
+                        <div className="animate-in slide-in-from-right duration-300 w-full flex flex-col">
+                            <div className="mb-10 text-center">
+                                <h3 className={`text-2xl font-display font-medium ${textPrimary} mb-2`}>What is the goal?</h3>
+                                <p className={accentLabel}>CORE INTENTION</p>
+                            </div>
+                            <div className="space-y-4">
                                 {[
-                                    { label: 'More Energy', value: 'energy', icon: <Flame size={24} className="text-pale-gold" fill="currentColor" fillOpacity={0.2} /> },
-                                    { label: 'Calm & Peace', value: 'calm', icon: <Sparkles size={24} className="text-pale-gold" fill="currentColor" fillOpacity={0.2} /> },
-                                    { label: 'Razor Focus', value: 'focus', icon: <Target size={24} className="text-pale-gold" /> }
+                                    { label: 'More Energy', value: 'energy', sub: 'Vitality & Force', icon: <Flame size={20} fill="currentColor" /> },
+                                    { label: 'Calm & Peace', value: 'calm', sub: 'Stillness & Ease', icon: <Sparkles size={20} /> },
+                                    { label: 'Razor Focus', value: 'focus', sub: 'Clarity & Action', icon: <Target size={20} /> }
                                 ].map(opt => (
                                     <button
                                         key={opt.value}
                                         onClick={() => handleAnswer('goal', opt.value)}
-                                        className={`w-full p-4 rounded-xl border flex items-center justify-between group hover:border-sage transition-all text-left ${cardClass}`}
+                                        className="w-full p-6 rounded-[2.5rem] bg-white/[0.08] border-2 border-white/10 hover:border-[#E5D6A7] hover:bg-white/[0.14] transition-all text-left flex items-center justify-between group active:scale-[0.98]"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-lg">{opt.icon}</span>
-                                            <div className="font-medium">{opt.label}</div>
+                                        <div className="flex items-center gap-5">
+                                            <div className="w-12 h-12 rounded-2xl bg-white/[0.12] flex items-center justify-center text-white shadow-sm">
+                                                {opt.icon}
+                                            </div>
+                                            <div>
+                                                <div className={`font-black uppercase tracking-widest text-xs mb-1 ${textPrimary}`}>{opt.label}</div>
+                                                <div className={`text-[11px] font-medium ${textPrimary}/60`}>{opt.sub}</div>
+                                            </div>
                                         </div>
-                                        <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                                        <div className="w-10 h-10 rounded-full bg-[#E5D6A7]/20 flex items-center justify-center group-hover:bg-[#E5D6A7] transition-all">
+                                            <ArrowRight size={18} className={textPrimary} />
+                                        </div>
                                     </button>
                                 ))}
                             </div>
@@ -239,42 +247,46 @@ export const StackWizardModal: React.FC<StackWizardProps> = ({ isOpen, onClose, 
                     )}
 
                     {step === 'confirm' && (
-                        <div className="animate-in scale-in duration-300 text-center">
-                            <div className="w-16 h-16 rounded-full bg-pale-gold text-sage-dark flex items-center justify-center mx-auto mb-6 shadow-lg shadow-pale-gold/20">
-                                <Check size={32} strokeWidth={3} />
+                        <div className="animate-in scale-in duration-300 flex flex-col items-center text-center py-6">
+                            <div className="w-24 h-24 rounded-[2rem] bg-[#E5D6A7] flex items-center justify-center mb-8 shadow-lg rotate-3">
+                                <Check size={48} strokeWidth={4} className={textPrimary} />
                             </div>
-                            <h2 className="text-2xl font-display font-medium mb-2">Routine Ready!</h2>
-                            <p className="opacity-60 mb-8 max-w-xs mx-auto">We've added this flow to your dashboard.</p>
-                            <div className="flex gap-3 mb-4">
+                            <h2 className={`text-4xl font-display font-medium ${textPrimary} mb-4`}>Routine Ready.</h2>
+                            <p className={`text-sm font-medium leading-relaxed max-w-[240px] mb-12 ${textPrimary}/60`}>
+                                Your new {answers.duration}-minute flow for {answers.goal} is locked into your dashboard.
+                            </p>
+                            
+                            <div className="w-full space-y-4">
+                                <button
+                                    onClick={() => handleConfirm(true)}
+                                    className="w-full py-5 bg-white/[0.15] text-white rounded-[2.5rem] font-black uppercase tracking-widest text-xs shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-[#E5D6A7] animate-pulse" />
+                                    <span>Start This Now</span>
+                                </button>
                                 <button
                                     onClick={() => handleConfirm(false)}
-                                    className="flex-1 py-3 bg-white/10 text-white rounded-full font-medium hover:bg-white/20 transition-all"
+                                    className="w-full py-5 bg-white/[0.08] text-white rounded-[2.5rem] font-black uppercase tracking-widest text-xs hover:bg-white/[0.15] transition-all"
                                 >
                                     Save for Later
                                 </button>
                                 <button
-                                    onClick={() => handleConfirm(true)}
-                                    className="flex-1 py-3 bg-white text-sage-dark rounded-full font-bold hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2"
+                                    onClick={() => {
+                                        if (generatedStack) {
+                                            haptics.light();
+                                            onSave(generatedStack, false, true);
+                                        }
+                                    }}
+                                    className={`mt-4 text-[10px] font-black uppercase tracking-[0.2em] ${textPrimary}/40 hover:${textPrimary} transition-all`}
                                 >
-                                    <div className="w-2 h-2 rounded-full bg-pale-gold animate-pulse" />
-                                    Start Now
+                                    Customize Flow Details
                                 </button>
                             </div>
-                            <button
-                                onClick={() => {
-                                    if (generatedStack) {
-                                        onSave(generatedStack, false, true); // shouldLaunch=false, shouldEdit=true
-                                    }
-                                }}
-                                className="text-white/40 text-sm font-medium hover:text-white transition-colors"
-                            >
-                                Customize Flow
-                            </button>
                         </div>
                     )}
 
                 </div>
             </div>
-        </div>
+        </SlideUpModal>
     );
 };

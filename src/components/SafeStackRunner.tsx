@@ -18,7 +18,7 @@ interface SafeStackRunnerProps {
  */
 export const SafeStackRunner: React.FC<SafeStackRunnerProps> = (props) => {
     return (
-        <div className="fixed inset-0 z-[100] bg-[#3A1700]/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm">
             <ErrorBoundary
                 name="Routine Runner"
                 onReset={props.onClose}

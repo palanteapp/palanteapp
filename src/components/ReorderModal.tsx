@@ -67,13 +67,22 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-[100] flex items-start justify-center animate-fade-in p-4 pt-20 overflow-hidden">
+            {/* Soft dark scrim - no blur */}
             <div
-                className="absolute inset-0 bg-[#3A1700]/60 backdrop-blur-md transition-opacity"
+                className="absolute inset-0 bg-black/30 transition-opacity"
                 onClick={onClose}
             />
 
-            <div className={`relative w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300 ${isDarkMode ? 'bg-sage-mid border border-white/10' : 'bg-[#fcf8f2] border border-sage/10'
-                }`}>
+            {/* Clean solid modal */}
+            <div
+                className={`relative w-full max-w-sm rounded-[3rem] shadow-[0_-4px_60px_rgba(0,0,0,0.15),0_30px_80px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300 ${
+                    isDarkMode ? 'bg-[#1B4332]' : 'bg-[#f5f2ec]'
+                }`}
+                style={{
+                    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0px, black 28px)',
+                    maskImage: 'linear-gradient(to bottom, transparent 0px, black 28px)',
+                }}
+            >
 
                 <div className="px-6 pt-5 pb-2 flex justify-between items-center">
                     <div>
@@ -94,10 +103,9 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
                     {order.map((sectionId, index) => (
                         <div
                             key={sectionId}
-                            className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 ${isDarkMode
-                                ? 'bg-white/5 border-white/5 hover:bg-white/10'
-                                : 'bg-white border-sage/5 shadow-sm'
-                                }`}
+                            className={`flex items-center justify-between p-3 rounded-[24px] border border-white/10 transition-all duration-300 ${
+                                isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-white/20 hover:bg-white/30 shadow-sm'
+                            }`}
                         >
                             <div className="flex items-center gap-3">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
@@ -109,7 +117,7 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
                                 </span>
                             </div>
 
-                            <div className="flex items-center gap-1 bg-[#3A1700]/5 p-0.5 rounded-lg">
+                            <div className="flex items-center gap-1 bg-black/20 p-0.5 rounded-lg">
                                 <button
                                     onClick={() => moveItem(index, 'up')}
                                     disabled={index === 0}
@@ -135,11 +143,12 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
                     ))}
                 </div>
 
-                <div className="p-4 bg-[#3A1700]/5">
+                <div className="p-6">
                     <button
                         onClick={handleSave}
-                        className={`w-full py-3.5 rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-xl ${isDarkMode ? 'bg-pale-gold text-sage-dark shadow-pale-gold/10' : 'bg-terracotta-500 text-white shadow-terracotta-500/20'
-                            }`}
+                        className={`w-full py-4 rounded-[2rem] font-bold uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-2xl ${
+                            isDarkMode ? 'bg-pale-gold text-sage-dark shadow-[0_10px_30px_rgba(229,214,167,0.3)]' : 'bg-sage-dark text-white shadow-[0_10px_30px_rgba(90,99,81,0.3)]'
+                        }`}
                     >
                         <Check size={14} strokeWidth={3} />
                         Apply Layout

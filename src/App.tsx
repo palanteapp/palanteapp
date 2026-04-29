@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { STORAGE_KEYS, SESSION_KEYS } from './constants/storageKeys';
 import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 
 import { PageTransition } from './components/PageTransition';
@@ -11,6 +12,7 @@ import { UserProvider, useUser } from './contexts/UserContext';
 import { CelebrationModal } from './components/CelebrationModal';
 import { DisclaimerModal } from './components/DisclaimerModal';
 import { getRelevantQuotes, getAIQuote, pickAndMarkQuote, markQuoteSeen } from './utils/quoteMatcher';
+import { generateUserNarrative } from './utils/aiService';
 import { QUOTES } from './data/quotes';
 import { AFFIRMATIONS } from './data/affirmations';
 import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, RoutineStack, ContentType, QuoteSource, SoundMix } from './types';
@@ -19,10 +21,12 @@ import { SkeletonQuoteCard } from './components/SkeletonQuoteCard';
 
 import { haptics } from './utils/haptics';
 
-import { SoundMixer } from './components/SoundMixer';
+import SoundMixer from './components/SoundMixer';
 import { EveningPractice } from './components/EveningPractice';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
+import { SubscriptionProvider, useSubscription } from './contexts/SubscriptionContext';
+import { PaywallScreen } from './components/PaywallScreen';
 import { useNotifications } from './hooks/useNotifications';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 
@@ -61,9 +65,10 @@ const MorningMessageCard = lazy(() => import('./components/MorningMessageCard').
 const EveningMessageCard = lazy(() => import('./components/EveningMessageCard').then(module => ({ default: module.EveningMessageCard })));
 const JapaneseWisdomView = lazy(() => import('./components/JapaneseWisdomView').then(m => ({ default: m.JapaneseWisdomView })));
 const GardenOfGrowth = lazy(() => import('./components/GardenOfGrowth').then(m => ({ default: m.GardenOfGrowth })));
-import { PomodoroTimer } from './components/PomodoroTimer';
-import { RitualShelf } from './components/RitualShelf';
-// const PomodoroTimer = lazy(() => import('./components/PomodoroTimer').then(m => ({ default: m.PomodoroTimer })));
+import { FocusTimer } from './components/FocusTimer';
+import { HomeEssentialTools } from './components/HomeEssentialTools';
+import type { EssentialToolId } from './components/HomeEssentialTools';
+/// const FocusTimer = lazy(() => import('./components/FocusTimer').then(m => ({ default: m.FocusTimer })));
 
 import { CoachView } from './components/CoachView';
 import { WeeklyHighlightsModal, computeWeeklyHighlights } from './components/WeeklyHighlightsModal';
@@ -76,11 +81,12 @@ import { Logo } from './components/Logo';
 import {
   Home, TrendingUp, User as UserIcon, Moon, Sun,
   BookMarked, Music, MessageCircle, Bell, ChevronDown, Check,
-  Target, Sparkles, ChevronRight, ChevronLeft, Waves, Mic, Wrench, Heart,
+  Target, Sparkles, ChevronRight, ChevronLeft, Waves, Mic, Layers, Heart,
   CheckCircle2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ExploreView } from './components/ExploreView';
+import { PracticeView } from './components/PracticeView';
 
 
 import type { CoachSettings, WeeklyReport, CoachIntervention, DailyPriming } from './types';
@@ -94,7 +100,6 @@ import { CoachSettingsModal } from './components/CoachSettingsModal';
 import { MilestoneCelebration } from './components/MilestoneCelebration';
 import { CoachInterventionCard } from './components/CoachInterventionCard';
 import { SlideUpModal } from './components/SlideUpModal';
-import { QuickActionsFAB } from './components/QuickActionsFAB';
 import { api } from './lib/api';
 import { logPractice, checkMilestone, migrateStreakToPractice } from './utils/practiceUtils';
 import { QuickRoutines } from './components/QuickRoutines';
@@ -115,12 +120,13 @@ function AppContent() {
 
   const { loading: authLoading } = useAuth();
   const { user, loading: userLoading, updateProfile, logActivity, saveReflection, toggleFavorite } = useUser();
+  const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
 
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
   const [isQuoteLoading, setIsQuoteLoading] = useState(true);
   const [allQuotes, setAllQuotes] = useState<Quote[]>(() => [...QUOTES, ...AFFIRMATIONS]);
-  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'fasting' | 'reflect' | 'breath' | 'meditate' | 'wisdom' | 'coach' | 'pomodoro' | 'soundscapes' | 'routines'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'fasting' | 'reflect' | 'breath' | 'meditate' | 'wisdom' | 'coach' | 'focus' | 'soundscapes' | 'routines'>('home');
 
 
   const { isDarkMode } = useTheme();
@@ -182,7 +188,7 @@ function AppContent() {
 
   // Synchronize browser overscroll color with Palante theme
   useEffect(() => {
-    const color = isDarkMode ? '#3D4A3A' : '#F2EBE0'; // Sage Mid or Ivory
+    const color = isDarkMode ? '#415D43' : '#F2EBE0'; // Forest Sage or Ivory
     document.body.style.backgroundColor = color;
     document.documentElement.style.backgroundColor = color;
     
@@ -439,7 +445,7 @@ function AppContent() {
   };
 
   // Future Letters Handlers
-  const handleSaveLetter = (content: string) => {
+  const handleSaveLetter = (content: string, sealedUntil: string) => {
     if (!user) return;
 
     const newLetter: FutureLetter = {
@@ -448,7 +454,8 @@ function AppContent() {
       writtenDate: new Date().toISOString(),
       context: letterContext,
       contextDetails: letterContextDetails,
-      hasBeenDelivered: false
+      hasBeenDelivered: false,
+      scheduledDeliveryDate: sealedUntil,
     };
 
     const updatedLetters = [...(user.futureLetters || []), newLetter];
@@ -598,6 +605,7 @@ function AppContent() {
 
     setCurrentQuote(selectedQuote);
     localStorage.setItem(STORAGE_KEYS.LAST_QUOTE, JSON.stringify(selectedQuote));
+    localStorage.setItem('palante_last_quote_ts', Date.now().toString());
 
     setIsQuoteLoading(false);
   }, []); // No dependencies - loadNewQuote only uses its parameters
@@ -848,12 +856,14 @@ function AppContent() {
     console.log('Quick Action Triggered:', id);
     haptics.selection();
     switch (id) {
+      case 'fast':
       case 'fasting':
         setActiveTab('fasting');
         setToastMessage('Fasting Tracker');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
+      case 'breathe':
       case 'breath':
         setActiveTab('breath');
         break;
@@ -876,9 +886,10 @@ function AppContent() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
-      case 'pomodoro':
+      case 'focus':
+      case 'focus-timer':
       case 'timer':
-        setActiveTab('pomodoro');
+        setActiveTab('focus');
         setToastMessage('Focus Timer');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
@@ -1194,13 +1205,11 @@ function AppContent() {
     }
   };
 
-  // Force Widget Bootstrap on Mount
+  // Force Widget Bootstrap on Mount + reload quote on every foreground
   useEffect(() => {
     const bootstrapWidget = async () => {
       if (Capacitor.getPlatform() === 'ios') {
         try {
-          // Force a write even if user has no data yet, just to clear "No Data" error
-          // Use a dummy structure if context is initializing
           const dummyGoals = [{ id: 'init', text: 'Open App to Sync Goals', isCompleted: false, order: 0 }];
           await WidgetDataSync.updateGoals(dummyGoals, 0);
         } catch (e) {
@@ -1209,7 +1218,21 @@ function AppContent() {
       }
     };
     bootstrapWidget();
-  }, []);
+
+    const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) return;
+      // Refresh widget quotes
+      if (user) WidgetDataSync.refreshQuotes(user);
+      // Force new quote if last load was more than 6 hours ago
+      const lastLoad = parseInt(localStorage.getItem('palante_last_quote_ts') || '0', 10);
+      const SIX_HOURS = 6 * 60 * 60 * 1000;
+      if (user && Date.now() - lastLoad > SIX_HOURS) {
+        localStorage.setItem('palante_last_quote_ts', Date.now().toString());
+        loadNewQuote(user);
+      }
+    });
+    return () => { listener.then(h => h.remove()); };
+  }, [user, loadNewQuote]);
 
 
 
@@ -1233,7 +1256,7 @@ function AppContent() {
   // }
 
   // Safety check - should never happen in testing mode
-  if (userLoading) {
+  if (userLoading || subLoading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-sage-mid' : 'bg-ivory'} `}>
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent border-sage"></div>
@@ -1241,13 +1264,18 @@ function AppContent() {
     );
   }
 
+  // PAYWALL — show when user has no active subscription
+  if (!isPro) {
+    return <PaywallScreen />;
+  }
+
   // LOGGED IN AND HAS PROFILE -> MAIN APP
   const bgClass = isDarkMode ? 'bg-elevated-dark text-white' : 'bg-ivory text-sage-dark';
   const headerBtnClass = isDarkMode
-    ? 'bg-white/5 border-pale-gold/20 hover:bg-pale-gold/10 text-pale-gold backdrop-blur-md'
+    ? 'bg-white/5 border-white/20 hover:bg-white/10 text-white backdrop-blur-md'
     : 'bg-white/30 border-sage/10 hover:bg-sage/5 text-sage backdrop-blur-md';
   const navClass = isDarkMode
-    ? 'bg-sage-mid/80 border-pale-gold/10 shadow-2xl backdrop-blur-2xl'
+    ? 'bg-[#2D6A4F]/20 border-[#52B788]/30 shadow-[0_0_30px_rgba(45,106,79,0.2)] backdrop-blur-2xl'
     : 'bg-white/40 border-sage/5 shadow-spa-lg backdrop-blur-2xl';
 
   const appJsx = (
@@ -1258,6 +1286,17 @@ function AppContent() {
       {/* Koi Fish Animation - REMOVED */}
 
       {/* Global Koi Trigger (Appears after 60s) */}
+
+      {/* Trial banner — shown days 5, 6, 7 */}
+      {isTrialing && trialDaysRemaining <= 3 && (
+        <div className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center" style={{ background: '#C96A3A' }}>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
+            {trialDaysRemaining === 1
+              ? 'Your free trial ends tomorrow — subscribe to keep your streak.'
+              : `${trialDaysRemaining} days left in your free trial.`}
+          </span>
+        </div>
+      )}
 
       {/* Evening Wind-Down Overlay (Deep blue dimming) */}
       {shouldShowEveningMode && (
@@ -1279,28 +1318,8 @@ function AppContent() {
         />
       </div>
 
-      {/* ZEN HEART - Message to Self (Repositioned under the FAB on the right) */}
-      <div className="fixed inset-0 pointer-events-none z-[60]">
-        <motion.button
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.1, rotate: 10 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => {
-            haptics.medium();
-            setLetterContext('manual');
-            setShowLetterWrite(true);
-          }}
-          className={`absolute bottom-8 right-6 w-12 h-12 rounded-full flex items-center justify-center pointer-events-auto backdrop-blur-xl border shadow-2xl transition-all ${
-            isDarkMode ? 'bg-white/10 text-pale-gold/70 border-white/20' : 'bg-white/60 text-sage/50 border-sage/10'
-          }`}
-          title="Message to Self"
-        >
-          <Heart size={20} fill="currentColor" />
-        </motion.button>
-      </div>
 
-      {/* Floating Header - Centered & Compact */}
+{/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
         className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
@@ -1366,12 +1385,12 @@ function AppContent() {
           </button>
 
 
-          {/* 5. Coach Chat (Terracotta Anchor) */}
+          {/* 5. Coach Chat (Lush Green Anchor) */}
           <button
             onClick={() => setActiveTab('coach')}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-300 hover:scale-110 shadow-md ${activeTab === 'coach'
-              ? 'bg-terracotta-500 text-white border-2 border-terracotta-500'
-              : 'bg-terracotta-500/80 text-white border border-terracotta-500/30 hover:bg-terracotta-500 hover:scale-105'
+            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-300 hover:scale-110 shadow-[0_0_20px_rgba(64,145,108,0.3)] ${activeTab === 'coach'
+              ? 'bg-[#40916C] text-white border-2 border-[#D4E09B]'
+              : 'bg-[#40916C]/60 text-white border border-white/20 hover:bg-[#40916C] hover:scale-105'
               } `}
             title="Palante Coach Chat"
           >
@@ -1404,15 +1423,15 @@ function AppContent() {
                 <h1 className={`text-4xl font-display font-medium mb-1 tracking-tight ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                   {getGreeting()}, {(user?.name || '').split(' ')[0] || 'Friend'}
                 </h1>
-                <p className={`text-base font-sans font-medium mb-12 ${isDarkMode ? 'text-amber' : 'text-sage/80'}`}>
+                <p className={`text-base font-sans font-medium mb-12 ${isDarkMode ? 'text-white/80' : 'text-sage/80'}`}>
                   {new Date().getHours() < 12 ? 'Ready to rise?' : new Date().getHours() < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
                 </p>
 
                 {/* Evening Wind-Down Banner */}
                 {shouldShowEveningMode && (
-                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-terracotta/20 via-amber/5 to-terracotta/20 border border-terracotta/20 backdrop-blur-sm animate-fade-in shadow-lg">
+                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-[#1B4332]/40 via-[#2D6A4F]/20 to-[#1B4332]/40 border border-white/10 backdrop-blur-sm animate-fade-in shadow-lg">
                     <div className="flex items-center gap-3 mb-2">
-                      <Moon size={20} className="text-terracotta" />
+                      <Moon size={20} className="text-pale-gold" />
                       <h3 className={`font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'}`}>Wind Down for the Night</h3>
                     </div>
                     <p className={`text-sm ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
@@ -1450,41 +1469,30 @@ function AppContent() {
                   </Suspense>
                 </div>
 
-                {/* 2. RITUAL SHELF: Glanceable Growth */}
-                <RitualShelf 
-                  streak={Number(user?.streak) || 0}
-                  points={Number(user?.points) || 0}
-                  isDarkMode={isDarkMode}
-                  fastingActive={(() => {
-                    try {
-                      const status = localStorage.getItem(STORAGE_KEYS.FASTING_STATUS);
-                      return status === 'active';
-                    } catch (e) { return false; }
-                  })()}
-                  fastingTime={(() => {
-                    try {
-                      const startTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
-                      if (!startTime) return '';
-                      const start = new Date(startTime).getTime();
-                      const now = Date.now();
-                      const elapsed = now - start;
-                      if (isNaN(elapsed) || elapsed < 0) return '';
-                      const hours = Math.floor(elapsed / (1000 * 60 * 60));
-                      const mins = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-                      return `${hours}h ${mins}m`;
-                    } catch (e) { return ''; }
-                  })()}
-                  onGardenClick={() => setShowProfile(true)}
-                  onStreakClick={() => {/* maybe open a history modal */}}
-                  onFastingClick={() => {
-                    const fastingStartTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
-                    if (fastingStartTime) {
-                      setActiveTab('fasting');
-                    } else {
-                      setActiveTab('momentum');
-                    }
-                  }}
-                />
+                {/* Essential Tools — single unified section, user-customizable */}
+                {user && (
+                  <HomeEssentialTools
+                    isDarkMode={isDarkMode}
+                    selectedTools={user.homeEssentialTools}
+                    fastingActive={(() => {
+                      try { return localStorage.getItem(STORAGE_KEYS.FASTING_STATUS) === 'active'; }
+                      catch { return false; }
+                    })()}
+                    fastingTime={(() => {
+                      try {
+                        const startTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
+                        if (!startTime) return '';
+                        const elapsed = Date.now() - new Date(startTime).getTime();
+                        if (isNaN(elapsed) || elapsed < 0) return '';
+                        return `${Math.floor(elapsed / 3_600_000)}h ${Math.floor((elapsed % 3_600_000) / 60_000)}m`;
+                      } catch { return ''; }
+                    })()}
+                    onNavigate={(id: EssentialToolId) => handleQuickAction(id)}
+                    onSave={(tools: EssentialToolId[]) => {
+                      if (user) updateProfile({ ...user, homeEssentialTools: tools });
+                    }}
+                  />
+                )}
               </div>
 
               {/* Profile Completion Prompt */}
@@ -1577,7 +1585,7 @@ function AppContent() {
                 // 4. Today's Goals (todays_goals)
                 // 5. Coach/Progress (accountability_coach)
 
-                const defaultOrder = ['morning_practice', 'daily_quote', 'todays_goals', 'accountability_coach'];
+                const defaultOrder = ['morning_practice', 'daily_quote', 'todays_goals'];
                 let displayOrder = (user?.dashboardOrder && user.dashboardOrder.length > 0) ? [...user.dashboardOrder] : [...defaultOrder];
                 // Remove legacy features that shouldn't live on Home full-time
                 displayOrder = displayOrder.filter((id) => id !== 'daily_mosaic' && id !== 'quick_routines' && id !== 'future_letter' && id !== 'start_ritual');
@@ -1613,6 +1621,7 @@ function AppContent() {
                                 isDarkMode={isDarkMode}
                                 existingPriming={todaysPriming || null}
                                 hideEnergyCheckIn={true}
+                                user={user}
                               />
                             ) : (
                               <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
@@ -1722,18 +1731,6 @@ function AppContent() {
                                   <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'} `}>
                                     Today's Goals
                                   </h3>
-                                  <button
-                                    onClick={() => setShowHomeCoachSettings(true)}
-                                    className={`flex items-center gap-2 mt-1 transition-all group`}
-                                  >
-                                    <Bell size={12} className={user?.coachSettings?.nudgeEnabled ? (isDarkMode ? 'text-pale-gold' : 'text-sage') : (isDarkMode ? 'text-white/20' : 'text-sage/30')} fill={user?.coachSettings?.nudgeEnabled ? "currentColor" : "none"} />
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${user?.coachSettings?.nudgeEnabled
-                                      ? (isDarkMode ? 'text-white/60 group-hover:text-pale-gold' : 'text-sage group-hover:text-sage/70')
-                                      : (isDarkMode ? 'text-white/20 group-hover:text-white/40' : 'text-sage/30 group-hover:text-sage/50')
-                                      } `}>
-                                      {user?.coachSettings?.nudgeEnabled ? `${user.coachSettings.nudgeFrequency.replace(/-/g, ' ')} Nudges` : 'Enable Nudges'}
-                                    </span>
-                                  </button>
                                 </div>
                               </div>
                               <span className={`text-sm font-medium ${isDarkMode ? 'text-pale-gold/60' : 'text-sage/60'} `}>
@@ -1778,7 +1775,7 @@ function AppContent() {
                                         ? 'opacity-50 cursor-not-allowed ' + (isDarkMode ? 'bg-white/5 text-white/30' : 'bg-gray-100 text-gray-400')
                                         : isDarkMode
                                           ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
-                                          : 'bg-terracotta-500 text-white hover:bg-sage-600'
+                                          : 'bg-[#1B4332] text-white hover:bg-[#2D6A4F]'
                                         } `}
                                     >
                                       <span className="text-xl font-medium">+</span>
@@ -1809,7 +1806,7 @@ function AppContent() {
                                         : 'border-sage/30 text-sage/70 hover:bg-sage/5 hover:text-sage'
                                         } `}
                                     >
-                                      View Progress & Manage Goals →
+                                      Manage in Journey →
                                     </button>
                                   </>
                                 ) : (
@@ -1893,6 +1890,9 @@ function AppContent() {
                             </p>
                             <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-white/35' : 'text-sage/55'}`}>
                               {gardenLevel} · {pts.toLocaleString()} pts{streakText}
+                            </p>
+                            <p className={`text-xs mt-2 italic ${isDarkMode ? 'text-white/30' : 'text-sage/40'}`}>
+                              Every practice plants something new.
                             </p>
                           </div>
                           <Suspense fallback={null}>
@@ -1980,8 +1980,8 @@ function AppContent() {
             </ErrorBoundary>
           )}
 
-          {activeTab === 'pomodoro' && (
-            <ErrorBoundary name="Pomodoro">
+          {activeTab === 'focus' && (
+            <ErrorBoundary name="Focus Timer">
             <PageTransition>
               <div className="min-h-screen max-w-md mx-auto h-full pt-6">
                 <Suspense fallback={
@@ -1989,7 +1989,7 @@ function AppContent() {
                     <div className={`animate-spin rounded-full h-12 w-12 border-4 border-t-transparent ${isDarkMode ? 'border-white' : 'border-sage'} `}></div>
                   </div>
                 }>
-                  <PomodoroTimer
+                  <FocusTimer
                     onAddHydration={() => {
                       // Link hydration to fasting state if active
                       const savedHydration = localStorage.getItem(STORAGE_KEYS.FASTING_HYDRATION);
@@ -2008,10 +2008,10 @@ function AppContent() {
           )}
 
           {activeTab === 'toolkit' && (
-            <ErrorBoundary name="Explore">
+            <ErrorBoundary name="Practice">
             <PageTransition>
               <div className="min-h-screen max-w-md mx-auto">
-                <ExploreView
+                <PracticeView
                   isDarkMode={isDarkMode}
                   user={user}
                   updateProfile={updateProfile}
@@ -2299,7 +2299,7 @@ function AppContent() {
                 setShowReturnToWisdom(false);
                 haptics.medium();
               }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full shadow-2xl font-display font-medium transition-all active:scale-95 ${'bg-terracotta-500 text-white hover:scale-105'}`}
+              className={`flex items-center gap-2 px-6 py-3 rounded-full shadow-2xl font-display font-medium transition-all active:scale-95 ${'bg-[#1B4332] text-white hover:scale-105'}`}
             >
               <ChevronLeft size={18} />
               Return to Wisdom
@@ -2347,8 +2347,8 @@ function AppContent() {
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
-            { id: 'momentum', icon: TrendingUp, label: 'Progress' },
-            { id: 'toolkit', icon: Wrench, label: 'Toolkit' },
+            { id: 'momentum', icon: TrendingUp, label: 'Journey' },
+            { id: 'toolkit', icon: Layers, label: 'Practice' },
           ].map((tab) => {
             const Icon = tab.icon;
 
@@ -2361,10 +2361,10 @@ function AppContent() {
                 }}
                 className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-2 md:px-4 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
                   ? isDarkMode
-                    ? 'bg-white/10 text-white'
+                    ? 'bg-white/20 text-white border border-white/20'
                     : 'bg-sage/20 text-sage'
                   : isDarkMode
-                    ? 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                    ? 'text-white/60 hover:text-white hover:bg-white/5'
                     : 'text-sage/60 hover:text-sage hover:bg-sage/10'
                   } `}
               >
@@ -2372,8 +2372,8 @@ function AppContent() {
                   <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
                   {tab.id === 'momentum' && (user?.streak ?? 0) > 0 && (
                     <span
-                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#355E3B] animate-pulse"
-                      style={{ boxShadow: '0 0 4px rgba(53,94,59,0.8)' }}
+                      className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white animate-pulse"
+                      style={{ boxShadow: '0 0 8px rgba(255, 255, 255, 0.4)' }}
                     />
                   )}
                 </div>
@@ -2617,7 +2617,7 @@ function AppContent() {
             exit={{ y: 100, opacity: 0, scale: 0.9 }}
             className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[200]"
           >
-            <div className={`px-6 py-3 rounded-full shadow-popup flex items-center gap-3 backdrop-blur-xl border ${isDarkMode ? 'bg-pale-gold/90 text-[#2E362A] border-white/20' : 'bg-[#4E5C4C]/90 text-white border-[#4E5C4C]/20'}`}>
+            <div className={`px-6 py-3 rounded-full shadow-popup flex items-center gap-3 backdrop-blur-xl border ${isDarkMode ? 'bg-pale-gold/90 text-[#2E362A] border-white/20' : 'bg-[#355E3B]/90 text-white border-[#355E3B]/20'}`}>
               <CheckCircle2 size={18} />
               <span className="text-sm font-display font-bold uppercase tracking-widest">{toastMessage}</span>
             </div>
@@ -2625,10 +2625,7 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* Quick Actions FAB */}
-      {activeTab !== 'coach' && <QuickActionsFAB onAction={handleQuickAction} isDarkMode={isDarkMode} userOrder={user?.exploreOrder} />}
-
-      {/* Nudge Settings Modal (Home Shortcut) */}
+{/* Nudge Settings Modal (Home Shortcut) */}
       {
         user && (
           <CoachSettingsModal
@@ -2667,7 +2664,16 @@ function AppContent() {
                     setLetterContext('manual');
                     setShowLetterWrite(true);
                   }}
-
+                  onRefreshNarrative={async () => {
+                    if (!user) return;
+                    const text = await generateUserNarrative(user);
+                    if (text) {
+                      updateProfile({
+                        ...user,
+                        userNarrative: { text, generatedAt: new Date().toISOString() }
+                      });
+                    }
+                  }}
                 />
               </div>
             </SlideUpModal>
@@ -2701,7 +2707,7 @@ function AppContent() {
         {
           user && (
             <VibeCheck
-              isOpen={showVibeCheck && !showWelcome}
+              isOpen={showVibeCheck}
               onSelect={(tier, source, content) => {
                 handleProfileUpdate(prev => {
                   if (!prev) return prev!;
@@ -2836,13 +2842,20 @@ function AppContent() {
   return appJsx;
 }
 
+function SubscriptionBridge({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return <SubscriptionProvider userId={user?.id}>{children}</SubscriptionProvider>;
+}
+
 function App() {
   return (
     <DebugErrorBoundary name="Root App">
       <AuthProvider>
-        <UserProvider>
-          <AppContent />
-        </UserProvider>
+        <SubscriptionBridge>
+          <UserProvider>
+            <AppContent />
+          </UserProvider>
+        </SubscriptionBridge>
       </AuthProvider>
     </DebugErrorBoundary>
   );

@@ -53,7 +53,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
             } relative`}>
             {/* TOAST NOTIFICATION */}
             {toast && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-[#3A1700]/80 backdrop-blur text-white text-xs font-bold shadow-xl animate-fade-in-up flex items-center gap-2 pointer-events-none">
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-black/20 backdrop-blur text-white text-xs font-bold shadow-xl animate-fade-in-up flex items-center gap-2 pointer-events-none">
                     <Flame size={12} className="text-orange-500" fill="currentColor" />
                     {toast}
                 </div>

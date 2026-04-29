@@ -44,7 +44,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
 
             <div className="p-4 space-y-4 pb-12">
                 {favoriteQuotes.length === 0 ? (
-                    <div className="text-center py-20 opacity-50">
+                    <div className={`text-center py-20 opacity-50 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
                         <Heart size={48} className="mx-auto mb-4 opacity-20" />
                         <p>No favorites yet. <br />Save quotes you love!</p>
                     </div>

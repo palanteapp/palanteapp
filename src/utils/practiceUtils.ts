@@ -21,20 +21,30 @@ export const getDaysDifference = (date1: string, date2: string): number => {
     return Math.floor(Math.abs(d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
 };
 
-/** Get display details for a streak milestone (legacy streak celebrations) */
+/** Get display details for a count milestone (Total Practices) */
 export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year') => {
     const milestones = {
-        first: { title: 'First Step', icon: 'Sprout', message: "You've completed your very first practice! A journey of a thousand miles begins with a single step.", days: 1 },
-        three: { title: 'Consistency Starter', icon: 'Sun', message: "Three practices completed! You're planting the seeds of habit.", days: 3 },
-        week: { title: 'Week Warrior', icon: 'Flame', message: "You've completed 7 total practices! Your momentum is building beautifully.", days: 7 },
-        fortnight: { title: 'Fortnight Flow', icon: 'Compass', message: "14 total practices. You've established a great rhythm!", days: 14 },
-        month: { title: 'Monthly Master', icon: 'Trophy', message: "30 practices of dedication! You're building unstoppable habits!", days: 30 },
-        fifty: { title: 'Half-Century Hero', icon: 'Star', message: "50 total practices! Your commitment to yourself is inspiring.", days: 50 },
-        century: { title: 'Century Champion', icon: 'Award', message: "100 practices! You're in the top 1% of committed individuals!", days: 100 },
-        twohundred: { title: 'Dedicated Soul', icon: 'Heart', message: "200 practices. This is no longer a habit, it's a lifestyle.", days: 200 },
-        year: { title: 'Year Legend', icon: 'PartyPopper', message: '365 practices of excellence! You are a true master of consistency!', days: 365 },
+        first: { title: 'First Step', icon: 'Sprout', message: "You've completed your very first practice! A journey of a thousand miles begins with a single step.", label: 'Total Practices', days: 1 },
+        three: { title: 'Consistency Starter', icon: 'Sun', message: "Three practices completed! You're planting the seeds of habit.", label: 'Total Practices', days: 3 },
+        week: { title: 'Week Warrior', icon: 'Flame', message: "You've completed 7 total practices! Your momentum is building beautifully.", label: 'Total Practices', days: 7 },
+        fortnight: { title: 'Consistent Flow', icon: 'Compass', message: "14 total practices. You're building a solid foundation of self-care.", label: 'Total Practices', days: 14 },
+        month: { title: 'Dedicated Practitioner', icon: 'Trophy', message: "30 total practices of showing up for yourself. This is how transformation happens.", label: 'Total Practices', days: 30 },
+        fifty: { title: 'Intrinsic Master', icon: 'Star', message: "50 total practices! You've proven your commitment to your path.", label: 'Total Practices', days: 50 },
+        century: { title: 'Elite Practitioner', icon: 'Award', message: "100 total practices! You are now among the top 1% of consistent souls.", label: 'Total Practices', days: 100 },
+        twohundred: { title: 'Lifestyle Legend', icon: 'Heart', message: "200 practices. This is no longer a task—it's who you are.", label: 'Total Practices', days: 200 },
+        year: { title: 'The Year of You', icon: 'PartyPopper', message: '365 total practices of excellence! A monumental achievement of consistency.', label: 'Total Practices', days: 365 },
     };
     return milestones[milestone];
+};
+
+/** Get display details for a true STREAK milestone */
+export const getStreakMilestoneDetails = (days: number) => {
+    const details: Record<number, any> = {
+        7: { title: 'Unstoppable Week', icon: 'Flame', message: "7 days in a row! You are officially in a state of momentum. Don't stop now!", label: 'Day Streak' },
+        30: { title: 'Monthly Legend', icon: 'Trophy', message: "30 straight days of dedication. You have hard-wired this habit into your life.", label: 'Day Streak' },
+        100: { title: 'Centurion Streak', icon: 'Award', message: "100 days of consistency. You are a master of your own path.", label: 'Day Streak' }
+    };
+    return details[days] || { title: `${days} Day Streak`, icon: 'Flame', message: `Incredible! ${days} days of showing up for yourself.`, label: 'Day Streak' };
 };
 
 import type { UserProfile } from '../types';
@@ -331,8 +341,8 @@ export const analyzeBehaviorPatterns = (user: UserProfile) => {
         }
     });
 
-    // 3. Pomodoro Interruption Fallback
-    // If user completes few Pomodoros compared to starts (if we tracked starts)
+    // 3. Focus cycle Interruption Fallback
+    // If user completes few Focus cycles compared to starts (if we tracked starts)
     // For now, we use the completion count as a baseline
     const completedFocus = user.dailyFocuses?.filter(f => f.isCompleted).length || 0;
     if (completedFocus < 2 && (user.journalEntries?.length || 0) > 5) {

@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { Share2, Heart, Lightbulb, Clock } from 'lucide-react';
 import type { Quote } from '../types';
-import { QuoteCardGenerator } from './QuoteCardGenerator';
 import { ShareModal } from './ShareModal';
-import html2canvas from 'html2canvas';
+import { generateShareImage } from '../utils/shareUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface QuoteDisplayProps {
@@ -26,80 +25,34 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
 
   const handleGenerateImage = async () => {
     setIsGeneratingImage(true);
-    await new Promise(resolve => setTimeout(resolve, 100));
-
     try {
-      const element = document.getElementById('quote-card-generator');
-      if (element) {
-        const canvas = await html2canvas(element, {
-          scale: 1,
-          backgroundColor: null,
-          useCORS: true,
+      const image = await generateShareImage(quote, quote.id);
+      const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire';
+      const shareText = isTierQuote
+        ? `"${quote.text}"\n\n- @palante.app`
+        : `"${quote.text}" - ${quote.author}\n\n- @palante.app`;
+
+      try {
+        const { Share } = await import('@capacitor/share');
+        const { Directory, Filesystem } = await import('@capacitor/filesystem');
+        const fileName = `palante_quote_${Date.now()}.png`;
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: image.split(',')[1],
+          directory: Directory.Cache,
         });
+        await Share.share({ title: 'Inspiration from Palante', text: shareText, url: savedFile.uri });
+        setShowShareMenu(false);
+        return;
+      } catch { /* fall through */ }
 
-        const image = canvas.toDataURL('image/png');
-
-        try {
-          // Try Capacitor Share first
-          const { Share } = await import('@capacitor/share');
-          const { Directory, Filesystem } = await import('@capacitor/filesystem');
-
-          // Write file to cache
-          const fileName = `palante_quote_${Date.now()}.png`;
-          const savedFile = await Filesystem.writeFile({
-            path: fileName,
-            data: image.split(',')[1],
-            directory: Directory.Cache
-          });
-
-          await Share.share({
-            title: 'Inspiration from Palante',
-            text: quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire'
-              ? `"${quote.text}"\n\n- @palante.app` // Tier quote
-              : `"${quote.text}" - ${quote.author}\n\n- @palante.app`, // Standard quote
-            url: savedFile.uri,
-          });
-
-          setShowShareMenu(false);
-          setIsGeneratingImage(false);
-          return;
-
-        } catch { /* intentional */ }
-
-        if (navigator.share) {
-          try {
-            const blob = await (await fetch(image)).blob();
-            const file = new File([blob], 'palante_quote.png', { type: 'image/png' });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire';
-              const shareText = isTierQuote
-                ? `"${quote.text}"\n\n- @palante.app`
-                : `"${quote.text}" - ${quote.author}\n\n- @palante.app`;
-
-              await navigator.share({
-                files: [file],
-                title: 'Inspiration from Palante',
-                text: shareText,
-              });
-              setShowShareMenu(false);
-              setIsGeneratingImage(false);
-              return;
-            }
-          } catch { /* intentional */ }
-        }
-
-        // Fallback: Download
-        const link = document.createElement('a');
-        link.href = image;
-        link.download = `palante_quote_${Date.now()}.png`;
-        link.click();
-
-        alert('Image saved to your device! You can now upload it to your Story.');
-      }
+      // Web fallback
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `palante_quote_${Date.now()}.png`;
+      link.click();
     } catch (error) {
       console.error('Error generating image:', error);
-      alert('Could not generate image. Please try again.');
     } finally {
       setIsGeneratingImage(false);
       setShowShareMenu(false);
@@ -115,12 +68,10 @@ export const QuoteDisplay: React.FC<QuoteDisplayProps> = ({
 
   return (
     <>
-      <QuoteCardGenerator id="quote-card-generator" quote={quote} isDarkMode={isDarkMode} />
-
       <div className={`relative w-full flex items-center justify-center transition-opacity duration-300 ${showShareMenu ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         {/* Main Quote Card - Polished Layout */}
         <div className={`relative w-full z-10 flex flex-col items-center justify-center text-center p-8 md:p-14 rounded-[2.5rem] border backdrop-blur-md transition-all duration-300 ${isDarkMode
-          ? 'bg-[#3A1700]/20 border-white/10 shadow-2xl'
+          ? 'bg-black/20 border-white/10 shadow-2xl'
           : 'bg-white/70 border-sage/20 shadow-spa-xl'
           }`}
         >

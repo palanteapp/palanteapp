@@ -35,7 +35,7 @@ export const TierSelector: React.FC<TierSelectorProps> = ({ currentTier, onSelec
                                 ? isDarkMode ? 'bg-pale-gold text-warm-gray-green border-pale-gold shadow-spa' : 'bg-sage text-white border-sage shadow-spa'
                                 : isDarkMode
                                     ? 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                                    : 'bg-white/40 border-sage/10 text-sage-dark/60 hover:bg-white/60'
+                                    : 'bg-white/40 border-sage/10 text-sage-dark hover:bg-white/60'
                                 }`}
                             title={tier.description}
                         >

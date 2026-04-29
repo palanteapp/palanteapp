@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Share2, Heart, Clock, Settings, RefreshCw } from 'lucide-react';
+import { Share2, Heart, Clock, Settings, RefreshCw, Pin } from 'lucide-react';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import type { Quote } from '../types';
 import { ShareModal } from './ShareModal';
-import html2canvas from 'html2canvas';
+// html2canvas removed — image generation now uses Canvas 2D API via shareUtils
 
 interface DashboardQuoteCardProps {
     quote: Quote;
@@ -31,20 +32,20 @@ const DynamicArtBackground = ({ seed }: { seed: string }) => {
         const x = Math.sin(hash + i) * 10000;
         return x - Math.floor(x);
     };
-    const colors = ['#F59E0B', '#FCD34D', '#FF8A65', '#4FD1C5', '#F472B6'];
+    // Earthy palette — matches SharedQuotePreview exactly so home card = share card
+    const colors = ['#F59E0B', '#E5D6A7', '#C96A3A', '#415D43', '#879582'];
     return (
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
             preserveAspectRatio="xMidYMid slice">
-            <rect width="400" height="520" fill={colors[Math.floor(getRand(seed, 0) * colors.length)]} opacity="0.8" />
+            <rect width="400" height="520" fill={colors[Math.floor(getRand(seed, 0) * colors.length)]} opacity="0.85" />
             {[1, 2, 3, 4, 5].map((i) => (
                 <circle key={i}
                     cx={50 + getRand(seed, i * 10) * 300}
                     cy={50 + getRand(seed, i * 20) * 420}
                     r={150 + getRand(seed, i * 30) * 150}
                     fill={colors[Math.floor(getRand(seed, i * 40) * colors.length)]}
-                    opacity={0.4 + getRand(seed, i * 50) * 0.4}
-                    style={{ mixBlendMode: 'multiply' }}
+                    opacity={0.18 + getRand(seed, i * 50) * 0.22}
                 />
             ))}
         </svg>
@@ -62,6 +63,14 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
 }) => {
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [gyroPermitted, setGyroPermitted] = useState(false);
+    const [pinnedQuoteId, setPinnedQuoteId] = useState<string | null>(() => {
+        try {
+            const p = localStorage.getItem(STORAGE_KEYS.PINNED_QUOTE);
+            return p ? JSON.parse(p)?.id ?? null : null;
+        } catch { return null; }
+    });
+    const [pinConfirm, setPinConfirm] = useState(false);
 
     const MAX_REFRESHES = 3;
     const getTodayKey = () => {
@@ -85,28 +94,39 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     const seed = `${quote.id}-${new Date().toLocaleDateString()}-${refreshCount}`;
 
     // ── Share ──────────────────────────────────────────────────────────────
+    const getShareFileName = () => {
+        const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).replace(/,/g, '');
+        return `Palante Wisdom - ${quoteAuthor} - ${date}.jpg`;
+    };
+
     const handleShare = async () => {
         setIsGeneratingImage(true);
         try {
-            const element = document.getElementById('share-preview-container');
-            if (!element) throw new Error('Preview element not found');
-            const canvas = await html2canvas(element, {
-                scale: 8, backgroundColor: null, useCORS: true, allowTaint: true, logging: false,
-            });
-            const base64Data = canvas.toDataURL('image/png').split(',')[1];
+            const { generateShareImage } = await import('../utils/shareUtils');
+            const dataUrl   = await generateShareImage(quote, seed);
+            const base64    = dataUrl.split(',')[1];
+            const fileName  = getShareFileName();
+
             const { Directory, Filesystem } = await import('@capacitor/filesystem');
-            const savedFile = await Filesystem.writeFile({
-                path: `palante_quote_${Date.now()}.png`, data: base64Data, directory: Directory.Cache,
+            const saved = await Filesystem.writeFile({
+                path: fileName, data: base64, directory: Directory.Cache,
             });
+
             const { Share } = await import('@capacitor/share');
-            await Share.share({ title: 'Inspiration from Palante', files: [savedFile.uri], dialogTitle: 'Share your inspiration' });
+            await Share.share({
+                title: 'Inspiration from Palante',
+                files: [saved.uri],
+                dialogTitle: 'Share your inspiration',
+            });
         } catch (error) {
             console.error('[Palante] Share error:', error);
             try {
                 const { Share } = await import('@capacitor/share');
                 await Share.share({
                     title: 'Inspiration from Palante',
-                    text: isTierQuote ? `"${quoteText}"\n\n— @palante.app` : `"${quoteText}" — ${quoteAuthor}\n\n@palante.app`,
+                    text: isTierQuote
+                        ? `"${quoteText}"\n\n— @palante.app`
+                        : `"${quoteText}" — ${quoteAuthor}\n\n@palante.app`,
                 });
             } catch { /* share cancelled */ }
         } finally {
@@ -114,54 +134,144 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
         }
     };
 
+    const handleDownload = async () => {
+        setIsGeneratingImage(true);
+        try {
+            const { generateShareImage } = await import('../utils/shareUtils');
+            const dataUrl = await generateShareImage(quote, seed);
+            
+            // On desktop/Mac, standard anchor d/l works best
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = getShareFileName();
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('[Palante] Download error:', error);
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    };
+
+    // ── Pin to widget ─────────────────────────────────────────────────────
+    const isThisQuotePinned = pinnedQuoteId === quote.id;
+
+    const handleTogglePin = () => {
+        if (isThisQuotePinned) {
+            localStorage.removeItem(STORAGE_KEYS.PINNED_QUOTE);
+            setPinnedQuoteId(null);
+        } else {
+            const pinData = { id: quote.id, text: quoteText, author: quoteAuthor, pinnedAt: Date.now() };
+            localStorage.setItem(STORAGE_KEYS.PINNED_QUOTE, JSON.stringify(pinData));
+            setPinnedQuoteId(quote.id);
+            setPinConfirm(true);
+            setTimeout(() => setPinConfirm(false), 2200);
+        }
+        try { import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic()); } catch { /* */ }
+    };
+
     // ── Parallax ──────────────────────────────────────────────────────────
     // Raw input [-0.5, 0.5] on each axis
     const rawX = useMotionValue(0);
     const rawY = useMotionValue(0);
 
-    // Smooth physics — gentle stiffness for a weighty-card feel
-    const springCfg = { stiffness: 70, damping: 18, mass: 1 };
+    // Fluid spring — low stiffness + high damping = heavy card that settles without bounce
+    const springCfg = { stiffness: 50, damping: 22, mass: 0.85 };
     const springX = useSpring(rawX, springCfg);
     const springY = useSpring(rawY, springCfg);
 
     // 1. Card 3D tilt — perspective is on the wrapper div below
-    const rotateY = useTransform(springX, [-0.5, 0.5], [-10, 10]);
-    const rotateX = useTransform(springY, [-0.5, 0.5], [ 8, -8]);
+    //    Reduced to ±7° so the tilt reads as depth, not spinning
+    const rotateY = useTransform(springX, [-0.5, 0.5], [-7,  7]);
+    const rotateX = useTransform(springY, [-0.5, 0.5], [ 5, -5]);
 
-    // 2. Background drifts WITH tilt (feels like it's on a far layer)
-    const bgX = useTransform(springX, [-0.5, 0.5], ['-12%', '12%']);
-    const bgY = useTransform(springY, [-0.5, 0.5], [ '-8%',  '8%']);
+    // 2. Background drifts WITH tilt and sits deeper in Z-space (scale covers the gap)
+    const bgX = useTransform(springX, [-0.5, 0.5], ['-10%', '10%']);
+    const bgY = useTransform(springY, [-0.5, 0.5], [ '-7%',  '7%']);
 
-    // 3. Quote box counter-drifts AGAINST tilt (feels elevated / close)
-    const boxX = useTransform(springX, [-0.5, 0.5], [ 8, -8]);
-    const boxY = useTransform(springY, [-0.5, 0.5], [ 6, -6]);
+    // 3. Quote box counter-drifts AGAINST tilt — feels like it floats above the card
+    const boxX = useTransform(springX, [-0.5, 0.5], [ 6, -6]);
+    const boxY = useTransform(springY, [-0.5, 0.5], [ 4, -4]);
 
     // 4. Dynamic shadow shifts opposite to tilt
-    const shadowX = useTransform(springX, [-0.5, 0.5], [ 14, -14]);
-    const shadowY = useTransform(springY, [-0.5, 0.5], [ 24,   6]);
+    const shadowX = useTransform(springX, [-0.5, 0.5], [ 12, -12]);
+    const shadowY = useTransform(springY, [-0.5, 0.5], [ 28,   8]);
     const boxShadow = useTransform(
         [shadowX, shadowY] as const,
         ([sx, sy]: number[]) =>
-            `${sx}px ${sy}px 48px -8px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.12)`,
+            `${sx}px ${sy}px 56px -8px rgba(0,0,0,0.32), 0 4px 16px rgba(0,0,0,0.10)`,
     );
 
     // 5. Specular gloss — a soft highlight that sweeps left→right as card tilts
     const glossLeft  = useTransform(springX, [-0.5, 0.5], ['-20%', '120%']);
-    const glossOpacity = useTransform(springX, [-0.5, 0.5], [0.22, 0.06]);
+    const glossOpacity = useTransform(springX, [-0.5, 0.5], [0.20, 0.04]);
 
     // Gyroscope (device) input
+    // iOS 13+ silently blocks deviceorientation until requestPermission() is called.
+    // It MUST be invoked directly from a native (non-React) touchend handler — async
+    // React synthetic events are outside the gesture boundary iOS enforces.
     useEffect(() => {
+        const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+
+        if (typeof DOE.requestPermission !== 'function') {
+            // Android, desktop, or older iOS — events fire freely
+            setGyroPermitted(true);
+            return;
+        }
+
+        // Request on first native touchend anywhere on the page
+        const requestOnFirstTouch = () => {
+            DOE.requestPermission()
+                .then((result: string) => { if (result === 'granted') setGyroPermitted(true); })
+                .catch(() => { setGyroPermitted(true); });
+        };
+
+        window.addEventListener('touchend', requestOnFirstTouch, { once: true });
+        return () => window.removeEventListener('touchend', requestOnFirstTouch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Idle breathing animation — slow sine oscillation until gyro takes over
+    useEffect(() => {
+        let raf: number;
+        let gyroActive = false;
+        const start = performance.now();
+
+        const tick = (now: number) => {
+            if (!gyroActive) {
+                const t = (now - start) / 1000;
+                // Slower, gentler breathing (0.22/0.16 Hz) — feels like the card is alive, not jittery
+                rawX.set(Math.sin(t * 0.22) * 0.26);
+                rawY.set(Math.sin(t * 0.16 + 1.2) * 0.18);
+            }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+
+        // Only stop idle when real motion data arrives (not null-value iOS permission-pending events)
+        const stopIdle = (e: DeviceOrientationEvent) => {
+            if (e.gamma !== null && e.beta !== null && Math.abs(e.gamma) > 0.5) gyroActive = true;
+        };
+        window.addEventListener('deviceorientation', stopIdle);
+
+        return () => {
+            cancelAnimationFrame(raf);
+            window.removeEventListener('deviceorientation', stopIdle as EventListener);
+        };
+    }, [rawX, rawY]);
+
+    useEffect(() => {
+        if (!gyroPermitted) return;
         const handle = (e: DeviceOrientationEvent) => {
             if (e.gamma === null || e.beta === null) return;
             // Natural hold ≈ 45° beta; normalize to [-0.5, 0.5]
             rawX.set(Math.max(-0.5, Math.min(0.5, e.gamma / 45)));
             rawY.set(Math.max(-0.5, Math.min(0.5, (e.beta - 45) / 45)));
         };
-        if (typeof DeviceOrientationEvent !== 'undefined') {
-            window.addEventListener('deviceorientation', handle, true);
-        }
+        window.addEventListener('deviceorientation', handle, true);
         return () => window.removeEventListener('deviceorientation', handle, true);
-    }, [rawX, rawY]);
+    }, [gyroPermitted, rawX, rawY]);
 
     // Mouse input (desktop preview)
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -188,12 +298,12 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                     exit={{ opacity: 0, y: -12, scale: 0.97 }}
                     transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
                     className="w-full"
-                    /* perspective on the WRAPPER — this is the camera */
-                    style={{ perspective: '900px', perspectiveOrigin: '50% 50%' }}
+                    /* perspective on the WRAPPER — smaller value = more dramatic 3D */
+                    style={{ perspective: '1100px', perspectiveOrigin: '50% 45%' }}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
                 >
-                    {/* ── 3D tilting card ── */}
+                    {/* ── 3D tilting card — preserve-3d lets children use translateZ for real depth ── */}
                     <motion.div
                         style={{
                             rotateX,
@@ -201,21 +311,24 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             boxShadow,
                             position: 'relative',
                             borderRadius: '32px',
-                            overflow: 'hidden',           // clips bg art to rounded corners
-                            backgroundColor: '#B5C2B1',
+                            overflow: 'hidden',
+                            backgroundColor: '#415D43',
                             display: 'flex',
                             flexDirection: 'column',
                             willChange: 'transform',
+                            transformStyle: 'preserve-3d',
                         }}
                     >
-                        {/* ── Background art — drifts WITH tilt ── */}
+                        {/* ── Background art — pushed back in Z so it reads as a distant layer ── */}
                         <motion.div
                             style={{
                                 position: 'absolute',
-                                inset: '-12%',
+                                inset: 0,
                                 x: bgX,
                                 y: bgY,
+                                z: -16,            // recedes behind card surface
                                 pointerEvents: 'none',
+                                scale: 1.35,       // extra scale covers ±10% drift + z recession
                             }}
                         >
                             <DynamicArtBackground seed={seed} />
@@ -239,18 +352,19 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             }}
                         />
 
-                        {/* ── Quote box — counter-drifts AGAINST tilt ── */}
+                        {/* ── Quote box — counter-drifts AGAINST tilt, floats forward in Z ── */}
                         <motion.div
                             style={{
                                 position: 'relative',
                                 zIndex: 4,
-                                margin: '40px 32px 24px 32px',
+                                margin: '40px 24px 24px 24px',
                                 x: boxX,
                                 y: boxY,
+                                z: 28,             // floats in front of the card surface
                                 backgroundColor: '#FDFBF7',
                                 borderRadius: '24px',
                                 padding: '40px 24px 32px 24px',
-                                boxShadow: '0 16px 40px rgba(0,0,0,0.13)',
+                                boxShadow: '0 24px 60px rgba(0,0,0,0.22), 0 8px 20px rgba(0,0,0,0.10)',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -279,7 +393,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             </AnimatePresence>
 
                             {!isTierQuote && (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px' }}>
                                     <div style={{ width: '20px', height: '1px', backgroundColor: '#879582', opacity: 0.4 }} />
                                     <p style={{
                                         fontFamily: '"Inter", sans-serif',
@@ -357,6 +471,22 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                                 </motion.button>
                             )}
 
+                            {/* Pin to widget */}
+                            <motion.button
+                                whileTap={{ scale: 0.85 }}
+                                onClick={handleTogglePin}
+                                aria-label={isThisQuotePinned ? 'Unpin from widget' : 'Pin to widget'}
+                                style={{
+                                    padding: '12px', borderRadius: '50%', border: 'none',
+                                    background: isThisQuotePinned ? 'rgba(201,106,58,0.18)' : 'rgba(255,255,255,0.4)',
+                                    cursor: 'pointer',
+                                    color: isThisQuotePinned ? '#C96A3A' : btnColor,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)',
+                                }}
+                            >
+                                <Pin size={18} strokeWidth={2} fill={isThisQuotePinned ? 'currentColor' : 'none'} />
+                            </motion.button>
+
                             {onOpenSettings && (
                                 <motion.button whileTap={{ scale: 0.85 }} onClick={onOpenSettings}
                                     style={{ padding: '12px', borderRadius: '50%', border: 'none', background: 'rgba(255,255,255,0.4)',
@@ -369,12 +499,35 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                 </motion.div>
             </AnimatePresence>
 
+            {/* Pin confirmation toast */}
+            <AnimatePresence>
+                {pinConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.35 }}
+                        style={{
+                            position: 'absolute', bottom: '-12px', left: '50%', transform: 'translateX(-50%)',
+                            background: '#C96A3A', color: '#fff',
+                            padding: '8px 20px', borderRadius: '999px',
+                            fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em',
+                            whiteSpace: 'nowrap', boxShadow: '0 4px 16px rgba(201,106,58,0.35)',
+                            zIndex: 20,
+                        }}
+                    >
+                        Pinned to your widget
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <ShareModal
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
                 quote={quote}
                 isDarkMode={isDarkMode}
                 onGenerateImage={handleShare}
+                onDownloadImage={handleDownload}
                 isGeneratingImage={isGeneratingImage}
                 seed={seed}
             />

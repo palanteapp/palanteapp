@@ -143,7 +143,7 @@ const SakuraPetals = memo(({ isDarkMode }: { isDarkMode: boolean }) => {
 // 1. Box Breathing: "Sacred Box Dynamics"
 // Concept: Nested squares that expand/contract and rotate in alternating directions
 // Dynamic, structural, and strictly aligned with breath phases
-const SacredBoxDynamics = memo(({ phase, progress, scale }: { phase: string, progress: number, scale: number }) => {
+const SacredBoxDynamics = memo(({ phase, progress }: { phase: string, progress: number }) => {
     const cx = 170;
     const cy = 170;
 
@@ -168,8 +168,7 @@ const SacredBoxDynamics = memo(({ phase, progress, scale }: { phase: string, pro
     }
 
     return (
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu transition-transform duration-1000 ease-out"
-            style={{ transform: `scale(${scale})` }}>
+        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu">
             <svg viewBox="0 0 340 340" className="w-full h-full overflow-visible">
                 <defs>
                     <filter id="box-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -235,7 +234,7 @@ const SacredBoxDynamics = memo(({ phase, progress, scale }: { phase: string, pro
 
 // 2. Coherent Breathing: "The Flower of Life"
 // Concept: A sacred geometry mesh that gently expands and blooms
-const FlowerOfLife = memo(({ phase, progress, scale }: { phase: string, progress: number, scale: number }) => {
+const FlowerOfLife = memo(({ phase, progress }: { phase: string, progress: number }) => {
     const cx = 170;
     const cy = 170;
     const baseRadius = 48; // Consistent sizing
@@ -278,8 +277,7 @@ const FlowerOfLife = memo(({ phase, progress, scale }: { phase: string, progress
     }
 
     return (
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu transition-transform duration-1000 ease-out"
-            style={{ transform: `scale(${scale})` }}>
+        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu">
             <svg viewBox="0 0 340 340" className="w-full h-full overflow-visible">
                 <defs>
                     <filter id="flower-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -333,7 +331,7 @@ const FlowerOfLife = memo(({ phase, progress, scale }: { phase: string, progress
 // 3. 4-7-8 Breathing: "The Mandala Bloom"
 // Concept: Sacred flower-of-life pattern that blooms and contracts
 // Orbs travel from center to petals and back
-const MandalaBloom = memo(({ phase, progress, scale }: { phase: string, progress: number, scale: number }) => {
+const MandalaBloom = memo(({ phase, progress }: { phase: string, progress: number }) => {
     const cx = 170;
     const cy = 170;
     const petalCount = 8;
@@ -382,8 +380,7 @@ const MandalaBloom = memo(({ phase, progress, scale }: { phase: string, progress
     const centerGlowOpacity = phase === 'HoldIn' ? 0.8 : 0.4 + (expansionRadius / maxRadius) * 0.2;
 
     return (
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu transition-transform duration-1000 ease-out"
-            style={{ transform: `scale(${scale})` }}>
+        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu">
             <svg viewBox="0 0 340 340" className="w-full h-full overflow-visible">
                 <defs>
                     <filter id="mandala-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -490,10 +487,10 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
     const [status, setStatus] = useState<'idle' | 'countdown' | 'active'>('idle');
     const [isPaused, setIsPaused] = useState(false);
 
-    // DEBUG: Trace Mount and Pause
-    useEffect(() => { console.log(`[Breathing] MOUNT/UPDATE. Tech: ${activeTechnique}, Status: ${status}`); }, [activeTechnique, status]);
-    useEffect(() => { console.log(`[Breathing] isPaused changed to: ${isPaused}`); }, [isPaused]);
 
+
+    // DOM ref for direct scale manipulation — bypasses React for 60fps smoothness
+    const visualScaleRef = useRef<HTMLDivElement>(null);
 
     // Safety Refs
     const statusRef = useRef(status);
@@ -521,7 +518,8 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
             immersiveHaptics: false,
             dynamicBackgrounds: false,
             smoothTransitions: false,
-            natureParticles: false
+            natureParticles: false,
+            hapticDarkMode: false
         };
     });
 
@@ -561,33 +559,17 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
             if ('wakeLock' in navigator) {
                 const lock = await navigator.wakeLock.request('screen');
                 setWakeLock(lock);
-                console.log('🔒 Wake Lock acquired - screen will stay awake');
-
-                lock.addEventListener('release', () => {
-                    console.log('🔓 Wake Lock released');
-                });
-            } else {
-                console.warn('⚠️ Wake Lock API not supported on this device');
             }
-        } catch (err) {
-            console.error('❌ Failed to acquire wake lock:', err);
-        }
+        } catch { /* ignore */ }
     };
 
     const releaseWakeLock = useCallback(async () => {
         if (wakeLock) {
-            try {
-                await wakeLock.release();
-                setWakeLock(null);
-                console.log('🔓 Wake Lock released manually');
-            } catch (err) {
-                console.error('❌ Failed to release wake lock:', err);
-            }
+            try { await wakeLock.release(); setWakeLock(null); } catch { /* ignore */ }
         }
     }, [wakeLock]);
 
     const reset = useCallback(async () => {
-        console.log(`[Breathing] RESET CALLED.`);
         setStatus('idle');
         setIsPaused(false);
         setCountdownVal(5);
@@ -601,7 +583,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
         pausedTimeRef.current = 0;
         lastTickRef.current = 0;
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
-        // Release wake lock on reset
+        if (visualScaleRef.current) visualScaleRef.current.style.transform = '';
         await releaseWakeLock();
     }, [releaseWakeLock]);
 
@@ -720,14 +702,22 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
 
         const progress = timeInCurrentPhase / (activePhase.duration * 1000);
 
-        // AUDIO GUIDE removed as per user request
+        // Direct DOM scale — same rAF frame, no React reconciliation, no dropped frames
+        if (visualScaleRef.current) {
+            const ease = (t: number) => (1 - Math.cos(t * Math.PI)) / 2;
+            const ph = activePhase.name;
+            const coh = currentTech === 'Coherent';
+            let sc: number;
+            if      (ph === 'Exhale')  { sc = 1.12 - (coh ? ease(progress) : progress) * 0.22; }
+            else if (ph === 'HoldOut') { sc = 0.90 + Math.sin(progress * Math.PI) * 0.01; }
+            else if (ph === 'Inhale')  { sc = 0.90 + (coh ? ease(progress) : progress) * 0.22; }
+            else if (ph === 'HoldIn')  { sc = 1.12 + Math.sin(progress * Math.PI) * 0.015; }
+            else                       { sc = 1.0; }
+            visualScaleRef.current.style.transform = `scale(${sc})`;
+        }
+
         setPhaseProgress(progress);
         setCurrentPhaseSimple(activePhase.name);
-
-        // DEBUG LOGGING EVERY 100 FRAMES (approx 1.5s)
-        if (Math.floor(rawElapsed / 100) % 15 === 0) {
-            console.log(`[BreathLoop] Elapsed: ${rawElapsed.toFixed(0)}, Cycle: ${cycleTime.toFixed(0)}, Phase: ${activePhase.name}, TimeInPhase: ${timeInCurrentPhase.toFixed(0)}`);
-        }
 
         const displayName = activePhase.name.startsWith('Hold') ? 'HOLD' : activePhase.name.toUpperCase();
         setPhaseName(displayName);
@@ -749,12 +739,9 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
 
     useEffect(() => {
         if (status === 'active' && !isPaused) {
-            console.log('[Breathing] STARTING ANIMATION LOOP');
             requestRef.current = requestAnimationFrame(animate);
-        }
-        else {
+        } else {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
-            console.log(`[Breathing] STOPPING ANIMATION LOOP (Status: ${status}, Paused: ${isPaused})`);
         }
         return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
     }, [status, isPaused, activeTechnique, animate]);
@@ -766,54 +753,37 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
     }, [isPaused]);
 
 
-    // --- GLOBAL BREATHING SCALE CALCULATOR ---
-    const getGlobalScale = () => {
-        // Base scale = 1.05 (START AT FULL SCALE)
-        // Exhale: 1.05 -> 1.0 (BEGIN WITH EXHALE)
-        // Hold: Stay at 1.0
-        // Inhale: 1.0 -> 1.05
-        // Hold: Stay at 1.05
-        if (status !== 'active') {
-            // Idle/Countdown State:
-            // Start at full scale (expanded) ready to exhale
-            if (status === 'idle') return 1.05;
-            return 1.05;
-        }
 
-        const p = phaseProgress;
-
-        // Smooth easing function for continuous flow (Coherent breathing)
-        // Uses sine wave for natural acceleration/deceleration
-        const smoothEase = (t: number) => {
-            // Sine easing: starts slow, speeds up, slows down at end
-            return (1 - Math.cos(t * Math.PI)) / 2;
-        };
-
-        // Reordered to start with exhale
-        if (currentPhaseSimple === 'Exhale') {
-            // For Coherent breathing, use smooth easing for continuous flow
-            const easedProgress = activeTechnique === 'Coherent' ? smoothEase(p) : p;
-            return 1.05 - (easedProgress * 0.05);
-        }
-        if (currentPhaseSimple === 'HoldOut') return 1.0 + (Math.sin(p * Math.PI) * 0.005);
-        if (currentPhaseSimple === 'Inhale') {
-            // For Coherent breathing, use smooth easing for continuous flow
-            const easedProgress = activeTechnique === 'Coherent' ? smoothEase(p) : p;
-            return 1.0 + (easedProgress * 0.05);
-        }
-        if (currentPhaseSimple === 'HoldIn') return 1.05 + (Math.sin(p * Math.PI) * 0.01); // Subtle pulse
-        return 1.05;
+    // Background hue that shifts with breath phase (for dynamicBackgrounds enhancement)
+    const getPhaseBackground = () => {
+        if (currentPhaseSimple === 'Inhale')
+            return 'radial-gradient(ellipse at 50% 50%, rgba(229,214,167,0.10) 0%, transparent 70%)';
+        if (currentPhaseSimple === 'HoldIn')
+            return 'radial-gradient(ellipse at 50% 50%, rgba(229,214,167,0.15) 0%, transparent 65%)';
+        if (currentPhaseSimple === 'Exhale')
+            return 'radial-gradient(ellipse at 50% 50%, rgba(126,159,137,0.12) 0%, transparent 70%)';
+        if (currentPhaseSimple === 'HoldOut')
+            return 'radial-gradient(ellipse at 50% 50%, rgba(74,111,165,0.08) 0%, transparent 70%)';
+        return 'none';
     };
 
-    const scale = getGlobalScale();
-
     const renderVisual = () => {
-        if (activeTechnique === 'Box') return <SacredBoxDynamics phase={currentPhaseSimple} progress={phaseProgress} scale={scale} />;
-        if (activeTechnique === 'Coherent') return <FlowerOfLife phase={currentPhaseSimple} progress={phaseProgress} scale={scale} />;
-        return <MandalaBloom phase={currentPhaseSimple} progress={phaseProgress} scale={scale} />;
+        if (activeTechnique === 'Box') return <SacredBoxDynamics phase={currentPhaseSimple} progress={phaseProgress} />;
+        if (activeTechnique === 'Coherent') return <FlowerOfLife phase={currentPhaseSimple} progress={phaseProgress} />;
+        return <MandalaBloom phase={currentPhaseSimple} progress={phaseProgress} />;
     };
 
     return (
+        <>
+        <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes breathe-idle {
+                0%, 100% { transform: scale(1.0); }
+                50% { transform: scale(1.08); }
+            }
+            .animate-breathe-idle {
+                animation: breathe-idle 6s ease-in-out infinite;
+            }
+        ` }} />
         <div
             className="relative w-full flex flex-col items-center text-white overflow-hidden bg-transparent"
             onMouseMove={() => { setShowControls(true); setTimeout(() => setShowControls(false), 3000); }}
@@ -839,6 +809,16 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                         <p className="text-white/15 text-[9px] uppercase tracking-[0.3em]">Double-tap to exit</p>
                     </div>
                 </div>
+            )}
+            {/* Dynamic background — warm gold on inhale, cool sage on exhale */}
+            {enhancements.dynamicBackgrounds && status === 'active' && (
+                <div
+                    className="absolute inset-0 z-0 pointer-events-none"
+                    style={{
+                        background: getPhaseBackground(),
+                        transition: 'background 2000ms ease-in-out',
+                    }}
+                />
             )}
             {enhancements.natureParticles && (status === 'active' || status === 'countdown') && <SakuraPetals isDarkMode={isDarkMode} />}
             <div className={`relative z-50 w-full px-6 flex items-center justify-center transition-opacity duration-700 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
@@ -870,8 +850,10 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
 
             <div className="relative z-10 flex-1 w-full flex flex-col items-center">
 
-                {/* Description Text & Landing UI - MOVED TO TOP */}
-                <div className="flex flex-col items-center animate-fade-in text-center gap-6 mb-10 w-full max-w-sm px-6">
+                {/* Description Text & Landing UI — collapses when session is running */}
+                <div className={`flex flex-col items-center text-center w-full max-w-sm px-6 transition-all duration-700 ease-in-out overflow-hidden ${
+                    status === 'idle' ? 'max-h-[400px] opacity-100 gap-6 mb-10' : 'max-h-0 opacity-0 gap-0 mb-0 pointer-events-none'
+                }`}>
                     <h1 className="text-3xl md:text-4xl font-display font-medium text-white tracking-wider uppercase">Breathwork</h1>
 
                     <div className="space-y-2">
@@ -922,8 +904,19 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                     </div>
                 </div>
 
-                {/* Visual Area */}
-                <div className={`relative flex items-center justify-center min-h-[220px] scale-90 mb-6 transition-all duration-700 ${isTransitioning ? 'opacity-0 scale-75 blur-md' : 'opacity-100 scale-100 blur-0'}`}>
+                {/* Visual Area — scale applied via DOM ref in rAF loop, opacity via inline style */}
+                <div
+                    ref={visualScaleRef}
+                    className={`relative flex items-center justify-center min-h-[260px] mb-6 animate-breathe-idle ${
+                        isTransitioning ? 'blur-md' : 'blur-0'
+                    }`}
+                    style={{
+                        opacity: isTransitioning ? 0 : status === 'countdown' ? 0.08 : 1,
+                        transition: 'opacity 500ms ease, filter 600ms ease',
+                        willChange: 'transform',
+                        transformOrigin: 'center center',
+                    }}
+                >
                     {renderVisual()}
                 </div>
 
@@ -950,9 +943,9 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                         )}
 
                         {status === 'active' && (
-                            <div className="text-center flex flex-col gap-1 animate-fade-in z-20">
-                                <span className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase">{isPaused ? 'PAUSED' : phaseName}</span>
-                                <span className="text-pale-gold text-3xl font-mono font-light">{timeLeftInPhase}s</span>
+                            <div className="text-center flex flex-col gap-1 z-20">
+                                <span key={phaseName} className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase animate-fade-in">{isPaused ? 'PAUSED' : phaseName}</span>
+                                <span className="text-pale-gold text-3xl font-mono font-light tabular-nums">{timeLeftInPhase}s</span>
                             </div>
                         )}
 
@@ -1028,5 +1021,6 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                 exclude={['groundingHeartbeat']}
             />
         </div>
+        </>
     );
 });

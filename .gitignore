@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+node_modules.nosync/
+
+# Build output
+dist/
+build/
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.production
+.env.testflight
+.env*.local
+
+# Logs
+*.log
+vite.log
+vite_*.log
+build_session*.log
+lint_*.txt
+
+# Temp / backup files
+src/App.tsx.backup
+*.backup
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# iOS build artifacts (keep source, skip generated)
+ios/App/App/config *.xml
+ios/.DS_Store
+ios/App/.DS_Store
+
+# Misc scripts / one-offs
+fix-vocabulary.cjs
+fix_colors.js
+fix_colors.py
+nuke_ios.py
+purge_widget.py

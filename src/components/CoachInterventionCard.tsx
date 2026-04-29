@@ -56,11 +56,15 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
     const colors = getColorScheme();
 
     return (
-        <div className={`relative rounded-2xl p-5 border-2 ${colors.bg} ${colors.border} backdrop-blur-sm animate-slide-in-up`}>
-            {/* Coach ID Badge - DIFFERENTIATOR FROM QUOTES */}
-            <div className="flex items-center gap-2 mb-3 tracking-widest uppercase text-[10px] font-bold opacity-70">
-                <Sparkles size={10} />
-                <span>Palante Coach Insight</span>
+        <div className={`relative rounded-3xl p-6 border-l-4 border-pale-gold border-r-0 border-t-0 border-b-0 bg-white/10 dark:bg-white/15 backdrop-blur-md shadow-xl animate-fade-in-up`}>
+            {/* Coach ID Badge */}
+            <div className="flex items-center gap-2 mb-4">
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-pale-gold/20 backdrop-blur-md`}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-pale-gold shadow-[0_0_8px_rgba(232,201,155,1)]" />
+                    <span className="tracking-[0.2em] uppercase text-[10px] font-bold text-pale-gold">
+                        Palante Coach Insight
+                    </span>
+                </div>
             </div>
 
             {/* Close button */}
@@ -69,43 +73,38 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
                     haptics.light();
                     onDismiss();
                 }}
-                className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors"
             >
-                <X size={16} className="text-white/80" />
+                <X size={16} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
             </button>
 
             {/* Content */}
-            <div className="flex gap-4">
+            <div className="flex gap-5">
                 {/* Icon */}
-                <div className="flex-shrink-0 p-3 rounded-xl bg-white/10">
+                <div className="flex-shrink-0 p-4 rounded-2xl bg-white/5">
                     {getIcon()}
                 </div>
 
                 {/* Message */}
                 <div className="flex-1 pt-1">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-white/60">
-                            Palante Coach
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
+                            Intelligent Guide
                         </span>
-                        {intervention.priority === 'high' && (
-                            <span className="px-2 py-0.5 rounded-full bg-terracotta-500/20 text-sage-300 text-[10px] font-bold">
-                                WELCOME BACK
-                            </span>
-                        )}
                     </div>
-                    <p className="text-white/90 text-sm leading-relaxed mb-4">
+                    <p className={`text-base font-medium leading-relaxed mb-6 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                         {intervention.message}
                     </p>
 
                     {/* Actions */}
                     {intervention.action && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             <button
                                 onClick={() => {
                                     haptics.success();
                                     onAccept();
                                 }}
-                                className={`flex-1 py-2.5 px-4 rounded-xl ${colors.button} text-white font-medium text-sm transition-all hover:scale-[1.02] active:scale-95`}
+                                className={`flex-1 py-3 px-5 rounded-2xl bg-pale-gold text-sage-dark font-bold text-xs uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-pale-gold/10`}
                             >
                                 {getActionText(intervention.action.type)}
                             </button>
@@ -114,7 +113,7 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
                                     haptics.light();
                                     onDismiss();
                                 }}
-                                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 text-sm font-medium transition-colors"
+                                className={`px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-sage/5 text-sage/60 hover:bg-sage/10'}`}
                             >
                                 Later
                             </button>

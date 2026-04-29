@@ -151,7 +151,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
                             className="transition-all duration-500"
                         />
                     </svg>
-                    <div className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'
+                    <div className={`absolute inset-0 flex items-center justify-center text-xs font-bold ${isDarkMode ? 'text-pale-gold' : 'text-gold-text'
                         }`}>
                         {completion}%
                     </div>

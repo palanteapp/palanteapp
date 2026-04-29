@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings, Check } from 'lucide-react';
 import type { CoachSettings } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import { SlideUpModal } from './SlideUpModal';
+import { haptics } from '../utils/haptics';
 
 interface CoachSettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     settings: CoachSettings;
     onSave: (settings: CoachSettings) => void;
+    onToggleTheme?: () => void;
 }
 
 export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
@@ -17,146 +19,128 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
     settings,
     onSave,
 }) => {
-    const { isDarkMode, toggleDarkMode: onToggleTheme } = useTheme();
+    const { isDarkMode } = useTheme();
     const [localSettings, setLocalSettings] = useState<CoachSettings>(settings);
 
-    const handleSave = () => {
-        onSave(localSettings);
-        onClose();
+    // Auto-save on change
+    const updateLocalSetting = (newSettings: CoachSettings) => {
+        haptics.light();
+        setLocalSettings(newSettings);
+        onSave(newSettings);
     };
 
-    if (!isOpen) return null;
-
     const frequencies = [
-        { value: 'hourly' as const, label: 'Every hour', description: 'Check in every hour' },
-        { value: 'every-2-hours' as const, label: 'Every 2 hours', description: 'Check in twice per day' },
-        { value: 'every-4-hours' as const, label: 'Every 4 hours', description: 'Check in 2-3 times per day' },
-        { value: 'morning-evening' as const, label: 'Morning & Evening', description: 'Start and end of day only' },
+        { value: 'hourly' as const, label: 'Every hour', description: 'Real-time accountability' },
+        { value: 'every-2-hours' as const, label: 'Every 2 hours', description: 'Twice per day' },
+        { value: 'every-4-hours' as const, label: 'Every 4 hours', description: 'High-level check-ins' },
+        { value: 'morning-evening' as const, label: 'Morning & Evening', description: 'Day start/end only' },
         { value: 'off' as const, label: 'Off', description: 'No automatic nudges' }
     ];
 
-    return createPortal(
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 animate-fade-in">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-[#3A1700]/50 backdrop-blur-xl transition-all duration-500"
-                onClick={onClose}
-            />
+    const textPrimary = 'text-white';
+    const accentLabel = 'text-white/60 font-black text-[10px] uppercase tracking-[0.2em]';
 
-            {/* Modal */}
-            <div
-                className={`relative max-w-md w-full max-h-[90vh] overflow-y-auto p-8 rounded-[2.5rem] shadow-spa-lg transition-all duration-500 ${isDarkMode ? 'bg-sage-mid/95 border border-white/10' : 'bg-white/95 border border-sage/20'}`}
-                style={{
-                    boxShadow: isDarkMode
-                        ? '0 0 80px 20px rgba(0, 0, 0, 0.4), 0 0 150px 40px rgba(111, 123, 109, 0.2), 0 0 250px 60px rgba(111, 123, 109, 0.1), inset 0 0 60px rgba(255, 255, 255, 0.02)'
-                        : '0 0 80px 20px rgba(0, 0, 0, 0.1), 0 0 150px 40px rgba(111, 123, 109, 0.15), 0 0 250px 60px rgba(111, 123, 109, 0.08), inset 0 0 60px rgba(255, 255, 255, 0.6)'
-                }}
-            >
-
-
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-3">
-                        <Settings size={28} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
-                        <h2 className={`text-2xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'
-                            }`}>
-                            Coach Settings
-                        </h2>
+    return (
+        <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
+            <div className="p-8 pb-12">
+                <div className="mb-10">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white/[0.12] text-white flex items-center justify-center shadow-sm">
+                            <Settings size={28} />
+                        </div>
+                        <div>
+                            <h2 className={`text-2xl font-display font-medium ${textPrimary}`}>
+                                Coach Settings
+                            </h2>
+                            <p className={`text-[11px] font-black uppercase tracking-wider text-white/60`}>
+                                Personalize your guidance
+                            </p>
+                        </div>
                     </div>
-                    <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                        Customize how often your accountability coach checks in
+                    <p className={`text-sm font-medium leading-relaxed ${textPrimary}`}>
+                        Customize how often your Palante Coach checks in.
                     </p>
                 </div>
 
                 {/* Enable/Disable Toggle */}
-                <div className="mb-8 space-y-6">
-                    <label className="flex items-center justify-between cursor-pointer">
-                        <span className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                <div className="mb-12 space-y-6">
+                    <label className="flex items-center justify-between cursor-pointer p-4 rounded-3xl bg-white/[0.08] border border-white/10">
+                        <span className={`text-base font-bold uppercase tracking-wide ${textPrimary}`}>
                             Enable Nudges
                         </span>
                         <button
-                            onClick={() => setLocalSettings({ ...localSettings, nudgeEnabled: !localSettings.nudgeEnabled })}
-                            className={`relative w-14 h-8 rounded-full transition-all ${localSettings.nudgeEnabled
-                                ? isDarkMode ? 'bg-pale-gold' : 'bg-sage'
-                                : isDarkMode ? 'bg-white/20' : 'bg-sage/20'
+                            onClick={() => updateLocalSetting({ ...localSettings, nudgeEnabled: !localSettings.nudgeEnabled })}
+                            className={`relative w-14 h-8 rounded-full transition-all border-2 ${localSettings.nudgeEnabled
+                                ? 'bg-white/[0.15] border-white/20 shadow-inner'
+                                : 'bg-black/5 border-white/10'
                                 }`}
                         >
-                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all shadow-sm ${localSettings.nudgeEnabled ? 'left-7' : 'left-1'
-                                }`} />
+                            <div className={`absolute top-0.5 w-6 h-6 rounded-full transition-all shadow-md ${localSettings.nudgeEnabled ? 'left-6.5 bg-[#E5D6A7]' : 'left-0.5 bg-white/30'}`} />
                         </button>
                     </label>
 
-                    <label className="flex items-center justify-between cursor-pointer">
-                        <span className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                    <label className="flex items-center justify-between cursor-pointer p-4 rounded-3xl bg-white/[0.08] border border-white/10">
+                        <span className={`text-base font-bold uppercase tracking-wide ${textPrimary}`}>
                             Enable Daily Tips
                         </span>
                         <button
-                            onClick={() => setLocalSettings({ ...localSettings, tipsEnabled: !localSettings.tipsEnabled })}
-                            className={`relative w-14 h-8 rounded-full transition-all ${localSettings.tipsEnabled
-                                ? isDarkMode ? 'bg-pale-gold' : 'bg-sage'
-                                : isDarkMode ? 'bg-white/20' : 'bg-sage/20'
+                            onClick={() => updateLocalSetting({ ...localSettings, tipsEnabled: !localSettings.tipsEnabled })}
+                            className={`relative w-14 h-8 rounded-full transition-all border-2 ${localSettings.tipsEnabled
+                                ? 'bg-white/[0.15] border-white/20 shadow-inner'
+                                : 'bg-black/5 border-white/10'
                                 }`}
                         >
-                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all shadow-sm ${localSettings.tipsEnabled ? 'left-7' : 'left-1'
-                                }`} />
-                        </button>
-                    </label>
-
-                    {/* Theme Toggle */}
-                    <label className="flex items-center justify-between cursor-pointer pt-6 border-t border-dashed border-white/10">
-                        <span className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Dark Mode
-                        </span>
-                        <button
-                            onClick={onToggleTheme}
-                            className={`relative w-14 h-8 rounded-full transition-all ${isDarkMode
-                                ? 'bg-pale-gold'
-                                : 'bg-sage/20'
-                                }`}
-                        >
-                            <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all shadow-sm ${isDarkMode ? 'left-7' : 'left-1'
-                                }`} />
+                            <div className={`absolute top-0.5 w-6 h-6 rounded-full transition-all shadow-md ${localSettings.tipsEnabled ? 'left-6.5 bg-[#E5D6A7]' : 'left-0.5 bg-white/30'}`} />
                         </button>
                     </label>
                 </div>
 
                 {/* Frequency Options */}
                 {localSettings.nudgeEnabled && (
-                    <div className="space-y-3 mb-8">
-                        <label className={`text-sm font-medium uppercase tracking-wider opacity-80 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                    <div className="space-y-4 mb-12">
+                        <label className={accentLabel}>
                             Nudge Frequency
                         </label>
-                        {frequencies.map((freq) => (
-                            <button
-                                key={freq.value}
-                                onClick={() => setLocalSettings({ ...localSettings, nudgeFrequency: freq.value })}
-                                className={`w-full p-5 rounded-2xl border text-left transition-all ${localSettings.nudgeFrequency === freq.value
-                                    ? isDarkMode
-                                        ? 'bg-pale-gold/20 border-pale-gold text-white'
-                                        : 'bg-sage/20 border-sage text-sage'
-                                    : isDarkMode
-                                        ? 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                                        : 'bg-white border-sage/20 text-sage-dark/60 hover:bg-sage/10'
-                                    }`}
-                            >
-                                <div className="font-medium mb-1">{freq.label}</div>
-                                <div className="text-sm opacity-70">{freq.description}</div>
-                            </button>
-                        ))}
+                        <div className="grid grid-cols-1 gap-3">
+                            {frequencies.map((freq) => (
+                                <button
+                                    key={freq.value}
+                                    onClick={() => updateLocalSetting({ ...localSettings, nudgeFrequency: freq.value })}
+                                    className={`w-full group p-5 rounded-[2rem] border-2 text-left transition-all ${localSettings.nudgeFrequency === freq.value
+                                        ? 'bg-white/[0.06] border-[#E5D6A7] shadow-lg scale-[1.02]'
+                                        : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+                                        }`}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <div className={`font-black uppercase tracking-wider text-xs mb-1 ${textPrimary}`}>
+                                                {freq.label}
+                                            </div>
+                                            <div className={`text-[11px] font-medium transition-opacity ${localSettings.nudgeFrequency === freq.value ? 'text-white' : 'text-white/60'}`}>
+                                                {freq.description}
+                                            </div>
+                                        </div>
+                                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${localSettings.nudgeFrequency === freq.value
+                                            ? 'bg-white/[0.15] border-white/20'
+                                            : 'border-white/20 bg-black/5'
+                                            }`}>
+                                            {localSettings.nudgeFrequency === freq.value && <Check size={16} strokeWidth={4} className="text-[#E5D6A7]" />}
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 )}
 
                 {/* Save Button */}
                 <button
-                    onClick={handleSave}
-                    className={`w-full py-4 px-6 rounded-2xl text-lg font-medium transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] ${isDarkMode
-                        ? 'bg-pale-gold text-sage-dark'
-                        : 'bg-terracotta-500 text-white'
-                        }`}
+                    onClick={() => { haptics.light(); onClose(); }}
+                    className="w-full py-5 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] bg-white/[0.15] text-white shadow-xl shadow-black/10 transition-all active:scale-95"
                 >
-                    Save Settings
+                    Save Preferences
                 </button>
             </div>
-        </div>,
-        document.body
+        </SlideUpModal>
     );
 };

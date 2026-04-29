@@ -337,11 +337,11 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
 
             {/* Reflection Modal */}
             {showReflectionModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A1700]/60 backdrop-blur-md animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
                     <div className="w-full max-w-lg p-8 rounded-2xl shadow-2xl bg-sage-mid border border-white/10">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className={`text-2xl font-display font-medium ${textPrimary}`}>Reflect on your practice</h3>
-                            <button onClick={resetTimer} className={`p-2 rounded-full hover:bg-[#3A1700]/5 ${textSecondary}`}>
+                            <button onClick={resetTimer} className={`p-2 rounded-full hover:bg-black/20 ${textSecondary}`}>
                                 <X size={24} />
                             </button>
                         </div>
@@ -377,7 +377,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                 }
                                 resetTimer();
                             }}
-                            className={`w-full py-4 rounded-full font-display font-medium text-lg transition-all ${isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-white' : 'bg-terracotta-500 text-white hover:shadow-spa'}`}
+                            className={`w-full py-4 rounded-full font-display font-medium text-lg transition-all ${isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-white' : 'bg-1B4332 text-white hover:shadow-spa'}`}
                         >
                             Save Reflection
                         </button>
@@ -416,7 +416,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
 
                 {/* Preparation Card - NEW DESIGN */}
                 {showIntentionInput && !isActive && (
-                    <div className={`mt-8 p-6 rounded-[2.5rem] border transition-all duration-700 ${isDarkMode ? 'bg-[#3A1700]/20 border-white/5' : 'bg-white/40 border-sage/10'}`}>
+                    <div className={`mt-8 p-6 rounded-[2.5rem] border transition-all duration-700 ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-white/40 border-sage/10'}`}>
                         <div className="flex justify-center items-center gap-3 mb-6">
                             <button
                                 onClick={() => setShowFeatureInfo(true)}
@@ -545,7 +545,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                         <button
                             onClick={toggleTimer}
                             disabled={!isActive && !intention.trim()}
-                            className={`p-6 rounded-full transition-all ${!isActive && !intention.trim() ? (isDarkMode ? 'bg-white/5 text-white/30 cursor-not-allowed' : 'bg-sage/5 text-sage/30 cursor-not-allowed') : isActive ? (isDarkMode ? 'bg-white text-sage-dark' : 'bg-sage text-white') : ('bg-terracotta-500 text-white hover:scale-105')}`}
+                            className={`p-6 rounded-full transition-all ${!isActive && !intention.trim() ? (isDarkMode ? 'bg-white/5 text-white/30 cursor-not-allowed' : 'bg-sage/5 text-sage/30 cursor-not-allowed') : isActive ? (isDarkMode ? 'bg-white text-sage-dark' : 'bg-sage text-white') : ('bg-1B4332 text-white hover:scale-105')}`}
                         >
                             {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                         </button>

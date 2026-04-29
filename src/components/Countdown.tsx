@@ -37,7 +37,7 @@ export const Countdown: React.FC<CountdownProps> = ({ onComplete, isActive }) =>
 
     return (
         <div className={`absolute inset-0 z-50 flex items-center justify-center bg-sage-mid/90 backdrop-blur-sm transition-opacity duration-700 ${count === 0 ? 'opacity-0' : 'opacity-100 animate-fade-in'}`}>
-            <div key={count} className="text-9xl font-display font-medium text-white animate -scale-pulse">
+            <div key={count} className="text-9xl font-display font-medium text-white animate-scale-pulse">
                 {count > 0 ? count : ''}
             </div>
         </div>

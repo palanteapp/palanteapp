@@ -9,7 +9,7 @@ interface PalanteLogoProps {
 export const PalanteLogo: React.FC<PalanteLogoProps> = ({ className = "h-10 w-auto", fill, style }) => {
     // Map fill color roughly to the correct static png asset
     let src = "/logo-gold.png";
-    if (fill?.toLowerCase() === '#4e5c4c' || fill?.toLowerCase() === '#5a6351') {
+    if (fill?.toLowerCase() === '#415d43' || fill?.toLowerCase() === '#4e5c4c' || fill?.toLowerCase() === '#5a6351') {
         src = "/logo-sage.png";
     } else if (fill === '#FFFFFF' || fill === 'white') {
         src = "/logo-light.png";

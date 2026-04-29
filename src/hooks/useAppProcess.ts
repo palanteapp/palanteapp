@@ -255,7 +255,7 @@ export const useAppProcess = ({
             const targetSettings = user.notificationFrequency
                 ? { ...notificationSettings, frequency: user.notificationFrequency }
                 : notificationSettings;
-            rescheduleAll(targetSettings, activeFocuses, user.quoteIntensity, user.contentTypePreference, user.coachName);
+            rescheduleAll(targetSettings, activeFocuses, user.quoteIntensity, user.contentTypePreference, user.coachName, user.name);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [

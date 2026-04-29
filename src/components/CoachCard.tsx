@@ -14,6 +14,7 @@ interface CoachCardProps {
     activityHistory?: { date: string; type: string }[];
     isCompactMode?: boolean; // Show slimmer version
     onClick?: () => void;
+    onShowTip?: () => void;
 }
 
 // Message templates for different contexts
@@ -122,19 +123,19 @@ const getGreeting = (now: number): string => {
     }
 };
 
-const getTimeIcon = (now: number) => {
+const getTimeIcon = (now: number, isDarkMode: boolean) => {
     const timeOfDay = getTimeOfDay(now);
     switch (timeOfDay) {
         case 'earlyMorning':
-            return <Coffee size={16} className="text-pale-gold-400" />;
+            return <Coffee size={16} className={isDarkMode ? "text-pale-gold" : "text-pale-gold-400"} />;
         case 'morning':
-            return <Sunrise size={16} className="text-pale-gold-500" />;
+            return <Sunrise size={16} className={isDarkMode ? "text-pale-gold" : "text-pale-gold-500"} />;
         case 'afternoon':
-            return <Zap size={16} className="text-yellow-400" />;
+            return <Zap size={16} className={isDarkMode ? "text-pale-gold" : "text-yellow-400"} />;
         case 'evening':
-            return <Moon size={16} className="text-indigo-300" />;
+            return <Moon size={16} className={isDarkMode ? "text-pale-gold" : "text-indigo-300"} />;
         case 'night':
-            return <Moon size={16} className="text-indigo-400" />;
+            return <Moon size={16} className={isDarkMode ? "text-pale-gold" : "text-indigo-400"} />;
         default:
             return <Sparkles size={16} className="text-pale-gold" />;
     }
@@ -150,7 +151,8 @@ export const CoachCard: React.FC<CoachCardProps> = ({
     xp: _xp = 0,
     lastActivityDate,
     isCompactMode = false,
-    onClick
+    onClick,
+    onShowTip
 }) => {
     const [now] = useState(() => Date.now());
     const greeting = getGreeting(now);
@@ -165,7 +167,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (daysSinceActivity >= 3) {
             return {
                 message: getRandomMessage('longAbsence'),
-                icon: <Target size={16} className="text-sage" />
+                icon: <Target size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -173,7 +175,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (daysSinceActivity >= 1 && daysSinceActivity < 3) {
             return {
                 message: getRandomMessage('welcomeBack'),
-                icon: <Target size={16} className="text-sage" />
+                icon: <Target size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -181,7 +183,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (focusCount > 0 && completedCount === focusCount) {
             return {
                 message: getRandomMessage('allComplete'),
-                icon: <Star size={16} className="text-pale-gold-400" />
+                icon: <Star size={16} className={isDarkMode ? "text-pale-gold" : "text-pale-gold-400"} />
             };
         }
 
@@ -197,7 +199,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (focusCount > 0 && completedCount < focusCount) {
             return {
                 message: getRandomMessage('inProgress'),
-                icon: <Target size={16} className="text-sage" />
+                icon: <Target size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -205,14 +207,14 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (timeOfDay === 'morning') {
             return {
                 message: getRandomMessage('morningMotivation'),
-                icon: <Sunrise size={16} className="text-sage" />
+                icon: <Sunrise size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
             };
         }
 
         if (timeOfDay === 'night') {
             return {
                 message: getRandomMessage('eveningReflection'),
-                icon: <Moon size={16} className="text-sage" />
+                icon: <Moon size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -220,13 +222,13 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (focusCount === 0) {
             return {
                 message: getRandomMessage('noGoals'),
-                icon: getTimeIcon(now)
+                icon: getTimeIcon(now, isDarkMode)
             };
         }
 
         return {
             message: getRandomMessage('generalCoaching'),
-            icon: <Coffee size={16} className="text-sage" />
+            icon: <Coffee size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
         };
     }, [lastActivityDate, totalPractices, focusCount, completedCount, now]);
 
@@ -239,20 +241,23 @@ export const CoachCard: React.FC<CoachCardProps> = ({
 
     // Typography
     const textPrimary = isDarkMode ? 'text-white' : 'text-rich-black';
-    const textSecondary = isDarkMode ? 'text-white/50' : 'text-sage-dark/60';
-    const textLabel = isDarkMode ? 'text-pale-gold/40' : 'text-sage/40';
+    const textSecondary = isDarkMode ? 'text-white/70' : 'text-sage-dark/60';
+    const textLabel = isDarkMode ? 'text-pale-gold/60' : 'text-sage/40';
 
     return (
         <motion.div
-            onClick={onClick}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: 'easeOut' }}
-            className={`w-full ${isCompactMode ? 'p-5' : 'p-7'} rounded-[2.5rem] relative overflow-hidden transition-all duration-700 border shadow-lg ${bgClass} ${onClick ? 'cursor-pointer hover:bg-white/[0.05] active:scale-[0.99]' : ''}`}
+            className="w-full rounded-[2.5rem] overflow-hidden [transform:translateZ(0)]"
         >
-            {/* Minimal Ambient Glow */}
+        <div
+            onClick={onClick || onShowTip}
+            className={`w-full ${isCompactMode ? 'p-5' : 'p-7'} rounded-[2.5rem] relative overflow-hidden [transform:translateZ(0)] transition-all duration-700 border shadow-lg ${bgClass} ${(onClick || onShowTip) ? 'cursor-pointer hover:bg-white/[0.05] active:scale-[0.99]' : ''}`}
+        >
+            {/* Minimal Ambient Glow — kept inset so overflow-hidden clips cleanly */}
             {!isCompactMode && (
-                <div className={`absolute -top-24 -right-24 w-64 h-64 rounded-full blur-[100px] opacity-20 pointer-events-none ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
+                <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-[80px] opacity-15 pointer-events-none ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
             )}
 
             <div className="relative z-10">
@@ -268,7 +273,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
                     {/* Active Presence */}
                     <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5">
                         <div className={`w-1 h-1 rounded-full animate-pulse ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
-                        <span className={`text-[8px] font-black uppercase tracking-widest opacity-40 ${textPrimary}`}>Presence</span>
+                        <span className={`text-[8px] font-black uppercase tracking-widest opacity-70 ${textPrimary}`}>Presence</span>
                     </div>
                 </div>
 
@@ -292,6 +297,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
                     )}
                 </div>
             </div>
+        </div>
         </motion.div>
     );
 };

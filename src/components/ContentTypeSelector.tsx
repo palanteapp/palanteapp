@@ -38,7 +38,7 @@ export const ContentTypeSelector: React.FC<ContentTypeSelectorProps> = ({ curren
                                     ? isDarkMode ? 'bg-pale-gold text-warm-gray-green border-pale-gold shadow-spa' : 'bg-sage text-white border-sage shadow-spa'
                                     : isDarkMode
                                         ? 'bg-transparent border-white/10 text-white/60 hover:bg-white/5'
-                                        : 'bg-white/30 border-sage/10 text-sage-dark/60 hover:bg-white/50'
+                                        : 'bg-white/30 border-sage/10 text-sage-dark hover:bg-white/50'
                                     }`}
                                 title={type.description}
                             >

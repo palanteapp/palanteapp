@@ -65,7 +65,7 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
                 {/* Left side: Streak count */}
                 <div className="flex items-center gap-4">
                     <div className={`
-                        p-4 rounded-2xl bg-[#3A1700]/20 
+                        p-4 rounded-2xl bg-black/20 
                         ${hasActiveStreak ? 'animate-bounce-subtle' : ''}
                     `}>
                         <Flame
@@ -107,7 +107,7 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
                 <div className="flex flex-col items-end gap-2">
                     {/* Longest streak */}
                     {longestStreak > 0 && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3A1700]/20">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20">
                             <Award size={14} className="text-white/40" />
                             <span className="text-xs text-white/60 font-medium">
                                 Best: {longestStreak}
@@ -117,7 +117,7 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
 
                     {/* Next milestone indicator */}
                     {hasActiveStreak && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#3A1700]/20">
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20">
                             <TrendingUp size={14} className={colors.text} />
                             <span className={`text-xs font-medium ${colors.text}`}>
                                 {getNextMilestoneText(currentStreak)}

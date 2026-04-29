@@ -13,6 +13,7 @@ interface SlideUpModalProps {
     fullScreen?: boolean;
     position?: 'bottom' | 'center' | 'top';
     fixedHeight?: boolean;
+    className?: string;
 }
 
 export const SlideUpModal: React.FC<SlideUpModalProps> = ({
@@ -23,7 +24,8 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
     showCloseButton = true,
     fullScreen = false,
     position = 'top',
-    fixedHeight = false
+    fixedHeight = false,
+    className = ''
 }) => {
     const [mounted, setMounted] = useState(false);
 
@@ -82,12 +84,9 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
 
     const modalContent = (
         <div className="fixed inset-0 z-[100] overflow-y-auto animate-fade-in font-sans">
-            {/* Backdrop */}
+            {/* Backdrop - soft dark scrim, no blur */}
             <div
-                className={`absolute inset-0 z-0 transition-all duration-700 ${fullScreen
-                    ? (isDarkMode ? 'bg-sage-mid/95' : 'bg-white/95') + ' backdrop-blur-xl'
-                    : 'bg-sage-dark/60 backdrop-blur-sm'
-                    }`}
+                className="absolute inset-0 z-0 transition-all duration-500 bg-black/30"
                 onClick={onClose}
             />
 
@@ -98,18 +97,31 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                         pointer-events-auto
                         relative w-full overflow-hidden
                         flex flex-col
-                        animate-in fade-in zoom-in duration-500
+                        animate-in fade-in slide-in-from-bottom-8 duration-500
                         ${fullScreen
                             ? 'h-[100dvh] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
-                            : `sm:max-w-xl sm:rounded-[2.5rem] rounded-t-[3rem] shadow-popup border ${fixedHeight ? 'h-[85dvh] sm:h-[90dvh]' : 'max-h-[85dvh] sm:max-h-[80dvh]'} ${position === 'center' || position === 'top' ? 'rounded-b-[3rem]' : ''}`
+                            : `sm:max-w-xl sm:rounded-[3rem] rounded-t-[3rem] shadow-[0_-4px_60px_rgba(0,0,0,0.15),0_30px_80px_rgba(0,0,0,0.3)] ${fixedHeight ? 'h-[85dvh] sm:h-[90dvh]' : 'max-h-[85dvh] sm:max-h-[80dvh]'} ${position === 'center' || position === 'top' ? 'rounded-b-[3rem]' : ''}`
                         }
-                        ${isDarkMode
-                            ? 'bg-[#4E5C4C]/80 border-white/5 backdrop-blur-2xl'
-                            : 'bg-[#4E5C4C]/80 border-sage/10 backdrop-blur-2xl' /* olive green background at 80% opacity */
-                        }
+                        ${className || 'bg-[#1E3A2B]'}
                     `}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Art background — flat earthy circles, no glow */}
+                    {!className && (
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 400 800"
+                            aria-hidden="true"
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
+                            preserveAspectRatio="xMidYMid slice"
+                        >
+                            <circle cx="340" cy="90"  r="210" fill="#415D43" opacity="0.32" />
+                            <circle cx="60"  cy="680" r="190" fill="#C96A3A" opacity="0.13" />
+                            <circle cx="190" cy="400" r="260" fill="#F59E0B" opacity="0.06" />
+                            <circle cx="360" cy="520" r="160" fill="#E5D6A7" opacity="0.05" />
+                        </svg>
+                    )}
+
                     {/* Close Button */}
                     {showCloseButton && (
                         <div className={`absolute top-4 right-4 z-50 pointer-events-auto ${fullScreen ? 'mt-[env(safe-area-inset-top)]' : ''}`}>
@@ -119,8 +131,8 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                                     onClose();
                                 }}
                                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 ${isDarkMode
-                                    ? 'bg-white/10 hover:bg-white/20 text-white'
-                                    : 'bg-sage/10 hover:bg-sage/20 text-sage'
+                                    ? 'bg-white/20 hover:bg-white/30 text-white'
+                                    : 'bg-black/5 hover:bg-black/10 text-sage-dark'
                                     }`}
                             >
                                 <X size={20} />
@@ -129,7 +141,10 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                     )}
 
                     {/* Content Scroll Area */}
-                    <div className="overflow-y-auto flex-1 overscroll-contain relative z-10">
+                    <div 
+                        className="overflow-y-auto flex-1 overscroll-contain relative z-10 text-white antialiased"
+                        style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
+                    >
                         {children}
                     </div>
                 </div>

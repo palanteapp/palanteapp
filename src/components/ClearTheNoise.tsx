@@ -36,9 +36,9 @@ export const ClearTheNoise: React.FC<ClearTheNoiseProps> = ({ user, isDarkMode, 
     }, [transcript, resetTranscript]);
 
     // Styling
-    const textPrimary = 'text-white';
-    const textSecondary = 'text-white/70';
-    const cardClass = 'bg-warm-gray-green/5 border-white/10'; // Consistent with app aesthetic
+    const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
+    const textSecondary = isDarkMode ? 'text-white/70' : 'text-sage-dark/70';
+    const cardClass = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/80 border-sage/20';
 
     // Random selection for variety
     const [seeds] = useState(() => ({
@@ -127,7 +127,7 @@ export const ClearTheNoise: React.FC<ClearTheNoiseProps> = ({ user, isDarkMode, 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3A1700]/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
             <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl overflow-hidden ${cardClass} border-2`}>
                 {/* Header */}
                 <div className={`p-6 flex justify-between items-center border-b ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>

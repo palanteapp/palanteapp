@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Info, Target } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { SlideUpModal } from './SlideUpModal';
 
 interface SoundMixerProps {
     isDarkMode: boolean; // Kept for interface compatibility
@@ -246,6 +248,29 @@ class CrossfadingSound {
         }
     }
 
+    // ── Background-safe playback ─────────────────────────────────────────────
+    // Web Audio API is suspended by iOS when the app backgrounds, but plain
+    // HTMLAudioElement with loop=true continues when AVAudioSession is .playback.
+    private bgAudio: HTMLAudioElement | null = null;
+
+    enterBackground(vol: number) {
+        this.leaveBackground();
+        if (!this.isPlaying) return;
+        const a = new Audio(this.src);
+        a.loop = true;
+        a.volume = Math.min(1, Math.max(0, vol));
+        a.play().catch(() => {});
+        this.bgAudio = a;
+    }
+
+    leaveBackground() {
+        if (this.bgAudio) {
+            this.bgAudio.pause();
+            this.bgAudio.src = '';
+            this.bgAudio = null;
+        }
+    }
+
     stop() {
         this.isPlaying = false;
         if (this.loopInterval) {
@@ -305,26 +330,64 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
     const [isSavingMix, setIsSavingMix] = useState(false);
     const [newMixName, setNewMixName] = useState('');
-    const [view, setView] = useState<'mixer' | 'library'>('mixer');
-    const [scrollTarget, setScrollTarget] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'mixer' | 'library' | 'presets'>('mixer');
     const [showHelp, setShowHelp] = useState(() => {
         const hasSeenHelp = localStorage.getItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN);
         return !hasSeenHelp;
     });
+    const [showSciencePopup, setShowSciencePopup] = useState(false);
+    const [view, setView] = useState<'mixer' | 'library'>('mixer');
+    const [scrollTarget, setScrollTarget] = useState<string | null>(null);
 
-    // Wake Lock Logic
+    // Wake Lock + Background Audio
     useEffect(() => {
+        const isPlaying = activeSounds.size > 0;
         const updateWakeLock = async () => {
-            if (activeSounds.size > 0) {
-                try {
-                    await KeepAwake.keepAwake();
-                } catch (e) {
+            if (isPlaying) {
+                try { await KeepAwake.keepAwake(); } catch (e) {
                     console.error('Failed to acquire wake lock', e);
                 }
             }
         };
         updateWakeLock();
+        PalanteAudioBridge.setPlaying({ playing: isPlaying }).catch(() => {});
+        if (isPlaying) {
+            navigator.mediaSession?.setMetadata?.(new MediaMetadata({
+                title: 'Soundscape',
+                artist: 'Palante',
+                album: 'Focus & Rest',
+            }));
+            navigator.mediaSession && (navigator.mediaSession.playbackState = 'playing');
+        } else {
+            navigator.mediaSession && (navigator.mediaSession.playbackState = 'none');
+        }
     }, [activeSounds.size]);
+
+    // Keep refs for stable closure access in visibilitychange handler
+    const activeSoundsRef = useRef<Set<string>>(activeSounds);
+    const volumesRef = useRef<Record<string, number>>(volumes);
+    useEffect(() => { activeSoundsRef.current = activeSounds; }, [activeSounds]);
+    useEffect(() => { volumesRef.current = volumes; }, [volumes]);
+
+    // Background audio: switch to looping HTMLAudioElement when iOS suspends AudioContext
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.hidden) {
+                Object.entries(audioRefs.current).forEach(([id, sound]) => {
+                    if (activeSoundsRef.current.has(id)) {
+                        sound.enterBackground(volumesRef.current[id] ?? 0.5);
+                    }
+                });
+            } else {
+                Object.values(audioRefs.current).forEach(s => s.leaveBackground());
+                // Wake AudioContext back up when app returns to foreground
+                const ctx = (window as { _palanteAudioContext?: AudioContext })._palanteAudioContext;
+                ctx?.resume().catch(() => {});
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibility);
+        return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, []);
 
     // Initialize Audio Refs lazily
     const getAudioRef = (id: string, src: string) => {
@@ -675,7 +738,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">1</div>
                                 <div>
                                     <h4 className="font-bold mb-1">Choose Your Sounds</h4>
-                                    <p className="text-sm text-white/70">Start with an <strong>Instant Mood</strong> preset, or explore <strong>Sonic Horizons</strong> to browse by category (Nature, Focus, Zen, etc.)</p>
+                                    <p className="text-sm text-white/70">Start with an <strong>Instant Mood</strong> preset, or explore <strong>Explore Your Sounds</strong> to browse by category (Nature, Focus, Zen, etc.)</p>
                                 </div>
                             </div>
 
@@ -732,7 +795,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         {activeSoundList.length === 0 ? (
                             <div className="w-full flex flex-col items-center justify-start animate-fade-in py-8 md:py-16">
                                 <h3 className="text-2xl md:text-4xl font-display font-medium text-white mb-2 text-center tracking-tight">Atmospheric Control</h3>
-                                <p className="text-white/40 text-center mb-8 md:mb-16 max-w-xs leading-relaxed font-light uppercase tracking-widest text-[8px] md:text-[10px] font-bold">
+                                <p className="text-white/75 text-center mb-8 md:mb-16 max-w-xs leading-relaxed font-light uppercase tracking-widest text-xs font-bold">
                                     Select a foundation to begin your auditory journey.
                                 </p>
 
@@ -742,7 +805,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                         <div className="flex-1 h-px bg-white/5" />
                                         <div className="flex items-center gap-2">
                                             <Sparkles size={12} className="text-pale-gold/60" />
-                                            <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 text-center">Instant Atmospheres</span>
+                                            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/80 text-center">Instant Atmospheres</span>
                                         </div>
                                         <div className="flex-1 h-px bg-white/5" />
                                     </div>
@@ -781,7 +844,6 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                             >
                                                 <div className={`absolute inset-0 bg-gradient-to-br ${recipe.color} opacity-10 group-hover:opacity-30 transition-all duration-1000`} />
                                                 <div className="relative z-10">
-                                                    <div className="text-[8px] md:text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 mb-2 md:mb-3">Professional Preset</div>
                                                     <div className="font-display font-medium text-xl md:text-2xl leading-tight text-white">{recipe.name}</div>
                                                 </div>
                                             </button>
@@ -794,7 +856,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                             <div className="p-4 md:p-5 rounded-full bg-white/5 group-hover:bg-white/10 group-hover:scale-110 transition-all duration-500 text-white/20 group-hover:text-white">
                                                 <Plus size={26} strokeWidth={1} />
                                             </div>
-                                            <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-[0.3em] text-white/30 group-hover:text-white transition-colors text-center">Custom Build</span>
+                                            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/75 group-hover:text-white transition-colors text-center">Custom Build</span>
                                         </button>
                                     </div>
                                 </div>
@@ -805,10 +867,29 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                         <div className="flex-1 h-px bg-white/5" />
                                         <div className="flex items-center gap-2">
                                             <Radio size={12} className="text-white/30" />
-                                            <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">Sonic Horizons</span>
+                                            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/80">Explore Your Sounds</span>
                                         </div>
                                         <div className="flex-1 h-px bg-white/5" />
                                     </div>
+
+                                    <div className="flex justify-center gap-3 mb-16">
+                                        <button 
+                                            onClick={() => { haptics.light(); setShowHelp(true); }}
+                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
+                                        >
+                                            How to Use
+                                        </button>
+                                        <button 
+                                            onClick={() => { 
+                                                haptics.light(); 
+                                                setShowSciencePopup(true); 
+                                            }}
+                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
+                                        >
+                                            The Science
+                                        </button>
+                                    </div>
+
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 px-4">
                                         {categories.map(cat => {
                                             const repSound = SOUNDS.find(s => s.category === cat);
@@ -822,10 +903,10 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                     }}
                                                     className="group flex flex-col items-center gap-4 md:gap-6 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-sage/20 border border-white/5 hover:bg-white/5 hover:border-white/10 hover:scale-[1.05] active:scale-95 transition-all duration-500 shadow-xl"
                                                 >
-                                                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-white/5 group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 text-white/40 group-hover:text-white">
+                                                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-white/5 group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 text-white/65 group-hover:text-white">
                                                         <Icon size={26} strokeWidth={1} />
                                                     </div>
-                                                    <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-[0.2em] md:tracking-[0.25em] text-white/30 group-hover:text-white transition-all">{cat}</span>
+                                                    <span className="text-xs font-bold uppercase tracking-[0.2em] md:tracking-[0.25em] text-white/75 group-hover:text-white transition-all">{cat}</span>
                                                 </button>
                                             );
                                         })}
@@ -948,7 +1029,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                         onClick={() => toggleSound(sound.id)}
                                                         aria-label={isActive ? `Stop ${sound.label}` : `Play ${sound.label}`}
                                                         className="absolute inset-0 w-full h-full z-10"
-                                                    />
+                                                    ></button>
 
                                                     <div className="flex items-start justify-between mb-6 pointer-events-none">
                                                         <div className={`p-3.5 rounded-2xl transition-all duration-500 ${isActive ? 'bg-sage/10 text-sage' : 'bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white'}`}>
@@ -1022,9 +1103,67 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                     </div>
                 </div>
 
+                {/* Help/Popups */}
+                <SlideUpModal isOpen={showHelp} onClose={() => { setShowHelp(false); localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true'); }} isDarkMode={true} title="How to Use">
+                    <div className="p-8 pb-12 text-white">
+                        <div className="flex flex-col items-center text-center mb-8">
+                            <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
+                                <Music size={32} className="text-pale-gold" />
+                            </div>
+                            <h3 className="text-2xl font-display font-medium mb-2">Sonic Canvas</h3>
+                            <p className="text-sm text-white/40 uppercase tracking-widest font-bold">Mixing Your Environment</p>
+                        </div>
+                        <div className="space-y-4 mb-8 text-sm text-white/70 leading-relaxed font-body">
+                            <p>Welcome to your personal soundscape atelier. Here you can layer nature, frequencies, and ambient textures.</p>
+                            <ul className="space-y-3 list-none">
+                                <li className="flex gap-3"><span className="text-pale-gold font-bold">01.</span> Layer sounds by tapping the tiles in the library tab.</li>
+                                <li className="flex gap-3"><span className="text-pale-gold font-bold">02.</span> Adjust individual levels in the mixer to find your perfect balance.</li>
+                                <li className="flex gap-3"><span className="text-pale-gold font-bold">03.</span> Save your favorite combinations as custom mixes for later use.</li>
+                            </ul>
+                        </div>
+                        <button
+                            onClick={() => { setShowHelp(false); localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true'); }}
+                            className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-[#1B4332] font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
+                        >
+                            Master the Canvas
+                        </button>
+                    </div>
+                </SlideUpModal>
+
+                <SlideUpModal isOpen={showSciencePopup} onClose={() => setShowSciencePopup(false)} isDarkMode={true} title="The Science">
+                    <div className="p-8 pb-12 text-white">
+                        <div className="flex flex-col items-center text-center mb-8">
+                            <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
+                                <Zap size={32} className="text-pale-gold" />
+                            </div>
+                            <h3 className="text-2xl font-display font-medium mb-2">Audio Biohacking</h3>
+                            <p className="text-sm text-white/40 uppercase tracking-widest font-bold">Why it works</p>
+                        </div>
+                        <div className="space-y-6 mb-8 text-sm text-white/70 leading-relaxed font-body">
+                            <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
+                                <h4 className="font-bold text-white mb-1">Binaural Beats</h4>
+                                <p className="text-xs opacity-70">By playing slightly different frequencies in each ear, we encourage 'brainwave entrainment' — naturally shifting your mind into Alpha (focus) or Theta (meditation).</p>
+                            </div>
+                            <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
+                                <h4 className="font-bold text-white mb-1">Pink & Brown Noise</h4>
+                                <p className="text-xs opacity-70">These tailored noise profiles mask distracting sharp sounds while providing a 'constant' that reduces cognitive load, allowing for sustained flow states.</p>
+                            </div>
+                            <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
+                                <h4 className="font-bold text-white mb-1">Environmental Priming</h4>
+                                <p className="text-xs opacity-70">Nature sounds trigger parasympathetic activation (rest-and-digest), lowering cortisol and helping you feel safe and grounded during deep work.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowSciencePopup(false)}
+                            className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-[#1B4332] font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
+                        >
+                            Ready to Focus
+                        </button>
+                    </div>
+                </SlideUpModal>
             </div>
-        </div>
-    );
+            </div>
+        );
 };
 
 export default SoundMixer;
