@@ -1,0 +1,879 @@
+
+> palante@0.0.0 lint
+> eslint .
+
+
+/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Products/Debug-iphonesimulator/App.app/Frameworks/Capacitor.framework/native-bridge.js
+    36:5   warning  Unused eslint-disable directive (no problems were reported)
+   208:29  warning  Unused eslint-disable directive (no problems were reported from 'no-prototype-builtins')
+  1003:13  error    Definition for rule '@typescript-eslint/no-unused-vars' was not found                     @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/build/Build/Products/Debug-iphonesimulator/Capacitor/Capacitor.framework/native-bridge.js
+    36:5   warning  Unused eslint-disable directive (no problems were reported)
+   208:29  warning  Unused eslint-disable directive (no problems were reported from 'no-prototype-builtins')
+  1003:13  error    Definition for rule '@typescript-eslint/no-unused-vars' was not found                     @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/App.tsx
+     7:10   error    'Onboarding' is defined but never used                                                                                                           @typescript-eslint/no-unused-vars
+     9:10   error    'CoachCard' is defined but never used                                                                                                            @typescript-eslint/no-unused-vars
+    37:62   error    'Sun' is defined but never used                                                                                                                  @typescript-eslint/no-unused-vars
+    37:67   error    'Moon' is defined but never used                                                                                                                 @typescript-eslint/no-unused-vars
+    37:151  error    'X' is defined but never used                                                                                                                    @typescript-eslint/no-unused-vars
+    50:10   error    'StreakWidget' is defined but never used                                                                                                         @typescript-eslint/no-unused-vars
+    58:10   error    'TodayProgress' is defined but never used                                                                                                        @typescript-eslint/no-unused-vars
+    59:10   error    'OnboardingChecklist' is defined but never used                                                                                                  @typescript-eslint/no-unused-vars
+   103:10   error    'skippedSections' is assigned a value but never used                                                                                             @typescript-eslint/no-unused-vars
+   103:27   error    'setSkippedSections' is assigned a value but never used                                                                                          @typescript-eslint/no-unused-vars
+   111:10   error    'showOnboardingChecklist' is assigned a value but never used                                                                                     @typescript-eslint/no-unused-vars
+   111:35   error    'setShowOnboardingChecklist' is assigned a value but never used                                                                                  @typescript-eslint/no-unused-vars
+   147:54   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+   155:41   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+   191:42   error    'data' is defined but never used                                                                                                                 @typescript-eslint/no-unused-vars
+   191:48   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+   411:31   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+   434:28   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+   496:6    warning  React Hook useEffect has missing dependencies: 'rescheduleAll' and 'user'. Either include them or remove the dependency array                    react-hooks/exhaustive-deps
+   503:6    warning  React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array                                          react-hooks/exhaustive-deps
+   520:6    warning  React Hook useEffect has missing dependencies: 'checkAndGenerateWeeklyReport' and 'user'. Either include them or remove the dependency array     react-hooks/exhaustive-deps
+   537:6    warning  React Hook useEffect has missing dependencies: 'analyzeAndGenerateInterventions' and 'user'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  1035:9    error    'handlePrimingComplete' is assigned a value but never used                                                                                       @typescript-eslint/no-unused-vars
+  1041:9    error    'updatedPriming' is never reassigned. Use 'const' instead                                                                                        prefer-const
+  1075:9    error    'todaysPriming' is assigned a value but never used                                                                                               @typescript-eslint/no-unused-vars
+  1796:39   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+  2008:37   error    Unexpected any. Specify a different type                                                                                                         @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/AuthModal.tsx
+  45:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Breathing.tsx
+  342:9   error    'orbPositions' is never reassigned. Use 'const' instead                                                     prefer-const
+  551:23  error    Unexpected any. Specify a different type                                                                    @typescript-eslint/no-explicit-any
+  633:8   warning  React Hook useEffect has a missing dependency: 'animate'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Breathing_Legacy.tsx
+   45:89   error  'technique' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+   86:168  error  'cycleCount' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  292:21   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Breathing_Legacy.tsx:292:21
+  290 |                     // Tactile feedback for eyes-closed practice
+  291 |                     haptics.light();
+> 292 |                     setPhase(nextPhase);
+      |                     ^^^^^^^^ Avoid calling setState() directly within an effect
+  293 |                     setTimeLeft(nextConfig.duration);
+  294 |                 }
+  295 |             }                                                          react-hooks/set-state-in-effect
+  301:9    error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Breathing_Legacy.tsx:301:9
+  299 |     // Reset effect
+  300 |     useEffect(() => {
+> 301 |         setIsActive(false);
+      |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  302 |         const initialPhase = technique === '4-7-8' ? 'Inhale' : 'Inhale'; // Reset to start
+  303 |         setPhase(initialPhase);
+  304 |         setTimeLeft(TECHNIQUES[technique][initialPhase].duration);                                    react-hooks/set-state-in-effect
+  316:17   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Breathing_Legacy.tsx:316:17
+  314 |             // Only increment if we're not at the very start
+  315 |             if (sessionTime > 0) {
+> 316 |                 setBoxCycleCount(prev => {
+      |                 ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  317 |                     const next = prev + 1;
+  318 |                     return next > 4 ? 1 : next; // Reset to 1 after reaching 4
+  319 |                 });  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CelebrationModal.tsx
+  56:8    warning  React Hook useEffect has a missing dependency: 'customMessage'. Either include it or remove the dependency array. If 'setMessage' needs the current value of 'customMessage', you can also switch to useReducer instead of useState and read 'customMessage' in the reducer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react-hooks/exhaustive-deps
+  76:102  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CelebrationModal.tsx:76:102
+  74 |                         style={{
+  75 |                             left: `${piece.left}%`,
+> 76 |                             backgroundColor: ['#B5C2A3', '#E8DCC4', '#D4A574', '#F4E4C1'][Math.floor(Math.random() * 4)],
+     |                                                                                                      ^^^^^^^^^^^^^ Cannot call impure function
+  77 |                             animationDelay: `${piece.delay}s`,
+  78 |                             animationDuration: `${piece.duration}s`
+  79 |                         }}  react-hooks/purity
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/ClearTheNoise.tsx
+  42:25  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/ClearTheNoise.tsx:42:25
+  40 |     // Random selection for variety
+  41 |     const seeds = useMemo(() => ({
+> 42 |         ack: Math.floor(Math.random() * 100),
+     |                         ^^^^^^^^^^^^^ Cannot call impure function
+  43 |         ref: Math.floor(Math.random() * 100),
+  44 |         fact: Math.floor(Math.random() * CLEAR_THE_NOISE_CONTENT.scienceFacts.length)
+  45 |     }), []);  react-hooks/purity
+  43:25  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/ClearTheNoise.tsx:43:25
+  41 |     const seeds = useMemo(() => ({
+  42 |         ack: Math.floor(Math.random() * 100),
+> 43 |         ref: Math.floor(Math.random() * 100),
+     |                         ^^^^^^^^^^^^^ Cannot call impure function
+  44 |         fact: Math.floor(Math.random() * CLEAR_THE_NOISE_CONTENT.scienceFacts.length)
+  45 |     }), []);
+  46 |                                      react-hooks/purity
+  44:26  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/ClearTheNoise.tsx:44:26
+  42 |         ack: Math.floor(Math.random() * 100),
+  43 |         ref: Math.floor(Math.random() * 100),
+> 44 |         fact: Math.floor(Math.random() * CLEAR_THE_NOISE_CONTENT.scienceFacts.length)
+     |                          ^^^^^^^^^^^^^ Cannot call impure function
+  45 |     }), []);
+  46 |
+  47 |     // Tier-specific content                                           react-hooks/purity
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CoachCard.tsx
+  143:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CoachCard.tsx:143:9
+  141 |
+  142 |     useEffect(() => {
+> 143 |         setGreeting(getGreeting());
+      |         ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  144 |
+  145 |         const timeOfDay = getTimeOfDay();
+  146 |         const daysSinceActivity = lastActivityDate  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CoachChatWidget.tsx
+  20:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  61:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  61:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  74:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  85:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CoachGuidanceModal.tsx
+   4:59  error  'AlertCircle' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  28:24  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CoachGuidanceModal.tsx:28:24
+  26 |     useEffect(() => {
+  27 |         const hour = new Date().getHours();
+> 28 |         if (hour < 12) setGreeting('Good morning');
+     |                        ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  29 |         else if (hour < 18) setGreeting('Good afternoon');
+  30 |         else setGreeting('Good evening');
+  31 |     }, [isOpen]);  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/CoachSettingsModal.tsx
+  3:20  error  'X' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Countdown.tsx
+  14:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Countdown.tsx:14:13
+  12 |     useEffect(() => {
+  13 |         if (isActive) {
+> 14 |             setCount(5);
+     |             ^^^^^^^^ Avoid calling setState() directly within an effect
+  15 |         }
+  16 |     }, [isActive]);
+  17 |  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/DashboardQuoteCard.tsx
+  8:10  error  'haptics' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/DisclaimerModal.tsx
+  19:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/DisclaimerModal.tsx:19:13
+  17 |         if (isOpen) {
+  18 |             // Reset scroll state when modal opens
+> 19 |             setHasScrolledToBottom(false);
+     |             ^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  20 |             setShowScrollIndicator(true);
+  21 |         }
+  22 |     }, [isOpen]);  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/EnergyCheckIn.tsx
+  6:7   error  'BatteryEmpty' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  6:79  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/EveningCheckIn.tsx
+  31:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/EveningCheckIn.tsx:31:13
+  29 |     useEffect(() => {
+  30 |         if (isOpen) {
+> 31 |             setStep('intro');
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  32 |             setIsExiting(false);
+  33 |             // Auto advance intro
+  34 |             const t = setTimeout(() => setStep('recap'), 3500);  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Fasting.tsx
+    2:49  error  'Info' is defined but never used          @typescript-eslint/no-unused-vars
+    2:90  error  'Target' is defined but never used        @typescript-eslint/no-unused-vars
+  753:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  754:69  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  792:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/KoiAnimation.tsx
+   64:17  error    'rotation' is never reassigned. Use 'const' instead                                                         prefer-const
+  107:21  error    'nextX' is never reassigned. Use 'const' instead                                                            prefer-const
+  108:21  error    'nextY' is never reassigned. Use 'const' instead                                                            prefer-const
+  124:8   warning  React Hook useEffect has a missing dependency: 'animate'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/KoiPond.tsx
+  358:49  error    'speed' is never reassigned. Use 'const' instead                                                                       prefer-const
+  492:8   warning  React Hook useEffect has a missing dependency: 'animate'. Either include it or remove the dependency array             react-hooks/exhaustive-deps
+  593:8   warning  React Hook useEffect has a missing dependency: 'startCrossfadeLoop'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Library.tsx
+   31:16  error  '_onShowTip' is defined but never used    @typescript-eslint/no-unused-vars
+  197:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Meditation.tsx
+    2:52   error    'Lightbulb' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+    2:78   error    'Target' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+   73:119  error    'onShowTip' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  111:13   error    Error: Cannot access variable before it is declared
+
+`handleSessionEnd` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Meditation.tsx:111:13
+  109 |         } else if (timeLeft === 0 && isActive) {
+  110 |             setIsActive(false);
+> 111 |             handleSessionEnd();
+      |             ^^^^^^^^^^^^^^^^ `handleSessionEnd` accessed before it is declared
+  112 |         }
+  113 |         return () => clearInterval(interval);
+  114 |     }, [isActive, timeLeft]);
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Meditation.tsx:155:5
+  153 |     };
+  154 |
+> 155 |     const handleSessionEnd = async () => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 156 |         console.log('🔔 Meditation complete - playing END bell');
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 157 |         await playGong(); // Play ending bell
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 158 |         setShowNamaste(true);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 159 |         if (onComplete) onComplete();
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 160 |         setTimeout(() => {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 161 |             setShowNamaste(false); // Hide Namaste before showing modal
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 162 |             setShowReflectionModal(true);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 163 |         }, 5000); // Show modal after 5 seconds of Namaste
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 164 |     };
+      | ^^^^^^^ `handleSessionEnd` is declared here
+  165 |
+  166 |     const resetTimer = () => {
+  167 |         setIsActive(false);  react-hooks/immutability
+  114:8    warning  React Hook useEffect has a missing dependency: 'handleSessionEnd'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  188:46   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  188:83   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  199:40   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+  204:39   error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Momentum.tsx
+    2:79  error    'Microscope' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+   20:10  error    'StackWizardModal' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+   43:5   error    'onLaunchRoutine' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+   71:12  error    'showStackWizard' is assigned a value but never used                                                                      @typescript-eslint/no-unused-vars
+   97:8   warning  React Hook useEffect has a missing dependency: 'showEveningReflection'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  135:35  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  144:46  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  144:83  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  159:44  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  170:43  error    Unexpected any. Specify a different type                                                                                  @typescript-eslint/no-explicit-any
+  202:13  error    'updatedUser' is never reassigned. Use 'const' instead                                                                    prefer-const
+  295:11  error    'handleSaveStack' is assigned a value but never used                                                                      @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/MoodSelector.tsx
+  16:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/MorningBriefing.tsx
+  26:24  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/MorningBriefing.tsx:26:24
+  24 |         // Determine time-based greeting
+  25 |         const hour = new Date().getHours();
+> 26 |         if (hour < 12) setGreeting('Good Morning');
+     |                        ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  27 |         else if (hour < 18) setGreeting('Good Afternoon');
+  28 |         else setGreeting('Good Evening');
+  29 |  react-hooks/set-state-in-effect
+  70:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/MorningBriefing.tsx:70:13
+  68 |             const timers: ReturnType<typeof setTimeout>[] = [];
+  69 |
+> 70 |             setBreathPhase('inhale');
+     |             ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  71 |             timers.push(setTimeout(() => {
+  72 |                 setBreathPhase('hold');
+  73 |                 timers.push(setTimeout(() => {                react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/MorningPractice.tsx
+  18:5   error  'onClose' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  28:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/MorningPractice.tsx:28:13
+  26 |     useEffect(() => {
+  27 |         if (isOpen) {
+> 28 |             setIsExiting(false);
+     |             ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  29 |         }
+  30 |     }, [isOpen]);
+  31 |  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx
+  104:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:104:18
+  102 |         return (
+  103 |             <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-colors duration-500 relative overflow-hidden ${bgClass}`}>
+> 104 |                 <ThemeToggle />
+      |                  ^^^^^^^^^^^ This component is created during render
+  105 |                 {/* Background Decor */}
+  106 |                 <div className={`absolute -top-20 -left-20 w-64 h-64 rounded-full blur-[100px] opacity-20 ${isDarkMode ? 'bg-indigo-500' : 'bg-sage'}`} />
+  107 |                 <div className={`absolute top-1/2 -right-32 w-80 h-80 rounded-full blur-[120px] opacity-20 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:80:25
+  78 |
+  79 |     // Components
+> 80 |     const ThemeToggle = () => (
+     |                         ^^^^^^^
+> 81 |         <button
+     | ^^^^^^^^^^^^^^^
+> 82 |             onClick={onToggleTheme}
+     | ^^^^^^^^^^^^^^^
+> 83 |             className={`absolute top-6 right-6 p-3 rounded-full transition-all z-50 ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+     | ^^^^^^^^^^^^^^^
+> 84 |         >
+     | ^^^^^^^^^^^^^^^
+> 85 |             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+     | ^^^^^^^^^^^^^^^
+> 86 |         </button>
+     | ^^^^^^^^^^^^^^^
+> 87 |     );
+     | ^^^^^^ The component is created during render here
+  88 |
+  89 |     const StepIndicator = () => (
+  90 |         <div className="flex gap-2 justify-center mt-8">                                         react-hooks/static-components
+  159:22  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:159:22
+  157 |
+  158 |                 <div className="absolute bottom-8">
+> 159 |                     <StepIndicator />
+      |                      ^^^^^^^^^^^^^ This component is created during render
+  160 |                 </div>
+  161 |             </div>
+  162 |         );
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:89:27
+   87 |     );
+   88 |
+>  89 |     const StepIndicator = () => (
+      |                           ^^^^^^^
+>  90 |         <div className="flex gap-2 justify-center mt-8">
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  91 |             {[1, 2, 3, 4].map(s => (
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  92 |                 <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${s === step
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  93 |                     ? `w-8 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  94 |                     : `w-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  95 |                     }`} />
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  96 |             ))}
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  97 |         </div>
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  98 |     );
+      | ^^^^^^ The component is created during render here
+   99 |
+  100 |     // --- STEP 1: WELCOME & NAME ---
+  101 |     if (step === 1) {           react-hooks/static-components
+  169:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:169:18
+  167 |         return (
+  168 |             <div className={`min-h-screen flex flex-col items-center pt-16 pb-6 px-6 transition-colors duration-500 ${bgClass}`}>
+> 169 |                 <ThemeToggle />
+      |                  ^^^^^^^^^^^ This component is created during render
+  170 |                 <div className="w-full max-w-lg animate-fade-in text-center flex flex-col h-full">
+  171 |                     <h2 className={`text-3xl font-display font-medium mb-1 ${textPrimary}`}>What defines you?</h2>
+  172 |                     <p className={`text-sm mb-6 ${textSecondary}`}>Pick the role that resonates most.</p>
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:80:25
+  78 |
+  79 |     // Components
+> 80 |     const ThemeToggle = () => (
+     |                         ^^^^^^^
+> 81 |         <button
+     | ^^^^^^^^^^^^^^^
+> 82 |             onClick={onToggleTheme}
+     | ^^^^^^^^^^^^^^^
+> 83 |             className={`absolute top-6 right-6 p-3 rounded-full transition-all z-50 ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+     | ^^^^^^^^^^^^^^^
+> 84 |         >
+     | ^^^^^^^^^^^^^^^
+> 85 |             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+     | ^^^^^^^^^^^^^^^
+> 86 |         </button>
+     | ^^^^^^^^^^^^^^^
+> 87 |     );
+     | ^^^^^^ The component is created during render here
+  88 |
+  89 |     const StepIndicator = () => (
+  90 |         <div className="flex gap-2 justify-center mt-8">                                                                                                    react-hooks/static-components
+  211:22  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:211:22
+  209 |                         </button>
+  210 |                     </div>
+> 211 |                     <StepIndicator />
+      |                      ^^^^^^^^^^^^^ This component is created during render
+  212 |                 </div>
+  213 |             </div>
+  214 |         );
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:89:27
+   87 |     );
+   88 |
+>  89 |     const StepIndicator = () => (
+      |                           ^^^^^^^
+>  90 |         <div className="flex gap-2 justify-center mt-8">
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  91 |             {[1, 2, 3, 4].map(s => (
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  92 |                 <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${s === step
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  93 |                     ? `w-8 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  94 |                     : `w-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  95 |                     }`} />
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  96 |             ))}
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  97 |         </div>
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  98 |     );
+      | ^^^^^^ The component is created during render here
+   99 |
+  100 |     // --- STEP 1: WELCOME & NAME ---
+  101 |     if (step === 1) {  react-hooks/static-components
+  221:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:221:18
+  219 |         return (
+  220 |             <div className={`min-h-screen flex flex-col items-center pt-16 pb-6 px-6 transition-colors duration-500 ${bgClass}`}>
+> 221 |                 <ThemeToggle />
+      |                  ^^^^^^^^^^^ This component is created during render
+  222 |                 <div className="w-full max-w-lg animate-fade-in text-center flex flex-col h-full">
+  223 |                     <h2 className={`text-3xl font-display font-medium mb-1 ${textPrimary}`}>How should we push you?</h2>
+  224 |                     <p className={`text-sm mb-8 ${textSecondary}`}>Select your coaching style.</p>
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:80:25
+  78 |
+  79 |     // Components
+> 80 |     const ThemeToggle = () => (
+     |                         ^^^^^^^
+> 81 |         <button
+     | ^^^^^^^^^^^^^^^
+> 82 |             onClick={onToggleTheme}
+     | ^^^^^^^^^^^^^^^
+> 83 |             className={`absolute top-6 right-6 p-3 rounded-full transition-all z-50 ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+     | ^^^^^^^^^^^^^^^
+> 84 |         >
+     | ^^^^^^^^^^^^^^^
+> 85 |             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+     | ^^^^^^^^^^^^^^^
+> 86 |         </button>
+     | ^^^^^^^^^^^^^^^
+> 87 |     );
+     | ^^^^^^ The component is created during render here
+  88 |
+  89 |     const StepIndicator = () => (
+  90 |         <div className="flex gap-2 justify-center mt-8">                                                                                                     react-hooks/static-components
+  270:22  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:270:22
+  268 |                         </button>
+  269 |                     </div>
+> 270 |                     <StepIndicator />
+      |                      ^^^^^^^^^^^^^ This component is created during render
+  271 |                 </div>
+  272 |             </div>
+  273 |         );
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:89:27
+   87 |     );
+   88 |
+>  89 |     const StepIndicator = () => (
+      |                           ^^^^^^^
+>  90 |         <div className="flex gap-2 justify-center mt-8">
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  91 |             {[1, 2, 3, 4].map(s => (
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  92 |                 <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${s === step
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  93 |                     ? `w-8 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  94 |                     : `w-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  95 |                     }`} />
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  96 |             ))}
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  97 |         </div>
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  98 |     );
+      | ^^^^^^ The component is created during render here
+   99 |
+  100 |     // --- STEP 1: WELCOME & NAME ---
+  101 |     if (step === 1) {  react-hooks/static-components
+  280:18  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:280:18
+  278 |         return (
+  279 |             <div className={`min-h-screen flex flex-col items-center pt-16 pb-6 px-6 transition-colors duration-500 ${bgClass}`}>
+> 280 |                 <ThemeToggle />
+      |                  ^^^^^^^^^^^ This component is created during render
+  281 |                 <div className="w-full max-w-lg animate-fade-in text-center flex flex-col h-full">
+  282 |                     <h2 className={`text-3xl font-display font-medium mb-1 ${textPrimary}`}>Content Style</h2>
+  283 |                     <p className={`text-sm mb-8 ${textSecondary}`}>Choose your preferred format</p>
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:80:25
+  78 |
+  79 |     // Components
+> 80 |     const ThemeToggle = () => (
+     |                         ^^^^^^^
+> 81 |         <button
+     | ^^^^^^^^^^^^^^^
+> 82 |             onClick={onToggleTheme}
+     | ^^^^^^^^^^^^^^^
+> 83 |             className={`absolute top-6 right-6 p-3 rounded-full transition-all z-50 ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+     | ^^^^^^^^^^^^^^^
+> 84 |         >
+     | ^^^^^^^^^^^^^^^
+> 85 |             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+     | ^^^^^^^^^^^^^^^
+> 86 |         </button>
+     | ^^^^^^^^^^^^^^^
+> 87 |     );
+     | ^^^^^^ The component is created during render here
+  88 |
+  89 |     const StepIndicator = () => (
+  90 |         <div className="flex gap-2 justify-center mt-8">                                                                                                              react-hooks/static-components
+  411:22  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:411:22
+  409 |                         </button>
+  410 |                     </div>
+> 411 |                     <StepIndicator />
+      |                      ^^^^^^^^^^^^^ This component is created during render
+  412 |                 </div>
+  413 |             </div>
+  414 |         );
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Onboarding.tsx:89:27
+   87 |     );
+   88 |
+>  89 |     const StepIndicator = () => (
+      |                           ^^^^^^^
+>  90 |         <div className="flex gap-2 justify-center mt-8">
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  91 |             {[1, 2, 3, 4].map(s => (
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  92 |                 <div key={s} className={`h-1.5 rounded-full transition-all duration-300 ${s === step
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  93 |                     ? `w-8 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  94 |                     : `w-2 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  95 |                     }`} />
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  96 |             ))}
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  97 |         </div>
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  98 |     );
+      | ^^^^^^ The component is created during render here
+   99 |
+  100 |     // --- STEP 1: WELCOME & NAME ---
+  101 |     if (step === 1) {  react-hooks/static-components
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Profile.tsx
+  810:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  924:48   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/ProgressDashboard.tsx
+  61:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/QuickActions.tsx
+   2:10  error  'Target' is defined but never used         @typescript-eslint/no-unused-vars
+  12:5   error  'onJumpToGoals' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/QuickRoutines.tsx
+    3:10  error  'Play' is defined but never used                     @typescript-eslint/no-unused-vars
+    3:39  error  'MoreHorizontal' is defined but never used           @typescript-eslint/no-unused-vars
+    3:79  error  'Trash2' is defined but never used                   @typescript-eslint/no-unused-vars
+  118:31  error  'textColorClass' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/Reflections.tsx
+    3:21  error  'Target' is defined but never used                @typescript-eslint/no-unused-vars
+   53:5   error  'tipsEnabled' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   54:5   error  'onShowTip' is defined but never used             @typescript-eslint/no-unused-vars
+  136:22  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  183:15  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+  391:93  error  Unexpected any. Specify a different type          @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/SlideUpModal.tsx
+  30:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/SlideUpModal.tsx:30:9
+  28 |
+  29 |     useEffect(() => {
+> 30 |         setMounted(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  31 |     }, []);
+  32 |
+  33 |     // Keyboard handler: Close on Escape key  react-hooks/set-state-in-effect
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/SoundMixer.tsx
+  171:69   error    '_isDarkMode' is defined but never used                                                                                                                                                                                                                            @typescript-eslint/no-unused-vars
+  191:37   warning  The ref value 'audioRefs.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'audioRefs.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+  439:179  error    Unexpected any. Specify a different type                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  699:119  error    Unexpected any. Specify a different type                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/StackEditorModal.tsx
+   37:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/StackEditorModal.tsx:37:13
+  35 |     useEffect(() => {
+  36 |         if (routine) {
+> 37 |             setName(routine.name);
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  38 |             setDescription(routine.description || '');
+  39 |             setSteps(JSON.parse(JSON.stringify(routine.steps))); // Deep copy
+  40 |             setThemeColor(routine.themeColor || 'sage');  react-hooks/set-state-in-effect
+   55:74  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-explicit-any
+  126:11  error  'colors' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/StackRunner.tsx
+  2:27  error  'useEffect' is defined but never used     @typescript-eslint/no-unused-vars
+  3:10  error  'ChevronRight' is defined but never used  @typescript-eslint/no-unused-vars
+  4:29  error  'StackStep' is defined but never used     @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/StackWizardModal.tsx
+  27:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/StackWizardModal.tsx:27:13
+  25 |     useEffect(() => {
+  26 |         if (isOpen) {
+> 27 |             setStep('intro');
+     |             ^^^^^^^ Avoid calling setState() directly within an effect
+  28 |             setAnswers({ duration: '', goal: '' });
+  29 |             setGeneratedStack(null);
+  30 |         }  react-hooks/set-state-in-effect
+  49:28  error  'finalAnswer' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-unused-vars
+  55:13  error  'steps' is never reassigned. Use 'const' instead                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    prefer-const
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/UpdatePasswordModal.tsx
+  51:18  error  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/WelcomeCarousel.tsx
+   4:32  error  'Target' is defined but never used                      @typescript-eslint/no-unused-vars
+  31:12  error  'customInterest' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  31:28  error  'setCustomInterest' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/components/WelcomeOrientationModal.tsx
+   3:61  error  'Coffee' is defined but never used             @typescript-eslint/no-unused-vars
+   3:69  error  'MessageSquare' is defined but never used      @typescript-eslint/no-unused-vars
+   3:84  error  'Sprout' is defined but never used             @typescript-eslint/no-unused-vars
+  26:11  error  'accentBg' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/contexts/AuthContext.tsx
+    9:77  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   10:77  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   11:37  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   12:61  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   13:64  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   14:60  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   62:25  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+   72:21  error  'data' is assigned a value but never used                                                                                       @typescript-eslint/no-unused-vars
+   84:25  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  112:25  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  127:25  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  137:25  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  160:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/hooks/useNotifications.ts
+   88:29  error  Unexpected any. Specify a different type                      @typescript-eslint/no-explicit-any
+  141:21  error  Unexpected any. Specify a different type                      @typescript-eslint/no-explicit-any
+  240:13  error  'activeWindowStart' is never reassigned. Use 'const' instead  prefer-const
+  336:13  error  'activeWindowStart' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/hooks/useSpeechRecognition.ts
+   7:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:87  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  39:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  54:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/lib/api.ts
+  205:26  error  '_userId' is defined but never used       @typescript-eslint/no-unused-vars
+  205:43  error  '_quoteId' is defined but never used      @typescript-eslint/no-unused-vars
+  205:61  error  '_isFavorite' is defined but never used   @typescript-eslint/no-unused-vars
+  240:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/lib/openai.ts
+  73:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/types.ts
+  133:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  332:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/utils/aiCoach.ts
+  115:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:65  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/utils/haptics.ts
+  62:18  error  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/utils/insightsAnalyzer.ts
+  157:53  error  '_energyHistory' is defined but never used  @typescript-eslint/no-unused-vars
+  157:69  error  Unexpected any. Specify a different type    @typescript-eslint/no-explicit-any
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/utils/quoteMatcher.ts
+  13:14  error  'e' is defined but never used                          @typescript-eslint/no-unused-vars
+  29:9   error  'tierQuotes' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/utils/streakUtils.ts
+  54:9  error  'currentDate' is never reassigned. Use 'const' instead  prefer-const
+
+/Users/michaelvargas/Documents/AntiG/Palante App/src/utils/voiceUtils.ts
+   7:13  error  Unexpected lexical declaration in case block  no-case-declarations
+  16:13  error  Unexpected lexical declaration in case block  no-case-declarations
+
+✖ 187 problems (171 errors, 16 warnings)
+  10 errors and 4 warnings potentially fixable with the `--fix` option.
+
