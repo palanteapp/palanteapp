@@ -16,6 +16,10 @@ export interface AIAffirmationRequest {
     timeOfDay?: 'morning' | 'afternoon' | 'evening';
     userName?: string;
     coachName?: string;
+    focusAreas?: string[];
+    dailyIntention?: string;
+    currentMood?: string;
+    currentEnergy?: number;
 }
 
 export interface UserContext {
@@ -35,6 +39,7 @@ export interface UserContext {
     momentumState?: 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
     currentMood?: string;
     focusAreas?: string[];
+    coachTone?: 'nurturing' | 'direct' | 'accountability';
 }
 
 export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
@@ -57,6 +62,12 @@ const MOMENTUM_GUIDANCE: Record<MomentumState, string> = {
     on_a_roll: 'They are building beautiful momentum. Let the message reflect their forward motion and affirm that it is working.',
     recovering: 'They are finding their way back. Let the message be a warm welcome home — gentle, not a push. No pressure.',
     steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of just showing up.',
+};
+
+export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountability', string> = {
+    nurturing: `Be warm, patient, and unhurried. Acknowledge how they feel before pointing forward. Lead with care — make them feel seen first. Gentle, not soft. Like the coach who checks in on you as a person, not just a performer.`,
+    direct: `Be honest and clear. No filler, no fluff — but stay warm. Say the real thing plainly. Skip the build-up. Trust them to handle a straight answer. Be the friend who tells the truth because they respect you.`,
+    accountability: `Be firm and high-standard. You see what they're capable of and you won't let them coast. Acknowledge the work but name the gap. No cruelty — but no excuses either. The coach who pushes because they believe in you more than you believe in yourself right now.`,
 };
 
 import type { ChatMessage, UserProfile, UserBehaviorPattern, CoachIntervention } from '../types';
@@ -202,6 +213,17 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
         ? `They are on a ${request.streak}-day streak - acknowledge their consistency!`
         : '';
 
+    const intentionLine = request.dailyIntention
+        ? `- Today's Intention: "${request.dailyIntention}" — lean into this theme directly`
+        : '';
+    const focusAreasLine = request.focusAreas?.length
+        ? `- Focus Areas: ${request.focusAreas.join(', ')}`
+        : '';
+    const stateContext = (request.currentEnergy !== undefined && request.currentEnergy <= 2)
+        || request.currentMood === 'Stressed' || request.currentMood === 'Anxious'
+        ? `- Current State: User is feeling low-energy or stressed. Be gentle and grounding, not high-intensity.`
+        : '';
+
     const coachIdentity = request.coachName ? `Coach ${request.coachName}` : 'Palante Coach';
 
     const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation coach. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
@@ -210,6 +232,9 @@ Generate a single, powerful affirmation or motivational quote for someone with t
 - Profession: ${request.profession || 'General'}
 - Current Focus/Goal: ${request.focusGoal || 'Personal growth'}
 - Interests: ${request.interests?.join(', ') || 'General wellness'}
+${intentionLine}
+${focusAreasLine}
+${stateContext}
 ${streakContext}
 ${timeContext}
 
@@ -359,33 +384,40 @@ export const generateMorningPracticeMessage = async (
         intention: string;
         narrative?: string;
         momentumState?: MomentumState;
+        coachTone?: 'nurturing' | 'direct' | 'accountability';
     }
 ): Promise<string> => {
     if (!GEMINI_API_KEY) {
         return getFallbackMorningMessage(data);
     }
 
-    const prompt = `You are Palante Coach — a soulful, poetic guide rooted in the spirit of "Pa'lante": ever forward, with grace and fire.
+    const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
 
-Write a single, lyrical paragraph of morning upliftment for ${userName}. This is not a list. It is a poem in prose — intimate, alive, and personal.
+    const prompt = `You are Palante Coach, a real human coach who knows ${userName} and genuinely believes in them.
 
-WHAT THEY BROUGHT TO PRACTICE TODAY:
-- Gratitudes: ${data.gratitudes.join(', ')}
+You just read what they wrote in their morning practice. Write them one short paragraph. The goal is simple: they should finish reading it and feel seen, supported, and ready to walk into their day.
+
+WHAT THEY WROTE THIS MORNING:
+- Grateful for: ${data.gratitudes.join(', ')}
 - Affirmations: ${data.affirmations.join(', ')}
 - Today's intention: ${data.intention}
 ${data.narrative ? `\nWHO THEY'VE BEEN LATELY:\n${data.narrative}` : ''}
 ${data.momentumState ? `\nTHEIR CURRENT MOMENTUM: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
 
+TONE DIRECTIVE:
+${toneDirective}
+
 YOUR TASK:
-Weave their gratitudes, affirmations, and intention into one luminous paragraph that feels like morning light — warm, clear, and full of possibility. Let their own words breathe through yours. Do not name each element explicitly; instead, let them shimmer beneath the surface of the prose.
+Write one short paragraph that responds directly to what they shared. Reference their actual words specifically, not abstractly. Reflect something true about them that they might not have named out loud. Then send them toward their intention feeling like the day has something in it worth going toward.
 
 CRAFT REQUIREMENTS:
-1. 50–70 words. Not a word more, not a word less.
-2. Open with their name — gently, like a hand on the shoulder.
-3. Poetic but grounded. Think Rumi meets Maya Angelou meets the best version of their own inner voice.
-4. No clichés. No "rise and shine." No "you've got this." Find the fresh image, the unexpected truth.
-5. End on a note of quiet strength — not a battle cry, but a deep exhale of readiness.
-6. Language: growth, light, roots, flow, bloom, presence, clarity, becoming. Never: conquer, battle, destroy, crush.
+1. 45–65 words. Tight and focused.
+2. Start with their first name.
+3. Warm, precise, and human. Write with care but not decoration. Every word earns its place.
+4. No clichés: no "you've got this," "rise and shine," "the journey," "step by step," or "you are enough." Say something real instead.
+5. No em dashes. Use periods and commas instead.
+6. Complete sentences only. "You are strong" not "You strong."
+7. End by pointing them toward their intention with real belief behind it, not a reminder.
 
 MEDICAL SAFETY:
 - NEVER provide medical advice, diagnosis, or treatment recommendations.
@@ -398,9 +430,9 @@ MEDICAL SAFETY:
             body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
-                    temperature: 1.0,
-                    maxOutputTokens: 250,
-                    topP: 0.97,
+                    temperature: 0.75,
+                    maxOutputTokens: 200,
+                    topP: 0.92,
                 }
             })
         });
@@ -439,31 +471,34 @@ export const generateEveningPracticeMessage = async (
     }
 ): Promise<string> => {
     if (!GEMINI_API_KEY) {
-        return getFallbackEveningMessage(data);
+        return getFallbackEveningMessage(userName, data);
     }
 
-    const prompt = `You are Palante Coach, a professional, supportive, and grounded coach.
-Generate a short, soothing, and beautiful evening message for ${userName} that summarizes their day based on their G.L.A.D. reflection.
+    const prompt = `You are Palante Coach. This message is the last thing ${userName} will read tonight. Make it worthy of that.
 
-INPUTS:
+They just completed their G.L.A.D. reflection. Read what they wrote closely. It is evidence of a person doing their best, for themselves and for everyone around them.
+
+WHAT THEY REFLECTED ON TODAY:
 - Gratitude (G): ${data.gratitude}
 - Learning (L): ${data.learning}
 - Accomplishment (A): ${data.accomplishment}
 - Delight (D): ${data.delight}
 
-REQUIREMENTS:
-1. NEVER list the items out. Instead, weave them into a single, cohesive, and poetic narrative that honors their day.
-2. Be brief (strictly under 35 words).
-3. Opening: Use a warm, soothing greeting with their name (e.g., "Well done today, ${userName}.").
-4. Tone: Reflective, peaceful, and encouraging. Focus on the beauty of their day and the growth they achieved.
-5. Close: End with a gentle, positive closing (e.g., "Rest well now.").
-6. CRITICAL: Avoid violent or aggressive language. Use words like 'peace', 'growth', 'gratitude', 'rest', and 'clarity'.
+YOUR TASK:
+Write one short paragraph that honors their day. Do not summarize or list. Reference their actual words specifically. Acknowledge that they showed up, that they noticed, that they tried. Leave them with the quiet knowledge that they did enough today.
 
-Generate this brief, beautiful evening summary now:
+CRAFT REQUIREMENTS:
+1. Under 45 words. Warm and unhurried.
+2. Do not open with their name — it sounds clinical. You may weave it in once, naturally, if it genuinely fits. The opening should feel like a breath, not a greeting.
+3. No em dashes. Use periods and commas instead.
+4. Complete sentences only. Proper capitalization and punctuation throughout.
+5. No clichés: no "well done," "you crushed it," "sweet dreams," "rest well," or "peaceful dreams." Say something real instead.
+6. No pressure, no tomorrow energy. This is not a launch. It is a landing.
+7. End with something that lets them put the phone down feeling held.
+8. When reflecting their own words back, convert first-person to second-person. If they wrote "I'm stronger," you write "you're stronger."
 
-MEDICAL SAFETY GUIDE:
-- NEVER provide medical advice or suggest medical interventions.
-- Stay within the bounds of a supportive, reflective coach.
+MEDICAL SAFETY:
+- NEVER provide medical advice, diagnosis, or treatment recommendations.
 `;
 
     try {
@@ -481,13 +516,13 @@ MEDICAL SAFETY GUIDE:
         });
 
         if (!response.ok) {
-            return getFallbackEveningMessage(data);
+            return getFallbackEveningMessage(userName, data);
         }
 
         const json = await response.json();
         let message = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
-        if (!message) return getFallbackEveningMessage(data);
+        if (!message) return getFallbackEveningMessage(userName, data);
 
         // Clean up quotes if AI adds them
         message = message.replace(/^["'']|["'']$/g, '').trim();
@@ -495,18 +530,34 @@ MEDICAL SAFETY GUIDE:
         return message;
     } catch (error) {
         console.error('Error generating evening message:', error);
-        return getFallbackEveningMessage(data);
+        return getFallbackEveningMessage(userName, data);
     }
 };
 
-const getFallbackEveningMessage = (data: { gratitude: string; learning: string; accomplishment: string; delight: string }): string => {
-    const { gratitude } = data;
-    const gratitudeSample = gratitude.length > 20 ? gratitude.substring(0, 20) + "..." : gratitude;
+// Shift user's first-person input to second-person when quoting it back to them.
+// e.g. "i'm stronger than i think" → "you're stronger than you think"
+const toSecondPerson = (text: string): string =>
+    text
+        .replace(/\bi'm\b/gi, "you're")
+        .replace(/\bi've\b/gi, "you've")
+        .replace(/\bi'd\b/gi, "you'd")
+        .replace(/\bi'll\b/gi, "you'll")
+        .replace(/\bi can\b/gi, "you can")
+        .replace(/\bmy\b/gi, 'your')
+        .replace(/\bmine\b/gi, 'yours')
+        .replace(/\bi\b/gi, 'you');
+
+const getFallbackEveningMessage = (userName: string, data: { gratitude: string; learning: string; accomplishment: string; delight: string }): string => {
+    const firstName = userName?.split(' ')[0] || 'You';
+    const g = data.gratitude?.trim() || 'what today gave you';
+    const l = toSecondPerson(data.learning?.trim() || 'something worth carrying forward');
+    const a = data.accomplishment?.trim() || 'what you completed';
+    const d = data.delight?.trim() || 'a moment that was yours';
 
     const templates = [
-        `Rest well, knowing your day was anchored in ${gratitudeSample}. May your night be as peaceful as the delight you found today. Sleep deeply.`,
-        `A day well-lived ends in gratitude. Your reflection on ${gratitudeSample} and today's accomplishments show true growth. Peaceful dreams.`,
-        `Honor the journey of this day. Your heart is full of gratitude, and your mind is wise with new learnings. Rest with a light heart.`
+        `You were grateful for ${g} today. You noticed ${d}. That kind of attention to your own life is not small. You did enough. You can let it go now.`,
+        `You took care of ${a} today, and somewhere in that you discovered that ${l}. That is a full day. The people around you are better for the effort you bring. Put this one down gently.`,
+        `${firstName}, you found delight in ${d} and carried gratitude for ${g}. That is someone paying attention. You showed up today, for yourself and for everyone around you. That counts.`,
     ];
 
     return templates[Math.floor(Math.random() * templates.length)];
@@ -583,6 +634,10 @@ export const chatWithCoach = async (
     const moodBlock = context.currentMood ? `Current mood: ${context.currentMood}` : '';
     const focusBlock = context.focusAreas?.length ? `Focus areas: ${context.focusAreas.join(', ')}` : '';
 
+    const toneBlock = context.coachTone
+        ? `\nTONE DIRECTIVE FOR THIS SESSION:\n${COACH_TONE_GUIDANCE[context.coachTone]}\n`
+        : `\nTONE DIRECTIVE FOR THIS SESSION:\n${COACH_TONE_GUIDANCE['nurturing']}\n`;
+
     // Construct System Prompt
     const systemPrompt = `You are Palante Coach, a warm, nurturing, and deeply supportive friend and mentor.
 
@@ -600,6 +655,7 @@ export const chatWithCoach = async (
     ${energyMemory}
     ${journalMemory}
     ${reflectionMemory}
+    ${toneBlock}
 
     YOUR PERSONA:
     - Tone: Deeply conversational, empathetic, and patient. ${intensityDesc}
@@ -607,7 +663,7 @@ export const chatWithCoach = async (
     - Conversation Style: Focus on a natural back-and-forth. Keep your responses relatively short at first. Listen more than you talk.
     - App Guidance: Only suggest ONE relevant app feature if it feels truly helpful.
     - Reassurance: Softly remind the user that you are there for them.
-    
+
     GOAL:
     Build a genuine connection. Be a supportive presence. Use their history to provide more personalized, insightful guidance. Only transition to "coaching" once you've truly listened.
 
@@ -893,15 +949,16 @@ const getCategoryFromRequest = (request: AIAffirmationRequest): string => {
 const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
     const { gratitudes, affirmations, intention } = data;
     const g = gratitudes.length > 0 ? gratitudes[0].trim().toLowerCase() : "what is already here";
-    const a = affirmations.length > 0 ? affirmations[0].trim().toLowerCase() : "everything you already are";
+    const rawAffirmation = affirmations.length > 0 ? affirmations[0].trim() : "I have what it takes";
+    const a = rawAffirmation.charAt(0).toUpperCase() + rawAffirmation.slice(1).replace(/^i /i, 'I ');
     const i = intention ? intention.trim().toLowerCase() : "moving forward";
 
     const templates = [
-        `There is a quiet power in beginning here — with ${g} as your ground and the knowing that you are ${a}. Let that be enough. Let that be everything. Today, your whole being leans toward ${i}, and the world leans back.`,
-        `Something opened when you named ${g}. Something ancient in you recognized the truth of ${a}. Carry that recognition into this day like a lantern. Let ${i} be the path your feet already know.`,
-        `This morning arrived with ${g} already woven into it. You meet it as ${a} — not striving, but belonging. Move through this day in the direction of ${i}, and trust that each step is its own arrival.`,
-        `You rose. That is the first act of ${i}. And in the rising, you brought ${g} with you — a seed already unfurling. The truth that you are ${a} needs no proof today. Only presence.`,
-        `Let ${g} soften whatever needs softening. Let the truth of ${a} steady whatever feels uncertain. Then turn, gently, toward ${i} — not as a finish line, but as a living thing you tend with each breath.`
+        `You started this morning by noticing ${g}. That is not nothing. A lot of people skip that part. You wrote "${a}" and that is not an accident. Go into today carrying that. It will matter more than you think when things get hard.`,
+        `You took time this morning. You wrote down ${g}, you reminded yourself: "${a}". That is the practice working. Now go do ${i}. You have already done the harder thing, which is showing up at all.`,
+        `You are grateful for ${g}. That tells me where your head is at. You wrote "${a}" and you meant it. Your focus today is ${i}. That is a good combination. Trust it.`,
+        `You are already ahead just by being here. You named ${g}. Hold onto that when the day tries to take something from you. "${a}" is true, and today that means following through on ${i}. One thing at a time.`,
+        `${g.charAt(0).toUpperCase() + g.slice(1)} is real. You wrote "${a}" this morning, and that is worth carrying. Go into today with ${i} as your anchor. That is the whole plan. Keep it simple.`
     ];
 
     const msg = templates[Math.floor(Math.random() * templates.length)];
