@@ -10,6 +10,7 @@ import { EXPANSION_QUOTES_VOL8 } from './expansionQuotesVol8';
 import { EXPANSION_QUOTES_VOL9 } from './expansionQuotesVol9';
 import { LATINO_QUOTES } from './latinoQuotes';
 import { EXPANSION_QUOTES_VOL10 } from './expansionQuotesVol10';
+import { EXPANSION_QUOTES_VOL11 } from './expansionQuotesVol11';
 
 export const QUOTES: Quote[] = [
     ...EXPANSION_QUOTES, // 300+ Expansion quotes
@@ -23,6 +24,7 @@ export const QUOTES: Quote[] = [
     ...EXPANSION_QUOTES_VOL9, // 187 Global Proverbs
     ...LATINO_QUOTES, // 100 Latino & Afro-Latino voices — Pa'lante roots
     ...EXPANSION_QUOTES_VOL10, // 209 Verified + Unknown + Virgil Abloh + Kevin Kelly
+    ...EXPANSION_QUOTES_VOL11, // 100 New Age & Consciousness — Tolle, Dispenza, Ruiz, Castaneda, Watts, Hanh & more
     // ============================================
     // RELAXED & AFFIRMING (Gentle, Mindfulness)
     // ============================================
