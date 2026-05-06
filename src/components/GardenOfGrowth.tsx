@@ -1,336 +1,414 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Flame, Sparkles } from 'lucide-react';
+import { Flame, Sparkles, HelpCircle } from 'lucide-react';
+import {
+  getUnlockedStreakMilestones,
+  getUnlockedPointsMilestones,
+} from '../data/gardenMilestones';
 
-// Module-level constants for stable random values (avoid Math.random in render)
-const GARDEN_PLANT_RANDOMS = Array.from({ length: 12 }).map(() => ({
-    rx: Math.random(),
-    ry: Math.random(),
-    rs: Math.random(),
+// ─── Stable noise so plants don't jump on re-render ──────────────────────────
+const PLANT_JITTER = Array.from({ length: 12 }).map((_, i) => ({
+  rx: ((i * 37 + 11) % 100) / 100,
+  ry: ((i * 53 + 7) % 100) / 100,
+  rs: ((i * 71 + 19) % 100) / 100,
 }));
 
-const GARDEN_FIREFLY_RANDOMS = Array.from({ length: 25 }).map(() => ({
-    initialX: Math.random() * 100 + '%',
-    initialY: Math.random() * 90 + '%',
-    animY: [(Math.random() - 0.5) * 40 + '%', (Math.random() - 0.5) * 40 + '%'],
-    animX: [(Math.random() - 0.5) * 20 + '%', (Math.random() - 0.5) * 20 + '%'],
-    duration: 4 + Math.random() * 6,
-    delay: Math.random() * 10,
+// ─── Stable firefly positions ─────────────────────────────────────────────────
+const FIREFLY_DATA = Array.from({ length: 20 }).map((_, i) => ({
+  x: ((i * 47 + 13) % 100) + '%',
+  y: ((i * 61 + 9) % 80) + '%',
+  dur: 4 + (i % 5),
+  delay: (i * 0.7) % 8,
 }));
 
-// --- BEAUTIFUL PLANT COMPONENTS ---
+// ─── Sky configs (same as before) ────────────────────────────────────────────
+const STAR_POSITIONS = Array.from({ length: 30 }).map((_, i) => ({
+  x: (i * 37 + 11) % 100,
+  y: (i * 53 + 7) % 55,
+  r: 0.5 + (i % 3) * 0.4,
+  op: 0.4 + (i % 4) * 0.15,
+}));
+const CLOUD_POSITIONS = [
+  { x: 12, y: 18, scale: 1 },
+  { x: 55, y: 12, scale: 0.7 },
+  { x: 80, y: 22, scale: 0.85 },
+];
 
-const LotusPlant = ({ isDarkMode, color }: { isDarkMode: boolean, color: string }) => (
-    <svg width="60" height="45" viewBox="0 0 60 45" fill="none" className="drop-shadow-sm">
-        {/* Outer Petals */}
-        <path d="M30 40C20 40 10 32 10 20C10 8 20 0 30 0C40 0 50 8 50 20C50 32 40 40 30 40Z" fill={color} fillOpacity="0.2" />
-        <path d="M30 40C15 40 5 30 5 18C5 6 15 0 30 0" stroke={color} strokeWidth="0.5" strokeOpacity="0.3" />
-        <path d="M30 40C45 40 55 30 55 18C55 6 45 0 30 0" stroke={color} strokeWidth="0.5" strokeOpacity="0.3" />
-        {/* Inner Petals */}
-        <path d="M30 35C24 35 18 28 18 18C18 8 24 2 30 2C36 2 42 8 42 18C42 28 36 35 30 35Z" fill={color} fillOpacity="0.4" />
-        <path d="M30 35C26 35 22 30 22 22C22 14 26 8 30 8C34 8 38 14 38 22C38 30 34 35 30 35Z" fill={color} fillOpacity="0.6" />
-        {/* Core */}
-        <circle cx="30" cy="18" r="3" fill="#E5D6A7" className="animate-pulse" />
-    </svg>
+type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+const SKY: Record<TimeOfDay, {
+  sky: string; ground: string;
+  showSun: boolean; showMoon: boolean; showStars: boolean; showClouds: boolean;
+  sunY: number; sunX: string; sunColor: string; sunGlow: string;
+}> = {
+  morning: {
+    sky: 'linear-gradient(to bottom, #87CEEB 0%, #B8E4F7 45%, #FDE68A 80%, #FDBA74 100%)',
+    ground: 'linear-gradient(to top, #4D7C0F 0%, #65A30D 40%, transparent 100%)',
+    showSun: true, showMoon: false, showStars: false, showClouds: true,
+    sunY: 65, sunX: '15%', sunColor: '#FCD34D', sunGlow: 'rgba(252,211,77,0.5)',
+  },
+  afternoon: {
+    sky: 'linear-gradient(to bottom, #3B82F6 0%, #60A5FA 50%, #93C5FD 100%)',
+    ground: 'linear-gradient(to top, #4D7C0F 0%, #65A30D 40%, transparent 100%)',
+    showSun: true, showMoon: false, showStars: false, showClouds: true,
+    sunY: 20, sunX: '75%', sunColor: '#FFF7CD', sunGlow: 'rgba(255,247,205,0.6)',
+  },
+  evening: {
+    sky: 'linear-gradient(to bottom, #1E3A5F 0%, #7C3AED 30%, #C2410C 60%, #F97316 80%, #FDBA74 100%)',
+    ground: 'linear-gradient(to top, #1C1917 0%, #292524 40%, transparent 100%)',
+    showSun: true, showMoon: false, showStars: false, showClouds: false,
+    sunY: 75, sunX: '15%', sunColor: '#F97316', sunGlow: 'rgba(249,115,22,0.6)',
+  },
+  night: {
+    sky: 'linear-gradient(to bottom, #0F0C29 0%, #1a1a4e 40%, #24243e 100%)',
+    ground: 'linear-gradient(to top, #0f172a 0%, #1e293b 40%, transparent 100%)',
+    showSun: false, showMoon: true, showStars: true, showClouds: false,
+    sunY: 20, sunX: '15%', sunColor: '#E2E8F0', sunGlow: 'rgba(226,232,240,0.3)',
+  },
+};
+
+// ─── Plant SVGs ───────────────────────────────────────────────────────────────
+const Sprout = () => (
+  <svg width="18" height="28" viewBox="0 0 18 28" fill="none">
+    <path d="M9 28C9 28 7 18 9 6" stroke="#355E3B" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M9 20C9 20 4 18 3 14C2 10 6 9 9 14" fill="#4D7C0F" fillOpacity="0.6" />
+    <path d="M9 14C9 14 14 12 15 8C16 4 12 3 9 8" fill="#4D7C0F" fillOpacity="0.5" />
+  </svg>
 );
-
+const Fern = () => (
+  <svg width="36" height="60" viewBox="0 0 36 60" fill="none">
+    <path d="M18 60C18 60 14 36 18 8" stroke="#355E3B" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
+    {[8, 18, 28, 38, 48].map(y => (
+      <g key={y}>
+        <path d={`M18 ${y + 8} C18 ${y + 8} 32 ${y} 35 ${y - 4}`} stroke="#355E3B" strokeWidth="1" strokeOpacity="0.5" strokeLinecap="round" />
+        <path d={`M18 ${y + 8} C18 ${y + 8} 4 ${y} 1 ${y - 4}`} stroke="#355E3B" strokeWidth="1" strokeOpacity="0.5" strokeLinecap="round" />
+      </g>
+    ))}
+  </svg>
+);
 const Wildflower = ({ color }: { color: string }) => (
-    <svg width="30" height="50" viewBox="0 0 30 50" fill="none">
-        {/* Stem */}
-        <path d="M15 50C15 50 12 35 15 20" stroke="#355E3B" strokeWidth="1.5" strokeLinecap="round" />
-        {/* Leaves */}
-        <path d="M15 40C15 40 8 38 7 35C6 32 10 30 15 35" fill="#355E3B" fillOpacity="0.4" />
-        <path d="M15 32C15 32 22 30 23 27C24 24 20 22 15 27" fill="#355E3B" fillOpacity="0.4" />
-        {/* Flower Head */}
-        <g transform="translate(15, 20)">
-            {[0, 72, 144, 216, 288].map(a => (
-                <ellipse key={a} rx="4" ry="7" fill={color} transform={`rotate(${a}) translate(0, -6)`} />
-            ))}
-            <circle r="3" fill="#E5D6A7" />
-        </g>
-    </svg>
+  <svg width="28" height="48" viewBox="0 0 28 48" fill="none">
+    <path d="M14 48C14 48 11 32 14 18" stroke="#355E3B" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M14 36C14 36 7 34 6 30C5 26 9 25 14 30" fill="#355E3B" fillOpacity="0.4" />
+    <g transform="translate(14,18)">
+      {[0, 72, 144, 216, 288].map(a => (
+        <ellipse key={a} rx="4" ry="7" fill={color} transform={`rotate(${a}) translate(0,-6)`} />
+      ))}
+      <circle r="3" fill="#E5D6A7" />
+    </g>
+  </svg>
+);
+const Lotus = ({ color }: { color: string }) => (
+  <svg width="56" height="42" viewBox="0 0 56 42" fill="none" className="drop-shadow-sm">
+    <path d="M28 38C18 38 8 30 8 18C8 6 18 0 28 0C38 0 48 6 48 18C48 30 38 38 28 38Z" fill={color} fillOpacity="0.18" />
+    <path d="M28 33C22 33 16 26 16 16C16 6 22 1 28 1C34 1 40 6 40 16C40 26 34 33 28 33Z" fill={color} fillOpacity="0.38" />
+    <path d="M28 28C24 28 20 23 20 16C20 9 24 5 28 5C32 5 36 9 36 16C36 23 32 28 28 28Z" fill={color} fillOpacity="0.58" />
+    <circle cx="28" cy="16" r="3.5" fill="#E5D6A7" className="animate-pulse" />
+  </svg>
+);
+const Butterfly = () => (
+  <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
+    <path d="M16 12C16 12 8 4 2 6C-4 8 2 18 16 12Z" fill="#D4A3C5" fillOpacity="0.7" />
+    <path d="M16 12C16 12 24 4 30 6C36 8 30 18 16 12Z" fill="#A3B5D4" fillOpacity="0.7" />
+    <path d="M16 12C16 12 10 16 6 14C2 12 6 20 16 14Z" fill="#D4A3C5" fillOpacity="0.5" />
+    <path d="M16 12C16 12 22 16 26 14C30 12 26 20 16 14Z" fill="#A3B5D4" fillOpacity="0.5" />
+    <line x1="16" y1="8" x2="14" y2="4" stroke="#6B4C3B" strokeWidth="0.8" />
+    <line x1="16" y1="8" x2="18" y2="4" stroke="#6B4C3B" strokeWidth="0.8" />
+  </svg>
+);
+const KoiFish = ({ color, flip }: { color: string; flip?: boolean }) => (
+  <svg width="36" height="16" viewBox="0 0 36 16" fill="none" style={{ transform: flip ? 'scaleX(-1)' : undefined }}>
+    <path d="M4 8C4 8 14 2 24 8C14 14 4 8 4 8Z" fill={color} fillOpacity="0.85" />
+    <path d="M24 8C28 8 34 4 36 8C34 12 28 8 24 8Z" fill={color} fillOpacity="0.6" />
+    <circle cx="8" cy="7" r="1.2" fill="white" fillOpacity="0.8" />
+  </svg>
+);
+const BirdOfParadise = () => (
+  <svg width="44" height="70" viewBox="0 0 44 70" fill="none">
+    <path d="M22 70C22 70 18 44 22 10" stroke="#355E3B" strokeWidth="2" strokeLinecap="round" />
+    <path d="M22 50C22 50 8 46 4 38C0 30 8 26 22 38" fill="#4D7C0F" fillOpacity="0.5" />
+    <path d="M22 38C22 38 36 34 40 26C44 18 36 14 22 26" fill="#4D7C0F" fillOpacity="0.45" />
+    <path d="M18 18C18 18 10 10 14 4C16 2 20 4 18 18Z" fill="#F97316" fillOpacity="0.8" />
+    <path d="M22 16C22 16 22 6 26 2C28 0 32 2 22 16Z" fill="#C96A3A" fillOpacity="0.8" />
+    <path d="M26 20C26 20 34 14 36 8C37 5 34 4 26 20Z" fill="#A855F7" fillOpacity="0.7" />
+  </svg>
+);
+const CherryBlossomTree = () => (
+  <svg width="80" height="100" viewBox="0 0 80 100" fill="none">
+    <path d="M40 100C40 100 36 70 40 30" stroke="#6B4C3B" strokeWidth="3" strokeLinecap="round" />
+    <path d="M40 60C40 60 24 54 18 42C12 30 22 24 40 38" stroke="#6B4C3B" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    <path d="M40 48C40 48 56 42 62 30C68 18 58 12 40 26" stroke="#6B4C3B" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    {[
+      [40, 16, 22], [28, 24, 18], [52, 22, 18],
+      [20, 36, 16], [58, 34, 16], [32, 12, 14],
+      [48, 10, 14], [40, 30, 20], [26, 44, 14], [54, 42, 14],
+    ].map(([cx, cy, r], i) => (
+      <circle key={i} cx={cx} cy={cy} r={r} fill="#F9A8D4" fillOpacity="0.65" />
+    ))}
+    {[
+      [30, 20], [44, 14], [52, 26], [22, 40], [48, 38],
+    ].map(([cx, cy], i) => (
+      <circle key={`c${i}`} cx={cx} cy={cy} r="2" fill="#FBCFE8" fillOpacity="0.9" />
+    ))}
+  </svg>
+);
+const StonePath = () => (
+  <svg width="120" height="20" viewBox="0 0 120 20" fill="none" className="opacity-50">
+    {[0, 22, 44, 66, 88].map((x, i) => (
+      <ellipse key={i} cx={x + 11} cy="12" rx="10" ry="6" fill="#9CA3AF" fillOpacity="0.6" />
+    ))}
+  </svg>
+);
+const KoiPond = ({ isDarkMode }: { isDarkMode: boolean }) => (
+  <svg width="100" height="44" viewBox="0 0 100 44" fill="none">
+    <ellipse cx="50" cy="28" rx="46" ry="16" fill={isDarkMode ? '#1E3A5F' : '#60A5FA'} fillOpacity="0.55" />
+    <ellipse cx="50" cy="28" rx="46" ry="16" stroke={isDarkMode ? '#93C5FD' : '#3B82F6'} strokeWidth="0.8" strokeOpacity="0.4" />
+    <ellipse cx="50" cy="28" rx="30" ry="10" fill={isDarkMode ? '#1D4ED8' : '#93C5FD'} fillOpacity="0.3" />
+    <g transform="translate(20, 24)"><KoiFish color="#C96A3A" /></g>
+    <g transform="translate(48, 30)"><KoiFish color="#E5D6A7" flip /></g>
+    <ellipse cx="50" cy="14" rx="14" ry="10" fill="white" fillOpacity="0.06" />
+  </svg>
 );
 
-const FernPlant = ({ isDarkMode }: { isDarkMode: boolean }) => (
-    <svg width="40" height="70" viewBox="0 0 40 70" fill="none">
-        <path d="M20 70C20 70 15 40 20 10" stroke="#355E3B" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6" />
-        {[5, 15, 25, 35, 45, 55].map(y => (
-            <g key={y}>
-                <path d={`M20 ${y+10} C20 ${y+10} 35 ${y} 38 ${y-5}`} stroke="#355E3B" strokeWidth="1" strokeOpacity="0.4" strokeLinecap="round" />
-                <path d={`M20 ${y+10} C20 ${y+10} 5 ${y} 2 ${y-5}`} stroke="#355E3B" strokeWidth="1" strokeOpacity="0.4" strokeLinecap="round" />
-            </g>
-        ))}
-    </svg>
-);
-
-const TallGrass = () => (
-    <svg width="15" height="40" viewBox="0 0 15 40" fill="none">
-        <path d="M7 40C7 40 4 25 7 0" stroke="#355E3B" strokeWidth="1" strokeOpacity="0.3" strokeLinecap="round" />
-        <path d="M9 40C9 40 12 20 8 5" stroke="#355E3B" strokeWidth="0.8" strokeOpacity="0.2" strokeLinecap="round" />
-    </svg>
-);
-
-
+// ─── Main component ───────────────────────────────────────────────────────────
 interface GardenOfGrowthProps {
-    points: number;
-    streak: number;
-    name: string;
-    isDarkMode: boolean;
+  points: number;
+  streak: number;
+  name: string;
+  isDarkMode: boolean;
+  timeOfDay?: TimeOfDay;
+  onShowLegend?: () => void;
 }
 
-export const GardenOfGrowth: React.FC<GardenOfGrowthProps> = ({ points, streak, name, isDarkMode }) => {
-    // Determine level based on points
-    const level = useMemo(() => {
-        if (points >= 5000) return { title: 'Master', color: 'from-amber to-white', scale: 1.2, plants: 12 };
-        if (points >= 1000) return { title: 'Guide', color: 'from-sage to-amber', scale: 1.1, plants: 8 };
-        if (points >= 500) return { title: 'Seeker', color: 'from-sage-dark to-sage', scale: 1.0, plants: 5 };
-        return { title: 'Beginner', color: 'from-warm-gray-green to-sage', scale: 0.9, plants: 3 };
-    }, [points]);
+export const GardenOfGrowth: React.FC<GardenOfGrowthProps> = ({
+  points, streak, name, isDarkMode, timeOfDay = 'morning', onShowLegend,
+}) => {
+  const sky = SKY[timeOfDay];
 
-    // Generate plant positions based on points (more points = more visual density)
-    const plants = useMemo(() => {
-        const count = level.plants;
-        const types = ['lotus', 'fern', 'wildflower', 'grass'];
-        const colors = [
-            '#E5D6A7', // Amber
-            '#C96A3A', // Terracotta
-            '#D4A3C5', // soft pink
-            '#A3B5D4', // soft blue
-            '#B5C2A3', // sage
-        ];
-        return Array.from({ length: count }).map((_, i) => {
-            const r = GARDEN_PLANT_RANDOMS[i] ?? GARDEN_PLANT_RANDOMS[0];
-            return {
-                id: i,
-                x: 10 + (i / count) * 80 + (r.rx - 0.5) * 10, // Distributed with some jitter
-                y: 60 + r.ry * 30, // 60% to 90%
-                scale: 0.6 + r.rs * 0.6,
-                delay: i * 0.1,
-                type: types[i % types.length],
-                color: colors[i % colors.length]
-            };
-        });
-    }, [level]);
+  // Which milestone plants are unlocked
+  const unlockedStreak = useMemo(() => getUnlockedStreakMilestones(streak), [streak]);
+  const unlockedPoints = useMemo(() => getUnlockedPointsMilestones(points), [points]);
 
-    // Generate firefly animation data in a stable way
-    const fireflies = useMemo(() => {
-        const count = Math.min(streak, 20);
-        return Array.from({ length: count }).map((_, i) => ({
-            id: i,
-            ...GARDEN_FIREFLY_RANDOMS[i],
-        }));
-    }, [streak]);
+  const hasFireflies   = unlockedPoints.some(m => m.id === 'fireflies');
+  const hasStonePath   = unlockedPoints.some(m => m.id === 'stone_path');
+  const hasKoi         = unlockedStreak.some(m => m.id === 'koi');
+  const hasButterfly   = unlockedStreak.some(m => m.id === 'butterfly');
+  const hasBOP         = unlockedStreak.some(m => m.id === 'bird_of_paradise');
+  const hasCherry      = unlockedStreak.some(m => m.id === 'cherry_blossom');
+  const hasLotus       = unlockedStreak.some(m => m.id === 'lotus');
+  const hasWildflower  = unlockedStreak.some(m => m.id === 'wildflower');
+  const hasFern        = unlockedStreak.some(m => m.id === 'fern');
+  const hasSprout      = unlockedStreak.some(m => m.id === 'sprout');
 
-    return (
-        <div className={`relative w-full h-64 rounded-[2.5rem] overflow-hidden border transition-all duration-1000 ${isDarkMode
-            ? 'bg-gradient-to-br from-[#1B4332] to-[#081C15] border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)]'
-            : 'bg-gradient-to-b from-[#95D5B2] to-[#40916C] border-sage/30 shadow-2xl'
-            }`}>
-        {/* Soft Ambient Glow */}
-            <div className={`absolute inset-0 opacity-40 blur-[100px] pointer-events-none transition-colors duration-1000 ${isDarkMode ? 'bg-[#C5D9CB]/20' : 'bg-sage/20'
-                }`} />
+  // Firefly count from streak (even before the "fireflies" point unlock)
+  const fireflyCount = hasFireflies ? Math.min(streak, 16) : 0;
 
-            {/* Streaks as Fireflies/Lights */}
-            <div className="absolute inset-0 pointer-events-none">
-                {fireflies.map((ff) => (
-                    <motion.div
-                        key={ff.id}
-                        className={`absolute w-1 h-1 rounded-full ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`}
-                        initial={{
-                            x: ff.initialX,
-                            y: ff.initialY,
-                            opacity: 0
-                        }}
-                        animate={{
-                            y: [null, ff.animY],
-                            opacity: [0, 0.6, 0],
-                            scale: [0, 1.5, 0]
-                        }}
-                        transition={{
-                            duration: ff.duration,
-                            repeat: Infinity,
-                            delay: ff.delay
-                        }}
-                        style={{ filter: 'blur(1px)' }}
-                    />
-                ))}
-            </div>
+  // Terracotta blooms unlock changes wildflower colors
+  const bloomColor = unlockedPoints.some(m => m.id === 'terracotta_blooms')
+    ? '#C96A3A'
+    : '#D4A3C5';
 
-            {/* Visual Milestones: Floating Sacred Shapes */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-                <motion.svg
-                    width="320"
-                    height="320"
-                    viewBox="0 0 100 100"
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 200, repeat: Infinity, ease: "linear" }}
-                    className={isDarkMode ? 'text-pale-gold' : 'text-sage'}
-                >
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.2" strokeDasharray="1 3" />
-                    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="0.2" strokeDasharray="4 2" />
-                    {points >= 5000 && (
-                        <g>
-                            {[0, 60, 120, 180, 240, 300].map(angle => (
-                                <circle
-                                    key={angle}
-                                    cx={50 + 20 * Math.cos(angle * Math.PI / 180)}
-                                    cy={50 + 20 * Math.sin(angle * Math.PI / 180)}
-                                    r="20"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="0.1"
-                                />
-                            ))}
-                        </g>
-                    )}
-                </motion.svg>
-            </div>
+  return (
+    <div
+      className="relative w-full h-72 rounded-[2.5rem] overflow-hidden border transition-all duration-700"
+      style={{
+        background: sky.sky,
+        borderColor: timeOfDay === 'night' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.25)',
+        boxShadow: timeOfDay === 'night'
+          ? '0 20px 60px rgba(0,0,0,0.7)'
+          : '0 12px 40px rgba(0,0,0,0.18)',
+      }}
+    >
+      {/* Sky atmosphere blur */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: sky.sky, opacity: 0.25, filter: 'blur(10px)' }} />
 
-            {/* THE GARDEN */}
-            <div className="absolute inset-0 flex items-end justify-center pb-8 p-6">
-                {/* Background Plants */}
-                {plants.map((plant) => (
-                    <motion.div
-                        key={plant.id}
-                        className="absolute bottom-0 pointer-events-none origin-bottom"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ 
-                            scale: plant.scale, 
-                            opacity: 1,
-                            rotate: [0, 2, -2, 0] 
-                        }}
-                        transition={{ 
-                            scale: { delay: plant.delay, duration: 1.5, type: 'spring' },
-                            rotate: { duration: 5 + Math.random() * 5, repeat: Infinity, ease: 'easeInOut' }
-                        }}
-                        style={{ left: `${plant.x}%`, zIndex: Math.floor(plant.y) }}
-                    >
-                        {plant.type === 'lotus' && <LotusPlant isDarkMode={isDarkMode} color={plant.color} />}
-                        {plant.type === 'fern' && <FernPlant isDarkMode={isDarkMode} />}
-                        {plant.type === 'wildflower' && <Wildflower color={plant.color} />}
-                        {plant.type === 'grass' && <TallGrass />}
-                    </motion.div>
-                ))}
+      {/* Stars */}
+      {sky.showStars && (
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+          {STAR_POSITIONS.map((s, i) => (
+            <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="white" opacity={s.op} />
+          ))}
+        </svg>
+      )}
 
-                {/* CENTRAL TREE OF GROWTH */}
-                <motion.div
-                    className="relative z-10 flex flex-col items-center"
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                >
-                    {/* Visual Growth Milestones: Architectures */}
-                    {points >= 1000 && (
-                        <motion.div
-                            className="absolute -top-12 flex gap-20 pointer-events-none"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 2 }}
-                        >
-                            {/* Stone Lanterns for Guides */}
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="opacity-40">
-                                <rect x="8" y="16" width="8" height="6" rx="1" fill="currentColor" className={isDarkMode ? 'text-white' : 'text-sage'} />
-                                <rect x="10" y="8" width="4" height="8" fill="currentColor" className={isDarkMode ? 'text-white' : 'text-sage'} />
-                                <path d="M6 8L12 2L18 8H6Z" fill="currentColor" className={isDarkMode ? 'text-pale-gold' : 'text-sage-dark'} />
-                            </svg>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="opacity-40">
-                                <rect x="8" y="16" width="8" height="6" rx="1" fill="currentColor" className={isDarkMode ? 'text-white' : 'text-sage'} />
-                                <rect x="10" y="8" width="4" height="8" fill="currentColor" className={isDarkMode ? 'text-white' : 'text-sage'} />
-                                <path d="M6 8L12 2L18 8H6Z" fill="currentColor" className={isDarkMode ? 'text-pale-gold' : 'text-sage-dark'} />
-                            </svg>
-                        </motion.div>
-                    )}
-
-                    {points >= 5000 && (
-                        <motion.div
-                            className="absolute -top-24 pointer-events-none"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 0.2, scale: 1.2 }}
-                            transition={{ delay: 2.5 }}
-                        >
-                            {/* Golden Arch for Masters */}
-                            <svg width="120" height="60" viewBox="0 0 120 60">
-                                <path d="M10 60V20C10 8.9543 18.9543 0 30 0H90C101.046 0 110 8.9543 110 20V60" stroke="#E5D6A7" strokeWidth="2" fill="none" />
-                                <path d="M0 60H120" stroke="#E5D6A7" strokeWidth="1" />
-                            </svg>
-                        </motion.div>
-                    )}
-
-                    {/* The Tree/Lotus Shape */}
-                    <div className="relative mb-4">
-                        <motion.div
-                            animate={{
-                                scale: [level.scale, level.scale * 1.05, level.scale],
-                                rotate: [0, 2, -2, 0]
-                            }}
-                            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                            className="relative"
-                        >
-                            <div className={`w-32 h-32 rounded-full blur-[40px] opacity-60 absolute inset-0 bg-gradient-to-tr ${level.color}`} />
-                            <div className={`w-24 h-24 rounded-full border-2 flex items-center justify-center backdrop-blur-md relative z-10 ${isDarkMode ? 'border-white/10 bg-white/5 shadow-2xl' : 'border-sage/20 bg-white shadow-xl'
-                                }`}>
-                                {points >= 1000 ? <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isDarkMode ? 'text-pale-gold' : 'text-sage'}><path d="M12 22v-6"/><path d="M7 16V9a5 5 0 0 1 10 0v7"/><path d="M7 22H3v-8a2 2 0 0 1 2-2h2"/><path d="M17 22h4v-8a2 2 0 0 0-2-2h-2"/><path d="M12 2V8"/><path d="m8 5 4-3 4 3"/></svg> : <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isDarkMode ? 'text-pale-gold' : 'text-sage'}><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.8 3.3-.6 4.3.1 1 .6 2 1.8 2.5 4-2.8.6-4.5.1-5.6-.7"/></svg>}
-                            </div>
-                        </motion.div>
-
-                        {/* Radial Status Bars */}
-                        <svg className="absolute inset-0 -m-4 w-32 h-32 rotate-[-90deg]">
-                            <motion.circle
-                                cx="64" cy="64" r="60"
-                                fill="none"
-                                stroke={isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(111,123,109,0.05)'}
-                                strokeWidth="4"
-                            />
-                            <motion.circle
-                                cx="64" cy="64" r="60"
-                                fill="none"
-                                stroke={isDarkMode ? '#E5D6A7' : '#6F7B6D'}
-                                strokeWidth="4"
-                                strokeDasharray="377"
-                                initial={{ strokeDashoffset: 377 }}
-                                animate={{ strokeDashoffset: 377 - (Math.min(points / 5000, 1) * 377) }}
-                                transition={{ duration: 2, delay: 1 }}
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                    </div>
-
-                    {/* Stats HUD */}
-                    <div className="text-center">
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 1.2 }}
-                            className="px-4 py-1.5 rounded-full bg-black/20 backdrop-blur-xl border border-white/10 inline-flex items-center gap-3 mb-2"
-                        >
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-pale-gold">{level.title}</span>
-                            <div className="w-px h-3 bg-white/20" />
-                            <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isDarkMode ? 'text-white/60' : 'text-white'}`}>{name}</span>
-                        </motion.div>
-
-                        <div className="flex gap-8 justify-center mt-2">
-                            <div className="flex flex-col items-center">
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                    <Flame size={14} className="text-orange-400" />
-                                    <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>{streak}</span>
-                                </div>
-                                <span className={`text-[8px] uppercase tracking-widest font-bold ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>Streak</span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                    <Sparkles size={14} className="text-pale-gold" />
-                                    <span className={`text-xl font-display font-medium ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>{points}</span>
-                                </div>
-                                <span className={`text-[8px] uppercase tracking-widest font-bold ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>Points</span>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
-
-            {/* Bottom Horizon */}
-            <div className={`absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t pointer-events-none ${isDarkMode ? 'from-black/60 to-transparent' : 'from-sage/10 to-transparent'
-                }`} />
+      {/* Moon */}
+      {sky.showMoon && (
+        <div className="absolute pointer-events-none" style={{ top: '10%', right: '14%' }}>
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <circle cx="14" cy="14" r="10" fill="#E2E8F0" opacity="0.92" />
+            <circle cx="18" cy="10" r="8" fill="#1a1a4e" />
+          </svg>
         </div>
-    );
+      )}
+
+      {/* Sun */}
+      {sky.showSun && (
+        <div className="absolute pointer-events-none" style={{ top: `${sky.sunY}%`, left: sky.sunX, transform: 'translate(-50%,-50%)' }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: sky.sunColor, boxShadow: `0 0 18px 8px ${sky.sunGlow}` }} />
+        </div>
+      )}
+
+      {/* Clouds */}
+      {sky.showClouds && CLOUD_POSITIONS.map((c, i) => (
+        <div key={i} className="absolute pointer-events-none" style={{ left: `${c.x}%`, top: `${c.y}%`, transform: `scale(${c.scale})` }}>
+          <svg width="60" height="24" viewBox="0 0 60 24" fill="none">
+            <ellipse cx="30" cy="18" rx="28" ry="6" fill="white" fillOpacity="0.7" />
+            <ellipse cx="22" cy="14" rx="14" ry="10" fill="white" fillOpacity="0.8" />
+            <ellipse cx="38" cy="15" rx="12" ry="9" fill="white" fillOpacity="0.75" />
+            <ellipse cx="30" cy="12" rx="10" ry="8" fill="white" fillOpacity="0.9" />
+          </svg>
+        </div>
+      ))}
+
+      {/* Ground */}
+      <div className="absolute bottom-0 inset-x-0 h-2/5 pointer-events-none" style={{ background: sky.ground }} />
+
+      {/* Stone path */}
+      {hasStonePath && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none">
+          <StonePath />
+        </div>
+      )}
+
+      {/* Koi pond */}
+      {hasKoi && (
+        <motion.div
+          className="absolute pointer-events-none"
+          style={{ bottom: '18%', left: '50%', x: '-50%' }}
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
+        >
+          <KoiPond isDarkMode={isDarkMode} />
+        </motion.div>
+      )}
+
+      {/* Plants — distributed left to right by unlock order */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Sprout — far left */}
+        {hasSprout && (
+          <motion.div className="absolute origin-bottom" style={{ left: '8%', bottom: '22%' }}
+            initial={{ scale: 0 }} animate={{ scale: 0.9, rotate: [0, 2, -2, 0] }}
+            transition={{ scale: { duration: 1.2, type: 'spring' }, rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}>
+            <Sprout />
+          </motion.div>
+        )}
+
+        {/* Fern — left */}
+        {hasFern && (
+          <motion.div className="absolute origin-bottom" style={{ left: '16%', bottom: '20%' }}
+            initial={{ scale: 0 }} animate={{ scale: 0.85, rotate: [0, 1.5, -1.5, 0] }}
+            transition={{ scale: { duration: 1.3, type: 'spring', delay: 0.1 }, rotate: { duration: 7, repeat: Infinity, ease: 'easeInOut' } }}>
+            <Fern />
+          </motion.div>
+        )}
+
+        {/* Wildflower — center-left */}
+        {hasWildflower && (
+          <motion.div className="absolute origin-bottom" style={{ left: '30%', bottom: '20%' }}
+            initial={{ scale: 0 }} animate={{ scale: 1, rotate: [0, 3, -3, 0] }}
+            transition={{ scale: { duration: 1.4, type: 'spring', delay: 0.15 }, rotate: { duration: 5, repeat: Infinity, ease: 'easeInOut' } }}>
+            <Wildflower color={bloomColor} />
+          </motion.div>
+        )}
+
+        {/* Lotus — center */}
+        {hasLotus && (
+          <motion.div className="absolute origin-bottom" style={{ left: '44%', bottom: hasKoi ? '38%' : '22%' }}
+            initial={{ scale: 0 }} animate={{ scale: 1.1, rotate: [0, 2, -2, 0] }}
+            transition={{ scale: { duration: 1.5, type: 'spring', delay: 0.2 }, rotate: { duration: 8, repeat: Infinity, ease: 'easeInOut' } }}>
+            <Lotus color={bloomColor} />
+          </motion.div>
+        )}
+
+        {/* Second wildflower — center-right */}
+        {hasWildflower && (
+          <motion.div className="absolute origin-bottom" style={{ left: '60%', bottom: '22%' }}
+            initial={{ scale: 0 }} animate={{ scale: 0.9, rotate: [0, -2, 2, 0] }}
+            transition={{ scale: { duration: 1.3, type: 'spring', delay: 0.25 }, rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}>
+            <Wildflower color={bloomColor} />
+          </motion.div>
+        )}
+
+        {/* Bird of paradise — right */}
+        {hasBOP && (
+          <motion.div className="absolute origin-bottom" style={{ left: '72%', bottom: '20%' }}
+            initial={{ scale: 0 }} animate={{ scale: 0.85, rotate: [0, 1, -1, 0] }}
+            transition={{ scale: { duration: 1.6, type: 'spring', delay: 0.3 }, rotate: { duration: 9, repeat: Infinity, ease: 'easeInOut' } }}>
+            <BirdOfParadise />
+          </motion.div>
+        )}
+
+        {/* Cherry blossom — far right, tall */}
+        {hasCherry && (
+          <motion.div className="absolute origin-bottom" style={{ left: '80%', bottom: '18%' }}
+            initial={{ scale: 0 }} animate={{ scale: 0.9 }}
+            transition={{ duration: 1.8, type: 'spring', delay: 0.35 }}>
+            <CherryBlossomTree />
+          </motion.div>
+        )}
+
+        {/* Butterfly — hovers above center */}
+        {hasButterfly && (
+          <motion.div
+            className="absolute pointer-events-none"
+            style={{ left: '45%', top: '30%' }}
+            animate={{ y: [0, -8, 0], x: [0, 6, 0], rotate: [0, 8, -8, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Butterfly />
+          </motion.div>
+        )}
+      </div>
+
+      {/* Fireflies */}
+      {fireflyCount > 0 && (
+        <div className="absolute inset-0 pointer-events-none">
+          {FIREFLY_DATA.slice(0, fireflyCount).map((ff, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{ left: ff.x, top: ff.y, background: timeOfDay === 'night' ? '#E5D6A7' : 'white', filter: 'blur(0.5px)' }}
+              animate={{ opacity: [0, 0.7, 0], scale: [0, 1.4, 0] }}
+              transition={{ duration: ff.dur, repeat: Infinity, delay: ff.delay }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* HUD — streak + points */}
+      <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-4 px-4">
+        <motion.div
+          className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/25 backdrop-blur-md border border-white/10"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+        >
+          <div className="flex items-center gap-1.5">
+            <Flame size={13} className="text-orange-400" />
+            <span className="text-xs font-bold text-white tabular-nums">{streak}</span>
+            <span className="text-[9px] text-white/40 uppercase tracking-widest">days</span>
+          </div>
+          <div className="w-px h-3 bg-white/20" />
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={13} className="text-pale-gold" />
+            <span className="text-xs font-bold text-white tabular-nums">{points.toLocaleString()}</span>
+            <span className="text-[9px] text-white/40 uppercase tracking-widest">pts</span>
+          </div>
+          <div className="w-px h-3 bg-white/20" />
+          <span className="text-[9px] font-bold text-pale-gold/70 uppercase tracking-widest">{name.split(' ')[0]}</span>
+        </motion.div>
+      </div>
+
+      {/* Legend button */}
+      {onShowLegend && (
+        <button
+          onClick={onShowLegend}
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/20 backdrop-blur-sm border border-white/15 flex items-center justify-center hover:bg-black/35 transition-all"
+          title="Garden guide"
+        >
+          <HelpCircle size={14} className="text-white/70" />
+        </button>
+      )}
+    </div>
+  );
 };

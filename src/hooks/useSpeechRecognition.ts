@@ -20,29 +20,7 @@ export const useSpeechRecognition = () => {
     }, []);
 
     const startListening = useCallback(() => {
-
-        //         if (newFinal) {
-        //             // Intelligent spacing
-        //             const needsSpace = finalTranscriptRef.current && !finalTranscriptRef.current.endsWith(' ') && !newFinal.startsWith(' ');
-        //             finalTranscriptRef.current += (needsSpace ? ' ' : '') + newFinal;
-        //         }
-
-        //         // Update visible transcript with both final and interim results
-        //         // This ensures the user sees text appear immediately as they speak
-        //         const currentFull = (finalTranscriptRef.current + ' ' + interimTranscript).trim();
-        //         setTranscript(currentFull);
-        //     };
-
-        //     recognition.onerror = (event: any) => {
-        //         console.error('Speech recognition error:', event.error);
-        //         if (event.error === 'no-speech') return;
-        //         setError(event.error);
-        //         setIsListening(false);
-        //     };
-
-        setIsListening(true); // Simulate listening
-        setTranscript('Speech recognition is disabled.');
-        _setError('Speech recognition is currently disabled.');
+        // Voice input not available in this build — do nothing silently
     }, []);
 
     const stopListening = useCallback(() => {

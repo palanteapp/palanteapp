@@ -268,6 +268,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         momentumState: getMomentumState(user),
         currentMood: user.currentMood,
         focusAreas: user.focusAreas,
+        coachTone: user.coachSettings?.coachTone,
     }), [user]);
 
     const handleSend = async (e: React.FormEvent) => {
@@ -419,10 +420,28 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 position: 'fixed',
             }}
         >
-            {/* Ambient aura */}
+            {/* ── Background depth — matches app visual language ── */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[120px] opacity-10 bg-[#E5D6A7]" />
-                <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[100px] opacity-5 bg-[#C96A3A]" />
+                {/* Central luminosity bloom */}
+                <div className="absolute inset-0" style={{
+                    background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.38) 0%, transparent 62%)',
+                }} />
+                {/* Edge vignette */}
+                <div className="absolute inset-0" style={{
+                    background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.50) 100%)',
+                }} />
+                {/* Bottom terracotta warmth */}
+                <div className="absolute bottom-0 inset-x-0" style={{
+                    height: '40%',
+                    background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.13) 0%, transparent 70%)',
+                }} />
+                {/* Bold structural arcs — upper corners */}
+                <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+                    <circle cx="480" cy="-30" r="310" fill="none" stroke="#2A4A2A" strokeWidth="65" opacity="0.45" />
+                    <circle cx="480" cy="-30" r="228" fill="none" stroke="#E5D6A7" strokeWidth="1.2" opacity="0.18" strokeDasharray="6 10" />
+                    <circle cx="-90" cy="-30" r="320" fill="none" stroke="#1E3820" strokeWidth="60" opacity="0.40" />
+                    <circle cx="-90" cy="-30" r="238" fill="none" stroke="#C96A3A" strokeWidth="1.2" opacity="0.16" strokeDasharray="5 9" />
+                </svg>
             </div>
 
             {/* ── HOME VIEW ──────────────────────────────────────────────── */}

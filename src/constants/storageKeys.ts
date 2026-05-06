@@ -60,6 +60,9 @@ export const STORAGE_KEYS = {
   // Journal / Reflections
   JOURNAL_ENTRY: 'palante_journal', // Suffix with date string
   EVENING_PRACTICE: 'palante_evening_practice', // Suffix with date string
+
+  // Midday Check-in
+  CHECKIN_LAST_SHOWN: 'palante_checkin_last_shown', // ISO date string e.g. "2026-04-29"
 } as const;
 
 /** sessionStorage keys (not persisted across sessions) */

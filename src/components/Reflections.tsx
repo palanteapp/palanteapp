@@ -87,7 +87,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
 
     // Voice
-    const { isListening, transcript, startListening, stopListening, resetTranscript } = useSpeechRecognition();
+    const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported: speechSupported } = useSpeechRecognition();
     const [activeField, setActiveField] = useState<'q1' | 'q2' | 'q3' | 'free' | null>(null);
 
     // Derived
@@ -224,6 +224,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
                         <p className={`text-sm font-medium ${textSecondary}`}>{question}</p>
                     </div>
                 </div>
+                {speechSupported && (
                 <button
                     type="button"
                     onClick={() => toggleDictation(fieldId)}
@@ -237,6 +238,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
                 >
                     <Mic size={13} />
                 </button>
+                )}
             </div>
             <textarea
                 value={value}
@@ -440,6 +442,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
                                 }
                             `}
                         />
+                        {speechSupported && (
                         <button
                             type="button"
                             onClick={() => toggleDictation('free')}
@@ -453,6 +456,7 @@ export const Reflections: React.FC<ReflectionsProps> = ({
                         >
                             <Mic size={13} />
                         </button>
+                        )}
                     </div>
                 </div>
 

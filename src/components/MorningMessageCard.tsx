@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Sun, Share2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Share2, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShareModal } from './ShareModal';
 import type { Quote } from '../types';
 import { generateShareImage } from '../utils/shareUtils';
@@ -10,48 +10,45 @@ interface MorningMessageCardProps {
     message?: string;
     isDarkMode: boolean;
     onRefresh: () => void;
+    userName?: string;
+    coachTone?: 'nurturing' | 'direct' | 'accountability';
+    onOpenToneSettings?: () => void;
 }
 
 export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
     intention,
     message,
     isDarkMode,
-    onRefresh
+    onRefresh,
+    userName,
+    coachTone = 'nurturing',
+    onOpenToneSettings,
 }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-    const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
-    const bgPrimary = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20';
-
-    // Mock Quote for the ShareModal
     const mockQuote: Quote = {
         id: `morning_msg_${Date.now()}`,
-        text: message || "Rise and shine.",
-        author: "Palante Coach",
-        category: "Morning Message",
+        text: message || 'Rise and shine.',
+        author: 'Palante Coach',
+        category: 'Morning Message',
         intensity: 1,
-        isAI: true
+        isAI: true,
     };
 
     const handleShare = async () => {
         setIsGeneratingImage(true);
         try {
             const image = await generateShareImage(mockQuote, mockQuote.id);
-
             try {
                 const { Share } = await import('@capacitor/share');
                 const { Directory, Filesystem } = await import('@capacitor/filesystem');
-
                 const fileName = `palante_morning_${Date.now()}.png`;
                 const savedFile = await Filesystem.writeFile({
                     path: fileName,
                     data: image.split(',')[1],
                     directory: Directory.Cache,
                 });
-
                 await Share.share({
                     title: 'Morning Message from Palante',
                     text: `"${message}"\n\n- @palante.app`,
@@ -71,78 +68,186 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                     title: 'Morning Message from Palante',
                     text: `"${message}"\n\n- @palante.app`,
                 });
-            } catch (fallbackError) {
-                console.error('Share failed completely', fallbackError);
-            }
+            } catch { /* share cancelled */ }
         } finally {
             setIsGeneratingImage(false);
         }
     };
 
+    const firstName = userName?.split(' ')[0];
+
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className={`w-full p-5 rounded-3xl border transition-all duration-300 relative overflow-hidden ${bgPrimary} shadow-lg group`}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="w-full relative overflow-hidden rounded-3xl"
+            style={{
+                background: isDarkMode
+                    ? 'linear-gradient(135deg, rgba(65,93,67,0.55) 0%, rgba(30,50,35,0.80) 100%)'
+                    : 'linear-gradient(135deg, rgba(253,251,247,0.95) 0%, rgba(240,234,220,0.90) 100%)',
+                border: isDarkMode ? '1px solid rgba(229,214,167,0.14)' : '1px solid rgba(65,93,67,0.12)',
+                boxShadow: isDarkMode
+                    ? '0 8px 32px rgba(0,0,0,0.28)'
+                    : '0 4px 20px rgba(65,93,67,0.10)',
+            }}
         >
-
-            {/* Background Decor */}
-            <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-10 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
-
-            {/* Header (Always Visible) */}
+            {/* Warm glow blob */}
             <div
-                className="flex items-center justify-between cursor-pointer relative z-10"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
-                <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
-                        <Sun size={20} />
+                aria-hidden
+                style={{
+                    position: 'absolute', top: '-30%', right: '-10%',
+                    width: '55%', height: '120%',
+                    borderRadius: '50%',
+                    background: isDarkMode
+                        ? 'radial-gradient(circle, rgba(201,106,58,0.12) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(201,106,58,0.08) 0%, transparent 70%)',
+                    pointerEvents: 'none',
+                }}
+            />
+
+            <div className="relative z-10 p-6">
+                {/* Coach label */}
+                <div className="flex items-center gap-2 mb-4">
+                    {/* Coach sigil */}
+                    <div
+                        style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: isDarkMode ? 'rgba(201,106,58,0.18)' : 'rgba(201,106,58,0.12)',
+                            border: '1px solid rgba(201,106,58,0.30)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0,
+                        }}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                                fill="#C96A3A" opacity="0.85" />
+                        </svg>
                     </div>
                     <div>
-                        <h3 className={`text-base font-display font-medium ${textPrimary}`}>Morning Practice Complete</h3>
-                        {intention && (
-                            <p className={`text-xs uppercase tracking-widest mt-1 ${textSecondary}`}>
-                                Intention: <span className="font-bold border-b border-dashed opacity-80">{intention}</span>
-                            </p>
-                        )}
+                        <p style={{
+                            fontSize: '10px', fontWeight: 800, letterSpacing: '0.14em',
+                            textTransform: 'uppercase',
+                            color: isDarkMode ? '#E5D6A7' : '#415D43',
+                            lineHeight: 1,
+                        }}>
+                            Your Coach
+                        </p>
+                        <p style={{
+                            fontSize: '10px', fontWeight: 500, letterSpacing: '0.04em',
+                            color: isDarkMode ? 'rgba(229,214,167,0.50)' : 'rgba(65,93,67,0.50)',
+                            lineHeight: 1, marginTop: 2,
+                        }}>
+                            for today
+                        </p>
                     </div>
                 </div>
 
-                <div className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/50' : 'hover:bg-sage/10 text-sage/50'}`}>
-                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </div>
-            </div>
+                {/* The message — the hero */}
+                <AnimatePresence mode="wait">
+                    {message ? (
+                        <motion.p
+                            key={message}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.4, delay: 0.1 }}
+                            style={{
+                                fontFamily: '"Poppins", sans-serif',
+                                fontWeight: 500,
+                                fontSize: '17px',
+                                lineHeight: 1.65,
+                                color: isDarkMode ? 'rgba(253,251,247,0.92)' : '#2D3E33',
+                                letterSpacing: '-0.01em',
+                                marginBottom: intention ? 16 : 20,
+                            }}
+                        >
+                            {message}
+                        </motion.p>
+                    ) : (
+                        <motion.p
+                            key="empty"
+                            style={{
+                                fontFamily: '"Poppins", sans-serif',
+                                fontStyle: 'italic',
+                                fontSize: '16px',
+                                lineHeight: 1.6,
+                                color: isDarkMode ? 'rgba(229,214,167,0.4)' : 'rgba(65,93,67,0.4)',
+                                marginBottom: 20,
+                            }}
+                        >
+                            {firstName ? `${firstName}, you showed up today.` : 'You showed up today.'} That's the whole thing.
+                        </motion.p>
+                    )}
+                </AnimatePresence>
 
-            {/* Expanded Content */}
-            <div className={`transition-all duration-300 overflow-hidden ${isExpanded ? 'max-h-[500px] opacity-100 mt-6' : 'max-h-0 opacity-0'}`}>
-
-                {/* Horizontal Divider */}
-                <div className={`w-full h-px mb-6 ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`} />
-
-                {message ? (
-                    <div className="text-center px-4 mb-8">
-                        <h4 className={`text-xs font-bold uppercase tracking-[0.15em] mb-4 ${textSecondary}`}>Your Message of the Day</h4>
-                        <p className={`text-xl font-display font-medium italic leading-relaxed ${textPrimary}`}>"{message}"</p>
-                    </div>
-                ) : (
-                    <div className="text-center px-4 mb-8">
-                        <p className={`text-sm italic ${textSecondary}`}>Take this peace with you into the day.</p>
+                {/* Intention callout */}
+                {intention && (
+                    <div
+                        style={{
+                            padding: '10px 14px',
+                            borderRadius: 14,
+                            background: isDarkMode ? 'rgba(229,214,167,0.07)' : 'rgba(65,93,67,0.06)',
+                            borderLeft: '2.5px solid rgba(201,106,58,0.45)',
+                            marginBottom: 18,
+                        }}
+                    >
+                        <p style={{
+                            fontSize: '10px', fontWeight: 800,
+                            letterSpacing: '0.13em', textTransform: 'uppercase',
+                            color: isDarkMode ? 'rgba(229,214,167,0.45)' : 'rgba(65,93,67,0.45)',
+                            marginBottom: 3,
+                        }}>
+                            Today's intention
+                        </p>
+                        <p style={{
+                            fontSize: '13px', fontWeight: 600,
+                            color: isDarkMode ? 'rgba(253,251,247,0.75)' : '#415D43',
+                            lineHeight: 1.4,
+                        }}>
+                            {intention}
+                        </p>
                     </div>
                 )}
 
-                {/* Footer Actions */}
-                <div className="flex items-center justify-center gap-3 pt-4 border-t border-gray-100/10">
+                {/* Action row */}
+                <div className="flex items-center gap-2">
+                    {onOpenToneSettings && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onOpenToneSettings(); }}
+                            style={{
+                                padding: '8px 14px', borderRadius: 12,
+                                background: isDarkMode ? 'rgba(229,214,167,0.08)' : 'rgba(65,93,67,0.06)',
+                                border: `1px solid ${isDarkMode ? 'rgba(229,214,167,0.18)' : 'rgba(65,93,67,0.15)'}`,
+                                cursor: 'pointer',
+                                color: isDarkMode ? 'rgba(229,214,167,0.7)' : '#415D43',
+                                display: 'flex', alignItems: 'center', gap: 5,
+                                fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
+                            }}
+                            aria-label="Change coach tone"
+                        >
+                            <span style={{ opacity: 0.6, fontSize: '10px' }}>Tone:</span>
+                            <span style={{ textTransform: 'capitalize' }}>{coachTone}</span>
+                            <span style={{ opacity: 0.4, fontSize: '10px' }}>·</span>
+                        </button>
+                    )}
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowShareModal(true);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
                         disabled={isGeneratingImage}
-                        className={`p-3 rounded-full transition-all duration-300 ${isDarkMode ? 'text-pale-gold hover:text-white hover:bg-white/10' : 'text-sage hover:text-sage-dark hover:bg-sage/10'} ${isGeneratingImage ? 'opacity-50 animate-pulse' : ''}`}
+                        style={{
+                            padding: '8px 14px', borderRadius: 12,
+                            background: isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(65,93,67,0.07)',
+                            border: 'none', cursor: isGeneratingImage ? 'default' : 'pointer',
+                            color: isDarkMode ? 'rgba(229,214,167,0.6)' : '#415D43',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
+                            opacity: isGeneratingImage ? 0.5 : 1,
+                            transition: 'opacity 0.2s',
+                        }}
                         aria-label="Share"
                     >
-                        <Share2 size={20} strokeWidth={1.5} />
+                        <Share2 size={14} strokeWidth={2} />
+                        Share
                     </button>
 
                     <button
@@ -151,11 +256,19 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                             import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
                             onRefresh();
                         }}
-                        className={`p-3 rounded-full transition-all duration-300 ${isDarkMode ? 'text-pale-gold hover:text-white hover:bg-white/10' : 'text-sage hover:text-sage-dark hover:bg-sage/10'}`}
-                        aria-label="Restart Practice"
-                        title="Restart Practice"
+                        style={{
+                            padding: '8px 14px', borderRadius: 12,
+                            background: 'none',
+                            border: 'none', cursor: 'pointer',
+                            color: isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(65,93,67,0.35)',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em',
+                        }}
+                        aria-label="New practice"
+                        title="Start a new practice session"
                     >
-                        <RefreshCw size={20} strokeWidth={1.5} />
+                        <RefreshCw size={13} strokeWidth={2} />
+                        New practice
                     </button>
                 </div>
             </div>

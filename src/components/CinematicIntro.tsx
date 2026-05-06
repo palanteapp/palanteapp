@@ -1,34 +1,9 @@
 import React, { useState, memo } from 'react';
-import { Sparkles, Focus, Flame, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { Logo } from './Logo';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
 import type { ContentType, QuoteSource } from '../types';
-
-const INTEREST_OPTIONS = [
-    'Wellness', 'Career', 'Creativity', 'Leadership',
-    'Mindfulness', 'Fitness', 'Growth', 'Balance'
-];
-
-const INTENSITY_OPTIONS = [
-    {
-        quoteIntensity: 1,
-        icon: Sparkles,
-        label: 'Gentle & Nurturing',
-        description: 'Calm, poetic inspiration'
-    },
-    {
-        quoteIntensity: 2,
-        icon: Focus,
-        label: 'Balanced & Clear',
-        description: 'Direct, focused motivation'
-    },
-    {
-        quoteIntensity: 3,
-        icon: Flame,
-        label: 'Intense & Direct',
-        description: 'High-energy, no-nonsense'
-    }
-];
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface CinematicIntroProps {
     onComplete: (userData: {
@@ -44,345 +19,360 @@ interface CinematicIntroProps {
     onOpenSettings?: () => void;
 }
 
-export const CinematicIntro = memo(({ onComplete, onOpenSettings: _onOpenSettings }: CinematicIntroProps) => {
+// Slow breathing animation for the center rings
+const breathe = {
+    animate: {
+        scale: [1, 1.06, 1],
+        opacity: [0.8, 1, 0.8],
+    },
+    transition: {
+        duration: 6,
+        repeat: Infinity,
+        ease: 'easeInOut' as const,
+    },
+};
+
+export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const [step, setStep] = useState(0);
-    const [showDisclaimer, setShowDisclaimer] = useState(false);
-    const [isCompleting, setIsCompleting] = useState(false);
-
-    // Form state
     const [name, setName] = useState('');
-    const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-    const [quoteIntensity, setQuoteIntensity] = useState<number>(2); // Default to Balanced
-    const [contentType, setContentType] = useState<ContentType>('mix');
-
-    const handleNext = () => {
-        setStep(prev => prev + 1);
-    };
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showDisclaimer, setShowDisclaimer] = useState(false);
+    const [nameError, setNameError] = useState('');
 
     const handleComplete = async () => {
-        if (isCompleting) return; // Prevent double-submission
-
-        if (!name.trim()) {
-            alert('Please enter your name to continue.');
+        const trimmed = name.trim();
+        if (!trimmed) {
+            setNameError('Tell us your name so we can make this yours.');
             return;
         }
-
-        if (selectedInterests.length === 0) {
-            alert('Please select at least one interest to personalize your experience.');
-            return;
-        }
-
-        setIsCompleting(true);
-
+        setNameError('');
+        setIsSubmitting(true);
         try {
-            // Save disclaimer acceptance
-            const acceptance = {
+            localStorage.setItem('disclaimerAccepted', JSON.stringify({
                 accepted: true,
                 timestamp: new Date().toISOString(),
-                version: LEGAL_DISCLAIMER.lastUpdated
-            };
-            localStorage.setItem('disclaimerAccepted', JSON.stringify(acceptance));
-
-            // Pass complete user data with smart defaults
+                version: LEGAL_DISCLAIMER.lastUpdated,
+            }));
             await onComplete({
-                name: name.trim(),
-                profession: 'Other', // Default - can be set in Settings
-                focusGoal: '', // Empty - will be set in Morning Practice
-                interests: selectedInterests.join(', '),
-                quoteIntensity,
-                contentType,
-                sourcePreference: 'mix', // Auto-default to best of both
-                ageRange: undefined // Not collected - can be set in Settings
+                name: trimmed,
+                profession: 'Other',
+                focusGoal: '',
+                interests: '',
+                quoteIntensity: 2,
+                contentType: 'mix',
+                sourcePreference: 'mix',
+                ageRange: undefined,
             });
-        } catch (error) {
-            console.error('Error completing intro:', error);
-            setIsCompleting(false);
+        } catch (err) {
+            console.error('CinematicIntro error:', err);
+            setIsSubmitting(false);
         }
     };
-
-    const toggleInterest = (interest: string) => {
-        setSelectedInterests(prev => {
-            if (prev.includes(interest)) {
-                return prev.filter(i => i !== interest);
-            }
-            // Limit to 3 selections
-            if (prev.length >= 3) {
-                return prev;
-            }
-            return [...prev, interest];
-        });
-    };
-
-    // Animation classes
-    const fadeUp = "animate-slide-up opacity-0 fill-mode-forwards";
-    const _fadeIn = "animate-fade-in opacity-0 fill-mode-forwards";
-
-
-    // Slide Content
-    const slides = [
-        // 0: The Reveal
-        {
-            content: (
-                <div className="flex flex-col items-center justify-center h-full text-center px-8 relative z-10" onClick={handleNext}>
-                    {/* Glow behind logo */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-pale-gold/20 rounded-full blur-[80px] animate-pulse-slow"></div>
-
-                    <div className={`${fadeUp} mb-6`}>
-                        <Logo className="w-24 h-24 text-pale-gold drop-shadow-lg" color="#E5D6A7" />
-                    </div>
-
-                    <h1 className={`${fadeUp} text-5xl font-display font-bold text-white mb-3 drop-shadow-md`} style={{ animationDelay: '0.2s' }}>
-                        Palante
-                    </h1>
-
-                    <p className={`${fadeUp} text-lg text-pale-gold/90 font-display font-medium tracking-wide mb-12 flex flex-col`} style={{ animationDelay: '0.4s' }}>
-                        <span>Your Personal</span>
-                        <span>Growth Partner</span>
-                    </p>
-
-                    <div className="mt-8" style={{ animationDelay: '0.8s' }}>
-                        <p className="text-white/50 text-sm uppercase tracking-widest animate-pulse">Tap to begin</p>
-                    </div>
-                </div>
-            )
-        },
-        // 1: Name + Interests
-        {
-            content: (
-                <div className="flex flex-col h-full px-6 pt-32 pb-8 w-full max-w-lg mx-auto overflow-y-auto">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <h2 className={`${fadeUp} text-3xl font-display font-medium text-white mb-3`} style={{ animationDelay: '0s' }}>
-                            Let's personalize your experience
-                        </h2>
-                        <p className={`${fadeUp} text-white/60 text-sm`} style={{ animationDelay: '0.1s' }}>
-                            This helps us deliver the right content for you.
-                        </p>
-                    </div>
-
-                    {/* Form */}
-                    <div className="space-y-6">
-                        {/* Name */}
-                        <div>
-                            <label className="block text-white/80 text-sm font-medium mb-3">What should we call you? *</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Your name"
-                                className="w-full px-5 py-4 rounded-2xl bg-black/10 border border-white/10 text-white placeholder-white/30 outline-none focus:border-pale-gold/50 transition-all text-lg shadow-inner"
-                                autoFocus
-                            />
-                        </div>
-
-                        {/* Interests */}
-                        <div>
-                            <label className="block text-white/80 text-sm font-medium mb-3">
-                                What are you focused on right now?
-                            </label>
-                            <p className="text-white/50 text-xs mb-3">Select 1-3 that resonate with you</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                {INTEREST_OPTIONS.map((interest) => {
-                                    const isSelected = selectedInterests.includes(interest);
-                                    return (
-                                        <button
-                                            key={interest}
-                                            type="button"
-                                            onClick={() => toggleInterest(interest)}
-                                            className={`px-4 py-3 rounded-2xl border transition-all font-medium text-sm outline-none focus:ring-0 ${isSelected
-                                                ? 'border-[#C96A3A] text-white'
-                                                : 'bg-black/10 border-white/10 text-white/70 hover:border-white/20 hover:bg-black/20'
-                                                }`}
-                                            style={isSelected ? { background: '#C96A3A', boxShadow: '0 0 16px rgba(201,106,58,0.4)' } : {}}
-                                        >
-                                            {interest}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {selectedInterests.length === 3 && (
-                                <p className="text-xs mt-2" style={{ color: '#C96A3A' }}>Maximum 3 selections reached</p>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-auto pt-6">
-                        <button
-                            onClick={handleNext}
-                            disabled={!name.trim() || selectedInterests.length === 0}
-                            className={`w-full py-4 rounded-2xl font-bold text-lg transition-all shadow-xl active:scale-[0.98] ${name.trim() && selectedInterests.length > 0
-                                ? 'bg-pale-gold text-sage-dark hover:brightness-105'
-                                : 'bg-white/10 text-white/20 cursor-not-allowed'
-                                }`}
-                        >
-                            Continue →
-                        </button>
-                    </div>
-                </div>
-            )
-        },
-        // 2: Content Preferences
-        {
-            content: (
-                <div className="flex flex-col h-full px-6 pt-32 pb-8 w-full max-w-lg mx-auto overflow-y-auto">
-                    {/* Header */}
-                    <div className="text-center mb-8">
-                        <h2 className={`${fadeUp} text-3xl font-display font-medium text-white mb-3`} style={{ animationDelay: '0s' }}>
-                            How would you like your motivation?
-                        </h2>
-                        <p className={`${fadeUp} text-white/60 text-sm`} style={{ animationDelay: '0.1s' }}>
-                            You can change these anytime in Settings.
-                        </p>
-                    </div>
-
-                    {/* Form */}
-                    <div className="space-y-6">
-                        {/* Content Type */}
-                        <div>
-                            <label className="block text-white/80 text-sm font-medium mb-3">Content Style</label>
-                            <div className="space-y-3">
-                                {(['affirmations', 'quotes', 'mix'] as ContentType[]).map((type) => {
-                                    const isActive = contentType === type;
-                                    const Icon = type === 'affirmations' ? Sparkles : Focus;
-                                    const label = type === 'affirmations' ? 'Affirmations' : type === 'quotes' ? 'Quotes' : 'Both';
-                                    const desc = type === 'affirmations' ? 'Power statements for confidence' : type === 'quotes' ? 'Wisdom & insight from thinkers' : 'Balanced mix';
-                                    return (
-                                        <button
-                                            key={type}
-                                            type="button"
-                                            onClick={() => setContentType(type)}
-                                            className="w-full p-4 rounded-2xl border transition-all text-left outline-none"
-                                            style={isActive
-                                                ? { background: '#C96A3A', borderColor: '#C96A3A' }
-                                                : { background: 'rgba(0,0,0,0.1)', borderColor: 'rgba(255,255,255,0.1)' }
-                                            }
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                {type === 'mix'
-                                                    ? <div className="flex gap-1">
-                                                        <Sparkles size={20} color={isActive ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} />
-                                                        <Focus size={20} color={isActive ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} />
-                                                      </div>
-                                                    : <Icon size={24} color={isActive ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} />
-                                                }
-                                                <div>
-                                                    <div style={{ fontWeight: 500, color: '#FAF7F3' }}>{label}</div>
-                                                    <div style={{ fontSize: '12px', color: 'rgba(250,247,243,0.55)' }}>{desc}</div>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Motivation Intensity */}
-                        <div>
-                            <label className="block text-white/80 text-sm font-medium mb-3">Motivation Intensity</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {INTENSITY_OPTIONS.map((option) => {
-                                    const Icon = option.icon;
-                                    const isSelected = quoteIntensity === option.quoteIntensity;
-                                    return (
-                                        <button
-                                            key={option.quoteIntensity}
-                                            type="button"
-                                            onClick={() => setQuoteIntensity(option.quoteIntensity)}
-                                            className="p-4 rounded-2xl border transition-all outline-none"
-                                            style={isSelected
-                                                ? { background: '#C96A3A', borderColor: '#C96A3A' }
-                                                : { background: 'rgba(0,0,0,0.1)', borderColor: 'rgba(255,255,255,0.1)' }
-                                            }
-                                        >
-                                            <Icon size={24} color={isSelected ? '#E5D6A7' : 'rgba(255,255,255,0.5)'} className="mx-auto mb-2" />
-                                            <div style={{ fontSize: '12px', fontWeight: 500, textAlign: 'center', color: '#FAF7F3' }}>{option.label}</div>
-                                            <div style={{ fontSize: '10px', textAlign: 'center', marginTop: '4px', color: 'rgba(250,247,243,0.5)' }}>{option.description}</div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div className="mt-auto pt-6 space-y-4">
-                        <button
-                            onClick={handleComplete}
-                            disabled={isCompleting}
-                            className={`w-full py-4 font-bold rounded-2xl transition-all text-lg shadow-xl active:scale-[0.98] ${isCompleting
-                                ? 'bg-pale-gold/50 text-sage-dark/50 cursor-not-allowed'
-                                : 'bg-pale-gold text-sage-dark hover:brightness-105'
-                                }`}
-                        >
-                            {isCompleting ? 'Setting up your experience...' : "Let's Go! →"}
-                        </button>
-
-                        {/* Disclaimer */}
-                        <p className="text-[10px] text-white/40 text-center leading-tight">
-                            By continuing, you acknowledge Palante is a tool for wellness, not medical advice.
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setShowDisclaimer(true); }}
-                                className="underline ml-1 hover:text-white transition-colors"
-                            >
-                                Read Terms
-                            </button>
-                        </p>
-                    </div>
-                </div>
-            )
-        }
-    ];
 
     return (
-        <div className="fixed inset-0 z-[100] bg-[#415D43] overflow-hidden font-display">
-            {/* Background Ambience */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-white/5 rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-pale-gold/10 rounded-full blur-[80px]" />
+        <div
+            className="fixed inset-0 z-[100] overflow-hidden"
+            style={{ background: '#415D43' }}
+        >
+            {/* ── Background depth layers ── */}
+
+            {/* Central luminosity bloom — forest light from above */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    background: 'radial-gradient(ellipse 75% 60% at 50% 32%, rgba(105,145,90,0.55) 0%, transparent 65%)',
+                }}
+            />
+            {/* Edge vignette — depth at the sides */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    background: 'radial-gradient(ellipse 110% 110% at 50% 50%, transparent 42%, rgba(18,32,16,0.62) 100%)',
+                }}
+            />
+            {/* Bottom terracotta warmth */}
+            <div
+                className="absolute bottom-0 inset-x-0 pointer-events-none"
+                style={{
+                    height: '45%',
+                    background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.20) 0%, transparent 70%)',
+                }}
+            />
+
+            {/* ── Bold structural ring arcs (full-screen SVG) ── */}
+            <svg
+                aria-hidden
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 390 844"
+                preserveAspectRatio="xMidYMid slice"
+            >
+                {/* Upper-right thick arc — deep forest green */}
+                <circle cx="480" cy="-30" r="310" fill="none" stroke="#2A4A2A" strokeWidth="72" opacity="0.55" />
+                {/* Upper-right thin gold accent ring */}
+                <circle cx="480" cy="-30" r="228" fill="none" stroke="#E5D6A7" strokeWidth="1.5" opacity="0.28" strokeDasharray="6 10" />
+
+                {/* Upper-left thick arc — mirrors upper-right, keeps bottom clean */}
+                <circle cx="-90" cy="-30" r="320" fill="none" stroke="#1E3820" strokeWidth="68" opacity="0.50" />
+                {/* Upper-left thin terracotta accent ring */}
+                <circle cx="-90" cy="-30" r="238" fill="none" stroke="#C96A3A" strokeWidth="1.5" opacity="0.22" strokeDasharray="5 9" />
+
+                {/* Wide centered background ring — very subtle, ties both sides */}
+                <circle cx="195" cy="422" r="340" fill="none" stroke="#E5D6A7" strokeWidth="0.8" opacity="0.08" />
+                <circle cx="195" cy="422" r="270" fill="none" stroke="#E5D6A7" strokeWidth="0.6" opacity="0.06" strokeDasharray="4 8" />
+            </svg>
+
+            {/* ── Animated breathing rings — centered on logo ── */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '12%' }}>
+                <motion.div
+                    className="relative"
+                    animate={breathe.animate}
+                    transition={breathe.transition}
+                >
+                    <svg width="340" height="340" viewBox="0 0 340 340" fill="none">
+                        <circle cx="170" cy="170" r="155" stroke="#E5D6A7" strokeWidth="1.8" opacity="0.18" />
+                        <circle cx="170" cy="170" r="118" stroke="#E5D6A7" strokeWidth="1.4" opacity="0.14" strokeDasharray="5 8" />
+                        <circle cx="170" cy="170" r="82"  stroke="#E5D6A7" strokeWidth="1.8" opacity="0.20" />
+                        <circle cx="170" cy="170" r="50"  stroke="#E5D6A7" strokeWidth="1.2" opacity="0.12" strokeDasharray="3 6" />
+                    </svg>
+                </motion.div>
             </div>
 
-            {/* Main Slide Content */}
-            <div className={`relative z-10 w-full h-full transition-all duration-700 ease-in-out`}>
-                {slides[step].content}
-            </div>
+            {/* ── STEP 0 · SPLASH ── */}
+            <AnimatePresence mode="wait">
+                {step === 0 && (
+                    <motion.div
+                        key="splash"
+                        className="absolute inset-0 flex flex-col items-center justify-center px-10 text-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, y: -24 }}
+                        transition={{ duration: 0.55 }}
+                    >
+                        {/* Logo with warm halo */}
+                        <motion.div
+                            className="mb-7 relative"
+                            initial={{ opacity: 0, scale: 0.82 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        >
+                            <motion.div
+                                className="absolute inset-0 m-auto rounded-full"
+                                style={{
+                                    width: 160, height: 160,
+                                    background: 'radial-gradient(circle, rgba(229,214,167,0.30) 0%, transparent 70%)',
+                                    filter: 'blur(20px)',
+                                    top: '50%', left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                }}
+                                animate={{ opacity: [0.7, 1, 0.7] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                            />
+                            <Logo className="w-20 h-20 relative z-10 drop-shadow-lg" color="#E5D6A7" />
+                        </motion.div>
 
-            {/* Progress Indicators */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                {slides.map((_, idx) => (
+                        {/* Wordmark */}
+                        <motion.h1
+                            className="text-5xl font-display font-bold text-white tracking-tight mb-5"
+                            style={{ textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.28 }}
+                        >
+                            Palante
+                        </motion.h1>
+
+                        {/* Three-line descriptor */}
+                        <motion.div className="flex flex-col items-center gap-2 mb-14">
+                            {[
+                                'Start every morning with intention.',
+                                'End every evening with clarity.',
+                                'A coach who holds you accountable.',
+                            ].map((line, i) => (
+                                <motion.p
+                                    key={i}
+                                    className="text-lg font-display font-medium tracking-wide"
+                                    style={{ color: 'rgba(229,214,167,0.92)' }}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5, delay: 0.48 + i * 0.13 }}
+                                >
+                                    {line}
+                                </motion.p>
+                            ))}
+                        </motion.div>
+
+                        {/* CTA */}
+                        <motion.button
+                            onClick={() => setStep(1)}
+                            className="px-12 py-4 rounded-full font-bold text-white text-base tracking-wide transition-all hover:brightness-110"
+                            style={{
+                                background: '#C96A3A',
+                                boxShadow: '0 10px 36px rgba(201,106,58,0.55)',
+                            }}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.88 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            Begin
+                        </motion.button>
+
+                        {/* Terms */}
+                        <motion.button
+                            onClick={() => setShowDisclaimer(true)}
+                            className="mt-6 text-[10px] uppercase tracking-widest font-medium"
+                            style={{ color: 'rgba(229,214,167,0.32)' }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 1.3 }}
+                        >
+                            Terms &amp; Wellness Disclaimer
+                        </motion.button>
+                    </motion.div>
+                )}
+
+                {/* ── STEP 1 · NAME ── */}
+                {step === 1 && (
+                    <motion.div
+                        key="name"
+                        className="absolute inset-0 flex flex-col items-center justify-center px-8"
+                        initial={{ opacity: 0, x: 44 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -44 }}
+                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                        <div className="w-full max-w-sm">
+                            <div className="flex justify-center mb-10">
+                                <Logo className="w-10 h-10" color="rgba(229,214,167,0.55)" />
+                            </div>
+
+                            <motion.h2
+                                className="text-3xl font-display font-bold text-white text-center mb-2 tracking-tight"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.08 }}
+                            >
+                                What is your name?
+                            </motion.h2>
+                            <motion.p
+                                className="text-center text-sm mb-10"
+                                style={{ color: 'rgba(229,214,167,0.55)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.18 }}
+                            >
+                                Just your first name is perfect.
+                            </motion.p>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.22 }}
+                            >
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={e => { setName(e.target.value); setNameError(''); }}
+                                    onKeyDown={e => e.key === 'Enter' && handleComplete()}
+                                    placeholder="Your name"
+                                    autoFocus
+                                    className="w-full px-5 py-4 rounded-2xl text-white text-xl text-center font-display outline-none transition-all mb-2"
+                                    style={{
+                                        background: 'rgba(255,255,255,0.16)',
+                                        border: nameError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.35)',
+                                        caretColor: '#E5D6A7',
+                                    }}
+                                />
+                                {nameError && (
+                                    <p className="text-xs text-center mb-4" style={{ color: '#C96A3A' }}>{nameError}</p>
+                                )}
+                            </motion.div>
+
+                            <motion.button
+                                onClick={handleComplete}
+                                disabled={isSubmitting}
+                                className="w-full mt-4 py-4 rounded-2xl font-bold text-white text-base tracking-wide transition-all active:scale-[0.98]"
+                                style={{
+                                    background: name.trim() ? '#C96A3A' : 'rgba(201,106,58,0.50)',
+                                    boxShadow: name.trim() ? '0 8px 28px rgba(201,106,58,0.48)' : 'none',
+                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.30 }}
+                                whileTap={{ scale: 0.97 }}
+                            >
+                                {isSubmitting ? 'Setting up your practice…' : "Let's go →"}
+                            </motion.button>
+
+                            <motion.button
+                                onClick={() => setStep(0)}
+                                className="w-full mt-4 py-2 text-sm font-medium"
+                                style={{ color: 'rgba(229,214,167,0.32)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.48 }}
+                            >
+                                ← Back
+                            </motion.button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Progress dots */}
+            <div className="absolute bottom-10 inset-x-0 flex justify-center gap-2 pointer-events-none">
+                {[0, 1].map(i => (
                     <div
-                        key={idx}
-                        className={`h-1.5 rounded-full transition-all duration-500 ${idx === step ? 'w-8 bg-pale-gold' : 'w-1.5 bg-white/20'
-                            }`}
+                        key={i}
+                        className="h-1.5 rounded-full transition-all duration-500"
+                        style={{
+                            width: i === step ? 28 : 6,
+                            background: i === step ? '#E5D6A7' : 'rgba(229,214,167,0.20)',
+                        }}
                     />
                 ))}
             </div>
 
-            {/* Disclaimer Overlay */}
-            {showDisclaimer && (
-                <div className="absolute inset-0 z-50 bg-sage/95 backdrop-blur-md p-8 flex flex-col items-center justify-center animate-fade-in">
-                    <div className="bg-white/10 border border-white/10 rounded-3xl p-6 max-h-[80vh] overflow-y-auto">
-                        <div className="flex items-center gap-2 mb-4 text-white">
-                            <ShieldCheck size={20} className="text-pale-gold" />
-                            <h3 className="font-bold text-lg">Mindful Disclaimer</h3>
-                        </div>
-                        <div className="space-y-4 text-white/80 text-xs leading-relaxed">
-                            {LEGAL_DISCLAIMER.sections.map((s, i) => (
-                                <div key={i}>
-                                    <strong className="block text-pale-gold mb-1">{s.heading}</strong>
-                                    {s.content}
-                                </div>
-                            ))}
-                        </div>
-                        <button
-                            onClick={() => setShowDisclaimer(false)}
-                            className="mt-6 w-full py-3 bg-pale-gold text-sage-dark font-bold rounded-xl"
+            {/* Disclaimer overlay */}
+            <AnimatePresence>
+                {showDisclaimer && (
+                    <motion.div
+                        className="absolute inset-0 z-50 flex items-center justify-center p-6"
+                        style={{ background: 'rgba(20,36,18,0.97)', backdropFilter: 'blur(14px)' }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                    >
+                        <div
+                            className="w-full max-w-sm rounded-3xl p-6 max-h-[80vh] overflow-y-auto"
+                            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
                         >
-                            Close & Continue
-                        </button>
-                    </div>
-                </div>
-            )}
+                            <div className="flex items-center gap-2 mb-4">
+                                <ShieldCheck size={18} style={{ color: '#E5D6A7' }} />
+                                <h3 className="font-bold text-white text-base">Mindful Disclaimer</h3>
+                            </div>
+                            <div className="space-y-4 text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                                {LEGAL_DISCLAIMER.sections.map((s, i) => (
+                                    <div key={i}>
+                                        <strong className="block mb-1" style={{ color: '#E5D6A7' }}>{s.heading}</strong>
+                                        {s.content}
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setShowDisclaimer(false)}
+                                className="mt-6 w-full py-3 rounded-xl font-bold text-sm"
+                                style={{ background: '#E5D6A7', color: '#1A2410' }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 });
+
+CinematicIntro.displayName = 'CinematicIntro';

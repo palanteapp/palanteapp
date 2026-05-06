@@ -38,6 +38,7 @@ export const AccountabilityProvider: React.FC<{ children: React.ReactNode }> = (
 
     const addPartner = useCallback(async (name: string, code: string): Promise<boolean> => {
         if (!user) return false;
+        if ((user.accountabilityPartners || []).length >= 3) return false;
 
         // Simulate partner lookup (in a real app, this would be an API call)
         // For now, we accept any valid-looking code

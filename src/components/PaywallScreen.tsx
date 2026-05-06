@@ -5,7 +5,7 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 
 const FEATURES = [
   'Daily morning & evening practices',
-  'Garden of Growth — watch your progress bloom',
+  'Mandala of Growth — watch your practice bloom',
   'AI coach guidance & reflections',
   'Soundscapes, breathing & meditation',
   'Streak tracking & weekly insights',

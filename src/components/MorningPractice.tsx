@@ -95,6 +95,26 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
     return (
         <div className={`fixed inset-0 z-[60] flex flex-col pb-[env(safe-area-inset-bottom)] transition-all duration-500 ${isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} ${bgClass}`}>
 
+            {/* Corner concentric rings — upper right */}
+            <div className="absolute top-0 right-0 pointer-events-none overflow-hidden" style={{ width: 200, height: 200, zIndex: 0 }}>
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+                    <circle cx="200" cy="0" r="50"  stroke="#E5D6A7" strokeWidth="1.2" strokeDasharray="4 7"  opacity="0.22" />
+                    <circle cx="200" cy="0" r="82"  stroke="#E5D6A7" strokeWidth="0.8" strokeDasharray="none" opacity="0.13" />
+                    <circle cx="200" cy="0" r="116" stroke="#E5D6A7" strokeWidth="1"   strokeDasharray="5 9"  opacity="0.09" />
+                    <circle cx="200" cy="0" r="152" stroke="#E5D6A7" strokeWidth="0.6" strokeDasharray="none" opacity="0.06" />
+                </svg>
+            </div>
+
+            {/* Corner concentric rings — lower left */}
+            <div className="absolute bottom-0 left-0 pointer-events-none overflow-hidden" style={{ width: 200, height: 200, zIndex: 0 }}>
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none">
+                    <circle cx="0" cy="200" r="50"  stroke="#E5D6A7" strokeWidth="1.2" strokeDasharray="4 7"  opacity="0.22" />
+                    <circle cx="0" cy="200" r="82"  stroke="#E5D6A7" strokeWidth="0.8" strokeDasharray="none" opacity="0.13" />
+                    <circle cx="0" cy="200" r="116" stroke="#E5D6A7" strokeWidth="1"   strokeDasharray="5 9"  opacity="0.09" />
+                    <circle cx="0" cy="200" r="152" stroke="#E5D6A7" strokeWidth="0.6" strokeDasharray="none" opacity="0.06" />
+                </svg>
+            </div>
+
             {/* Safe Area Top Spacer */}
             <div className="w-full h-[env(safe-area-inset-top)] bg-transparent" />
 

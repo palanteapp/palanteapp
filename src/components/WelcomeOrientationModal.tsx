@@ -247,7 +247,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Flower2 size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Garden</h4>
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Mandala</h4>
                                         <p className={`text-xs ${textSecondary} mt-1`}>Visualize growth</p>
                                     </button>
                                     <button

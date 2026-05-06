@@ -40,6 +40,7 @@
     "jspdf": "^3.0.4",
     "lucide-react": "^0.554.0",
     "picomatch": "^4.0.4",
+    "posthog-js": "^1.372.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.5",
     "uuid": "^13.0.0"

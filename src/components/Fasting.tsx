@@ -3,7 +3,7 @@ import {
     Utensils, Droplet, Edit2, ChevronDown, Clock, X,
     Calendar, HelpCircle, Target, TrendingUp,
     Scale, Shield, Zap, Brain, Sparkles, AlertCircle, ArrowUpRight, ArrowDownRight, Minus,
-    BookOpen, Plus
+    BookOpen, Plus, RotateCcw, Trash2
 } from 'lucide-react';
 import { SlideUpModal } from './SlideUpModal';
 import { TimePickerWheel } from './TimePickerWheel';
@@ -166,6 +166,7 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
     const [showHowItWorks, setShowHowItWorks] = useState(false);
     const [currentScienceTip, setCurrentScienceTip] = useState(0);
     const [showConfirmStart, setShowConfirmStart] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [manualStartTime, setManualStartTime] = useState<string>(new Date().toISOString());
     const [showWeightLogger, setShowWeightLogger] = useState(false);
     const [showTrendAnalysis, setShowTrendAnalysis] = useState(false);
@@ -356,6 +357,22 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
         setEndFastAdjustTime(now.toTimeString().slice(0, 5));
         setEndFastAdjustDate(now.toISOString().split('T')[0]);
         setShowEndFastAdjust(true);
+        haptics.light();
+    };
+
+    const handleResetFast = () => {
+        setStatus('idle');
+        setStartTime(null);
+        setHydrationCount(0);
+        setHasRungGoalBell(false);
+        setShowResetConfirm(false);
+        haptics.medium();
+    };
+
+    const handleDeleteFastRecord = (id: string) => {
+        const updated = fastHistory.filter(f => f.id !== id);
+        setFastHistory(updated);
+        localStorage.setItem(STORAGE_KEYS.FASTING_HISTORY, JSON.stringify(updated));
         haptics.light();
     };
 
@@ -714,9 +731,16 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
 
                         <button
                             onClick={handleEndFast}
-                            className="col-span-2 py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all active:scale-[0.98]"
+                            className="py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all active:scale-[0.98]"
                         >
                             End Fast Early
+                        </button>
+                        <button
+                            onClick={() => { setShowResetConfirm(true); haptics.light(); }}
+                            className="py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] bg-white/5 border border-white/10 text-white/30 hover:bg-white/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                            <RotateCcw size={14} />
+                            Reset
                         </button>
                     </>
                 ) : (
@@ -897,7 +921,7 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
                     </div>
 
                     <div className="flex flex-col gap-3">
-                        {fastHistory.map((record) => {
+                        {fastHistory.slice(0, 10).map((record) => {
                             const date = new Date(record.endTime);
                             const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
                             const pct = Math.min(100, (record.actualHours / record.targetHours) * 100);
@@ -935,6 +959,15 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
                                             <span className="text-[10px] text-white/30">{Math.round(pct)}%</span>
                                         </div>
                                     </div>
+
+                                    {/* Delete */}
+                                    <button
+                                        onClick={() => handleDeleteFastRecord(record.id)}
+                                        aria-label="Delete record"
+                                        className="p-2 rounded-xl text-white/20 hover:text-red-400 hover:bg-white/5 transition-all active:scale-90 shrink-0"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
                             );
                         })}
@@ -1656,6 +1689,38 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
                     </div>
                 </div>
             </SlideUpModal>
+
+            {/* Reset Fast Confirmation */}
+            {showResetConfirm && (
+                <div className="fixed inset-0 z-[250] flex items-end justify-center p-6 animate-fade-in">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={() => setShowResetConfirm(false)} />
+                    <div className="relative w-full max-w-sm p-7 rounded-[2.5rem] bg-[#1B2E25] border border-white/10 shadow-spa-lg">
+                        <div className="flex items-center gap-4 mb-5">
+                            <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 shrink-0">
+                                <RotateCcw size={22} />
+                            </div>
+                            <div>
+                                <h4 className="text-lg font-display font-medium text-white">Reset fasting window?</h4>
+                                <p className="text-xs text-white/40 mt-0.5">This clears the timer without saving to history.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowResetConfirm(false)}
+                                className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/60 font-black text-xs uppercase tracking-widest"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleResetFast}
+                                className="flex-1 py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-black text-xs uppercase tracking-widest hover:bg-red-900/30 hover:border-red-500/30 hover:text-red-300 transition-all"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

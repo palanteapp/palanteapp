@@ -78,10 +78,22 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         }
     }
 
-    // 2. Filter by Intensity & Cooldown — use full 6-month window, no premature cleanup
+    // Soften intensity when user is low-energy or stressed/anxious
+    const isLowState = (user.currentEnergy !== undefined && user.currentEnergy <= 2)
+        || user.currentMood === 'Stressed'
+        || user.currentMood === 'Anxious';
+    const effectiveIntensity = isLowState ? Math.max(1, intensity - 1) as 1 | 2 | 3 : intensity as 1 | 2 | 3;
+
+    // Pull today's morning intention for quote matching
+    const todayDate = new Date().toISOString().split('T')[0];
+    const todaysPriming = (user.dailyMorningPractice || user.dailyPriming || [])
+        .find(p => p.date === todayDate);
+    const dailyIntention = todaysPriming?.dailyIntention?.toLowerCase().trim() || '';
+
+    // 2. Filter by Intensity & Cooldown — allow effective and set intensity
     const availableQuotes = allContent.filter((q) => {
-        // Intensity check
-        if (q.intensity != intensity) return false;
+        // Accept set intensity and softer tier when in low state
+        if (q.intensity !== effectiveIntensity && q.intensity !== intensity) return false;
 
         // Cooldown Check (6 months)
         if (seenHistory[q.id]) {
@@ -120,6 +132,14 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
     // 4. Score quotes based on relevance
     const scoredQuotes = filteredQuotes.map((quote) => {
         let score = 0;
+        const quoteSearchText = `${quote.text} ${quote.category} ${quote.tags?.join(' ') || ''}`.toLowerCase();
+
+        // PRIORITY 0: Today's morning intention — strongest signal
+        if (dailyIntention && dailyIntention.length > 2) {
+            if (quoteSearchText.includes(dailyIntention)) score += 400;
+            const intentionRoot = dailyIntention.slice(0, Math.max(4, dailyIntention.length - 2));
+            if (intentionRoot.length > 3 && quoteSearchText.includes(intentionRoot)) score += 200;
+        }
 
         // PRIORITY 1: Profession match (highest weight)
         if (user.profession && quote.profession) {
@@ -195,30 +215,32 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
             });
         }
 
-        // PRIORITY 4: Momentum state — boost quotes whose category/text aligns with where user is right now
+        // PRIORITY 4: Momentum state
         const momentum = getMomentumState(user);
         const momentumKeywords = MOMENTUM_THEMES[momentum] || [];
-        const quoteSearchText = `${quote.text} ${quote.category} ${quote.tags?.join(' ') || ''}`.toLowerCase();
         momentumKeywords.forEach(keyword => {
             if (quoteSearchText.includes(keyword)) score += 60;
         });
 
-        // PRIORITY 5: Current mood — surface what they need to feel right now
+        // PRIORITY 5: Current mood
         if (user.currentMood && MOOD_THEMES[user.currentMood]) {
             MOOD_THEMES[user.currentMood].forEach(keyword => {
                 if (quoteSearchText.includes(keyword)) score += 40;
             });
         }
 
-        // PRIORITY 6: Focus areas — align quote themes with what user is actively working on
+        // PRIORITY 6: Focus areas
         if (user.focusAreas?.length) {
             user.focusAreas.forEach(area => {
                 if (quoteSearchText.includes(area)) score += 30;
             });
         }
 
-        // Random factor
-        score += Math.random() * 100;
+        // Prefer softer quotes when user is in a low state
+        if (isLowState && quote.intensity < intensity) score += 60;
+
+        // Small random factor — variety without overriding real matches
+        score += Math.random() * 15;
 
         return { quote, score };
     });
@@ -308,6 +330,10 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
     }
 
     try {
+        const todayDateAI = new Date().toISOString().split('T')[0];
+        const todaysPrimingAI = (user.dailyMorningPractice || user.dailyPriming || [])
+            .find(p => p.date === todayDateAI);
+
         const response = await generateAffirmation({
             profession: user.profession,
             focusGoal: user.career,
@@ -317,6 +343,10 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
             timeOfDay,
             userName: user.name,
             coachName: user.coachName,
+            focusAreas: user.focusAreas,
+            dailyIntention: todaysPrimingAI?.dailyIntention,
+            currentMood: user.currentMood,
+            currentEnergy: user.currentEnergy,
         });
 
         return {

@@ -13,7 +13,7 @@ import { AuthModal } from './AuthModal';
 import { UpdatePasswordModal } from './UpdatePasswordModal';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
 import { WidgetDataSync } from '../utils/widgetDataSync';
-import { GardenOfGrowth } from './GardenOfGrowth';
+import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
 
 interface ProfileProps {
@@ -411,16 +411,14 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                     {/* Journey Status Card - TRANSFORMED INTO GARDEN OF GROWTH */}
                     <div className="mb-6">
                         <div className="text-center mb-4 mt-8">
-                            <h3 className={`font-display font-medium text-xl ${isDarkMode ? 'text-white' : 'text-sage'}`}>Garden of Growth</h3>
+                            <h3 className={`font-display font-medium text-xl ${isDarkMode ? 'text-white' : 'text-sage'}`}>Mandala of Growth</h3>
                             <p className={`text-sm mt-1 px-4 ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                                Your consistency breathes life into this garden. Watch it flourish as you keep showing up.
+                                Your consistency fills this mandala. Watch it bloom as you keep showing up.
                             </p>
                         </div>
-                        <GardenOfGrowth
-                            points={user.points}
-                            streak={user.streak}
-                            name={user.name}
+                        <GardenMandala
                             isDarkMode={isDarkMode}
+                            completedDays={Math.min(user.practiceData?.totalPractices || 0, 90)}
                         />
                     </div>
 

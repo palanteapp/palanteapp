@@ -112,7 +112,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
             </p>
             <button
                 onClick={handleNext}
-                className="px-8 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
+                className="px-8 py-3 bg-[#C96A3A] text-white rounded-full font-bold shadow-lg active:scale-95 transition-all hover:bg-[#b55e32]"
             >
                 Begin Reflection
             </button>
@@ -159,7 +159,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
                     disabled={!isStepValid()}
                     className={`flex-[2] py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${!isStepValid()
                         ? 'opacity-50 cursor-not-allowed bg-gray-500/20'
-                        : isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90' : 'bg-terracotta-500 text-white hover:bg-sage-600'
+                        : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
                         }`}
                 >
                     {step === 'delight' ? 'Finish' : 'Next'} <ChevronRight size={18} />
@@ -190,7 +190,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
 
                         <button
                             onClick={handleFinish}
-                            className="mt-12 px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
+                            className="mt-12 px-10 py-3 bg-[#C96A3A] text-white rounded-full font-bold shadow-lg active:scale-95 transition-all hover:bg-[#b55e32]"
                         >
                             Complete Reflection
                         </button>

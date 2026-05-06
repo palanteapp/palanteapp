@@ -62,6 +62,12 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     onRefresh,
 }) => {
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    // Optimistic local state — iOS preserve-3d containers can drop click events;
+    // showing feedback instantly prevents the heart feeling "broken".
+    const [localFavorited, setLocalFavorited] = useState<boolean | null>(null);
+    const effectiveFavorited = localFavorited !== null ? localFavorited : (isFavorited ?? false);
+    // Sync local back to prop whenever parent confirms the toggle
+    useEffect(() => { setLocalFavorited(null); }, [isFavorited]);
     const [showShareModal, setShowShareModal] = useState(false);
     const [gyroPermitted, setGyroPermitted] = useState(false);
     const [pinnedQuoteId, setPinnedQuoteId] = useState<string | null>(() => {
@@ -418,13 +424,22 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                         }}>
                             {onToggleFavorite && (
-                                <motion.button whileTap={{ scale: 0.85 }} onClick={onToggleFavorite}
-                                    aria-label={isFavorited ? 'Unfavorite' : 'Favorite'}
-                                    style={{ padding: '12px', borderRadius: '50%', border: 'none',
-                                        background: isFavorited ? 'rgba(224,90,90,0.15)' : 'rgba(255,255,255,0.4)',
-                                        cursor: 'pointer', color: isFavorited ? '#E05A5A' : btnColor,
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)' }}>
-                                    <Heart size={18} fill={isFavorited ? 'currentColor' : 'none'} strokeWidth={2} />
+                                <motion.button
+                                    whileTap={{ scale: 0.85 }}
+                                    onPointerDown={(e) => {
+                                        e.stopPropagation();
+                                        setLocalFavorited(!effectiveFavorited);
+                                        onToggleFavorite();
+                                    }}
+                                    aria-label={effectiveFavorited ? 'Unfavorite' : 'Favorite'}
+                                    style={{
+                                        padding: '12px', borderRadius: '50%', border: 'none',
+                                        background: effectiveFavorited ? 'rgba(224,90,90,0.15)' : 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer', color: effectiveFavorited ? '#E05A5A' : btnColor,
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)', backdropFilter: 'blur(10px)',
+                                        pointerEvents: 'auto', touchAction: 'manipulation',
+                                    }}>
+                                    <Heart size={18} fill={effectiveFavorited ? 'currentColor' : 'none'} strokeWidth={2} />
                                 </motion.button>
                             )}
 

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Mic, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb } from 'lucide-react';
+import { Plus, Mic, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish } from 'lucide-react';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
 import { ProgressDashboard } from './ProgressDashboard';
@@ -258,6 +258,70 @@ export const Momentum: React.FC<MomentumProps> = ({
                     </button>
                 </div>
             </div>
+
+            {/* ── Streak & Points Hero ── */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                {/* Streak */}
+                <div className={`relative rounded-2xl p-4 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                    <div className="flex items-start justify-between mb-2">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
+                            <Flame size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                        </div>
+                        <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>Streak</span>
+                    </div>
+                    <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                        {user.streak || 0}
+                    </p>
+                    <p className={`text-[10px] font-medium ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                        {(user.streak || 0) === 1 ? 'day' : 'days in a row'}
+                    </p>
+                </div>
+
+                {/* Points */}
+                <div className={`relative rounded-2xl p-4 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                    <div className="flex items-start justify-between mb-2">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
+                            <Sparkles size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                        </div>
+                        <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>Points</span>
+                    </div>
+                    <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                        {(user.points || 0).toLocaleString()}
+                    </p>
+                    <p className={`text-[10px] font-medium ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                        total earned
+                    </p>
+                </div>
+            </div>
+
+            {/* ── Koi Pond Progress Teaser ── */}
+            {(user.streak || 0) < 30 && (
+                <div className={`rounded-2xl px-4 py-3 mb-6 flex items-center gap-3 ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}>
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#4A7050]/40' : 'bg-[#4A7050]/15'}`}>
+                        <Fish size={16} color={isDarkMode ? '#7AAD80' : '#4A7050'} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <p className={`text-[11px] font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
+                                First koi unlocks at 30 days
+                            </p>
+                            <p className={`text-[10px] font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
+                                {user.streak || 0}/30
+                            </p>
+                        </div>
+                        <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+                            <div
+                                className="h-full rounded-full"
+                                style={{
+                                    width: `${Math.min(100, ((user.streak || 0) / 30) * 100)}%`,
+                                    background: 'linear-gradient(90deg, #4A7050, #E5D6A7)',
+                                    transition: 'width 0.6s ease',
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Coach Card - Premium Glass */}
             <div className="mb-10">

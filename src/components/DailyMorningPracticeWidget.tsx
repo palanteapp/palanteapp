@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sun, Sparkles, Check, ChevronRight, Loader2 } from 'lucide-react';
+import { Sun, Sparkles, Check, ChevronRight, Loader2, Sprout, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DailyMorningPractice } from '../types';
 import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
@@ -87,6 +87,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     intention: intention,
                     narrative: user?.userNarrative?.text,
                     momentumState: user ? getMomentumState(user) : undefined,
+                    coachTone: user?.coachSettings?.coachTone,
                 }).then(msg => {
                     setGeneratedMessage(msg);
                     setIsGenerating(false);
@@ -143,25 +144,63 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
 
     // --- RENDER HELPERS ---
 
-    const renderIntro = () => (
-        <div className="flex flex-col items-center text-center py-8 animate-fade-in">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 animate-pulse-slow ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
-                <Sun size={32} />
+    const renderIntro = () => {
+        const pts = user?.points || 0;
+        const streak = user?.streak || 0;
+        const hour = new Date().getHours();
+        const timeLabel = hour < 12 ? 'Start your morning.' : hour < 18 ? 'Take a moment.' : 'Close the day right.';
+
+        return (
+            <div className="flex flex-col overflow-hidden rounded-3xl animate-fade-in">
+                {/* Top: garden preview + copy */}
+                <div className={`flex flex-col items-center px-6 pt-10 pb-8 ${isDarkMode ? 'bg-white/[0.04]' : 'bg-sage/[0.07]'}`}>
+                    {/* Plant icon */}
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
+                        <Sprout size={36} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                    </div>
+
+                    {/* Streak / points badges */}
+                    {(streak > 0 || pts > 0) && (
+                        <div className="flex gap-5 mb-6">
+                            {streak > 0 && (
+                                <div className="flex items-center gap-1.5">
+                                    <Flame size={14} className="text-[#C96A3A]" />
+                                    <span className={`text-sm font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
+                                        {streak}-day streak
+                                    </span>
+                                </div>
+                            )}
+                            {pts > 0 && (
+                                <div className={`text-sm font-semibold ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
+                                    {pts.toLocaleString()} pts
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Invitation */}
+                    <h3 className={`text-2xl font-display font-bold text-center mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                        Let's set the tone of the day.
+                    </h3>
+                    <p className={`text-sm text-center ${isDarkMode ? 'text-white/45' : 'text-sage/55'}`}>
+                        {timeLabel} Gratitude · Affirmations · Intention
+                    </p>
+                </div>
+
+                {/* CTA — full-width terracotta bar */}
+                <motion.button
+                    onClick={handleNext}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-5 text-white font-bold text-base tracking-wide transition-colors"
+                    style={{ background: '#C96A3A' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#b55e32')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#C96A3A')}
+                >
+                    Begin Morning Practice
+                </motion.button>
             </div>
-            <h3 className={`text-2xl font-display font-medium mb-3 ${textPrimary}`}>Morning Practice</h3>
-            <p className={`text-base max-w-xs mb-8 ${textSecondary}`}>
-                Gratitude. Affirmations. Intention. Three practices to own your day before it starts.
-            </p>
-            <motion.button
-                onClick={handleNext}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
-            >
-                Start Practice
-            </motion.button>
-        </div>
-    );
+        );
+    };
 
     const renderInputs = (
         title: string,
@@ -261,7 +300,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                         disabled={!isStepValid()}
                         className={`flex-[2] py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${!isStepValid()
                             ? 'opacity-50 cursor-not-allowed bg-gray-500/20'
-                            : isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90' : 'bg-terracotta-500 text-white hover:bg-sage-600'
+                            : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
                             }`}
                     >
                         Next Step <ChevronRight size={18} />
@@ -314,7 +353,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     disabled={!isStepValid()}
                     className={`flex-[2] py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${!isStepValid()
                         ? 'opacity-50 cursor-not-allowed bg-gray-500/20'
-                        : isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90' : 'bg-terracotta-500 text-white hover:bg-sage-600'
+                        : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
                         }`}
                 >
                     Complete Practice <ChevronRight size={18} />
@@ -396,7 +435,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     onClick={onFinish}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className="w-full py-4 bg-pale-gold text-sage-dark rounded-xl text-lg font-bold tracking-wide shadow-lg active:scale-95 transition-all"
+                    className="w-full py-4 bg-[#C96A3A] text-white rounded-xl text-lg font-bold tracking-wide shadow-lg active:scale-95 transition-all hover:bg-[#b55e32]"
                 >
                     Return to Dashboard
                 </motion.button>
@@ -418,13 +457,17 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     );
 
     return (
-        <div className={`w-full p-6 rounded-3xl border transition-all duration-300 relative overflow-hidden ${isDarkMode
-            ? 'bg-white/5 border-white/10'
-            : 'bg-gradient-to-br from-white to-sage/5 border-sage/20 shadow-sm'
+        <div className={`w-full rounded-3xl border transition-all duration-300 relative overflow-hidden ${step === 'intro'
+            ? 'p-0 border-transparent bg-transparent'
+            : isDarkMode
+                ? 'p-6 bg-white/5 border-white/10'
+                : 'p-6 bg-gradient-to-br from-white to-sage/5 border-sage/20 shadow-sm'
             }`}>
 
-            {/* Background Decor */}
-            <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-20 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
+            {/* Background Decor — hidden on intro (hero handles its own bg) */}
+            {step !== 'intro' && (
+                <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-20 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
+            )}
 
             <AnimatePresence mode="wait">
                 <motion.div

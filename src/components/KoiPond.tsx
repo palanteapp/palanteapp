@@ -10,6 +10,17 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 interface KoiPondProps {
     isDarkMode: boolean;
     onClose: () => void;
+    streak?: number;
+    points?: number;
+}
+
+/** How many koi to spawn based on current streak. */
+function getFishCount(streak: number): number {
+    if (streak < 30)  return 0;
+    if (streak < 60)  return 2;
+    if (streak < 100) return 4;
+    if (streak < 150) return 6;
+    return 7;
 }
 
 // FishState Interface Removed
@@ -170,7 +181,28 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
 
 const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
 
-export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
+export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points = 0 }) => {
+    const fishCount = getFishCount(streak);
+    const hasKoi = fishCount > 0;
+
+    // First-koi arrival celebration (shown once after reaching 30-day streak)
+    const [showFirstArrival, setShowFirstArrival] = useState(() =>
+        hasKoi && !localStorage.getItem('koiFirstArrivalSeen')
+    );
+    const dismissFirstArrival = () => {
+        localStorage.setItem('koiFirstArrivalSeen', 'true');
+        setShowFirstArrival(false);
+    };
+
+    // Empty-state ambient hint — fades in, auto-dismisses after 10 s
+    const [showEmptyHint, setShowEmptyHint] = useState(false);
+    useEffect(() => {
+        if (hasKoi) return;
+        // Slight delay so the pond finishes fading in first
+        const showTimer = setTimeout(() => setShowEmptyHint(true), 1800);
+        const hideTimer = setTimeout(() => setShowEmptyHint(false), 11800); // 10 s visible
+        return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
+    }, [hasKoi]);
 
 
     // Fish State (Required for Mounting DOM Elements)
@@ -379,8 +411,10 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
     useEffect(() => {
         setFish([]); // Start empty
 
-        // Select 7 random variants
-        const selectedVariants: Fish['variant'][] = Array.from({ length: 7 }, () => KOI_VARIANTS[Math.floor(Math.random() * KOI_VARIANTS.length)]);
+        if (fishCount === 0) return; // No fish yet — empty state
+
+        // Select variants based on unlocked count
+        const selectedVariants: Fish['variant'][] = Array.from({ length: fishCount }, () => KOI_VARIANTS[Math.floor(Math.random() * KOI_VARIANTS.length)]);
 
         // Create all fish immediately but set their 'active' status or spawn time
         const newFish = selectedVariants.map((variant, i) => {
@@ -1087,14 +1121,14 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                         }}
                         style={{
                             position: 'absolute',
-                            left: l.x,
-                            top: l.y,
-                            transform: `translate(-50%, -50%) rotate(${l.rotation}deg) scale(${l.scale})`,
+                            left: 0,
+                            top: 0,
+                            // Matches the loop format exactly — no jump on first frame
+                            transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: l.opacity * 0.9,
                             pointerEvents: 'none',
                             zIndex: 15,
                             transition: 'opacity 1s ease-in-out',
-                            // Enhanced Shadow
                             filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.2))'
                         }}
                     >
@@ -1145,9 +1179,10 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                         }}
                         style={{
                             position: 'absolute',
-                            left: l.x,
-                            top: l.y,
-                            transform: `translate(-50%, -50%) rotate(${l.rotation}deg) scale(${l.scale})`,
+                            left: 0,
+                            top: 0,
+                            // Matches the loop format exactly — no jump on first frame
+                            transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: 0.95,
                             zIndex: 20,
                             filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.08))'
@@ -1297,9 +1332,119 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose }) => {
                     Koi Pond
                 </h1>
                 <p className={`text-sm mt-1 mb-3 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                    Observe and relax
+                    {hasKoi ? 'Observe and relax' : 'Your pond awaits'}
                 </p>
             </div>
+
+            {/* ── EMPTY STATE — ambient bottom hint, fades in then auto-hides ── */}
+            {!hasKoi && (
+                <div
+                    className="fixed bottom-28 inset-x-0 z-[45] flex justify-center pointer-events-none px-8"
+                    style={{
+                        opacity: showEmptyHint ? 1 : 0,
+                        transition: 'opacity 1.4s ease-in-out',
+                    }}
+                >
+                    <div
+                        className="flex flex-col items-center gap-1 text-center"
+                        style={{
+                            color: 'rgba(229,214,167,0.38)',
+                            textShadow: '0 1px 8px rgba(0,0,0,0.4)',
+                        }}
+                    >
+                        <span className="text-xs font-medium tracking-widest uppercase" style={{ letterSpacing: '0.12em' }}>
+                            Your first koi arrives at a 30-day streak
+                        </span>
+                        <span className="text-[10px] font-bold tracking-widest uppercase" style={{ letterSpacing: '0.18em', opacity: 0.7 }}>
+                            Day {streak}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {/* ── FIRST-KOI ARRIVAL CELEBRATION ── */}
+            {showFirstArrival && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center p-8"
+                    style={{ background: 'rgba(10,26,14,0.75)', backdropFilter: 'blur(8px)' }}
+                    onClick={dismissFirstArrival}
+                >
+                    <div
+                        className="relative w-full max-w-xs rounded-3xl p-8 text-center flex flex-col items-center gap-4"
+                        style={{
+                            background: 'rgba(30,58,40,0.96)',
+                            border: '1.5px solid rgba(229,214,167,0.25)',
+                            boxShadow: '0 24px 64px rgba(0,0,0,0.55)',
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Decorative ring */}
+                        <svg
+                            aria-hidden
+                            className="absolute inset-0 w-full h-full pointer-events-none rounded-3xl overflow-hidden"
+                            viewBox="0 0 320 400"
+                            preserveAspectRatio="xMidYMid slice"
+                        >
+                            <circle cx="320" cy="0" r="160" fill="none" stroke="#C96A3A" strokeWidth="40" opacity="0.35" />
+                            <circle cx="0" cy="400" r="130" fill="none" stroke="#2A4A2A" strokeWidth="36" opacity="0.30" />
+                        </svg>
+
+                        <div className="relative z-10 flex flex-col items-center gap-3">
+                            {/* Animated koi */}
+                            <div style={{ animation: 'swimFlex 3s ease-in-out infinite' }}>
+                                <svg width="56" height="84" viewBox="0 0 60 90">
+                                    <g transform="translate(30,45)">
+                                        <g style={{ animation: 'swimTail 2s ease-in-out infinite alternate', transformOrigin: '0 25px' }}>
+                                            <path d="M0,25 Q10,35 12,50 L0,45 L-12,50 Q-10,35 0,25" fill="#C96A3A" opacity="0.9" />
+                                        </g>
+                                        <ellipse cx="0" cy="0" rx="12" ry="30" fill="#C96A3A" />
+                                        <g fill="#FFD700" opacity="0.7">
+                                            <circle cx="-5" cy="-10" r="3" />
+                                            <circle cx="6" cy="5" r="4" />
+                                            <circle cx="-3" cy="18" r="2" />
+                                        </g>
+                                        <circle cx="-6" cy="-22" r="1.5" fill="black" opacity="0.5" />
+                                        <circle cx="6" cy="-22" r="1.5" fill="black" opacity="0.5" />
+                                    </g>
+                                </svg>
+                            </div>
+
+                            <div>
+                                <p
+                                    className="text-xs uppercase tracking-widest font-semibold mb-1"
+                                    style={{ color: '#C96A3A' }}
+                                >
+                                    30-day streak reached
+                                </p>
+                                <h3
+                                    className="text-2xl font-display font-bold"
+                                    style={{ color: '#E5D6A7', letterSpacing: '-0.02em' }}
+                                >
+                                    Your koi has arrived.
+                                </h3>
+                                <p
+                                    className="text-sm mt-2 leading-relaxed"
+                                    style={{ color: 'rgba(229,214,167,0.60)' }}
+                                >
+                                    Consistency brought it here.<br />Keep going to unlock more.
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={dismissFirstArrival}
+                                className="mt-2 w-full py-3.5 rounded-2xl font-bold text-sm"
+                                style={{
+                                    background: '#C96A3A',
+                                    color: '#FAF7F3',
+                                    boxShadow: '0 6px 24px rgba(201,106,58,0.45)',
+                                }}
+                            >
+                                Welcome to the pond
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

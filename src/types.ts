@@ -329,12 +329,15 @@ export interface PartnerActivity {
     timestamp: string;
 }
 
+export type CoachTone = 'nurturing' | 'direct' | 'accountability';
+
 export interface CoachSettings {
-    nudgeFrequency: 'hourly' | 'every-2-hours' | 'every-4-hours' | 'morning-evening' | 'off';
+    nudgeFrequency: 'morning-only' | 'morning-evening' | 'off';
     nudgeEnabled: boolean;
-    tipsEnabled?: boolean; // New toggle for Global Tips
-    waterRemindersEnabled?: boolean; // Professional accountability for hydration
+    tipsEnabled?: boolean;
+    waterRemindersEnabled?: boolean;
     lastNudgeTime?: string;
+    coachTone?: CoachTone; // How the coach shows up — defaults to 'nurturing'
 }
 
 export interface DailyFocus {

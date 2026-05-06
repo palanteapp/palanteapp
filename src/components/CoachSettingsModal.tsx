@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Settings, Check } from 'lucide-react';
-import type { CoachSettings } from '../types';
+import type { CoachSettings, CoachTone } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 import { SlideUpModal } from './SlideUpModal';
 import { haptics } from '../utils/haptics';
@@ -30,11 +30,9 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
     };
 
     const frequencies = [
-        { value: 'hourly' as const, label: 'Every hour', description: 'Real-time accountability' },
-        { value: 'every-2-hours' as const, label: 'Every 2 hours', description: 'Twice per day' },
-        { value: 'every-4-hours' as const, label: 'Every 4 hours', description: 'High-level check-ins' },
-        { value: 'morning-evening' as const, label: 'Morning & Evening', description: 'Day start/end only' },
-        { value: 'off' as const, label: 'Off', description: 'No automatic nudges' }
+        { value: 'morning-evening' as const, label: 'Morning & Evening', description: 'One to open the day, one to close it — the most effective rhythm.' },
+        { value: 'morning-only' as const, label: 'Morning only', description: 'A single nudge to set the tone. Simple and clean.' },
+        { value: 'off' as const, label: 'Off', description: 'No automatic nudges.' },
     ];
 
     const textPrimary = 'text-white';
@@ -60,6 +58,75 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                     <p className={`text-sm font-medium leading-relaxed ${textPrimary}`}>
                         Customize how often your Palante Coach checks in.
                     </p>
+                </div>
+
+                {/* Coach Tone Picker */}
+                <div className="mb-10">
+                    <p className={accentLabel + ' block mb-4'}>How should your coach show up?</p>
+                    <div className="flex flex-col gap-3">
+                        {(
+                            [
+                                {
+                                    value: 'nurturing' as CoachTone,
+                                    label: 'Nurturing',
+                                    sub: 'Warm, poetic, patient',
+                                    desc: 'Your coach wraps around you — soft presence, deep listening, no pressure. Best for days when you need to feel held.',
+                                    accent: 'rgba(229,214,167,0.85)',
+                                    bg: 'rgba(229,214,167,0.08)',
+                                },
+                                {
+                                    value: 'direct' as CoachTone,
+                                    label: 'Direct',
+                                    sub: 'Honest, clear, grounded',
+                                    desc: 'Your coach tells you the real thing — plainly, with care. No inflation, no noise. Best for everyday clarity.',
+                                    accent: 'rgba(135,149,130,0.9)',
+                                    bg: 'rgba(135,149,130,0.08)',
+                                },
+                                {
+                                    value: 'accountability' as CoachTone,
+                                    label: 'Accountability',
+                                    sub: 'Firm, high-standard, in your corner',
+                                    desc: "Your coach sees you at your best and won't let you settle. Real talk, no excuses — but always rooted in belief in you.",
+                                    accent: 'rgba(201,106,58,0.9)',
+                                    bg: 'rgba(201,106,58,0.10)',
+                                },
+                            ] as const
+                        ).map((tone) => {
+                            const active = (localSettings.coachTone ?? 'nurturing') === tone.value;
+                            return (
+                                <button
+                                    key={tone.value}
+                                    onClick={() => updateLocalSetting({ ...localSettings, coachTone: tone.value })}
+                                    className="w-full text-left p-5 rounded-[1.8rem] border-2 transition-all active:scale-[0.98]"
+                                    style={{
+                                        background: active ? tone.bg : 'rgba(255,255,255,0.04)',
+                                        borderColor: active ? tone.accent : 'rgba(255,255,255,0.08)',
+                                    }}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-sm font-black uppercase tracking-wider text-white">{tone.label}</span>
+                                                <span className="text-[10px] font-medium" style={{ color: tone.accent }}>
+                                                    {tone.sub}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-white/50 leading-relaxed">{tone.desc}</p>
+                                        </div>
+                                        <div
+                                            className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
+                                            style={{
+                                                borderColor: active ? tone.accent : 'rgba(255,255,255,0.2)',
+                                                background: active ? tone.bg : 'transparent',
+                                            }}
+                                        >
+                                            {active && <Check size={13} strokeWidth={3} style={{ color: tone.accent }} />}
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Enable/Disable Toggle */}

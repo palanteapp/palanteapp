@@ -28,12 +28,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Initial session check
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        });
+        // Initial session check — race against a 3 s timeout so a missing/placeholder
+        // Supabase URL doesn't leave the app stuck on the loading spinner.
+        const timeout = new Promise<void>(resolve => setTimeout(resolve, 3000));
+        Promise.race([
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                setSession(session);
+                setUser(session?.user ?? null);
+            }),
+            timeout,
+        ]).finally(() => setLoading(false));
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
