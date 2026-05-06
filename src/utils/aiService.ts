@@ -587,7 +587,7 @@ const getFallbackEveningMessage = (userName: string, data: { gratitude: string; 
 
     const templates = [
         `You were grateful for ${g} today. You noticed ${d}. That kind of attention to your own life is not small. You did enough. You can let it go now.`,
-        `You took care of ${a} today, and somewhere in that you discovered that ${l}. That is a full day. The people around you are better for the effort you bring. Put this one down gently.`,
+        `You took care of ${a} today. And somewhere in the middle of it, something became clear: ${l}. That is a full day. The people around you are better for the effort you bring. Put this one down gently.`,
         `${firstName}, you found delight in ${d} today. Most people would have moved right past it. You did not. That kind of attention to your own life is rare. The day is done.`,
     ];
 
@@ -985,7 +985,7 @@ const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: s
     const i = intention ? intention.trim().toLowerCase() : "moving forward";
 
     const templates = [
-        `You were grateful for ${g} this morning — before the day had a chance to take over. That is not a small thing. A lot of people miss it. Take that awareness with you. It will matter more later than it does right now.`,
+        `You were grateful for ${g} this morning, before the day had a chance to take over. That is not a small thing. A lot of people miss it. Take that awareness with you. It will matter more later than it does right now.`,
         `You wrote "${a}" this morning and you meant it. That is the kind of thing that holds when the day gets difficult. Let that be the place you return to if you need it. The intention you set will find you.`,
         `Something in you was grateful for ${g} this morning. You named that before anything else, which says something true about where you are right now. That kind of attention is the whole practice.`,
         `You set an intention this morning: ${i}. Most people let the day decide for them. You did not. Go live it.`,
