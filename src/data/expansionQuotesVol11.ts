@@ -80,13 +80,6 @@ export const EXPANSION_QUOTES_VOL11: Quote[] = [
   { id: 'v11_051', text: "It is important to expect nothing, to take every experience, including the negative ones, as merely steps on the path.", author: "Ram Dass", category: "Acceptance", intensity: 2 },
   { id: 'v11_052', text: "Treat everyone you meet like God in drag.", author: "Ram Dass", category: "Love", intensity: 1 },
 
-  // ─── DEEPAK CHOPRA ────────────────────────────────────────────────────────
-  { id: 'v11_053', text: "Every time you are tempted to react in the same old way, ask if you want to be a prisoner of the past or a pioneer of the future.", author: "Deepak Chopra", category: "Transformation", intensity: 3 },
-  { id: 'v11_054', text: "You must find the place inside yourself where nothing is impossible.", author: "Deepak Chopra", category: "Potential", intensity: 2 },
-  { id: 'v11_055', text: "In the midst of movement and chaos, keep stillness inside of you.", author: "Deepak Chopra", category: "Peace", intensity: 2 },
-  { id: 'v11_056', text: "The less you open your heart to others, the more your heart suffers.", author: "Deepak Chopra", category: "Love", intensity: 1 },
-  { id: 'v11_057', text: "What keeps life fascinating is the constant creativity of the soul.", author: "Deepak Chopra", category: "Creativity", intensity: 1 },
-
   // ─── WAYNE DYER ───────────────────────────────────────────────────────────
   { id: 'v11_058', text: "Change the way you look at things and the things you look at change.", author: "Wayne Dyer", category: "Perspective", intensity: 2 },
   { id: 'v11_059', text: "You cannot be lonely if you like the person you're alone with.", author: "Wayne Dyer", category: "Self-Love", intensity: 1 },

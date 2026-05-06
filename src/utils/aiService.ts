@@ -417,9 +417,10 @@ CRAFT REQUIREMENTS:
 1. 40–55 words. Every word earns its place.
 2. Do not open with their name. The message should feel like presence, not address. You may use it once, naturally, mid-message, only if it genuinely fits.
 3. No em dashes. Periods and commas only.
-4. Complete sentences. Proper capitalization and punctuation throughout.
-5. When reflecting their affirmations back, convert first-person to second-person. "I am strong" becomes "you are strong."
-6. The last line points them toward their day with belief, not instruction. Not a command. More like handing them something they already had.
+4. Every sentence must be grammatically complete and correct. No fragments. Subject, verb, meaning — every time.
+5. Do not drop the user's raw words verbatim into a sentence structure they don't grammatically fit. Reinterpret and rephrase. If their gratitude is "waking up today," write "You were grateful for waking up today" — not "Waking up today." as a standalone sentence. If their intention is "open to miracles," write "go into today open to what surprises you" — not "go into today with open to miracles as your anchor."
+6. When reflecting their affirmations back, convert first-person to second-person. "I am strong" becomes "you are strong."
+7. The last line points them toward their day with quiet belief. Not a command. More like handing them something they already had.
 
 VOICE EXAMPLES (these are the register, not the template. Do not copy them):
 
@@ -984,11 +985,11 @@ const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: s
     const i = intention ? intention.trim().toLowerCase() : "moving forward";
 
     const templates = [
-        `You noticed ${g} this morning before the day had a chance to take over. That is not a small thing. A lot of people miss it. Take that with you today. It will matter more later than it does right now.`,
-        `You wrote "${a}" this morning and you meant it. That is the kind of thing that holds when the day gets difficult. Let that be the place you return to if you need it. Now go do ${i}.`,
-        `${g.charAt(0).toUpperCase() + g.slice(1)}. You named that before anything else today, which says something true about where you are. Go into today with ${i} as your anchor. That is the whole plan.`,
-        `You already know what today is for. You wrote it down before the day had a chance to decide for you. That is the whole thing, ${i}. Now go live it.`,
-        `Something in you noticed ${g} this morning. That kind of attention is not accidental. You wrote "${a}" and that is worth carrying. The rest will follow.`
+        `You were grateful for ${g} this morning — before the day had a chance to take over. That is not a small thing. A lot of people miss it. Take that awareness with you. It will matter more later than it does right now.`,
+        `You wrote "${a}" this morning and you meant it. That is the kind of thing that holds when the day gets difficult. Let that be the place you return to if you need it. The intention you set will find you.`,
+        `Something in you was grateful for ${g} this morning. You named that before anything else, which says something true about where you are right now. That kind of attention is the whole practice.`,
+        `You set an intention this morning: ${i}. Most people let the day decide for them. You did not. Go live it.`,
+        `Something in you noticed ${g} this morning. That kind of attention is not accidental. You wrote "${a}" and that is worth carrying into whatever this day becomes.`
     ];
 
     const msg = templates[Math.floor(Math.random() * templates.length)];

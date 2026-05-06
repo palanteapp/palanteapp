@@ -643,7 +643,7 @@ export const QUOTES: Quote[] = [
     { id: 'spi_3', text: "Fear is a natural reaction to moving closer to the truth.", author: "Pema Chödrön", category: "Fear", intensity: 1, profession: "Spiritual Teacher" },
     { id: 'spi_4', text: "Sleep is the best meditation.", author: "Dalai Lama", category: "Rest", intensity: 1, profession: "Spiritual Teacher" },
     { id: 'spi_5', text: "When you change the way you look at things, the things you look at change.", author: "Wayne Dyer", category: "Perspective", intensity: 1, profession: "Author" },
-    { id: 'spi_6', text: "In the midst of movement and chaos, keep stillness inside of you.", author: "Deepak Chopra", category: "Calm", intensity: 1, profession: "Author" },
+    { id: 'spi_6', text: "The quieter you become, the more you can hear.", author: "Ram Dass", category: "Calm", intensity: 1, profession: "Spiritual Teacher" },
     { id: 'spi_7', text: "Assume the feeling of your wish fulfilled.", author: "Neville Goddard", category: "Projections", intensity: 1, profession: "Mystic" },
     { id: 'spi_8', text: "Live quietly in the moment and see the beauty of all before you.", author: "Paramahansa Yogananda", category: "Presence", intensity: 1, profession: "Yogi" },
     { id: 'spi_9', text: "Follow your bliss and the universe will open doors where there were only walls.", author: "Joseph Campbell", category: "Passion", intensity: 1, profession: "Mythologist" },
