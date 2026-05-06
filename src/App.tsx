@@ -13,6 +13,7 @@ import { CelebrationModal } from './components/CelebrationModal';
 import { DisclaimerModal } from './components/DisclaimerModal';
 import { getRelevantQuotes, getAIQuote, pickAndMarkQuote, markQuoteSeen } from './utils/quoteMatcher';
 import { generateUserNarrative } from './utils/aiService';
+import { analytics, identifyUser } from './utils/analytics';
 import { QUOTES } from './data/quotes';
 import { AFFIRMATIONS } from './data/affirmations';
 import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, RoutineStack, ContentType, QuoteSource, SoundMix } from './types';
@@ -64,7 +65,9 @@ const CinematicIntro = lazy(() => import('./components/CinematicIntro').then(mod
 const MorningMessageCard = lazy(() => import('./components/MorningMessageCard').then(module => ({ default: module.MorningMessageCard })));
 const EveningMessageCard = lazy(() => import('./components/EveningMessageCard').then(module => ({ default: module.EveningMessageCard })));
 const JapaneseWisdomView = lazy(() => import('./components/JapaneseWisdomView').then(m => ({ default: m.JapaneseWisdomView })));
-const GardenOfGrowth = lazy(() => import('./components/GardenOfGrowth').then(m => ({ default: m.GardenOfGrowth })));
+import { GardenDemoFinal as GardenMandala } from './components/GardenDemoFinal';
+const GardenLegendModal = lazy(() => import('./components/GardenLegendModal').then(m => ({ default: m.GardenLegendModal })));
+const PostPracticeSetupModal = lazy(() => import('./components/PostPracticeSetupModal').then(m => ({ default: m.PostPracticeSetupModal })));
 import { FocusTimer } from './components/FocusTimer';
 import { HomeEssentialTools } from './components/HomeEssentialTools';
 import type { EssentialToolId } from './components/HomeEssentialTools';
@@ -72,6 +75,8 @@ import type { EssentialToolId } from './components/HomeEssentialTools';
 
 import { CoachView } from './components/CoachView';
 import { WeeklyHighlightsModal, computeWeeklyHighlights } from './components/WeeklyHighlightsModal';
+import { CheckInModal } from './components/CheckInModal';
+import type { CheckInDestination } from './components/CheckInModal';
 
 
 
@@ -81,7 +86,7 @@ import { Logo } from './components/Logo';
 import {
   Home, TrendingUp, User as UserIcon, Moon, Sun,
   BookMarked, Music, MessageCircle, Bell, ChevronDown, Check,
-  Target, Sparkles, ChevronRight, ChevronLeft, Waves, Mic, Layers, Heart,
+  Target, Sparkles, ChevronRight, ChevronLeft, Fish, Mic, Layers, Heart,
   CheckCircle2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -169,6 +174,7 @@ function AppContent() {
 
 
   const [showVibeCheck, setShowVibeCheck] = useState(() => !localStorage.getItem(STORAGE_KEYS.VIBE_CHECKED));
+  const [showCheckIn, setShowCheckIn] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<import('./types').RoutineStack | null>(null);
 
   // Weekly Highlights modal
@@ -179,12 +185,17 @@ function AppContent() {
   const [missedDate, setMissedDate] = useState<string>('');
 
   // Time-based UI modes
-  const { shouldShowMorningMode, shouldShowEveningMode, hour } = useTimeOfDay();
+  const { shouldShowMorningMode, shouldShowEveningMode, hour, timeOfDay } = useTimeOfDay();
 
   // Transient Success States for Practices
   const [showMorningSuccess, setShowMorningSuccess] = useState(false);
   const [showEveningSuccess, setShowEveningSuccess] = useState(false);
+  const [eveningSkipped, setEveningSkipped] = useState(false);
+  const [showEveningPracticeInline, setShowEveningPracticeInline] = useState(false);
   const [dailyQuote, setDailyQuote] = useState<Quote | null>(null);
+  const [showTodayStory, setShowTodayStory] = useState(false);
+  const [showGardenLegend, setShowGardenLegend] = useState(false);
+  const [showPostPracticeSetup, setShowPostPracticeSetup] = useState(false);
 
   // Synchronize browser overscroll color with Palante theme
   useEffect(() => {
@@ -216,6 +227,21 @@ function AppContent() {
       if (force) haptics.light();
     }
   }, [user, dailyQuote]);
+
+  // Load daily quote on mount — restore cached quote from today or pick a fresh one
+  useEffect(() => {
+    if (!user) return;
+    const today = new Date().toISOString().split('T')[0];
+    const cachedDate = localStorage.getItem(STORAGE_KEYS.QUOTE_DATE);
+    const cachedQuote = localStorage.getItem(STORAGE_KEYS.DAILY_QUOTE);
+    if (cachedDate === today && cachedQuote) {
+      try {
+        setDailyQuote(JSON.parse(cachedQuote));
+        return;
+      } catch { /* fall through to fresh pick */ }
+    }
+    refreshDailyQuote();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep screen awake globally per user request
   useEffect(() => {
@@ -258,7 +284,9 @@ function AppContent() {
     }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-
+  useEffect(() => {
+    if (user?.id) identifyUser(user.id, { name: user.name, profession: user.profession });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // Routing State
@@ -293,6 +321,8 @@ function AppContent() {
     sourcePreference: QuoteSource;
     ageRange?: string;
   }) => {
+    analytics.onboardingCompleted({ profession: userData.profession, quoteIntensity: userData.quoteIntensity });
+
     // 1. Mark intro as seen FIRST
     localStorage.setItem(STORAGE_KEYS.INTRO_SEEN, 'true');
     // 2. Mark vibe as checked (so the legacy modal doesn't pop up)
@@ -335,6 +365,30 @@ function AppContent() {
       // 7. Load initial quote with new preferences (after profile is updated)
       await loadNewQuote(updatedUser);
     }
+  };
+
+  const handlePostPracticeSetupComplete = async (prefs: {
+    interests: string[];
+    contentType: ContentType;
+    sourcePreference: QuoteSource;
+  }) => {
+    localStorage.setItem('postPracticeSetupSeen', 'true');
+    setShowPostPracticeSetup(false);
+    if (user) {
+      const updatedUser = {
+        ...user,
+        interests: prefs.interests.length > 0 ? prefs.interests : (user.interests || []),
+        contentTypePreference: prefs.contentType,
+        sourcePreference: prefs.sourcePreference,
+      };
+      await updateProfile(updatedUser);
+      await loadNewQuote(updatedUser);
+    }
+  };
+
+  const handlePostPracticeSetupSkip = () => {
+    localStorage.setItem('postPracticeSetupSeen', 'true');
+    setShowPostPracticeSetup(false);
   };
 
   // Legal Disclaimer Modal - First Launch (Legacy fallback, suppressed by Intro Logic)
@@ -604,6 +658,7 @@ function AppContent() {
     };
 
     setCurrentQuote(selectedQuote);
+    analytics.quoteViewed({ quoteId: String(selectedQuote.id), isAI: !!selectedQuote.isAI, author: selectedQuote.author });
     localStorage.setItem(STORAGE_KEYS.LAST_QUOTE, JSON.stringify(selectedQuote));
     localStorage.setItem('palante_last_quote_ts', Date.now().toString());
 
@@ -626,6 +681,20 @@ function AppContent() {
     notifications
   });
 
+
+  // Midday check-in trigger — once per day, 9am–9pm, 3s delay (TEST MODE — change to 90_000 for production)
+  useEffect(() => {
+    if (!user || userLoading || showIntroSequence || showVibeCheck) return;
+    const hour = new Date().getHours();
+    if (hour < 9 || hour >= 21) return;
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(STORAGE_KEYS.CHECKIN_LAST_SHOWN) === today) return;
+    const timer = setTimeout(() => {
+      setShowCheckIn(true);
+      localStorage.setItem(STORAGE_KEYS.CHECKIN_LAST_SHOWN, today);
+    }, 3_000);
+    return () => clearTimeout(timer);
+  }, [user, userLoading, showIntroSequence, showVibeCheck]);
 
   // AUTOMATIC REFRESH throughout the day
   // Triggers when hour changes significantly (e.g. morning -> afternoon -> evening)
@@ -785,8 +854,9 @@ function AppContent() {
     if (!user) return;
     const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
     const oldStreak = user.streak || 0;
-    
+
     await logActivity(type);
+    analytics.practiceCompleted({ type, streak: user.streak });
     
     // We need the updated user state, but since logActivity just fired, 
     // we can calculate what happened.
@@ -800,6 +870,11 @@ function AppContent() {
         'practices_100': 'century', 'practices_200': 'twohundred', 'practices_365': 'year'
       };
       setShowMilestone({ isOpen: true, milestone: milestoneMap[milestone] || 'week' });
+    }
+
+    // After the very first practice, show the personalization setup (interests + content style)
+    if (updatedCount === 1 && !localStorage.getItem('postPracticeSetupSeen')) {
+      setTimeout(() => setShowPostPracticeSetup(true), 1200);
     }
 
     // Also check for STREAK milestones (7, 30, 100 days)
@@ -841,6 +916,7 @@ function AppContent() {
     // Haptic feedback
     if (!isFavorited) {
       haptics.medium();
+      analytics.quoteFavorited({ quoteId: quoteIdStr, author: currentQuote.author });
     } else {
       haptics.light();
     }
@@ -1011,6 +1087,12 @@ function AppContent() {
 
   const handleQuickAddFocus = async () => {
     if (!user || !newFocusText.trim()) return;
+    if ((user.dailyFocuses || []).length >= 5) {
+      setToastMessage("5 goals set — focus on what matters most");
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2500);
+      return;
+    }
     haptics.medium();
 
     const newFocus: DailyFocus = {
@@ -1126,6 +1208,7 @@ function AppContent() {
       practiceData: logPractice(user.practiceData || migrateStreakToPractice(user), 'morning_priming')
     };
     updateProfile(updatedUser);
+    analytics.morningRitualCompleted({ hasIntention: !!data.dailyIntention, mood: data.mood });
   };
 
   // Removed handleSmartRollover - goals now persist until manually deleted
@@ -1304,19 +1387,55 @@ function AppContent() {
       )}
 
 
-      {/* Global Ambient Background (The "Circles" restored from earlier today) */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {/* Top Right Concentric Circle */}
-        <Target
-          className={`absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 transition-colors duration-500 opacity-[0.075] ${isDarkMode ? 'text-[#E8E2D9]' : 'text-sage'
-            } `}
-        />
-
-        {/* Bottom Left Concentric Circle */}
-        <Target
-          className="absolute bottom-0 left-0 w-[90vmin] h-[90vmin] -translate-x-1/2 translate-y-1/2 text-pale-gold opacity-[0.075]"
-        />
-      </div>
+      {/* ── Background depth system — matches CinematicIntro visual language ── */}
+      {isDarkMode ? (
+        <>
+          {/* Central luminosity bloom */}
+          <div className="fixed inset-0 pointer-events-none z-0" style={{
+            background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.45) 0%, transparent 62%)',
+          }} />
+          {/* Edge vignette */}
+          <div className="fixed inset-0 pointer-events-none z-0" style={{
+            background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.55) 100%)',
+          }} />
+          {/* Bottom terracotta warmth */}
+          <div className="fixed bottom-0 inset-x-0 pointer-events-none z-0" style={{
+            height: '40%',
+            background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.16) 0%, transparent 70%)',
+          }} />
+          {/* Seed of Life — sacred geometry background */}
+          <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+            <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
+              <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+              <circle cx="343" cy="413" r="148" />
+              <circle cx="269" cy="541" r="148" />
+              <circle cx="121" cy="541" r="148" />
+              <circle cx="47"  cy="413" r="148" />
+              <circle cx="121" cy="285" r="148" />
+              <circle cx="269" cy="285" r="148" />
+            </g>
+          </svg>
+        </>
+      ) : (
+        <>
+          {/* Light mode: parchment with warm top bloom */}
+          <div className="fixed inset-0 pointer-events-none z-0" style={{
+            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(180,155,110,0.18) 0%, transparent 65%)',
+          }} />
+          {/* Seed of Life — sacred geometry background */}
+          <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+            <g fill="none" stroke="#415D43" strokeWidth="0.65" opacity="0.10">
+              <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+              <circle cx="343" cy="413" r="148" />
+              <circle cx="269" cy="541" r="148" />
+              <circle cx="121" cy="541" r="148" />
+              <circle cx="47"  cy="413" r="148" />
+              <circle cx="121" cy="285" r="148" />
+              <circle cx="269" cy="285" r="148" />
+            </g>
+          </svg>
+        </>
+      )}
 
 
 {/* Floating Header - Centered & Compact */}
@@ -1365,7 +1484,7 @@ function AppContent() {
             className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${headerBtnClass} `}
             title="Open Koi Pond"
           >
-            <Waves size={16} />
+            <Fish size={16} />
           </button>
 
 
@@ -1387,7 +1506,7 @@ function AppContent() {
 
           {/* 5. Coach Chat (Lush Green Anchor) */}
           <button
-            onClick={() => setActiveTab('coach')}
+            onClick={() => { setActiveTab('coach'); analytics.coachChatOpened(); }}
             className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-300 hover:scale-110 shadow-[0_0_20px_rgba(64,145,108,0.3)] ${activeTab === 'coach'
               ? 'bg-[#40916C] text-white border-2 border-[#D4E09B]'
               : 'bg-[#40916C]/60 text-white border border-white/20 hover:bg-[#40916C] hover:scale-105'
@@ -1417,541 +1536,384 @@ function AppContent() {
         {activeTab === 'home' && (
           <ErrorBoundary name="Home" onReset={() => window.location.reload()}>
           <PageTransition>
-            <div className="min-h-screen px-8 pb-8 max-w-md mx-auto">
-              {/* 1. HERO: Cinematic Greeting + Quote */}
-              <div className="w-full mb-8 mt-12 animate-fade-in-slow text-center relative z-10">
-                <h1 className={`text-4xl font-display font-medium mb-1 tracking-tight ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                  {getGreeting()}, {(user?.name || '').split(' ')[0] || 'Friend'}
-                </h1>
-                <p className={`text-base font-sans font-medium mb-12 ${isDarkMode ? 'text-white/80' : 'text-sage/80'}`}>
-                  {new Date().getHours() < 12 ? 'Ready to rise?' : new Date().getHours() < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
-                </p>
+          {(() => {
+            const ritualDoneToday = !!todaysPriming?.dailyIntention;
+            const eveningDoneToday = !!(user?.dailyEveningPractice || []).find(p => p.date === todayDate);
+            const rawFirst = (user?.name || 'Friend').split(' ')[0];
+            const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1);
 
-                {/* Evening Wind-Down Banner */}
-                {shouldShowEveningMode && (
-                  <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-[#1B4332]/40 via-[#2D6A4F]/20 to-[#1B4332]/40 border border-white/10 backdrop-blur-sm animate-fade-in shadow-lg">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Moon size={20} className="text-pale-gold" />
-                      <h3 className={`font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'}`}>Wind Down for the Night</h3>
-                    </div>
-                    <p className={`text-sm ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
-                      Your screen is dimmed for better sleep. Consider meditation or sleep sounds.
-                    </p>
+            // ── BEAT 1 · MORNING ARRIVAL ────────────────────────────────────────
+            if (!ritualDoneToday && !shouldShowEveningMode && user) {
+              const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
+              const timeSub = hour < 12 ? "Let's set the tone." : 'Take a moment.';
+              return (
+                <div className="min-h-screen flex flex-col px-8 pb-8 max-w-md mx-auto">
+                  <div className="w-full mt-16 mb-10 text-center animate-fade-in-slow">
+                    <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                      {timeGreeting}
+                    </h1>
+                    <p className={`text-base font-sans font-medium ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>{timeSub}</p>
                   </div>
-                )}
-
-                {/* Quote Card */}
-                <div className="mb-6">
-                  <Suspense fallback={<SkeletonQuoteCard isDarkMode={isDarkMode} />}>
-                    {isQuoteLoading || !currentQuote ? (
-                      <SkeletonQuoteCard isDarkMode={isDarkMode} />
-                    ) : (
-                      <DashboardQuoteCard
-                        quote={currentQuote}
-                        isDarkMode={isDarkMode}
-                        isFavorited={(() => {
-                          if (!user || !user.favoriteQuotes) return false;
-                          const result = user.favoriteQuotes.some(fav => String(fav.quoteId) === String(currentQuote.id));
-                          return result;
-                        })()}
-                        onToggleFavorite={handleToggleFavorite}
-                        onOpenHistory={() => setShowHistory(true)}
-                        onOpenSettings={() => {
-                          haptics.medium();
-                          setShowVibeCheck(true);
-                        }}
-                        onRefresh={() => {
-                          haptics.medium();
-                          if (user) loadNewQuote(user);
-                        }}
-                      />
-                    )}
-                  </Suspense>
-                </div>
-
-                {/* Essential Tools — single unified section, user-customizable */}
-                {user && (
-                  <HomeEssentialTools
-                    isDarkMode={isDarkMode}
-                    selectedTools={user.homeEssentialTools}
-                    fastingActive={(() => {
-                      try { return localStorage.getItem(STORAGE_KEYS.FASTING_STATUS) === 'active'; }
-                      catch { return false; }
-                    })()}
-                    fastingTime={(() => {
-                      try {
-                        const startTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
-                        if (!startTime) return '';
-                        const elapsed = Date.now() - new Date(startTime).getTime();
-                        if (isNaN(elapsed) || elapsed < 0) return '';
-                        return `${Math.floor(elapsed / 3_600_000)}h ${Math.floor((elapsed % 3_600_000) / 60_000)}m`;
-                      } catch { return ''; }
-                    })()}
-                    onNavigate={(id: EssentialToolId) => handleQuickAction(id)}
-                    onSave={(tools: EssentialToolId[]) => {
-                      if (user) updateProfile({ ...user, homeEssentialTools: tools });
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* Profile Completion Prompt */}
-              {user && !showMorningMode && (
-                <div className="w-full relative z-30 mb-6">
-                  <ProfileCompletionCard
-                    user={{
-                      profession: user?.profession,
-                      interests: user?.interests,
-                      career: user?.career,
-                      age: user?.age,
-                      contentTypePreference: user?.contentTypePreference
-                    }}
-                    isDarkMode={isDarkMode}
-                    onOpenProfile={() => setShowProfile(true)}
-                  />
-                </div>
-              )}
-
-              {/* 3. PALANTE COACH INTERVENTIONS */}
-              {activeInterventions.length > 0 && (
-                <div className="w-full mb-6 relative z-30">
-                  {/* Show only the highest priority intervention */}
-                  {activeInterventions.slice(0, 1).map(intervention => (
-                    <CoachInterventionCard
-                      key={intervention.id}
-                      intervention={intervention}
-                      onAccept={() => {
-                        // Handle intervention action
-                        if (intervention.action) {
-                          switch (intervention.action.type) {
-                            case 'show_breathing':
-                              setActiveTab('breath');
-                              break;
-                            case 'show_meditation':
-                              setActiveTab('meditate');
-                              break;
-                            case 'suggest_goal':
-                              // Open goals section
-                              setIsGoalsExpanded(true);
-                              break;
-                            case 'open_practice':
-                              // Show practice options
-                              break;
-                          }
-                        }
-
-                        // Mark as accepted
-                        if (user) {
-                          const updatedInterventions = user.coachInterventions || [];
-                          updatedInterventions.push({ ...intervention, accepted: true });
-                          const updatedUser = { ...user, coachInterventions: updatedInterventions };
-                          updateProfile(updatedUser);
-                        }
-
-                        // Remove from active
-                        setActiveInterventions(prev => prev.filter(i => i.id !== intervention.id));
+                  <div className="w-full">
+                    <DailyMorningPracticeWidget
+                      userName={user.name || "Friend"}
+                      onComplete={handlePrimingComplete}
+                      onFinish={() => setShowMorningSuccess(true)}
+                      onRefresh={() => {
+                        const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
+                        updateProfile({ ...user, dailyPriming: updatedPriming });
+                        haptics.light();
                       }}
-                      onDismiss={() => {
-                        // Mark as dismissed
-                        if (user) {
-                          const updatedInterventions = user.coachInterventions || [];
-                          updatedInterventions.push({ ...intervention, dismissed: true });
-                          const updatedUser = { ...user, coachInterventions: updatedInterventions };
-                          updateProfile(updatedUser);
-                        }
+                      isDarkMode={isDarkMode}
+                      existingPriming={todaysPriming || null}
+                      hideEnergyCheckIn={true}
+                      user={user}
+                    />
+                  </div>
+                </div>
+              );
+            }
 
-                        // Remove from active
-                        setActiveInterventions(prev => prev.filter(i => i.id !== intervention.id));
+            // ── BEAT 1 · EVENING ARRIVAL ────────────────────────────────────────
+            if (shouldShowEveningMode && !eveningDoneToday && !eveningSkipped && user) {
+              return (
+                <div className="min-h-screen flex flex-col px-8 pb-8 max-w-md mx-auto">
+                  <div className="w-full mt-16 mb-10 text-center animate-fade-in-slow">
+                    <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                      Good evening, {firstName}.
+                    </h1>
+                    <p className={`text-base font-sans font-medium ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>Let's close the day right.</p>
+                  </div>
+                  <div className="w-full">
+                    <EveningPractice
+                      userName={user.name}
+                      isDarkMode={isDarkMode}
+                      existingPractice={null}
+                      onComplete={(data) => {
+                        const existingEntries = user.dailyEveningPractice || [];
+                        const otherEntries = existingEntries.filter(p => p.date !== todayDate);
+                        updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data] });
+                        analytics.eveningPracticeCompleted({ gratitudeCount: data.gratitude?.length ?? 0 });
+                        triggerConfetti();
+                        setShowEveningSuccess(true);
+                        setTimeout(() => setShowEveningSuccess(false), 3000);
                       }}
                     />
-                  ))}
+                  </div>
+                  <button
+                    onClick={() => setEveningSkipped(true)}
+                    className={`w-full py-4 text-center text-sm font-medium transition-colors mt-4 ${isDarkMode ? 'text-white/30 hover:text-white/50' : 'text-sage/30 hover:text-sage/60'}`}
+                  >
+                    Skip for tonight
+                  </button>
                 </div>
-              )}
+              );
+            }
 
+            // ── BEAT 3 · THE REWARD ──────────────────────────────────────────────
+            {/* Derived helpers for Beat 3 */}
+            const hasPendingGoals = (user?.dailyFocuses || []).some(f => !f.isCompleted);
+            const hasAnyGoals = (user?.dailyFocuses || []).length > 0;
+            const coachLine = activeInterventions[0]?.message
+              ?? (todaysPriming?.dailyIntention ? `Your intention: "${todaysPriming.dailyIntention}"` : null)
+              ?? (ritualDoneToday ? 'Your coach is here when you need them.' : 'Your coach is ready when you are.');
 
+            return (
+              <div className="min-h-screen px-6 pb-12 max-w-md mx-auto">
 
+                {/* ── Greeting ─────────────────────────────── */}
+                <motion.div
+                  className="w-full mt-10 mb-7 text-center"
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <h1 className={`text-3xl font-display font-medium tracking-tight mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                    {getGreeting()}, {firstName}.
+                  </h1>
+                  <p className={`text-sm font-sans ${isDarkMode ? 'text-white/45' : 'text-sage/50'}`}>
+                    {ritualDoneToday
+                      ? 'Practice complete. Well done.'
+                      : eveningDoneToday
+                        ? 'Evening reflection complete.'
+                        : hour < 12 ? 'Ready to rise?' : hour < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
+                  </p>
+                </motion.div>
 
+                {/* ── Mandala of Growth ─────────────────────── */}
+                {user && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  >
+                    <div className="flex flex-col items-center px-1 mb-2 gap-0.5">
+                      <p className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
+                        Mandala of Growth
+                      </p>
+                      <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-sage/40'}`}>
+                        {(user.streak || 0)} day streak · {(user.points || 0).toLocaleString()} pts
+                      </p>
+                    </div>
+                    <GardenMandala
+                      isDarkMode={isDarkMode}
+                      completedDays={Math.min(user.practiceData?.totalPractices || 0, 90)}
+                    />
+                  </motion.div>
+                )}
 
+                {/* ── Quote ────────────────────────────────── */}
+                {dailyQuote && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                  >
+                    {ritualDoneToday && todaysPriming?.dailyIntention && (
+                      <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 px-1 ${isDarkMode ? 'text-white/25' : 'text-sage/35'}`}>
+                        Tuned to your intention
+                      </p>
+                    )}
+                    <Suspense fallback={null}>
+                      <DashboardQuoteCard
+                        quote={dailyQuote}
+                        onToggleFavorite={handleToggleFavorite}
+                        isFavorited={dailyQuote ? (user?.favoriteQuotes || []).some(q => q.quoteId === dailyQuote.id) : false}
+                        isDarkMode={isDarkMode}
+                        onRefresh={() => refreshDailyQuote(true)}
+                        onOpenSettings={() => setShowReorderModal(true)}
+                      />
+                    </Suspense>
+                  </motion.div>
+                )}
 
+                {/* ── Coach strip ──────────────────────────── */}
+                <motion.button
+                  onClick={() => setActiveTab('coach')}
+                  className={`w-full mb-5 px-5 py-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.01] active:scale-[0.99] ${
+                    isDarkMode
+                      ? 'bg-white/5 border border-white/10 hover:bg-white/8'
+                      : 'bg-white/70 border border-sage/15 hover:bg-white/90 shadow-sm'
+                  }`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, delay: 0.28 }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-[#40916C] flex items-center justify-center flex-shrink-0 shadow-md">
+                    <MessageCircle size={16} className="text-white" fill="white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isDarkMode ? 'text-white/35' : 'text-sage/45'}`}>
+                      Palante Coach
+                    </p>
+                    <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>
+                      {coachLine}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className={isDarkMode ? 'text-white/25 flex-shrink-0' : 'text-sage/30 flex-shrink-0'} />
+                </motion.button>
 
-              {(() => {
-                // --- STABILIZED DASHBOARD SORTING ---
-                // We enforce a consistent order so users build muscle memory.
+                {/* ── Today's Goals ────────────────────────── */}
+                {user && hasAnyGoals && (
+                  <motion.div
+                    className={`mb-5 rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/70 border-sage/15 shadow-sm'}`}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45, delay: 0.35 }}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 pt-4 pb-3">
+                      <h3 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                        Today's Goals
+                      </h3>
+                      <span className={`text-xs font-semibold tabular-nums ${
+                        hasPendingGoals
+                          ? (isDarkMode ? 'text-pale-gold/70' : 'text-[#C96A3A]')
+                          : (isDarkMode ? 'text-green-400/70' : 'text-green-600/70')
+                      }`}>
+                        {user.dailyFocuses?.filter(f => f.isCompleted).length || 0} / {user.dailyFocuses?.length || 0} done
+                      </span>
+                    </div>
 
-                // Static Order: 
-                // 1. Morning Practice (start_ritual)
-                // 2. Daily Check-in (morning_practice)
-                // 3. Daily Inspiration (daily_quote)
-                // 4. Today's Goals (todays_goals)
-                // 5. Coach/Progress (accountability_coach)
+                    {/* Goal list */}
+                    <div className="px-5 pb-3 space-y-2">
+                      {(user.dailyFocuses || []).map((focus) => (
+                        <FocusItem
+                          key={focus.id}
+                          focus={focus}
+                          onToggle={handleToggleGoal}
+                          onDelete={handleDeleteGoal}
+                        />
+                      ))}
+                    </div>
 
-                const defaultOrder = ['morning_practice', 'daily_quote', 'todays_goals'];
-                let displayOrder = (user?.dashboardOrder && user.dashboardOrder.length > 0) ? [...user.dashboardOrder] : [...defaultOrder];
-                // Remove legacy features that shouldn't live on Home full-time
-                displayOrder = displayOrder.filter((id) => id !== 'daily_mosaic' && id !== 'quick_routines' && id !== 'future_letter' && id !== 'start_ritual');
+                    {/* Quick add */}
+                    <div className={`flex gap-2 px-5 pb-4 pt-1 border-t ${isDarkMode ? 'border-white/5' : 'border-sage/8'}`}>
+                      <input
+                        type="text"
+                        value={newFocusText}
+                        onChange={(e) => setNewFocusText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleQuickAddFocus()}
+                        placeholder="Add another goal…"
+                        className={`flex-1 py-2 px-3 rounded-xl text-sm outline-none transition-all ${
+                          isDarkMode
+                            ? 'bg-white/5 text-white placeholder-white/25 focus:bg-white/10'
+                            : 'bg-sage/5 text-sage-dark placeholder-sage/30 focus:bg-sage/10'
+                        }`}
+                      />
+                      <button
+                        onClick={handleQuickAddFocus}
+                        disabled={!newFocusText.trim()}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg font-medium transition-all ${
+                          !newFocusText.trim()
+                            ? 'opacity-30 cursor-not-allowed ' + (isDarkMode ? 'bg-white/5 text-white' : 'bg-sage/5 text-sage')
+                            : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
 
-                return (
-                  <div className="flex flex-col gap-0">
+                {/* If no goals yet — soft invite, not an empty state box */}
+                {user && !hasAnyGoals && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.35 }}
+                  >
+                    <div className={`flex gap-2 px-5 py-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/8' : 'bg-white/70 border-sage/12 shadow-sm'}`}>
+                      <input
+                        type="text"
+                        value={newFocusText}
+                        onChange={(e) => setNewFocusText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleQuickAddFocus()}
+                        placeholder="What's one thing you want to move forward today?"
+                        className={`flex-1 py-1 text-sm outline-none bg-transparent ${isDarkMode ? 'text-white placeholder-white/30' : 'text-sage-dark placeholder-sage/40'}`}
+                      />
+                      <button
+                        onClick={handleQuickAddFocus}
+                        disabled={!newFocusText.trim()}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg font-medium transition-all flex-shrink-0 ${
+                          !newFocusText.trim()
+                            ? 'opacity-30 cursor-not-allowed ' + (isDarkMode ? 'bg-white/5 text-white' : 'bg-sage/5 text-sage')
+                            : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
 
-                    {/* Customize Button moved to bottom */}
-                    {displayOrder.map((sectionId) => (
-                      <div key={sectionId} id={`${sectionId}-section`} className="relative">
+                {/* ── Today's Story accordion ───────────────── */}
+                {(ritualDoneToday || eveningDoneToday) && user && (
+                  <motion.div
+                    className="mb-8"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.42 }}
+                  >
+                    <button
+                      onClick={() => { setShowTodayStory(p => !p); haptics.light(); }}
+                      className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border transition-all ${
+                        isDarkMode
+                          ? 'bg-white/5 border-white/8 hover:bg-white/8'
+                          : 'bg-white/60 border-sage/12 hover:bg-white/80 shadow-sm'
+                      }`}
+                    >
+                      <span className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white/50' : 'text-sage/55'}`}>
+                        Today's Story
+                      </span>
+                      <div className={`transition-transform duration-300 ${showTodayStory ? 'rotate-180' : 'rotate-0'} ${isDarkMode ? 'text-white/30' : 'text-sage/35'}`}>
+                        <ChevronDown size={16} />
+                      </div>
+                    </button>
 
-
-                        {sectionId === 'morning_practice' && user && (
-                          <div className="mb-6 relative group">
-                            {!todaysPriming?.dailyIntention ? (
-                              <DailyMorningPracticeWidget
-                                userName={user?.name || "Friend"}
-                                onComplete={(data) => {
-                                  handlePrimingComplete(data);
-                                }}
-                                onFinish={() => setShowMorningSuccess(true)}
-                                onRefresh={() => {
-                                  if (!user) return;
-                                  const today = new Date();
-                                  const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-                                  const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
-
-                                  const updatedUser = { ...user, dailyPriming: updatedPriming };
-                                  updateProfile(updatedUser);
-                                  haptics.light();
-                                }}
-                                isDarkMode={isDarkMode}
-                                existingPriming={todaysPriming || null}
-                                hideEnergyCheckIn={true}
-                                user={user}
-                              />
-                            ) : (
+                    <AnimatePresence>
+                      {showTodayStory && (
+                        <motion.div
+                          key="today-story"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-3 space-y-4">
+                            {ritualDoneToday && (
                               <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
                                 <MorningMessageCard
-                                  intention={todaysPriming?.dailyIntention || ""}
-                                  message={todaysPriming?.messageOfTheDay || ""}
+                                  intention={todaysPriming?.dailyIntention || ''}
+                                  message={todaysPriming?.messageOfTheDay || ''}
                                   isDarkMode={isDarkMode}
+                                  userName={user.name || ''}
+                                  coachTone={user.coachSettings?.coachTone ?? 'nurturing'}
+                                  onOpenToneSettings={() => setShowHomeCoachSettings(true)}
                                   onRefresh={() => {
-                                    if (!user) return;
-                                    const today = new Date();
-                                    const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
                                     const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
-
-                                    const updatedUser = { ...user, dailyPriming: updatedPriming };
-                                    updateProfile(updatedUser);
+                                    updateProfile({ ...user, dailyPriming: updatedPriming });
                                     haptics.light();
                                   }}
                                 />
                               </Suspense>
                             )}
-                          </div>
-                        )}
-
-                        {/* Evening Practice Injection */}
-                        {sectionId === 'daily_quote' && shouldShowEveningMode && user && (
-                          <div className="mb-6 animate-fade-in">
-                            {(user.dailyEveningPractice || []).find(p => p.date === todayDate) ? (
+                            {eveningDoneToday && (
                               <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
                                 <EveningMessageCard
                                   practice={user.dailyEveningPractice?.find(p => p.date === todayDate) || {
-                                    id: 'temp',
-                                    date: todayDate,
-                                    gratitude: '',
-                                    learning: '',
-                                    accomplishment: '',
-                                    delight: ''
+                                    id: 'temp', date: todayDate, gratitude: '', learning: '', accomplishment: '', delight: ''
                                   }}
                                   isDarkMode={isDarkMode}
                                   onRefresh={() => {
-                                    const updatedPractice = (user.dailyEveningPractice || []).filter(p => p.date !== todayDate);
-                                    updateProfile({ ...user, dailyEveningPractice: updatedPractice });
+                                    updateProfile({ ...user, dailyEveningPractice: (user.dailyEveningPractice || []).filter(p => p.date !== todayDate) });
                                     haptics.light();
                                   }}
                                 />
                               </Suspense>
-                            ) : (
-                              <EveningPractice
-                                userName={user.name}
-                                isDarkMode={isDarkMode}
-                                existingPractice={null}
-                                onComplete={(data) => {
-                                  const today = new Date();
-                                  const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-                                  // Update User Profile
-                                  const existingEntries = user.dailyEveningPractice || [];
-                                  const otherEntries = existingEntries.filter(p => p.date !== todayDate);
-
-                                  updateProfile({
-                                    ...user,
-                                    dailyEveningPractice: [...otherEntries, data]
-                                  });
-                                  triggerConfetti();
-
-                                  // TRIGGER FADE OUT at top
-                                  setShowEveningSuccess(true);
-                                  setTimeout(() => setShowEveningSuccess(false), 3000);
-                                }}
-                              />
                             )}
                           </div>
-                        )}
-
-                        {sectionId === 'daily_quote' && dailyQuote && (
-                          <div className="mb-6">
-                            <DashboardQuoteCard
-                              quote={dailyQuote}
-                              onToggleFavorite={handleToggleFavorite}
-                              isFavorited={dailyQuote ? (user?.favoriteQuotes || []).some(q => q.quoteId === dailyQuote.id) : false}
-                              isDarkMode={isDarkMode}
-                              onRefresh={() => refreshDailyQuote(true)}
-                              onOpenSettings={() => setShowReorderModal(true)}
-                            />
-                          </div>
-                        )}
-
-                        {sectionId === 'todays_goals' && (
-                          <div className={`p-6 rounded-2xl border mb-6 transition-all duration-500 ease-in-out shadow-lg ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'} `}>
-                            <div className="flex items-center justify-between mb-6">
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => {
-                                    const newState = !isGoalsExpanded;
-                                    setIsGoalsExpanded(newState);
-                                    localStorage.setItem(STORAGE_KEYS.GOALS_EXPANDED, JSON.stringify(newState));
-                                    haptics.light();
-                                  }}
-                                  className={`p-1 rounded-lg transition-all ${isDarkMode ? 'hover:bg-white/10 text-white/40' : 'hover:bg-sage/10 text-sage/40'} `}
-                                  aria-label={isGoalsExpanded ? "Collapse goals" : "Expand goals"}
-                                >
-                                  <div className={`transition-transform duration-300 ${isGoalsExpanded ? 'rotate-0' : '-rotate-90'} `}>
-                                    <ChevronDown size={20} />
-                                  </div>
-                                </button>
-                                <div>
-                                  <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage'} `}>
-                                    Today's Goals
-                                  </h3>
-                                </div>
-                              </div>
-                              <span className={`text-sm font-medium ${isDarkMode ? 'text-pale-gold/60' : 'text-sage/60'} `}>
-                                {user?.dailyFocuses?.filter(f => f.isCompleted).length || 0}/{user?.dailyFocuses?.length || 0} <Check size={14} className="inline-block ml-1 opacity-70" />
-                              </span>
-                            </div>
-
-                            {isGoalsExpanded && (
-                              <div className="animate-fade-in">
-                                {/* Quick Add Focus Input */}
-                                <div className="flex gap-2 mb-6">
-                                  <div className="relative flex-1">
-                                    <input
-                                      type="text"
-                                      value={newFocusText}
-                                      onChange={(e) => setNewFocusText(e.target.value)}
-                                      onKeyDown={(e) => e.key === 'Enter' && handleQuickAddFocus()}
-                                      placeholder="Add a Goal"
-                                      className={`w-full px-4 py-3 rounded-xl border outline-none transition-all ${isDarkMode
-                                        ? 'bg-white/5 border-white/10 text-white placeholder-white/30 focus:border-pale-gold/50'
-                                        : 'bg-white/60 border-sage/20 text-rich-black placeholder-sage/40 focus:border-sage'
-                                        } `}
-                                    />
-                                  </div>
-
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={toggleFocusDictation}
-                                      className={`p-3 rounded-xl transition-all ${isListeningFocus
-                                        ? 'bg-red-500 text-white animate-pulse'
-                                        : isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'
-                                        } `}
-                                      title="Voice Dictation"
-                                    >
-                                      <Mic size={14} />
-                                    </button>
-
-                                    <button
-                                      onClick={handleQuickAddFocus}
-                                      disabled={!newFocusText.trim()}
-                                      className={`px-4 rounded-xl flex items-center justify-center transition-all ${!newFocusText.trim()
-                                        ? 'opacity-50 cursor-not-allowed ' + (isDarkMode ? 'bg-white/5 text-white/30' : 'bg-gray-100 text-gray-400')
-                                        : isDarkMode
-                                          ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
-                                          : 'bg-[#1B4332] text-white hover:bg-[#2D6A4F]'
-                                        } `}
-                                    >
-                                      <span className="text-xl font-medium">+</span>
-                                    </button>
-                                  </div>
-                                </div>
-
-
-                                {user?.dailyFocuses && user.dailyFocuses.length > 0 ? (
-                                  <>
-                                    <div className="space-y-3 mb-6">
-                                      {/* Virtual Goal for Morning Practice - REMOVED */}
-
-                                      {(user?.dailyFocuses || []).map((focus) => (
-                                        <FocusItem
-                                          key={focus.id}
-                                          focus={focus}
-                                          onToggle={handleToggleGoal}
-                                          onDelete={handleDeleteGoal}
-                                        />
-                                      ))}
-                                    </div>
-
-                                    <button
-                                      onClick={() => setActiveTab('momentum')}
-                                      className={`mt-4 w-full py-3 rounded-xl border border-dashed text-sm font-medium transition-all ${isDarkMode
-                                        ? 'border-white/20 text-white/60 hover:bg-white/5 hover:text-white'
-                                        : 'border-sage/30 text-sage/70 hover:bg-sage/5 hover:text-sage'
-                                        } `}
-                                    >
-                                      Manage in Journey →
-                                    </button>
-                                  </>
-                                ) : (
-                                  <div className={`text-center py-8 px-4 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`}>
-                                    <div className={`w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/20 text-sage'}`}>
-                                      <Target size={24} />
-                                    </div>
-                                    <p className={`text-sm font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                                      No goals yet
-                                    </p>
-                                    <p className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                                      Tap the + button above to add your first goal
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {sectionId === 'quick_routines' && (
-                          <div className="mb-6">
-                            <QuickRoutines
-                              routines={user?.routines || []}
-                              onLaunch={handleLaunchRoutine}
-                              onCreate={() => setShowStackWizard(true)}
-                              onEdit={setEditingRoutine}
-                              onDelete={handleDeleteRoutine}
-                              isDarkMode={isDarkMode}
-                            />
-                          </div>
-                        )}
-
-                        {sectionId === 'accountability_coach' && (
-                          <div
-                            className={`mb-6 p-4 rounded-3xl flex items-center justify-between cursor-pointer transition-all backdrop-blur-xl ${isDarkMode
-                              ? 'bg-white/5 hover:bg-white/10 border border-white/10'
-                              : 'bg-white hover:bg-white/80 border border-sage/10 shadow-sm'
-                              }`}
-                            onClick={() => setActiveTab('momentum')}
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className={`p-3 rounded-full ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
-                                <Sparkles size={24} />
-                              </div>
-                              <div>
-                                <h3 className={`font-display font-bold text-lg ${isDarkMode ? 'text-white' : 'text-sage'}`}>Track Your Progress</h3>
-                                <div className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                                  Tap to see your progress
-                                </div>
-                              </div>
-                            </div>
-                            <div className={`p-2 rounded-full ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
-                              <ChevronRight size={20} />
-                            </div>
-                          </div>
-                        )}
-
-
-                      </div>
-                    ))}
-
-
-                    {/* Garden of Growth — scroll-reveal entrance, plants grow upward into frame */}
-                    {user && (() => {
-                      const pts = user.points || 0;
-                      const gardenLevel = pts >= 5000 ? 'Master' : pts >= 1000 ? 'Guide' : pts >= 500 ? 'Seeker' : 'Beginner';
-                      const streakText = (user.streak || 0) > 0 ? ` · ${user.streak}-day streak` : '';
-                      return (
-                        <motion.div
-                          className="mt-6 mb-6"
-                          initial={{ opacity: 0, y: 60, scale: 0.92 }}
-                          whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                          viewport={{ once: true, amount: 0.1 }}
-                          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-                        >
-                          {/* Caption header */}
-                          <div className="px-1 mb-3 text-center">
-                            <p className={`text-sm font-semibold tracking-wide ${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>
-                              Your Garden of Growth
-                            </p>
-                            <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-white/35' : 'text-sage/55'}`}>
-                              {gardenLevel} · {pts.toLocaleString()} pts{streakText}
-                            </p>
-                            <p className={`text-xs mt-2 italic ${isDarkMode ? 'text-white/30' : 'text-sage/40'}`}>
-                              Every practice plants something new.
-                            </p>
-                          </div>
-                          <Suspense fallback={null}>
-                            <GardenOfGrowth
-                              points={pts}
-                              streak={user.streak || 0}
-                              name={user.name || ''}
-                              isDarkMode={isDarkMode}
-                            />
-                          </Suspense>
                         </motion.div>
-                      );
-                    })()}
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
 
-                    {/* Customize Dashboard Button (Moved to bottom) */}
-                    <div className="flex justify-center mt-8 mb-4 opacity-50 hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => setShowReorderModal(true)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white' : 'bg-sage/5 text-sage/40 hover:bg-sage/10 hover:text-sage'
-                          }`}
-                      >
-                        <Settings2 size={14} />
-                        <span>Customize Layout</span>
-                      </button>
-                    </div>
+                {/* ── Settings access (quiet, bottom) ─────── */}
+                <div className="flex justify-center mb-4">
+                  <button
+                    onClick={() => setShowProfile(true)}
+                    className={`text-xs font-medium transition-opacity opacity-30 hover:opacity-60 ${isDarkMode ? 'text-white' : 'text-sage'}`}
+                  >
+                    Settings &amp; Layout
+                  </button>
+                </div>
 
+                <ReorderModal
+                  isOpen={showReorderModal}
+                  onClose={() => setShowReorderModal(false)}
+                  isDarkMode={isDarkMode}
+                  title="Arrange Dashboard"
+                  items={[
+                    { id: 'morning_practice', label: 'Morning Practice' },
+                    { id: 'daily_quote', label: 'Daily Inspiration' },
+                    { id: 'todays_goals', label: 'Goals' },
+                  ]}
+                  currentOrder={['morning_practice', 'daily_quote', 'todays_goals']}
+                  onSave={(newOrder) => {
+                    if (user) {
+                      updateProfile({ ...user, dashboardOrder: ['start_ritual', ...newOrder] });
+                    }
+                  }}
+                />
 
-
-                    <ReorderModal
-                      isOpen={showReorderModal}
-                      onClose={() => setShowReorderModal(false)}
-                      isDarkMode={isDarkMode}
-                      title="Arrange Dashboard"
-                      items={[
-                        { id: 'morning_practice', label: 'Morning Practice' },
-                        { id: 'daily_quote', label: 'Daily Inspiration' },
-                        { id: 'todays_goals', label: 'Goals' },
-                      ]}
-                      currentOrder={displayOrder}
-                      onSave={(newOrder) => {
-                        if (user) {
-                          // start_ritual is pinned to top mostly, preserve it
-                          // If it was in items, we wouldn't need this, but we hide it from reorder list
-                          const finalOrder = ['start_ritual', ...newOrder];
-                          updateProfile({ ...user, dashboardOrder: finalOrder });
-                        }
-                      }}
-                    />
-
-                  </div>
-                );
-              })()}
-
-              {/* Future Letter Button removed from homepage scroll as per request */}
-
-
-
-
-            </div>
+              </div>
+            );
+          })()}
           </PageTransition>
           </ErrorBoundary>
         )}
@@ -2094,6 +2056,7 @@ function AppContent() {
                 onSaveMix={(newMix) => {
                   handleProfileUpdate(prev => {
                     if (!prev) return prev!;
+                    if ((prev.savedMixes || []).length >= 8) return prev;
                     return {
                       ...prev,
                       savedMixes: [newMix, ...(prev.savedMixes || [])]
@@ -2348,7 +2311,7 @@ function AppContent() {
           {[
             { id: 'home', icon: Home, label: 'Home' },
             { id: 'momentum', icon: TrendingUp, label: 'Journey' },
-            { id: 'toolkit', icon: Layers, label: 'Practice' },
+            { id: 'toolkit', icon: Layers, label: 'Tool Kit' },
           ].map((tab) => {
             const Icon = tab.icon;
 
@@ -2358,8 +2321,9 @@ function AppContent() {
                 onClick={() => {
                   setActiveTab(tab.id as typeof activeTab);
                   haptics.selection();
+                  analytics.screenViewed(tab.id);
                 }}
-                className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-2 md:px-4 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
+                className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-4 md:px-5 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
                   ? isDarkMode
                     ? 'bg-white/20 text-white border border-white/20'
                     : 'bg-sage/20 text-sage'
@@ -2411,6 +2375,19 @@ function AppContent() {
         )
       }
 
+
+      {/* Garden Legend */}
+      {showGardenLegend && user && (
+        <Suspense fallback={null}>
+          <GardenLegendModal
+            isOpen={showGardenLegend}
+            onClose={() => setShowGardenLegend(false)}
+            streak={user.streak || 0}
+            points={user.points || 0}
+            isDarkMode={isDarkMode}
+          />
+        </Suspense>
+      )}
 
       {/* Weekly Accomplishments Highlight — fires Monday mornings */}
       <WeeklyHighlightsModal
@@ -2514,6 +2491,17 @@ function AppContent() {
           />
         )
       }
+
+      {/* Post-First-Practice Personalization Setup */}
+      <Suspense fallback={null}>
+        <PostPracticeSetupModal
+          isOpen={showPostPracticeSetup}
+          userName={user?.name || 'friend'}
+          isDarkMode={isDarkMode}
+          onComplete={handlePostPracticeSetupComplete}
+          onSkip={handlePostPracticeSetupSkip}
+        />
+      </Suspense>
 
       {/* Weekly Report */}
       <Suspense fallback={null}>
@@ -2631,7 +2619,17 @@ function AppContent() {
           <CoachSettingsModal
             isOpen={showHomeCoachSettings}
             onClose={() => setShowHomeCoachSettings(false)}
-            settings={user.coachSettings || { nudgeFrequency: 'every-2-hours', nudgeEnabled: false }}
+            settings={(() => {
+              const s = user.coachSettings || {};
+              const validFreqs = ['morning-only', 'morning-evening', 'off'] as const;
+              return {
+                ...s,
+                nudgeFrequency: validFreqs.includes(s.nudgeFrequency as typeof validFreqs[number])
+                  ? s.nudgeFrequency as typeof validFreqs[number]
+                  : 'morning-evening',
+                nudgeEnabled: s.nudgeEnabled ?? false,
+              };
+            })()}
             onSave={handleSaveCoachSettings}
           />
         )
@@ -2701,6 +2699,31 @@ function AppContent() {
           )
         }
       </Suspense>
+
+      {/* Midday Check-in */}
+      {user && (
+        <CheckInModal
+          isOpen={showCheckIn}
+          userName={user.name}
+          onFeelingSaved={(mood, energy) => {
+            handleProfileUpdate(prev => {
+              if (!prev) return prev!;
+              return { ...prev, currentMood: mood as UserProfile['currentMood'], currentEnergy: energy as UserProfile['currentEnergy'] };
+            });
+          }}
+          onNavigate={(dest: CheckInDestination) => {
+            setShowCheckIn(false);
+            const tabMap: Record<CheckInDestination, typeof activeTab> = {
+              focus: 'focus',
+              reflect: 'reflect',
+              breath: 'breath',
+              soundscapes: 'soundscapes',
+            };
+            setActiveTab(tabMap[dest]);
+          }}
+          onDismiss={() => setShowCheckIn(false)}
+        />
+      )}
 
       {/* Vibe Check Overlay */}
       <Suspense fallback={null}>
@@ -2781,6 +2804,8 @@ function AppContent() {
             <KoiPond
               isDarkMode={isDarkMode}
               onClose={() => setShowKoiPond(false)}
+              streak={user.streak || 0}
+              points={user.points || 0}
             />
           )}
         </Suspense>
