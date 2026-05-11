@@ -40,11 +40,11 @@ export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'for
 /** Get display details for a true STREAK milestone */
 export const getStreakMilestoneDetails = (days: number) => {
     const details: Record<number, any> = {
-        7: { title: 'Unstoppable Week', icon: 'Flame', message: "7 days in a row! You are officially in a state of momentum. Don't stop now!", label: 'Day Streak' },
-        30: { title: 'Monthly Legend', icon: 'Trophy', message: "30 straight days of dedication. You have hard-wired this habit into your life.", label: 'Day Streak' },
-        100: { title: 'Centurion Streak', icon: 'Award', message: "100 days of consistency. You are a master of your own path.", label: 'Day Streak' }
+        7: { title: 'Seven Days Running', icon: 'Flame', message: "Seven days in a row. Something is clicking — this is what momentum feels like. Keep this feeling.", label: 'Day Streak' },
+        30: { title: 'Thirty Straight', icon: 'Trophy', message: "Thirty consecutive days. This is no longer a practice you're trying to build. It's a rhythm you already have.", label: 'Day Streak' },
+        100: { title: 'One Hundred Days', icon: 'Award', message: "One hundred days without a break. That is extraordinary self-trust. You showed up even when it was hard.", label: 'Day Streak' }
     };
-    return details[days] || { title: `${days} Day Streak`, icon: 'Flame', message: `Incredible! ${days} days of showing up for yourself.`, label: 'Day Streak' };
+    return details[days] || { title: `${days} Days Running`, icon: 'Flame', message: `${days} days in a row. That kind of consistency doesn't happen by accident. You built this.`, label: 'Day Streak' };
 };
 
 import type { UserProfile } from '../types';

@@ -120,13 +120,15 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
 
                     <button
                         onClick={async () => {
-                            const { shareElementAsImage } = await import('../utils/shareUtils');
-                            await shareElementAsImage(
-                                'milestone-card',
-                                'palante_milestone',
-                                `${displayDays} ${finalDetails.label} Achieved!`,
-                                `I just hit a new milestone on Palante! ${displayDays} ${finalDetails.label} and still moving forward. pa'lante! 🚀 #PalanteApp`
-                            );
+                            const { shareMilestoneAsImage } = await import('../utils/shareUtils');
+                            await shareMilestoneAsImage({
+                                title:     finalDetails.title,
+                                label:     finalDetails.label,
+                                count:     displayDays,
+                                message:   finalDetails.message,
+                                iconName:  finalDetails.icon,
+                                shareText: `I just hit a new milestone on Palante! ${displayDays} ${finalDetails.label} and still moving forward. Pa'lante! #PalanteApp`,
+                            });
                         }}
                         className="flex items-center justify-center gap-2 w-full text-pale-gold text-xs font-black uppercase tracking-widest hover:text-white transition-colors py-4 active:scale-95"
                     >

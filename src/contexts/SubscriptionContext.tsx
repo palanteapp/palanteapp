@@ -56,7 +56,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
   }, []);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) {
+    if (IS_BETA || !Capacitor.isNativePlatform()) {
       setIsLoading(false);
       return;
     }

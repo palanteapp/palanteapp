@@ -385,6 +385,8 @@ export interface Quote {
     profession?: string;
     isAI?: boolean;
     isAffirmation?: boolean; // True for affirmations, undefined/false for quotes
+    originalText?: string;   // Quote in its original language (Spanish, etc.)
+    originalLang?: string;   // e.g. 'es', 'pt', 'fr'
 }
 
 export interface Milestone {

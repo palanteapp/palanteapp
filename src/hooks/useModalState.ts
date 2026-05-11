@@ -20,6 +20,7 @@ export const useModalState = () => {
     const [showRestDayModal, setShowRestDayModal] = useState(false);
     const [showMorningMode, setShowMorningMode] = useState(false);
     const [showReorderModal, setShowReorderModal] = useState(false);
+    const [showQuoteToneModal, setShowQuoteToneModal] = useState(false);
     const [showLetterWrite, setShowLetterWrite] = useState(false);
     const [showLetterRead, setShowLetterRead] = useState(false);
     const [showHomeCoachSettings, setShowHomeCoachSettings] = useState(false);
@@ -42,6 +43,7 @@ export const useModalState = () => {
         showRestDayModal, setShowRestDayModal,
         showMorningMode, setShowMorningMode,
         showReorderModal, setShowReorderModal,
+        showQuoteToneModal, setShowQuoteToneModal,
         showLetterWrite, setShowLetterWrite,
         showLetterRead, setShowLetterRead,
         showHomeCoachSettings, setShowHomeCoachSettings,

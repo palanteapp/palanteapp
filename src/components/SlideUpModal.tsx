@@ -102,11 +102,11 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                             ? 'h-[100dvh] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
                             : `sm:max-w-xl sm:rounded-[3rem] rounded-t-[3rem] shadow-[0_-4px_60px_rgba(0,0,0,0.15),0_30px_80px_rgba(0,0,0,0.3)] ${fixedHeight ? 'h-[85dvh] sm:h-[90dvh]' : 'max-h-[85dvh] sm:max-h-[80dvh]'} ${position === 'center' || position === 'top' ? 'rounded-b-[3rem]' : ''}`
                         }
-                        ${className || 'bg-[#1E3A2B]'}
+                        ${className || 'bg-[#415D43]'}
                     `}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Art background — flat earthy circles, no glow */}
+                    {/* Art background — seed-of-life sacred geometry */}
                     {!className && (
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -115,10 +115,32 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
                             preserveAspectRatio="xMidYMid slice"
                         >
-                            <circle cx="340" cy="90"  r="210" fill="#415D43" opacity="0.32" />
-                            <circle cx="60"  cy="680" r="190" fill="#C96A3A" opacity="0.13" />
-                            <circle cx="190" cy="400" r="260" fill="#F59E0B" opacity="0.06" />
-                            <circle cx="360" cy="520" r="160" fill="#E5D6A7" opacity="0.05" />
+                            <defs>
+                                <radialGradient id="sol-bloom" cx="50%" cy="28%" r="55%">
+                                    <stop offset="0%" stopColor="#69915A" stopOpacity="0.45" />
+                                    <stop offset="100%" stopColor="#69915A" stopOpacity="0" />
+                                </radialGradient>
+                                <radialGradient id="sol-vignette" cx="50%" cy="50%" r="60%">
+                                    <stop offset="38%" stopColor="#121810" stopOpacity="0" />
+                                    <stop offset="100%" stopColor="#121810" stopOpacity="0.55" />
+                                </radialGradient>
+                                <radialGradient id="sol-terra" cx="50%" cy="100%" r="45%">
+                                    <stop offset="0%" stopColor="#C96A3A" stopOpacity="0.16" />
+                                    <stop offset="100%" stopColor="#C96A3A" stopOpacity="0" />
+                                </radialGradient>
+                            </defs>
+                            <rect width="400" height="800" fill="url(#sol-bloom)" />
+                            <rect width="400" height="800" fill="url(#sol-vignette)" />
+                            <rect y="480" width="400" height="320" fill="url(#sol-terra)" />
+                            <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
+                                <circle cx="200" cy="400" r="148" strokeWidth="0.9" />
+                                <circle cx="348" cy="400" r="148" />
+                                <circle cx="274" cy="528" r="148" />
+                                <circle cx="126" cy="528" r="148" />
+                                <circle cx="52"  cy="400" r="148" />
+                                <circle cx="126" cy="272" r="148" />
+                                <circle cx="274" cy="272" r="148" />
+                            </g>
                         </svg>
                     )}
 

@@ -11,7 +11,6 @@ export const EXPANSION_QUOTES_VOL6: Quote[] = [
     { id: 'v6_lead_5', text: "A true leader has the confidence to stand alone, the courage to make tough decisions, and the compassion to listen to the needs of others.", author: "Douglas MacArthur", category: "Character", intensity: 2, profession: "Leader" },
     { id: 'v6_lead_6', text: "The greatest leader is not necessarily the one who does the greatest things. He is the one that gets the people to do the greatest things.", author: "Ronald Reagan", category: "Empowerment", intensity: 1, profession: "Leader" },
     { id: 'v6_lead_7', text: "Management is doing things right; leadership is doing the right things.", author: "Peter Drucker", category: "Wisdom", intensity: 1, profession: "Leader" },
-    { id: 'v6_lead_8', text: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs", category: "Innovation", intensity: 2, profession: "Leader" },
     { id: 'v6_lead_9', text: "Do not follow where the path may lead. Go instead where there is no path and leave a trail.", author: "Ralph Waldo Emerson", category: "Courage", intensity: 2, profession: "Leader" },
     { id: 'v6_lead_10', text: "True leadership is about inspiration and guidance - not commanding without respect.", author: "Dwight D. Eisenhower", category: "Respect", intensity: 1, profession: "Leader" },
 

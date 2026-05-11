@@ -170,32 +170,35 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
 
     const renderMessage = () => {
         return (
-            <div className="w-full py-8 text-center animate-fade-in min-h-[300px] flex flex-col justify-center">
-                {isGenerating ? (
-                    <div className="flex flex-col items-center justify-center space-y-4">
-                        <Loader2 size={40} className={`animate-spin ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
-                        <p className={`text-sm font-medium ${textSecondary}`}>Crafting your evening summary...</p>
+            <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: isDarkMode ? 'rgba(12,24,16,0.97)' : 'rgba(240,234,220,0.98)', backdropFilter: 'blur(12px)' }}>
+                <div className="flex-1 overflow-y-auto">
+                    <div className="flex flex-col items-center justify-center min-h-full py-16 px-8 text-center">
+                        {isGenerating ? (
+                            <div className="flex flex-col items-center justify-center space-y-4">
+                                <Loader2 size={40} className={`animate-spin ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
+                                <p className={`text-sm font-medium ${textSecondary}`}>Crafting your evening summary...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-8 shadow-lg ${isDarkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
+                                    <Moon size={40} className="animate-pulse-slow" />
+                                </div>
+                                <h3 className={`text-xs font-bold uppercase tracking-[0.2em] mb-8 ${textSecondary}`}>
+                                    Your reflection for the day
+                                </h3>
+                                <div className={`text-2xl font-display font-medium leading-[1.7] italic mb-12 ${textPrimary}`}>
+                                    "{generatedMessage}"
+                                </div>
+                                <button
+                                    onClick={handleFinish}
+                                    className="px-10 py-4 bg-[#C96A3A] text-white rounded-full font-bold shadow-lg active:scale-95 transition-all hover:bg-[#b55e32]"
+                                >
+                                    Complete Reflection
+                                </button>
+                            </>
+                        )}
                     </div>
-                ) : (
-                    <>
-                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg ${isDarkMode ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-600'}`}>
-                            <Moon size={40} className="animate-pulse-slow" />
-                        </div>
-                        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] mb-6 ${textSecondary}`}>
-                            Your reflection for the day
-                        </h3>
-                        <div className={`text-2xl font-display font-medium leading-[1.6] italic px-4 ${textPrimary}`}>
-                            "{generatedMessage}"
-                        </div>
-
-                        <button
-                            onClick={handleFinish}
-                            className="mt-12 px-10 py-3 bg-[#C96A3A] text-white rounded-full font-bold shadow-lg active:scale-95 transition-all hover:bg-[#b55e32]"
-                        >
-                            Complete Reflection
-                        </button>
-                    </>
-                )}
+                </div>
             </div>
         );
     };

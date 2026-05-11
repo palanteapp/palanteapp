@@ -22,11 +22,8 @@ export const EXPANSION_QUOTES_VOL8: Quote[] = [
     { id: 'v8_inno_2', text: "You never change things by reacting to the existing reality. To change something, build a new model that makes the existing model obsolete.", author: "Buckminster Fuller", category: "Change", intensity: 2, profession: "Tech" },
     { id: 'v8_inno_3', text: "Logic will get you from A to B. Imagination will take you everywhere.", author: "Albert Einstein", category: "Imagination", intensity: 1, profession: "Tech" },
     { id: 'v8_inno_4', text: "If I had asked people what they wanted, they would have said faster horses.", author: "Henry Ford", category: "Innovation", intensity: 2, profession: "Tech" },
-    { id: 'v8_inno_5', text: "Stay hungry, stay foolish.", author: "Steve Jobs", category: "Mindset", intensity: 1, profession: "Tech" },
-    { id: 'v8_inno_6', text: "I want to put a ding in the universe.", author: "Steve Jobs", category: "Impact", intensity: 2, profession: "Tech" },
     { id: 'v8_inno_7', text: "The people who are crazy enough to think they can change the world are the ones who do.", author: "Rob Siltanen", category: "Vision", intensity: 2, profession: "Tech" },
     { id: 'v8_inno_8', text: "Don't worry about people stealing your design work. Worry about the day they stop.", author: "Jeffrey Zeldman", category: "Influence", intensity: 1, profession: "Tech" },
-    { id: 'v8_inno_9', text: "Design is not just what it looks like and feels like. Design is how it works.", author: "Steve Jobs", category: "Design", intensity: 1, profession: "Tech" },
     { id: 'v8_inno_10', text: "Good design is obvious. Great design is transparent.", author: "Joe Sparano", category: "Design", intensity: 1, profession: "Tech" },
 
     // =================================

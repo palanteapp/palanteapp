@@ -4,6 +4,7 @@ import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
 import type { ContentType } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import type { DispatchMessage } from '../utils/dailyDispatch';
 
 type PermissionState = 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied' | 'default';
 
@@ -580,6 +581,7 @@ export const useNotifications = () => {
             const allIds = [
                 2000,
                 4000,
+                6000,
                 ...Array.from({ length: 50 }, (_, i) => 1000 + i),
                 ...Array.from({ length: 50 }, (_, i) => 3000 + i),
                 5001, 5002, 5003, 5004, 5005
@@ -600,6 +602,7 @@ export const useNotifications = () => {
         }
 
         await scheduleWaterReminders(targetSettings.waterRemindersEnabled, targetSettings.quietStart, targetSettings.quietEnd, coachName);
+        await scheduleWeeklyHighlightNotification(targetSettings.enabled, userName);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [permission, settings]);
 
@@ -696,6 +699,154 @@ export const useNotifications = () => {
             setSettings(newSettings);
             setTimeout(() => rescheduleAll(newSettings), 100);
         },
-        rescheduleAll
+        rescheduleAll,
+
+        // Schedule personalized daily dispatch notifications after morning practice.
+        //
+        // Behavior:
+        //  - If iOS permission has never been requested, prompts the user once.
+        //    This is intentionally the first place we prompt: the user has just
+        //    completed their morning practice, so they're maximally invested.
+        //  - If the user has previously disabled notifications in our app
+        //    settings (settings.enabled === false) we respect that and bail.
+        //  - Any individual dispatch message whose fire time falls inside the
+        //    user's quiet hours window is dropped, so we never wake people at 3am.
+        scheduleDailyDispatch: async (messages: DispatchMessage[], coachName?: string) => {
+            // Check permission directly via Capacitor — our React state may be stale.
+            let permStatus = await LocalNotifications.checkPermissions();
+            const initialDisplay = permStatus.display;
+
+            if (
+                initialDisplay === 'prompt' ||
+                initialDisplay === 'prompt-with-rationale' ||
+                initialDisplay === 'default'
+            ) {
+                permStatus = await LocalNotifications.requestPermissions();
+                // Sync React state so the Settings UI reflects reality
+                setPermission(permStatus.display as PermissionState);
+                if (permStatus.display === 'granted') {
+                    setSettings(prev => ({ ...prev, enabled: true }));
+                }
+            }
+
+            if (permStatus.display !== 'granted') return;
+
+            // If the user previously had the toggle on and we just (re)granted
+            // permission, settings.enabled may be true from the closure or from
+            // the setSettings above. If it's explicitly false here AND we did
+            // not just prompt, treat as user-disabled.
+            const userJustGrantedFromPrompt =
+                initialDisplay === 'prompt' ||
+                initialDisplay === 'prompt-with-rationale' ||
+                initialDisplay === 'default';
+            if (!settings.enabled && !userJustGrantedFromPrompt) return;
+
+            // Cancel any existing dispatch notifications (IDs 7000-7009)
+            const idsToCancel = Array.from({ length: 10 }, (_, i) => ({ id: 7000 + i }));
+            await LocalNotifications.cancel({ notifications: idsToCancel });
+
+            // Quiet-hours window (minutes from midnight). Same logic as isInQuietHours().
+            const [qsH, qsM] = settings.quietStart.split(':').map(Number);
+            const [qeH, qeM] = settings.quietEnd.split(':').map(Number);
+            const quietStartMin = qsH * 60 + qsM;
+            const quietEndMin = qeH * 60 + qeM;
+            const crossesMidnight = quietStartMin > quietEndMin;
+
+            const inQuiet = (date: Date): boolean => {
+                const m = date.getHours() * 60 + date.getMinutes();
+                return crossesMidnight
+                    ? m >= quietStartMin || m < quietEndMin
+                    : m >= quietStartMin && m < quietEndMin;
+            };
+
+            const now = Date.now();
+            const notifications = messages
+                .slice(0, 10)
+                .map((msg, i) => ({ msg, idx: i, fireAt: new Date(now + msg.minutesFromNow * 60 * 1000) }))
+                .filter(({ fireAt }) => !inQuiet(fireAt))
+                .map(({ msg, idx, fireAt }) => ({
+                    id: 7000 + idx,
+                    title: coachName || 'Palante',
+                    body: msg.body,
+                    schedule: {
+                        at: fireAt,
+                        allowWhileIdle: true,
+                    },
+                    sound: 'beep.caf',
+                    smallIcon: 'ic_stat_palante',
+                }));
+
+            if (notifications.length > 0) {
+                try {
+                    await LocalNotifications.schedule({ notifications });
+                } catch (e) {
+                    console.error('Daily dispatch scheduling failed:', e);
+                }
+            }
+        },
+
+        // Send a single recovery nudge when user returns after 2+ days away
+        sendRecoveryNudge: async (body: string, coachName?: string) => {
+            if (permission !== 'granted' || !settings.enabled || isInQuietHours()) return;
+            try {
+                await LocalNotifications.schedule({
+                    notifications: [{
+                        id: 7099,
+                        title: coachName || 'Palante',
+                        body,
+                        schedule: { at: new Date(Date.now() + 2000), allowWhileIdle: true },
+                        sound: 'beep.caf',
+                        smallIcon: 'ic_stat_palante',
+                    }]
+                });
+            } catch (e) {
+                console.error('Recovery nudge failed:', e);
+            }
+        },
     };
+};
+
+// ─── Weekly Highlight Notification ───────────────────────────────────────────
+
+export const scheduleWeeklyHighlightNotification = async (
+    enabled: boolean,
+    userName: string = 'Friend'
+): Promise<void> => {
+    const firstName = userName.split(' ')[0] || 'Friend';
+
+    // Always cancel existing first
+    try {
+        await LocalNotifications.cancel({ notifications: [{ id: 6000 }] });
+    } catch { /* ignore */ }
+
+    if (!enabled) return;
+
+    const { display } = await LocalNotifications.checkPermissions();
+    if (display !== 'granted') return;
+
+    // Schedule for every Sunday at 9:00 PM
+    const now = new Date();
+    const daysUntilSunday = (7 - now.getDay()) % 7 || 7;
+    const nextSunday = new Date(now);
+    nextSunday.setDate(now.getDate() + daysUntilSunday);
+    nextSunday.setHours(21, 0, 0, 0);
+
+    await LocalNotifications.schedule({
+        notifications: [{
+            id: 6000,
+            title: 'Palante',
+            body: `Your week in full, ${firstName}. Tap to see what you accomplished.`,
+            schedule: {
+                on: {
+                    weekday: 1, // Sunday = 1 in Capacitor (1=Sun, 2=Mon, ... 7=Sat)
+                    hour: 21,
+                    minute: 0,
+                },
+                repeats: true,
+                allowWhileIdle: true,
+            },
+            smallIcon: 'ic_stat_palante',
+            sound: 'default',
+        }]
+    });
 };

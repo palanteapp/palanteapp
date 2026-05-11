@@ -685,7 +685,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                 haptics.medium();
                                 stopAll();
                             }}
-                            className="px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] text-red-400/60 hover:text-red-400 transition-all"
+                            className="px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] text-white/60 hover:text-white transition-all"
                         >
                             Stop
                         </button>
@@ -1125,7 +1125,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             onClick={() => { setShowHelp(false); localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true'); }}
                             className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-[#1B4332] font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
                         >
-                            Master the Canvas
+                            Explore Your Sounds
                         </button>
                     </div>
                 </SlideUpModal>

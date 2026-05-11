@@ -253,6 +253,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                                 type="text"
                                 value={val}
                                 onChange={(e) => handleInputChange(idx, e.target.value, setter)}
+                                onFocus={(e) => e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                                 placeholder={`${placeholderPrefix}...`}
                                 className={`w-full py-3 pl-10 pr-4 rounded-xl border outline-none transition-all ${inputBg}`}
                                 autoFocus={idx === 0}
@@ -327,6 +328,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     type="text"
                     value={intention}
                     onChange={(e) => setIntention(e.target.value)}
+                    onFocus={(e) => e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                     placeholder="e.g. Courage, Peace, Focus, Joy..."
                     className={`w-full text-center text-3xl font-display font-bold bg-transparent border-b-2 outline-none transition-all py-4 placeholder:font-normal placeholder:opacity-30 ${isDarkMode
                         ? 'border-white/20 focus:border-pale-gold text-white placeholder-white'
@@ -386,7 +388,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                             onClick={handleNext}
                             className="mt-12 px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
                         >
-                            Embrace This
+                            Carry It Forward
                         </button>
                     </>
                 )}

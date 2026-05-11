@@ -38,7 +38,14 @@ export const UpdatePasswordModal: React.FC<UpdatePasswordModalProps> = ({ isOpen
         try {
             const { error } = await updatePassword(password);
             if (error) {
-                setError(error.message);
+                const msg = error.message || '';
+                if (msg.toLowerCase().includes('session') || msg.toLowerCase().includes('not authenticated')) {
+                    setError('Your session has expired. Please sign out and sign back in, then try again.');
+                } else if (msg.toLowerCase().includes('same password') || msg.toLowerCase().includes('different')) {
+                    setError('New password must be different from your current password.');
+                } else {
+                    setError(msg || 'Failed to update password. Please try signing out and back in first.');
+                }
             } else {
                 setSuccess(true);
                 setPassword('');

@@ -45,7 +45,7 @@ const CollapsibleSection: React.FC<{
             className={`w-full px-6 py-5 flex items-center justify-between transition-colors ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`}
         >
             <div className="flex items-center gap-3">
-                <span className={isDarkMode ? 'text-sage' : 'text-sage'}>{icon}</span>
+                <span className={isDarkMode ? 'text-white' : 'text-sage-dark'}>{icon}</span>
                 <h3 className={`text-lg font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>{title}</h3>
             </div>
             {isOpen ? <ChevronUp size={20} className={isDarkMode ? 'text-white/40' : 'text-sage/40'} /> : <ChevronDown size={20} className={isDarkMode ? 'text-white/40' : 'text-sage/40'} />}

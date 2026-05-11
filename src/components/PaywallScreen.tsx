@@ -1,217 +1,367 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Leaf, Sparkles, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
 
+// ─── Feature list ─────────────────────────────────────────────────────────────
+// Written as outcomes the user lives, not features the app has.
+
 const FEATURES = [
-  'Daily morning & evening practices',
-  'Mandala of Growth — watch your practice bloom',
-  'AI coach guidance & reflections',
-  'Soundscapes, breathing & meditation',
-  'Streak tracking & weekly insights',
-  'Village accountability partners',
+    'Morning practice — intention, gratitude, a message that actually reads you',
+    'Coach check-ins that carry your intention through the day',
+    'Evening reflection to close every day the right way',
+    'Your 90-day Mandala of Growth, blooming with every practice',
+    'Breathing, soundscapes, and focus tools when you need to reset',
+    'Weekly story of your growth, told in your own words',
 ];
 
+// ─── Ghost mandala SVG ─────────────────────────────────────────────────────────
+// Shows 4 concentric rings — filled rings for returning users, ghost for new.
+
+const GhostMandala: React.FC<{ filledRings?: number }> = ({ filledRings = 0 }) => {
+    const cx = 56;
+    const cy = 56;
+    const radii = [10, 20, 30, 40, 50];
+
+    return (
+        <svg viewBox="0 0 112 112" width="100" height="100" style={{ overflow: 'visible' }}>
+            <defs>
+                <radialGradient id="pwGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#C96A3A" stopOpacity="0.85" />
+                    <stop offset="100%" stopColor="#C96A3A" stopOpacity="0" />
+                </radialGradient>
+            </defs>
+
+            {/* Ghost rings */}
+            {[0, 1, 2, 3].map(i => (
+                <circle
+                    key={`ghost-${i}`}
+                    cx={cx} cy={cy}
+                    r={radii[i + 1]}
+                    fill="none"
+                    stroke={i < filledRings ? 'rgba(201,106,58,0.55)' : 'rgba(255,255,255,0.07)'}
+                    strokeWidth="8"
+                />
+            ))}
+
+            {/* Newest filled ring gets the accent */}
+            {filledRings > 0 && (
+                <circle
+                    cx={cx} cy={cy}
+                    r={radii[filledRings]}
+                    fill="none"
+                    stroke="#C96A3A"
+                    strokeWidth="8"
+                    opacity={0.85}
+                />
+            )}
+
+            {/* Center seed */}
+            <circle cx={cx} cy={cy} r={radii[0]} fill="url(#pwGlow)" />
+            <circle cx={cx} cy={cy} r={4} fill="#C96A3A" opacity={0.9} />
+        </svg>
+    );
+};
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
 interface PaywallScreenProps {
-  onDismiss?: () => void;
+    onDismiss?: () => void;
+    firstName?: string;
+    practiceCount?: number;
+    gratitudeCount?: number;
 }
 
-export function PaywallScreen({ onDismiss }: PaywallScreenProps) {
-  const { purchaseMonthly, purchaseAnnual, restorePurchases } = useSubscription();
-  const [loading, setLoading] = useState<'monthly' | 'annual' | 'restore' | null>(null);
-  const [error, setError] = useState<string | null>(null);
+// ─── Component ────────────────────────────────────────────────────────────────
 
-  const handle = async (type: 'monthly' | 'annual') => {
-    setError(null);
-    setLoading(type);
-    const result = type === 'annual' ? await purchaseAnnual() : await purchaseMonthly();
-    setLoading(null);
-    if (result.error) setError(result.error);
-  };
+export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitudeCount = 0 }: PaywallScreenProps) {
+    const { purchaseMonthly, purchaseAnnual, restorePurchases } = useSubscription();
+    const [loading, setLoading] = useState<'monthly' | 'annual' | 'restore' | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-  const handleRestore = async () => {
-    setError(null);
-    setLoading('restore');
-    const result = await restorePurchases();
-    setLoading(null);
-    if (result.error) setError(result.error);
-  };
+    const isReturning = practiceCount > 0;
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: 'linear-gradient(160deg, #415D43 0%, #2A3D2C 100%)' }}
-    >
-      {/* Grain overlay */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.03] pointer-events-none" aria-hidden>
-        <filter id="grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#grain)" />
-      </svg>
+    // Rings filled based on practice milestones (mirrors ring ceremony thresholds)
+    const filledRings = practiceCount >= 90 ? 4
+        : practiceCount >= 55 ? 3
+        : practiceCount >= 28 ? 2
+        : practiceCount >= 10 ? 1
+        : 0;
 
-      {onDismiss && (
-        <button
-          onClick={onDismiss}
-          className="absolute top-12 right-5 z-10 p-2 rounded-full"
-          style={{ background: 'rgba(255,255,255,0.08)' }}
-          aria-label="Close"
-        >
-          <X size={18} color="#FAF7F3" />
-        </button>
-      )}
+    const handle = async (type: 'monthly' | 'annual') => {
+        setError(null);
+        setLoading(type);
+        const result = type === 'annual' ? await purchaseAnnual() : await purchaseMonthly();
+        setLoading(null);
+        if (result.error) setError(result.error);
+    };
 
-      <div className="flex-1 overflow-y-auto px-6 pt-16 pb-8">
-        {/* Header */}
+    const handleRestore = async () => {
+        setError(null);
+        setLoading('restore');
+        const result = await restorePurchases();
+        setLoading(null);
+        if (result.error) setError(result.error);
+    };
+
+    // ── Copy engine ────────────────────────────────────────────────────────────
+
+    const headline = isReturning
+        ? (firstName ? `${firstName}, keep going.` : 'Keep going.')
+        : 'Start with gratitude.\nBuild something real.';
+
+    const subhead = isReturning
+        ? 'Your practice is already taking root. Subscribe to keep building on what you started.'
+        : 'Everything you need for a daily practice that actually sticks — one place, no noise.';
+
+    const annualBadge = isReturning
+        ? 'Pick up where you left off · 50% off monthly'
+        : 'Most popular · 50% off monthly';
+
+    const annualSubline = isReturning ? 'Just $4.99 a month, billed annually' : 'Just $4.99 a month · 7 days free';
+    const monthlySubline = isReturning ? 'Cancel anytime' : '7 days free · cancel anytime';
+    const finePrint = isReturning
+        ? 'Billed through Apple. Subscription renews automatically. Cancel anytime.'
+        : 'Cancel anytime before day 7 — no charge, no hassle.\nBilled through Apple. Subscription renews automatically.';
+
+    // ── Render ─────────────────────────────────────────────────────────────────
+
+    return (
         <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="text-center mb-8"
-        >
-          <div className="flex justify-center mb-4">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-              style={{ background: 'rgba(212,184,130,0.12)', border: '1px solid rgba(212,184,130,0.35)' }}>
-              <Leaf size={28} color="#D4B882" />
-            </div>
-          </div>
-          <h1
-            className="text-3xl mb-2"
-            style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#FAF7F3', letterSpacing: '-0.02em' }}
-          >
-            Keep going. Stay Palante.
-          </h1>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.65)', fontSize: '15px' }}>
-            7 days free, then choose your plan.
-          </p>
-        </motion.div>
-
-        {/* Features */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="rounded-2xl p-5 mb-6"
-          style={{ background: 'rgba(250,247,243,0.06)', border: '1px solid rgba(212,184,130,0.2)' }}
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={15} color="#D4B882" />
-            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#D4B882', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Everything included
-            </span>
-          </div>
-          <ul className="space-y-3">
-            {FEATURES.map((f) => (
-              <li key={f} className="flex items-center gap-3">
-                <Check size={15} color="#D4B882" strokeWidth={2.5} />
-                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.85)', fontSize: '14px' }}>
-                  {f}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
-
-        {/* Annual CTA — primary */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mb-3"
-        >
-          <div
-            className="text-center mb-2 px-3 py-1 rounded-full inline-flex mx-auto"
-            style={{ background: 'rgba(201,106,58,0.15)', border: '1px solid rgba(201,106,58,0.3)', display: 'flex', justifyContent: 'center' }}
-          >
-            <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#C96A3A', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Best value — save 50%
-            </span>
-          </div>
-          <button
-            onClick={() => handle('annual')}
-            disabled={loading !== null}
-            className="w-full rounded-2xl py-4 px-6 flex items-center justify-between transition-opacity"
-            style={{
-              background: loading === 'annual' ? 'rgba(201,106,58,0.7)' : '#C96A3A',
-              opacity: loading !== null && loading !== 'annual' ? 0.5 : 1,
-            }}
-          >
-            <div className="text-left">
-              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#FAF7F3', fontSize: '17px' }}>
-                {loading === 'annual' ? 'Starting trial…' : 'Annual — $59.99/year'}
-              </div>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.8)', fontSize: '13px' }}>
-                Just $4.99/month
-              </div>
-            </div>
-            <div
-              className="rounded-xl px-3 py-1"
-              style={{ background: 'rgba(0,0,0,0.2)' }}
-            >
-              <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '12px' }}>
-                7 days free
-              </span>
-            </div>
-          </button>
-        </motion.div>
-
-        {/* Monthly CTA — secondary */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.35 }}
-          className="mb-5"
-        >
-          <button
-            onClick={() => handle('monthly')}
-            disabled={loading !== null}
-            className="w-full rounded-2xl py-4 px-6 flex items-center justify-between transition-opacity"
-            style={{
-              background: 'transparent',
-              border: '1.5px solid rgba(87,99,85,0.7)',
-              opacity: loading !== null && loading !== 'monthly' ? 0.5 : 1,
-            }}
-          >
-            <div className="text-left">
-              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '17px' }}>
-                {loading === 'monthly' ? 'Starting trial…' : 'Monthly — $9.99/month'}
-              </div>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.6)', fontSize: '13px' }}>
-                7 days free · cancel anytime
-              </div>
-            </div>
-          </button>
-        </motion.div>
-
-        {error && (
-          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center mb-4"
-            style={{ fontFamily: 'Inter, sans-serif', color: '#E57373', fontSize: '13px' }}
-          >
-            {error}
-          </motion.p>
-        )}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col"
+            style={{ background: 'linear-gradient(160deg, #2e4a30 0%, #1a2e1c 60%, #0d1e0f 100%)' }}
+        >
+            {/* Grain overlay */}
+            <svg className="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none" aria-hidden>
+                <filter id="pwGrain">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+                </filter>
+                <rect width="100%" height="100%" filter="url(#pwGrain)" />
+            </svg>
 
-        {/* Fine print */}
-        <div className="text-center space-y-3">
-          <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.4)', fontSize: '12px', lineHeight: 1.5 }}>
-            Cancel anytime before day 7 — no charge, no hassle.{'\n'}
-            Billed through Apple. Subscription renews automatically.
-          </p>
-          <button
-            onClick={handleRestore}
-            disabled={loading !== null}
-            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500, color: 'rgba(250,247,243,0.45)', fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            {loading === 'restore' ? 'Restoring…' : 'Restore purchases'}
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
+            {/* Terracotta glow behind the mandala */}
+            <div
+                className="absolute pointer-events-none"
+                style={{
+                    top: 40, left: '50%', transform: 'translateX(-50%)',
+                    width: 240, height: 240,
+                    background: 'radial-gradient(circle, rgba(201,106,58,0.12) 0%, transparent 70%)',
+                }}
+            />
+
+            {onDismiss && (
+                <button
+                    onClick={onDismiss}
+                    className="absolute top-12 right-5 z-10 p-2 rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                    aria-label="Close"
+                >
+                    <X size={18} color="#FAF7F3" />
+                </button>
+            )}
+
+            <div className="flex-1 overflow-y-auto px-6 pt-14 pb-10">
+
+                {/* Mandala */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    className="flex justify-center mb-7"
+                >
+                    <GhostMandala filledRings={filledRings} />
+                </motion.div>
+
+                {/* Returning user stat callout */}
+                {isReturning && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15, duration: 0.5 }}
+                        className="flex justify-center gap-4 mb-5"
+                    >
+                        {[
+                            { value: practiceCount, label: 'practices' },
+                            { value: gratitudeCount, label: 'gratitudes written' },
+                        ].map(({ value, label }) => (
+                            <div
+                                key={label}
+                                className="flex flex-col items-center px-4 py-2 rounded-xl"
+                                style={{ background: 'rgba(201,106,58,0.1)', border: '1px solid rgba(201,106,58,0.2)' }}
+                            >
+                                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#C96A3A', fontSize: '20px', lineHeight: 1.1 }}>
+                                    {value}
+                                </span>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.5)', fontSize: '11px', marginTop: 2 }}>
+                                    {label}
+                                </span>
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+
+                {/* Header */}
+                <motion.div
+                    initial={{ y: 16, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="text-center mb-7"
+                >
+                    <h1
+                        className="mb-3"
+                        style={{
+                            fontFamily: 'Poppins, sans-serif',
+                            fontWeight: 700,
+                            color: '#FAF7F3',
+                            fontSize: headline.includes('\n') ? '28px' : '30px',
+                            letterSpacing: '-0.02em',
+                            lineHeight: 1.2,
+                            whiteSpace: 'pre-line',
+                        }}
+                    >
+                        {headline}
+                    </h1>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.58)', fontSize: '14px', lineHeight: 1.55 }}>
+                        {subhead}
+                    </p>
+                </motion.div>
+
+                {/* Features */}
+                <motion.div
+                    initial={{ y: 16, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.5 }}
+                    className="rounded-2xl p-5 mb-6"
+                    style={{ background: 'rgba(250,247,243,0.05)', border: '1px solid rgba(229,214,167,0.15)' }}
+                >
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: 'rgba(229,214,167,0.7)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
+                        Everything included
+                    </p>
+                    <ul className="space-y-3">
+                        {FEATURES.map((f) => (
+                            <li key={f} className="flex items-start gap-3">
+                                <Check size={14} color="#C96A3A" strokeWidth={2.5} style={{ flexShrink: 0, marginTop: 2 }} />
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.82)', fontSize: '13.5px', lineHeight: 1.45 }}>
+                                    {f}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </motion.div>
+
+                {/* Annual CTA — primary */}
+                <motion.div
+                    initial={{ y: 16, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.38, duration: 0.5 }}
+                    className="mb-3"
+                >
+                    <div className="flex justify-center mb-2">
+                        <span
+                            className="px-3 py-1 rounded-full"
+                            style={{
+                                fontFamily: 'Inter, sans-serif', fontWeight: 600,
+                                color: '#C96A3A', fontSize: '11px', letterSpacing: '0.07em',
+                                textTransform: 'uppercase',
+                                background: 'rgba(201,106,58,0.12)',
+                                border: '1px solid rgba(201,106,58,0.28)',
+                            }}
+                        >
+                            {annualBadge}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => handle('annual')}
+                        disabled={loading !== null}
+                        className="w-full rounded-2xl py-4 px-6 flex items-center justify-between transition-opacity active:scale-[0.98]"
+                        style={{
+                            background: loading === 'annual' ? 'rgba(201,106,58,0.7)' : '#C96A3A',
+                            opacity: loading !== null && loading !== 'annual' ? 0.45 : 1,
+                        }}
+                    >
+                        <div className="text-left">
+                            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#FAF7F3', fontSize: '17px' }}>
+                                {loading === 'annual' ? 'Just a moment…' : 'Annual — $59.99 / year'}
+                            </div>
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.78)', fontSize: '13px', marginTop: 2 }}>
+                                {annualSubline}
+                            </div>
+                        </div>
+                        {!isReturning && (
+                            <div className="rounded-xl px-3 py-1" style={{ background: 'rgba(0,0,0,0.18)' }}>
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '12px' }}>
+                                    7 days free
+                                </span>
+                            </div>
+                        )}
+                    </button>
+                </motion.div>
+
+                {/* Monthly CTA — secondary */}
+                <motion.div
+                    initial={{ y: 16, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.44, duration: 0.5 }}
+                    className="mb-6"
+                >
+                    <button
+                        onClick={() => handle('monthly')}
+                        disabled={loading !== null}
+                        className="w-full rounded-2xl py-4 px-6 flex items-center justify-between transition-opacity active:scale-[0.98]"
+                        style={{
+                            background: 'transparent',
+                            border: '1.5px solid rgba(250,247,243,0.14)',
+                            opacity: loading !== null && loading !== 'monthly' ? 0.45 : 1,
+                        }}
+                    >
+                        <div className="text-left">
+                            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '17px' }}>
+                                {loading === 'monthly' ? 'Just a moment…' : 'Monthly — $9.99 / month'}
+                            </div>
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.5)', fontSize: '13px', marginTop: 2 }}>
+                                {monthlySubline}
+                            </div>
+                        </div>
+                    </button>
+                </motion.div>
+
+                {error && (
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center mb-4"
+                        style={{ fontFamily: 'Inter, sans-serif', color: '#E57373', fontSize: '13px' }}
+                    >
+                        {error}
+                    </motion.p>
+                )}
+
+                {/* Fine print */}
+                <div className="text-center space-y-3">
+                    <p style={{
+                        fontFamily: 'Inter, sans-serif', fontWeight: 400,
+                        color: 'rgba(250,247,243,0.35)', fontSize: '12px',
+                        lineHeight: 1.55, whiteSpace: 'pre-line',
+                    }}>
+                        {finePrint}
+                    </p>
+                    <button
+                        onClick={handleRestore}
+                        disabled={loading !== null}
+                        style={{
+                            fontFamily: 'Inter, sans-serif', fontWeight: 500,
+                            color: 'rgba(250,247,243,0.38)', fontSize: '13px',
+                            background: 'none', border: 'none', cursor: 'pointer',
+                        }}
+                    >
+                        {loading === 'restore' ? 'Restoring…' : 'Restore purchases'}
+                    </button>
+                </div>
+
+            </div>
+        </motion.div>
+    );
 }

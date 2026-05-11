@@ -71,71 +71,49 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
 
     return (
         <div
-            className="fixed inset-0 z-[100] overflow-hidden"
-            style={{ background: '#415D43' }}
+            className="fixed inset-0 z-[100] overflow-hidden bg-[#415D43]"
         >
-            {/* ── Background depth layers ── */}
+            {/* ── Background — matches app seed-of-life system exactly ── */}
 
-            {/* Central luminosity bloom — forest light from above */}
+            {/* Central luminosity bloom */}
             <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                    background: 'radial-gradient(ellipse 75% 60% at 50% 32%, rgba(105,145,90,0.55) 0%, transparent 65%)',
+                    background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.45) 0%, transparent 62%)',
                 }}
             />
-            {/* Edge vignette — depth at the sides */}
+            {/* Edge vignette */}
             <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                    background: 'radial-gradient(ellipse 110% 110% at 50% 50%, transparent 42%, rgba(18,32,16,0.62) 100%)',
+                    background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.55) 100%)',
                 }}
             />
             {/* Bottom terracotta warmth */}
             <div
                 className="absolute bottom-0 inset-x-0 pointer-events-none"
                 style={{
-                    height: '45%',
-                    background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.20) 0%, transparent 70%)',
+                    height: '40%',
+                    background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.16) 0%, transparent 70%)',
                 }}
             />
-
-            {/* ── Bold structural ring arcs (full-screen SVG) ── */}
+            {/* Seed of Life — sacred geometry */}
             <svg
                 aria-hidden
                 className="absolute inset-0 w-full h-full pointer-events-none"
                 viewBox="0 0 390 844"
                 preserveAspectRatio="xMidYMid slice"
             >
-                {/* Upper-right thick arc — deep forest green */}
-                <circle cx="480" cy="-30" r="310" fill="none" stroke="#2A4A2A" strokeWidth="72" opacity="0.55" />
-                {/* Upper-right thin gold accent ring */}
-                <circle cx="480" cy="-30" r="228" fill="none" stroke="#E5D6A7" strokeWidth="1.5" opacity="0.28" strokeDasharray="6 10" />
-
-                {/* Upper-left thick arc — mirrors upper-right, keeps bottom clean */}
-                <circle cx="-90" cy="-30" r="320" fill="none" stroke="#1E3820" strokeWidth="68" opacity="0.50" />
-                {/* Upper-left thin terracotta accent ring */}
-                <circle cx="-90" cy="-30" r="238" fill="none" stroke="#C96A3A" strokeWidth="1.5" opacity="0.22" strokeDasharray="5 9" />
-
-                {/* Wide centered background ring — very subtle, ties both sides */}
-                <circle cx="195" cy="422" r="340" fill="none" stroke="#E5D6A7" strokeWidth="0.8" opacity="0.08" />
-                <circle cx="195" cy="422" r="270" fill="none" stroke="#E5D6A7" strokeWidth="0.6" opacity="0.06" strokeDasharray="4 8" />
+                <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
+                    <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+                    <circle cx="343" cy="413" r="148" />
+                    <circle cx="269" cy="541" r="148" />
+                    <circle cx="121" cy="541" r="148" />
+                    <circle cx="47"  cy="413" r="148" />
+                    <circle cx="121" cy="285" r="148" />
+                    <circle cx="269" cy="285" r="148" />
+                </g>
             </svg>
-
-            {/* ── Animated breathing rings — centered on logo ── */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '12%' }}>
-                <motion.div
-                    className="relative"
-                    animate={breathe.animate}
-                    transition={breathe.transition}
-                >
-                    <svg width="340" height="340" viewBox="0 0 340 340" fill="none">
-                        <circle cx="170" cy="170" r="155" stroke="#E5D6A7" strokeWidth="1.8" opacity="0.18" />
-                        <circle cx="170" cy="170" r="118" stroke="#E5D6A7" strokeWidth="1.4" opacity="0.14" strokeDasharray="5 8" />
-                        <circle cx="170" cy="170" r="82"  stroke="#E5D6A7" strokeWidth="1.8" opacity="0.20" />
-                        <circle cx="170" cy="170" r="50"  stroke="#E5D6A7" strokeWidth="1.2" opacity="0.12" strokeDasharray="3 6" />
-                    </svg>
-                </motion.div>
-            </div>
 
             {/* ── STEP 0 · SPLASH ── */}
             <AnimatePresence mode="wait">

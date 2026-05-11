@@ -143,7 +143,7 @@ export function CheckInModal({ isOpen, userName, onFeelingSaved, onNavigate, onD
               paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)',
             }}
           >
-            {/* Decorative ring art */}
+            {/* Overlapping color circles background */}
             <svg
               aria-hidden
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
@@ -151,10 +151,11 @@ export function CheckInModal({ isOpen, userName, onFeelingSaved, onNavigate, onD
               xmlns="http://www.w3.org/2000/svg"
               preserveAspectRatio="xMidYMid slice"
             >
-              <circle cx="420" cy="50"  r="230" fill="none" stroke="#C96A3A" strokeWidth="58" />
-              <circle cx="420" cy="50"  r="165" fill="none" stroke="#D4B882" strokeWidth="1.5" />
-              <circle cx="-20" cy="30"  r="180" fill="none" stroke="#4A7050" strokeWidth="52" />
-              <circle cx="-20" cy="30"  r="118" fill="none" stroke="#7AAD80" strokeWidth="1.5" />
+              <circle cx="340" cy="80"  r="220" fill="#415D43" opacity="0.55" />
+              <circle cx="60"  cy="60"  r="190" fill="#4A7050" opacity="0.50" />
+              <circle cx="200" cy="160" r="170" fill="#3D6645" opacity="0.40" />
+              <circle cx="60"  cy="480" r="200" fill="#C96A3A" opacity="0.22" />
+              <circle cx="360" cy="460" r="160" fill="#6B8F5E" opacity="0.30" />
             </svg>
 
             <div style={{ position: 'relative', zIndex: 1, padding: '28px 24px 0' }}>
@@ -218,7 +219,7 @@ export function CheckInModal({ isOpen, userName, onFeelingSaved, onNavigate, onD
                       ))}
                     </div>
 
-                    <button onClick={handleClose} style={{ display: 'block', width: '100%', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4A7050', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
+                    <button onClick={handleClose} style={{ display: 'block', width: '100%', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}>
                       Maybe later
                     </button>
                   </motion.div>

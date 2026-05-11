@@ -2,6 +2,7 @@ import React from 'react';
 import { Share2, Instagram, Facebook, Music, Download } from 'lucide-react';
 import { SharedQuotePreview } from './SharedQuotePreview';
 import { SharedReflectionPreview } from './SharedReflectionPreview';
+import { SharedWeeklyReflectionPreview } from './SharedWeeklyReflectionPreview';
 import type { Quote } from '../types';
 import { SlideUpModal } from './SlideUpModal';
 
@@ -15,6 +16,11 @@ interface ShareModalProps {
         midpoint: string;
         lowlight: string;
         energyLevel?: number;
+    };
+    weeklyReflection?: {
+        text: string;
+        dateRange: string;
+        seed?: string;
     };
     text?: string;
     title?: string;
@@ -30,6 +36,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     onClose,
     quote,
     reflection,
+    weeklyReflection,
     text,
     isDarkMode,
     onGenerateImage,
@@ -39,15 +46,23 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 }) => {
     if (!isOpen) return null;
 
+    const hasContent = !!(quote || reflection || weeklyReflection);
+
     return (
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
             <div className="p-6 flex flex-col items-center w-full">
                 {/* Content Preview — ID used as html2canvas capture target */}
-                <div id="share-preview-container" 
+                <div id="share-preview-container"
                      className="mb-8 flex justify-center rounded-3xl overflow-hidden animate-slide-up shadow-2xl"
                 >
                     {quote ? (
                         <SharedQuotePreview quote={quote} seed={seed} />
+                    ) : weeklyReflection ? (
+                        <SharedWeeklyReflectionPreview
+                            text={weeklyReflection.text}
+                            dateRange={weeklyReflection.dateRange}
+                            seed={weeklyReflection.seed}
+                        />
                     ) : reflection ? (
                         <SharedReflectionPreview
                             date={reflection.date}
@@ -67,7 +82,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
                 {/* Action Buttons */}
                 <div className="w-full max-w-sm">
-                    {(quote || reflection) && onGenerateImage && (
+                    {hasContent && onGenerateImage && (
                         <>
                             <button
                                 onClick={onGenerateImage}

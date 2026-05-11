@@ -1,0 +1,4 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Main P shape with arrow cutout - Pale Gold for Dark Mode -->
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M 40 20 L 40 180 L 80 180 L 80 120 L 130 120 C 165 120 180 105 180 70 C 180 35 165 20 130 20 L 40 20 Z M 80 50 L 130 50 C 145 50 150 55 150 70 C 150 85 145 90 130 90 L 80 90 L 80 50 Z M 95 105 L 95 165 L 125 135 L 145 135 L 110 100 L 95 100 L 95 105 Z" fill="#E5D6A7"/>
+</svg>

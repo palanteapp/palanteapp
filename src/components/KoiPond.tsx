@@ -8,19 +8,35 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 // KoiFishSprite logic removed, using Processed Static Assets
 
 interface KoiPondProps {
+    totalPractices?: number;
     isDarkMode: boolean;
     onClose: () => void;
     streak?: number;
     points?: number;
 }
 
-/** How many koi to spawn based on current streak. */
-function getFishCount(streak: number): number {
-    if (streak < 30)  return 0;
-    if (streak < 60)  return 2;
-    if (streak < 100) return 4;
-    if (streak < 150) return 6;
-    return 7;
+/** How many koi to spawn — takes the higher of streak-based or practices-based milestones.
+ *  Thresholds are intentionally high so the pond grows over months, not days. */
+function getFishCount(streak: number, totalPractices: number): number {
+    // ~2 weeks of daily practice = 2 fish, ~1 year = 7 fish
+    const byPractices =
+        totalPractices >= 300 ? 7 :
+        totalPractices >= 200 ? 6 :
+        totalPractices >= 120 ? 5 :
+        totalPractices >= 60  ? 4 :
+        totalPractices >= 30  ? 3 :
+        totalPractices >= 14  ? 2 : 1;
+
+    // 30-day streak = 2 fish, 1-year streak = 7 fish
+    const byStreak =
+        streak >= 365 ? 7 :
+        streak >= 200 ? 6 :
+        streak >= 120 ? 5 :
+        streak >= 60  ? 4 :
+        streak >= 30  ? 3 :
+        streak >= 14  ? 2 : 1;
+
+    return Math.min(7, Math.max(byStreak, byPractices));
 }
 
 // FishState Interface Removed
@@ -181,28 +197,27 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
 
 const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
 
-export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points = 0 }) => {
-    const fishCount = getFishCount(streak);
-    const hasKoi = fishCount > 0;
+export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points = 0, totalPractices = 0 }) => {
+    const fishCount = getFishCount(streak, totalPractices);
+    const earnedKoi = fishCount > 1; // earned a second fish via streak or practices
 
     // First-koi arrival celebration (shown once after reaching 30-day streak)
     const [showFirstArrival, setShowFirstArrival] = useState(() =>
-        hasKoi && !localStorage.getItem('koiFirstArrivalSeen')
+        earnedKoi && !localStorage.getItem('koiFirstArrivalSeen')
     );
     const dismissFirstArrival = () => {
         localStorage.setItem('koiFirstArrivalSeen', 'true');
         setShowFirstArrival(false);
     };
 
-    // Empty-state ambient hint — fades in, auto-dismisses after 10 s
+    // Ambient hint for users still working toward their first earned koi
     const [showEmptyHint, setShowEmptyHint] = useState(false);
     useEffect(() => {
-        if (hasKoi) return;
-        // Slight delay so the pond finishes fading in first
+        if (earnedKoi) return;
         const showTimer = setTimeout(() => setShowEmptyHint(true), 1800);
-        const hideTimer = setTimeout(() => setShowEmptyHint(false), 11800); // 10 s visible
+        const hideTimer = setTimeout(() => setShowEmptyHint(false), 11800);
         return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
-    }, [hasKoi]);
+    }, [earnedKoi]);
 
 
     // Fish State (Required for Mounting DOM Elements)
@@ -411,7 +426,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     useEffect(() => {
         setFish([]); // Start empty
 
-        if (fishCount === 0) return; // No fish yet — empty state
+        if (fishCount === 0) return;
 
         // Select variants based on unlocked count
         const selectedVariants: Fish['variant'][] = Array.from({ length: fishCount }, () => KOI_VARIANTS[Math.floor(Math.random() * KOI_VARIANTS.length)]);
@@ -474,8 +489,18 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 let { x, y, angle, targetAngle } = f;
                 const speed = f.speed;
 
-                // Move
-                const moveSpeed = speed * dt;
+                // Vary speed by position: slow in open water, faster near edges, fastest offscreen
+                const { width, height } = windowSizeRef.current;
+                const distFromEdge = Math.min(x, width - x, y, height - y);
+                let speedMultiplier: number;
+                if (distFromEdge < 0) {
+                    speedMultiplier = 2.0; // offscreen — swim back in briskly
+                } else if (distFromEdge < 100) {
+                    speedMultiplier = 1.0 + (1 - distFromEdge / 100) * 1.0; // ramp up near edge
+                } else {
+                    speedMultiplier = 0.6; // open water — slow, meditative glide
+                }
+                const moveSpeed = speed * dt * speedMultiplier;
 
                 // --- Repulsion Logic ---
                 // Clean up old taps (older than 1 second)
@@ -602,9 +627,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 }
 
                 // --- Normal Wall/Straight Logic ---
-                // Reduced margin to keep them closer to screen
                 const margin = 200;
-                const { width, height } = windowSizeRef.current;
                 const isOffScreen = x < -margin || x > width + margin || y < -margin || y > height + margin;
 
                 if (isOffScreen) {
@@ -1204,12 +1227,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     </div>
                 ))}
 
-                {/* 6. Sakura Particles & Food Canvas (Z-25) */}
+                {/* 6. Sakura Particles & Food Canvas — below fish so food sits under them */}
                 <canvas
                     ref={canvasRef}
                     width={window.innerWidth}
                     height={window.innerHeight}
-                    className={`absolute inset-0 pointer-events-none z-[25] transition-opacity duration-1000 opacity-100`}
+                    className={`absolute inset-0 pointer-events-none z-[4] transition-opacity duration-1000 opacity-100`}
                 />
             </div>
 
@@ -1332,12 +1355,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     Koi Pond
                 </h1>
                 <p className={`text-sm mt-1 mb-3 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                    {hasKoi ? 'Observe and relax' : 'Your pond awaits'}
+                    {earnedKoi ? 'Observe and relax' : 'Your pond is alive'}
                 </p>
             </div>
 
             {/* ── EMPTY STATE — ambient bottom hint, fades in then auto-hides ── */}
-            {!hasKoi && (
+            {!earnedKoi && (
                 <div
                     className="fixed bottom-28 inset-x-0 z-[45] flex justify-center pointer-events-none px-8"
                     style={{
@@ -1353,7 +1376,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         }}
                     >
                         <span className="text-xs font-medium tracking-widest uppercase" style={{ letterSpacing: '0.12em' }}>
-                            Your first koi arrives at a 30-day streak
+                            Your pond grows as you do
                         </span>
                         <span className="text-[10px] font-bold tracking-widest uppercase" style={{ letterSpacing: '0.18em', opacity: 0.7 }}>
                             Day {streak}

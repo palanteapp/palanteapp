@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   QUOTE_DATE: 'palante_quote_date',
   LAST_QUOTE: 'palante_last_quote',
   SEEN_QUOTES: 'palante_seen_quotes',
+  RECENT_QUOTES: 'palante_recent_quotes',
   FAVORITE_QUOTES: 'palante_favorite_quotes',
   PINNED_QUOTE: 'palante_pinned_quote',
   PENDING_QUOTE_CARD: 'palante_pending_quote_card',
@@ -63,6 +64,15 @@ export const STORAGE_KEYS = {
 
   // Midday Check-in
   CHECKIN_LAST_SHOWN: 'palante_checkin_last_shown', // ISO date string e.g. "2026-04-29"
+
+  // Day-3 letter prompt (shown once after 3rd practice)
+  LETTER_PROMPT_SHOWN: 'palante_letter_prompt_shown',
+
+  // Ring ceremony flags (shown once per ring completion)
+  RING1_CEREMONY_SHOWN: 'palante_ring1_ceremony_shown',
+  RING2_CEREMONY_SHOWN: 'palante_ring2_ceremony_shown',
+  RING3_CEREMONY_SHOWN: 'palante_ring3_ceremony_shown',
+  FULLBLOOM_CEREMONY_SHOWN: 'palante_fullbloom_ceremony_shown',
 } as const;
 
 /** sessionStorage keys (not persisted across sessions) */

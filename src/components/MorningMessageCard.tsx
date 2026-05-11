@@ -211,7 +211,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                 )}
 
                 {/* Action row */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     {onOpenToneSettings && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onOpenToneSettings(); }}

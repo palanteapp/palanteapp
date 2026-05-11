@@ -22,36 +22,32 @@ const MOOD_THEMES: Record<string, string[]> = {
     Calm:      ['wisdom', 'presence', 'mindfulness', 'gratitude', 'depth', 'stillness'],
 };
 
-// Track seen quotes with timestamps to ensure 6-month rotation
+// Words that signal a quote is about rivalry/revenge — penalize unless user profile warrants it
+const ADVERSARIAL_WORDS = ['revenge', 'enemy', 'beat them', 'prove them wrong', 'haters', 'doubters', 'show them'];
+
 // key: quoteId, value: timestamp (ms)
 interface SeenQuoteHistory {
     [id: string]: number;
 }
 
+// Ordered list of recent quote IDs (most recent last), capped at RECENT_CAP
+const RECENT_CAP = 30;
 const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
 
-// Load history (migrating from old Set format if needed)
+// ── Seen history (6-month cooldown) ──────────────────────────────────────────
+
 const loadSeenHistory = (): SeenQuoteHistory => {
     try {
         const saved = localStorage.getItem(STORAGE_KEYS.SEEN_QUOTES);
         if (!saved) return {};
-
         const parsed = JSON.parse(saved);
-
-        // Migration: If it's an array (old Set format), convert to history with old timestamp
+        // Migration: old array format → timestamped object
         if (Array.isArray(parsed)) {
             const history: SeenQuoteHistory = {};
             const now = Date.now();
-            parsed.forEach((id: string) => {
-                // Spread them out slightly backwards so they don't all expire at once?
-                // Or just set them to "now" to be safe? 
-                // Let's set them to 3 months ago to be safe, or just let them expire naturally.
-                // Better: Set them as "seen now" to avoid immediate re-show.
-                history[id] = now;
-            });
+            parsed.forEach((id: string) => { history[id] = now; });
             return history;
         }
-
         return parsed as SeenQuoteHistory;
     } catch {
         return {};
@@ -64,73 +60,125 @@ const saveSeenHistory = () => {
     localStorage.setItem(STORAGE_KEYS.SEEN_QUOTES, JSON.stringify(seenHistory));
 };
 
+// ── Recent quotes (short-term dedup, last RECENT_CAP shown) ──────────────────
+
+const loadRecentQuotes = (): string[] => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.RECENT_QUOTES);
+        return saved ? JSON.parse(saved) : [];
+    } catch {
+        return [];
+    }
+};
+
+let recentQuoteIds: string[] = loadRecentQuotes();
+
+const saveRecentQuotes = () => {
+    localStorage.setItem(STORAGE_KEYS.RECENT_QUOTES, JSON.stringify(recentQuoteIds));
+};
+
+const pushRecentQuote = (id: string) => {
+    recentQuoteIds = recentQuoteIds.filter(q => q !== id);
+    recentQuoteIds.push(id);
+    if (recentQuoteIds.length > RECENT_CAP) recentQuoteIds.shift();
+    saveRecentQuotes();
+};
+
+// ── Keyword extraction helpers ────────────────────────────────────────────────
+
+const STOP_WORDS = new Set([
+    'i', 'me', 'my', 'we', 'our', 'you', 'your', 'it', 'its', 'the', 'a', 'an',
+    'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from',
+    'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+    'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might',
+    'that', 'this', 'these', 'those', 'so', 'as', 'if', 'not', 'no', 'just',
+    'very', 'more', 'can', 'am', 'up', 'out', 'into', 'than', 'then', 'when',
+]);
+
+const extractKeywords = (text: string): string[] => {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 3 && !STOP_WORDS.has(w));
+};
+
+// ── Main scoring function ─────────────────────────────────────────────────────
+
 export const getRelevantQuotes = (user: UserProfile): Quote[] => {
-    // Combine Quotes and Affirmations
     const allContent = [...QUOTES, ...AFFIRMATIONS];
     const now = Date.now();
 
-    // 1. SAFELY Parse Intensity (Handle string/number mismatch)
+    // Parse intensity
     let intensity = 2;
     if (user.quoteIntensity !== undefined && user.quoteIntensity !== null) {
         const parsed = Number(user.quoteIntensity);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= 3) {
-            intensity = parsed;
-        }
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 3) intensity = parsed;
     }
 
-    // Soften intensity when user is low-energy or stressed/anxious
     const isLowState = (user.currentEnergy !== undefined && user.currentEnergy <= 2)
         || user.currentMood === 'Stressed'
         || user.currentMood === 'Anxious';
     const effectiveIntensity = isLowState ? Math.max(1, intensity - 1) as 1 | 2 | 3 : intensity as 1 | 2 | 3;
 
-    // Pull today's morning intention for quote matching
+    // Today's morning intention
     const todayDate = new Date().toISOString().split('T')[0];
     const todaysPriming = (user.dailyMorningPractice || user.dailyPriming || [])
         .find(p => p.date === todayDate);
     const dailyIntention = todaysPriming?.dailyIntention?.toLowerCase().trim() || '';
 
-    // 2. Filter by Intensity & Cooldown — allow effective and set intensity
-    const availableQuotes = allContent.filter((q) => {
-        // Accept set intensity and softer tier when in low state
-        if (q.intensity !== effectiveIntensity && q.intensity !== intensity) return false;
+    // Recent gratitude + affirmation text (last 7 days) for theme matching
+    const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const recentPriming = (user.dailyMorningPractice || user.dailyPriming || [])
+        .filter(p => p.date >= sevenDaysAgo);
+    const recentPracticeText = recentPriming.flatMap(p => [
+        ...(p.gratitudes || []),
+        ...(p.affirmations || []),
+        p.dailyIntention || '',
+    ]).join(' ').toLowerCase();
+    const recentPracticeKeywords = extractKeywords(recentPracticeText);
 
-        // Cooldown Check (6 months)
-        if (seenHistory[q.id]) {
-            const timeSinceSeen = now - seenHistory[q.id];
-            if (timeSinceSeen < SIX_MONTHS_MS) {
-                return false; // Still in cooldown
-            }
-        }
+    // User narrative text keywords
+    const narrativeKeywords = extractKeywords(user.userNarrative?.text || '');
+
+    // 1. Filter by intensity & 6-month cooldown
+    const availableQuotes = allContent.filter((q) => {
+        if (q.intensity !== effectiveIntensity && q.intensity !== intensity) return false;
+        if (seenHistory[q.id] && (now - seenHistory[q.id]) < SIX_MONTHS_MS) return false;
         return true;
     });
 
-    // 3. Apply Preferences (Source & Content Type)
+    // 2. Apply source & content type preferences
     const filteredQuotes = availableQuotes.filter((q) => {
-        // Source preference (AI vs Human)
         let sourceMatch = true;
-        if (user.sourcePreference === 'human') {
-            sourceMatch = !q.isAI;
-        } else if (user.sourcePreference === 'ai') {
-            sourceMatch = !!q.isAI;
-        }
+        if (user.sourcePreference === 'human') sourceMatch = !q.isAI;
+        else if (user.sourcePreference === 'ai') sourceMatch = !!q.isAI;
 
-        // Content type preference (Quotes vs Affirmations)
         let contentTypeMatch = true;
-        if (user.contentTypePreference === 'quotes') {
-            // User wants quotes: Exclude affirmations
-            contentTypeMatch = !q.isAffirmation;
-        } else if (user.contentTypePreference === 'affirmations') {
-            // User wants affirmations: Only include affirmations
-            contentTypeMatch = !!q.isAffirmation;
-        }
-        // 'mix' allows both (true)
+        if (user.contentTypePreference === 'quotes') contentTypeMatch = !q.isAffirmation;
+        else if (user.contentTypePreference === 'affirmations') contentTypeMatch = !!q.isAffirmation;
 
         return sourceMatch && contentTypeMatch;
     });
 
-    // 4. Score quotes based on relevance
-    const scoredQuotes = filteredQuotes.map((quote) => {
+    // 3. Exclude recently shown quotes (short-term dedup)
+    //    Progressively relax the recency window if the pool gets too small
+    const recentSet30 = new Set(recentQuoteIds.slice(-30));
+    const recentSet10 = new Set(recentQuoteIds.slice(-10));
+    const recentSet3  = new Set(recentQuoteIds.slice(-3));
+
+    const withoutRecent30 = filteredQuotes.filter(q => !recentSet30.has(q.id));
+    const withoutRecent10 = filteredQuotes.filter(q => !recentSet10.has(q.id));
+    const withoutRecent3  = filteredQuotes.filter(q => !recentSet3.has(q.id));
+
+    const deduped =
+        withoutRecent30.length >= 5 ? withoutRecent30 :
+        withoutRecent10.length >= 3 ? withoutRecent10 :
+        withoutRecent3.length  >= 1 ? withoutRecent3  :
+        filteredQuotes;
+
+    // 4. Score
+    const scoredQuotes = deduped.map((quote) => {
         let score = 0;
         const quoteSearchText = `${quote.text} ${quote.category} ${quote.tags?.join(' ') || ''}`.toLowerCase();
 
@@ -141,24 +189,19 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
             if (intentionRoot.length > 3 && quoteSearchText.includes(intentionRoot)) score += 200;
         }
 
-        // PRIORITY 1: Profession match (highest weight)
+        // PRIORITY 1: Profession match
         if (user.profession && quote.profession) {
             const userProf = user.profession.toLowerCase();
             const quoteProf = quote.profession.toLowerCase();
-
-            // Direct match
             if (userProf === quoteProf) {
                 score += 150;
-            }
-            // Mapped match (e.g. Filmmaker -> Creative)
-            else {
+            } else {
                 const mappings: Record<string, string[]> = {
                     'creative': ['filmmaker', 'musician', 'photographer', 'artist', 'designer', 'writer', 'producer', 'director'],
                     'tech': ['developer', 'engineer', 'scientist', 'data scientist'],
                     'business': ['entrepreneur', 'executive', 'sales', 'marketing', 'consultant', 'finance', 'real estate', 'investor'],
                     'wellness': ['coach', 'healthcare', 'doctor', 'teacher', 'therapist'],
                     'athlete': ['athlete', 'player', 'coach'],
-                    // Reverse mapping for robustness
                     'filmmaker': ['creative', 'artist', 'director'],
                     'musician': ['creative', 'artist'],
                     'developer': ['tech', 'engineer'],
@@ -167,77 +210,92 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
                     'marketing': ['business', 'sales'],
                     'sales': ['business', 'marketing'],
                     'finance': ['business'],
-                    'real estate': ['business', 'sales']
+                    'real estate': ['business', 'sales'],
                 };
-
-                // Check if quote profession covers user profession
-                if (mappings[quoteProf]?.includes(userProf)) {
-                    score += 150;
-                }
-                // Check if user profession maps to quote profession
-                else if (mappings[userProf]?.includes(quoteProf)) {
+                if (mappings[quoteProf]?.includes(userProf) || mappings[userProf]?.includes(quoteProf)) {
                     score += 150;
                 }
             }
         }
 
-        // PRIORITY 1.5: Daily Focus Match (High relevance to current day)
+        // PRIORITY 1.5: Daily focus match
         if (user.dailyFocuses && user.dailyFocuses.length > 0) {
             const activeFocusText = user.dailyFocuses
                 .filter(f => !f.isCompleted)
                 .map(f => f.text.toLowerCase())
                 .join(' ');
-
             if (activeFocusText) {
-                const quoteContent = `${quote.text} ${quote.category} ${quote.author || ''}`.toLowerCase();
                 const keywords = activeFocusText.split(' ').filter(w => w.length > 3);
                 keywords.forEach(keyword => {
-                    if (quoteContent.includes(keyword)) {
-                        score += 500; // Boost extremely high if it matches today's focus
-                    }
+                    if (quoteSearchText.includes(keyword)) score += 500;
                 });
             }
         }
 
-        // PRIORITY 2: Career field match
-        if (user.career && quote.category) {
-            if (quote.category.toLowerCase().includes(user.career.toLowerCase())) {
-                score += 50;
-            }
+        // PRIORITY 2: User narrative match — what the user wrote about themselves
+        if (narrativeKeywords.length > 0) {
+            let narrativeHits = 0;
+            narrativeKeywords.forEach(kw => {
+                if (quoteSearchText.includes(kw)) narrativeHits++;
+            });
+            // Scale: more hits = higher score, capped to prevent dominance
+            score += Math.min(narrativeHits * 40, 300);
         }
 
-        // PRIORITY 3: Interest match
+        // PRIORITY 3: Recent practice themes (gratitudes, affirmations, intentions this week)
+        if (recentPracticeKeywords.length > 0) {
+            let practiceHits = 0;
+            recentPracticeKeywords.forEach(kw => {
+                if (quoteSearchText.includes(kw)) practiceHits++;
+            });
+            score += Math.min(practiceHits * 25, 200);
+        }
+
+        // PRIORITY 4: Career field match
+        if (user.career && quote.category) {
+            if (quote.category.toLowerCase().includes(user.career.toLowerCase())) score += 50;
+        }
+
+        // PRIORITY 5: Interest match
         if (user.interests && user.interests.length > 0) {
             user.interests.forEach((interest) => {
-                if (quote.category.toLowerCase().includes(interest.toLowerCase())) {
-                    score += 20;
-                }
+                if (quote.category.toLowerCase().includes(interest.toLowerCase())) score += 20;
             });
         }
 
-        // PRIORITY 4: Momentum state
+        // PRIORITY 6: Momentum state
         const momentum = getMomentumState(user);
         const momentumKeywords = MOMENTUM_THEMES[momentum] || [];
         momentumKeywords.forEach(keyword => {
             if (quoteSearchText.includes(keyword)) score += 60;
         });
 
-        // PRIORITY 5: Current mood
+        // PRIORITY 7: Current mood
         if (user.currentMood && MOOD_THEMES[user.currentMood]) {
             MOOD_THEMES[user.currentMood].forEach(keyword => {
                 if (quoteSearchText.includes(keyword)) score += 40;
             });
         }
 
-        // PRIORITY 6: Focus areas
+        // PRIORITY 8: Focus areas
         if (user.focusAreas?.length) {
             user.focusAreas.forEach(area => {
                 if (quoteSearchText.includes(area)) score += 30;
             });
         }
 
-        // Prefer softer quotes when user is in a low state
+        // Prefer softer quotes in low states
         if (isLowState && quote.intensity < intensity) score += 60;
+
+        // Penalize adversarial/revenge-themed quotes unless the user's profile is explicitly competitive
+        const isCompetitive = (user.focusAreas || []).some(a =>
+            ['competition', 'sports', 'athlete', 'winning'].includes(a.toLowerCase())
+        ) || user.profession?.toLowerCase() === 'athlete';
+        if (!isCompetitive) {
+            ADVERSARIAL_WORDS.forEach(word => {
+                if (quoteSearchText.includes(word)) score -= 200;
+            });
+        }
 
         // Small random factor — variety without overriding real matches
         score += Math.random() * 15;
@@ -245,52 +303,37 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         return { quote, score };
     });
 
-    // 5. Sort by score
+    // 5. Sort by score descending
     scoredQuotes.sort((a, b) => b.score - a.score);
+    const quotes = scoredQuotes.map(item => item.quote);
 
-    const quotes = scoredQuotes.map((item) => item.quote);
-
-    // 6. Handle Empty Results
-    // If no quotes found (all in cooldown), we must relax the rule
+    // 6. Handle empty results — relax cooldown if needed
     if (quotes.length === 0 && Object.keys(seenHistory).length > 0) {
-        // Recycle all quotes and reset seen history to ensure rotation
-        console.warn('All quotes in cooldown. Recycling and resetting seen history.');
-
+        console.warn('All quotes in cooldown. Recycling seen history.');
         const recycledQuotes = allContent.filter(q => {
-            if (q.intensity != intensity) return false;
-
+            if (q.intensity !== intensity) return false;
             let sourceMatch = true;
             if (user.sourcePreference === 'human') sourceMatch = !q.isAI;
             else if (user.sourcePreference === 'ai') sourceMatch = !!q.isAI;
-
             let contentTypeMatch = true;
             if (user.contentTypePreference === 'quotes') contentTypeMatch = !q.isAffirmation;
             else if (user.contentTypePreference === 'affirmations') contentTypeMatch = !!q.isAffirmation;
-
             return sourceMatch && contentTypeMatch;
         }).sort(() => Math.random() - 0.5);
 
         seenHistory = {};
-        if (recycledQuotes.length > 0) {
-            seenHistory[recycledQuotes[0].id] = Date.now();
-        }
+        if (recycledQuotes.length > 0) seenHistory[recycledQuotes[0].id] = Date.now();
         saveSeenHistory();
         return recycledQuotes.length > 0 ? recycledQuotes : allContent.sort(() => Math.random() - 0.5);
     }
 
-    // If STILL no quotes
-    if (quotes.length === 0) {
-        return allContent.sort(() => Math.random() - 0.5); // Ultimate fallback
-    }
+    if (quotes.length === 0) return allContent.sort(() => Math.random() - 0.5);
 
-    // NOTE: Do NOT mutate seenHistory here — this is a pure read/rank function.
-    // Call markQuoteSeen(id) only after the quote is actually shown to the user.
     return quotes;
 };
 
 /**
  * Record a quote as seen ONLY when it has actually been delivered to the user.
- * Keeping this separate from getRelevantQuotes prevents phantom-marking quotes the user never saw.
  */
 export const markQuoteSeen = (quoteId: string) => {
     if (!quoteId || quoteId.startsWith('emergency_fallback')) return;
@@ -300,20 +343,23 @@ export const markQuoteSeen = (quoteId: string) => {
 
 /**
  * Pick the best available quote for a user, mark it seen, and return it.
- * Single entry point for all quote selection — eliminates dual-system conflicts.
+ * Selects from the top 5 scored candidates (not randomly from all) to ensure
+ * relevance while still providing variety.
  */
 export const pickAndMarkQuote = (user: UserProfile, excludeId?: string): Quote | null => {
     const candidates = getRelevantQuotes(user);
-    // Always exclude the currently-shown quote when refreshing
     const filtered = excludeId ? candidates.filter(q => q.id !== excludeId) : candidates;
     const pool = filtered.length > 0 ? filtered : candidates;
     if (pool.length === 0) return null;
-    const selected = pool[Math.floor(Math.random() * pool.length)];
+
+    // Pick from the top 5 (or fewer if the pool is smaller) — scores are already sorted descending
+    const topN = Math.min(5, pool.length);
+    const selected = pool[Math.floor(Math.random() * topN)];
+
     markQuoteSeen(selected.id);
+    pushRecentQuote(selected.id);
     return selected;
 };
-
-
 
 /**
  * Generate a fresh AI-powered quote personalized for the user
@@ -322,11 +368,8 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
     const timeOfDay = getTimeOfDay();
 
     if (!isAIAvailable()) {
-        // Return a fallback AI quote from the existing pool
         const aiQuotes = QUOTES.filter(q => q.isAI && q.intensity === user.quoteIntensity);
-        if (aiQuotes.length > 0) {
-            return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
-        }
+        if (aiQuotes.length > 0) return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
     }
 
     try {
@@ -359,12 +402,8 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
         };
     } catch (error) {
         console.error('Error generating AI quote:', error);
-        // Fallback to existing AI quotes
         const aiQuotes = QUOTES.filter(q => q.isAI && q.intensity === user.quoteIntensity);
-        if (aiQuotes.length > 0) {
-            return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
-        }
-        // Ultimate fallback
+        if (aiQuotes.length > 0) return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
         return {
             id: `ai_fallback_${Date.now()}`,
             text: "Your potential is limitless. Keep moving forward.",
@@ -383,9 +422,9 @@ const getTimeOfDay = (): 'morning' | 'afternoon' | 'evening' => {
     return 'evening';
 };
 
-// Helper to reset seen quotes (useful for testing or user preference)
-// Helper to reset seen quotes (useful for testing or user preference)
 export const resetSeenQuotes = () => {
     seenHistory = {};
+    recentQuoteIds = [];
     saveSeenHistory();
+    saveRecentQuotes();
 };

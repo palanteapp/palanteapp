@@ -1676,7 +1676,7 @@ export const Fasting = memo<FastingProps>(({ user, isDarkMode, onUpdateProfile, 
                                     setShowFoodLogger(false);
                                     onOpenCoach('I just logged a meal and want to reflect on my eating habits. Can we talk about what I ate and what might have driven it?');
                                 }}
-                                className="w-full py-3 rounded-[2rem] bg-white/[0.06] border border-white/10 text-white/70 text-xs font-bold uppercase tracking-widest transition-all hover:bg-white/10 active:scale-95 flex items-center justify-center gap-2"
+                                className="w-full py-3 px-4 rounded-[2rem] bg-white/[0.06] border border-white/10 text-white/70 text-[10px] font-bold uppercase tracking-wide leading-tight transition-all hover:bg-white/10 active:scale-95 flex items-center justify-center gap-2 text-center"
                             >
                                 Your coach is here — want to talk through it?
                             </button>

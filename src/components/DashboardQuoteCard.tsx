@@ -378,24 +378,42 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             }}
                         >
                             <AnimatePresence mode="wait">
-                                <motion.p
+                                <motion.div
                                     key={quoteText}
                                     initial={{ opacity: 0, y: 12 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -8 }}
                                     transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                    style={{
-                                        fontFamily: '"Poppins", sans-serif',
-                                        fontWeight: 600,
-                                        fontSize,
-                                        lineHeight,
-                                        color: '#2D3E33',
-                                        letterSpacing: '-0.02em',
-                                        marginBottom: isTierQuote ? '0px' : '24px',
-                                    }}
+                                    style={{ marginBottom: isTierQuote ? '0px' : '24px' }}
                                 >
-                                    {quoteText}
-                                </motion.p>
+                                    {/* Original language first, if available */}
+                                    {quote.originalText && (
+                                        <p style={{
+                                            fontFamily: '"Poppins", sans-serif',
+                                            fontWeight: 600,
+                                            fontSize,
+                                            lineHeight,
+                                            color: '#2D3E33',
+                                            letterSpacing: '-0.02em',
+                                            marginBottom: '10px',
+                                        }}>
+                                            {quote.originalText}
+                                        </p>
+                                    )}
+                                    {/* English translation (or primary text when no original) */}
+                                    <p style={{
+                                        fontFamily: '"Poppins", sans-serif',
+                                        fontWeight: quote.originalText ? 400 : 600,
+                                        fontSize: quote.originalText ? `calc(${fontSize} - 2px)` : fontSize,
+                                        lineHeight,
+                                        color: quote.originalText ? '#4A6741' : '#2D3E33',
+                                        letterSpacing: '-0.02em',
+                                        fontStyle: quote.originalText ? 'italic' : 'normal',
+                                        opacity: quote.originalText ? 0.8 : 1,
+                                    }}>
+                                        {quoteText}
+                                    </p>
+                                </motion.div>
                             </AnimatePresence>
 
                             {!isTierQuote && (

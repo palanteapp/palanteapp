@@ -33,7 +33,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                 : await signUpWithEmail(email, password);
 
             if (authError) {
-                setError(authError.message || 'An error occurred during authentication');
+                const msg = authError.message || '';
+                // Surface clearer messages for the most common Supabase errors
+                if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) {
+                    setError('Incorrect email or password. If you signed up with a magic link, use "Forgot Password?" to set a password.');
+                } else if (msg.toLowerCase().includes('email not confirmed')) {
+                    setError('Please confirm your email first — check your inbox (and spam folder) for the verification link.');
+                } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many')) {
+                    setError('Too many attempts. Please wait a few minutes and try again.');
+                } else {
+                    setError(msg || 'An error occurred during authentication');
+                }
             } else {
                 if (!isLogin) {
                     setSuccess(true);

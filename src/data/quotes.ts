@@ -47,11 +47,6 @@ export const QUOTES: Quote[] = [
     { id: 'c_co1', text: "The difference between a successful person and others is not a lack of strength, not a lack of knowledge, but rather a lack of will.", author: "Vince Lombardi", category: "Willpower", intensity: 1, profession: "Coach" },
     { id: 'c_co2', text: "Success is peace of mind, which is a direct result of self-satisfaction in knowing you made the effort to become the best of which you are capable.", author: "John Wooden", category: "Success", intensity: 1, profession: "Coach" },
 
-    // BUSINESS EXECUTIVES
-    { id: 'c_b1', text: "The only way to do great work is to love what you do.", author: "Steve Jobs", category: "Work", intensity: 1, profession: "Executive" },
-    { id: 'c_b2', text: "Your time is limited, don't waste it living someone else's life.", author: "Steve Jobs", category: "Authenticity", intensity: 1, profession: "Executive" },
-    { id: 'c_b3', text: "The biggest risk is not taking any risk.", author: "Mark Zuckerberg", category: "Risk", intensity: 1, profession: "Executive" },
-
     // FILMMAKERS
     { id: 'c_f1', text: "Every frame is a painting.", author: "Stanley Kubrick", category: "Creativity", intensity: 1, profession: "Creative" },
     { id: 'c_f2', text: "The most honest form of filmmaking is to make a film for yourself.", author: "Peter Jackson", category: "Authenticity", intensity: 1, profession: "Creative" },

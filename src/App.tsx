@@ -12,7 +12,7 @@ import { UserProvider, useUser } from './contexts/UserContext';
 import { CelebrationModal } from './components/CelebrationModal';
 import { DisclaimerModal } from './components/DisclaimerModal';
 import { getRelevantQuotes, getAIQuote, pickAndMarkQuote, markQuoteSeen } from './utils/quoteMatcher';
-import { generateUserNarrative } from './utils/aiService';
+import { generateUserNarrative, generateWeeklyReflection } from './utils/aiService';
 import { analytics, identifyUser } from './utils/analytics';
 import { QUOTES } from './data/quotes';
 import { AFFIRMATIONS } from './data/affirmations';
@@ -36,6 +36,7 @@ import { triggerConfetti } from './utils/CelebrationEffects';
 import { WidgetDataSync } from './utils/widgetDataSync';
 
 import { ReorderModal } from './components/ReorderModal';
+import { QuoteToneModal } from './components/QuoteToneModal';
 
 import { DebugErrorBoundary } from './components/DebugErrorBoundary';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -103,6 +104,12 @@ import { DailyMorningPracticeWidget } from './components/DailyMorningPracticeWid
 import { CoachSettingsModal } from './components/CoachSettingsModal';
 
 import { MilestoneCelebration } from './components/MilestoneCelebration';
+import { RingCeremony, type RingCeremonyType } from './components/RingCeremony';
+import { GrowthStoryModal } from './components/GrowthStoryModal';
+import type { GrowthStoryData } from './utils/aiService';
+import { generateDailyDispatch, generateRecoveryDispatch } from './utils/dailyDispatch';
+import { isReviewerEmail, REVIEWER_DISPATCH_OFFSETS_MIN } from './constants/reviewer';
+import { getMomentumState } from './utils/aiService';
 import { CoachInterventionCard } from './components/CoachInterventionCard';
 import { SlideUpModal } from './components/SlideUpModal';
 import { api } from './lib/api';
@@ -123,7 +130,7 @@ import { useTheme } from './contexts/ThemeContext';
 
 function AppContent() {
 
-  const { loading: authLoading } = useAuth();
+  const { loading: authLoading, user: authUser } = useAuth();
   const { user, loading: userLoading, updateProfile, logActivity, saveReflection, toggleFavorite } = useUser();
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
@@ -154,6 +161,7 @@ function AppContent() {
     showRestDayModal, setShowRestDayModal,
     showMorningMode, setShowMorningMode,
     showReorderModal, setShowReorderModal,
+    showQuoteToneModal, setShowQuoteToneModal,
     showLetterWrite, setShowLetterWrite,
     showLetterRead, setShowLetterRead,
     showHomeCoachSettings, setShowHomeCoachSettings,
@@ -180,6 +188,7 @@ function AppContent() {
   // Weekly Highlights modal
   const [showWeeklyHighlights, setShowWeeklyHighlights] = useState(false);
   const [weeklyAccomplishments, setWeeklyAccomplishments] = useState<{ text: string; date: string }[]>([]);
+  const [weeklyReflectionMessage, setWeeklyReflectionMessage] = useState('');
 
   // Rest Day Modal State
   const [missedDate, setMissedDate] = useState<string>('');
@@ -267,7 +276,7 @@ function AppContent() {
   const [letterContextDetails, setLetterContextDetails] = useState<string>('');
   const [currentLetter, setCurrentLetter] = useState<FutureLetter | null>(null);
 
-  // Weekly Highlights — trigger on Monday mornings once per week
+  // Weekly Highlights — trigger on Sunday evenings once per week
   useEffect(() => {
     if (!user) return;
     const trigger = computeWeeklyHighlights(
@@ -276,7 +285,12 @@ function AppContent() {
     );
     if (trigger.shouldShow) {
       setWeeklyAccomplishments(trigger.accomplishments);
-      // Small delay so the app finishes loading before the modal appears
+      // Generate AI reflection in background
+      const firstName = user.name?.split(' ')[0] || 'Friend';
+      generateWeeklyReflection(
+        trigger.accomplishments.map(a => a.text),
+        firstName
+      ).then(msg => setWeeklyReflectionMessage(msg)).catch(() => {});
       setTimeout(() => {
         setShowWeeklyHighlights(true);
         trigger.markShown();
@@ -419,6 +433,18 @@ function AppContent() {
     isOpen: false,
     milestone: null,
     streakDays: undefined
+  });
+
+  // Ring Ceremony
+  const [ringCeremony, setRingCeremony] = useState<{ isOpen: boolean; type: RingCeremonyType }>({
+    isOpen: false,
+    type: 'ring1',
+  });
+
+  // Growth Story (Day 90)
+  const [growthStory, setGrowthStory] = useState<{ isOpen: boolean; data: GrowthStoryData | null }>({
+    isOpen: false,
+    data: null,
   });
 
   // Routine Stack Runner
@@ -579,6 +605,49 @@ function AppContent() {
       }
     }
   }, [user, showLetterRead, setShowLetterRead]);
+
+  // Day-3 letter prompt — show once after user completes their 3rd practice and has no letters yet
+  useEffect(() => {
+    if (!user) return;
+    const totalPractices = user.practiceData?.totalPractices ?? 0;
+    if (totalPractices < 3) return;
+    if ((user.futureLetters ?? []).length > 0) return;
+    if (localStorage.getItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN)) return;
+    if (showLetterWrite || showLetterRead) return;
+
+    const timer = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
+      setLetterContext('manual');
+      setLetterContextDetails('3 practices in — you\'ve earned this moment');
+      setShowLetterWrite(true);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [user, showLetterWrite, showLetterRead]);
+
+  // Ring ceremony — fires once per ring threshold crossing
+  useEffect(() => {
+    if (!user || ringCeremony.isOpen) return;
+    const total = user.practiceData?.totalPractices ?? 0;
+
+    const rings: Array<{ threshold: number; type: RingCeremonyType; key: keyof typeof STORAGE_KEYS }> = [
+      { threshold: 90, type: 'fullbloom',  key: 'FULLBLOOM_CEREMONY_SHOWN' },
+      { threshold: 55, type: 'ring3',      key: 'RING3_CEREMONY_SHOWN' },
+      { threshold: 28, type: 'ring2',      key: 'RING2_CEREMONY_SHOWN' },
+      { threshold: 10, type: 'ring1',      key: 'RING1_CEREMONY_SHOWN' },
+    ];
+
+    for (const ring of rings) {
+      if (total >= ring.threshold && !localStorage.getItem(STORAGE_KEYS[ring.key])) {
+        // Slight delay so the practice completion animation finishes first
+        const timer = setTimeout(() => {
+          localStorage.setItem(STORAGE_KEYS[ring.key], 'true');
+          setRingCeremony({ isOpen: true, type: ring.type });
+        }, 900);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user?.practiceData?.totalPractices]);
 
   // AI Coach Interventions
   const [activeInterventions, setActiveInterventions] = useState<CoachIntervention[]>([]);
@@ -769,6 +838,19 @@ function AppContent() {
         setMissedDate(yesterdayStr);
         setShowRestDayModal(true);
         localStorage.setItem('palante_last_rest_prompt_date', yesterdayStr);
+      }
+    }
+
+    // If 3+ days away, send a recovery nudge via notification (once per absence window)
+    if (daysSince >= 3 && user) {
+      const lastRecoveryKey = 'palante_last_recovery_nudge';
+      const lastRecovery = localStorage.getItem(lastRecoveryKey);
+      if (lastRecovery !== lastActivity) {
+        const firstName = user.name?.split(' ')[0] || 'friend';
+        const coachTone = user.coachSettings?.coachTone ?? 'nurturing';
+        const recoveryMsg = generateRecoveryDispatch({ firstName, daysMissed: daysSince, tone: coachTone });
+        notifications.sendRecoveryNudge(recoveryMsg.body, user.coachName);
+        localStorage.setItem(lastRecoveryKey, lastActivity);
       }
     }
 
@@ -1188,15 +1270,12 @@ function AppContent() {
     const updatedPriming = [...(user.dailyPriming || [])];
 
     if (existingEntryIndex >= 0) {
-      // Update existing entry (preserving intention if it exists)
       updatedPriming[existingEntryIndex] = {
         ...updatedPriming[existingEntryIndex],
         ...data,
-        // Ensure we don't accidentally overwrite intention if the new data has it empty but old had it
         dailyIntention: data.dailyIntention || updatedPriming[existingEntryIndex].dailyIntention
       };
     } else {
-      // Add new entry
       updatedPriming.push(data);
     }
 
@@ -1204,11 +1283,31 @@ function AppContent() {
       ...user,
       dailyPriming: updatedPriming,
       points: (user.points || 0) + 5,
-      // Update practice count inline to avoid race condition
       practiceData: logPractice(user.practiceData || migrateStreakToPractice(user), 'morning_priming')
     };
     updateProfile(updatedUser);
     analytics.morningRitualCompleted({ hasIntention: !!data.dailyIntention, mood: data.mood });
+
+    // Fire personalized daily dispatch after morning practice completes.
+    // App Store reviewers (matched by auth email) get compressed 1/2/3 minute
+    // offsets so the feature can actually be verified during review.
+    const firstName = user.name?.split(' ')[0] || 'friend';
+    const coachTone = user.coachSettings?.coachTone ?? 'nurturing';
+    const momentumState = getMomentumState(user);
+    const dispatchMessages = generateDailyDispatch({
+      intention: data.dailyIntention,
+      gratitudes: data.gratitudes ?? [],
+      firstName,
+      tone: coachTone,
+      momentumState,
+    });
+    const finalDispatch = isReviewerEmail(authUser?.email)
+      ? dispatchMessages.map((m, i) => ({
+          ...m,
+          minutesFromNow: REVIEWER_DISPATCH_OFFSETS_MIN[i] ?? m.minutesFromNow,
+        }))
+      : dispatchMessages;
+    notifications.scheduleDailyDispatch(finalDispatch, user.coachName);
   };
 
   // Removed handleSmartRollover - goals now persist until manually deleted
@@ -1349,7 +1448,15 @@ function AppContent() {
 
   // PAYWALL — show when user has no active subscription
   if (!isPro) {
-    return <PaywallScreen />;
+    const gratitudeCount = (user?.dailyMorningPractice || user?.dailyPriming || [])
+      .reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
+    return (
+      <PaywallScreen
+        firstName={user?.name?.split(' ')[0]}
+        practiceCount={user?.practiceData?.totalPractices ?? 0}
+        gratitudeCount={gratitudeCount}
+      />
+    );
   }
 
   // LOGGED IN AND HAS PROFILE -> MAIN APP
@@ -1375,8 +1482,8 @@ function AppContent() {
         <div className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center" style={{ background: '#C96A3A' }}>
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
             {trialDaysRemaining === 1
-              ? 'Your free trial ends tomorrow — subscribe to keep your streak.'
-              : `${trialDaysRemaining} days left in your free trial.`}
+              ? 'Your free trial ends tomorrow — subscribe to keep your practice.'
+              : `${trialDaysRemaining} days left in your free trial. Keep going.`}
           </span>
         </div>
       )}
@@ -1387,55 +1494,73 @@ function AppContent() {
       )}
 
 
-      {/* ── Background depth system — matches CinematicIntro visual language ── */}
-      {isDarkMode ? (
-        <>
-          {/* Central luminosity bloom */}
-          <div className="fixed inset-0 pointer-events-none z-0" style={{
-            background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.45) 0%, transparent 62%)',
-          }} />
-          {/* Edge vignette */}
-          <div className="fixed inset-0 pointer-events-none z-0" style={{
-            background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.55) 100%)',
-          }} />
-          {/* Bottom terracotta warmth */}
-          <div className="fixed bottom-0 inset-x-0 pointer-events-none z-0" style={{
-            height: '40%',
-            background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.16) 0%, transparent 70%)',
-          }} />
-          {/* Seed of Life — sacred geometry background */}
-          <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
-            <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
-              <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
-              <circle cx="343" cy="413" r="148" />
-              <circle cx="269" cy="541" r="148" />
-              <circle cx="121" cy="541" r="148" />
-              <circle cx="47"  cy="413" r="148" />
-              <circle cx="121" cy="285" r="148" />
-              <circle cx="269" cy="285" r="148" />
-            </g>
-          </svg>
-        </>
-      ) : (
-        <>
-          {/* Light mode: parchment with warm top bloom */}
-          <div className="fixed inset-0 pointer-events-none z-0" style={{
-            background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(180,155,110,0.18) 0%, transparent 65%)',
-          }} />
-          {/* Seed of Life — sacred geometry background */}
-          <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
-            <g fill="none" stroke="#415D43" strokeWidth="0.65" opacity="0.10">
-              <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
-              <circle cx="343" cy="413" r="148" />
-              <circle cx="269" cy="541" r="148" />
-              <circle cx="121" cy="541" r="148" />
-              <circle cx="47"  cy="413" r="148" />
-              <circle cx="121" cy="285" r="148" />
-              <circle cx="269" cy="285" r="148" />
-            </g>
-          </svg>
-        </>
-      )}
+      {/* ── Background depth system ── */}
+      {(() => {
+        const isToolTab = ['fasting', 'focus', 'toolkit'].includes(activeTab);
+        if (isToolTab) {
+          return (
+            <>
+              {/* Tool pages: same Target rings as Sonic Canvas */}
+              <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                <Target
+                  className="absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 text-[#E8E2D9] opacity-[0.075]"
+                />
+                <Target
+                  className="absolute bottom-0 left-0 w-[90vmin] h-[90vmin] -translate-x-1/2 translate-y-1/2 text-pale-gold opacity-[0.075]"
+                />
+              </div>
+            </>
+          );
+        }
+        return isDarkMode ? (
+          <>
+            {/* Central luminosity bloom */}
+            <div className="fixed inset-0 pointer-events-none z-0" style={{
+              background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.45) 0%, transparent 62%)',
+            }} />
+            {/* Edge vignette */}
+            <div className="fixed inset-0 pointer-events-none z-0" style={{
+              background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.55) 100%)',
+            }} />
+            {/* Bottom terracotta warmth */}
+            <div className="fixed bottom-0 inset-x-0 pointer-events-none z-0" style={{
+              height: '40%',
+              background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.16) 0%, transparent 70%)',
+            }} />
+            {/* Seed of Life — sacred geometry background */}
+            <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+              <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
+                <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+                <circle cx="343" cy="413" r="148" />
+                <circle cx="269" cy="541" r="148" />
+                <circle cx="121" cy="541" r="148" />
+                <circle cx="47"  cy="413" r="148" />
+                <circle cx="121" cy="285" r="148" />
+                <circle cx="269" cy="285" r="148" />
+              </g>
+            </svg>
+          </>
+        ) : (
+          <>
+            {/* Light mode: parchment with warm top bloom */}
+            <div className="fixed inset-0 pointer-events-none z-0" style={{
+              background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(180,155,110,0.18) 0%, transparent 65%)',
+            }} />
+            {/* Seed of Life — sacred geometry background */}
+            <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+              <g fill="none" stroke="#415D43" strokeWidth="0.65" opacity="0.10">
+                <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+                <circle cx="343" cy="413" r="148" />
+                <circle cx="269" cy="541" r="148" />
+                <circle cx="121" cy="541" r="148" />
+                <circle cx="47"  cy="413" r="148" />
+                <circle cx="121" cy="285" r="148" />
+                <circle cx="269" cy="285" r="148" />
+              </g>
+            </svg>
+          </>
+        );
+      })()}
 
 
 {/* Floating Header - Centered & Compact */}
@@ -1547,7 +1672,7 @@ function AppContent() {
               const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
               const timeSub = hour < 12 ? "Let's set the tone." : 'Take a moment.';
               return (
-                <div className="min-h-screen flex flex-col px-8 pb-8 max-w-md mx-auto">
+                <div className="flex flex-col px-8 pb-8 max-w-md mx-auto overflow-y-auto" style={{ height: '100dvh' }}>
                   <div className="w-full mt-16 mb-10 text-center animate-fade-in-slow">
                     <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                       {timeGreeting}
@@ -1577,7 +1702,7 @@ function AppContent() {
             // ── BEAT 1 · EVENING ARRIVAL ────────────────────────────────────────
             if (shouldShowEveningMode && !eveningDoneToday && !eveningSkipped && user) {
               return (
-                <div className="min-h-screen flex flex-col px-8 pb-8 max-w-md mx-auto">
+                <div className="flex flex-col px-8 pb-8 max-w-md mx-auto overflow-y-auto" style={{ height: '100dvh' }}>
                   <div className="w-full mt-16 mb-10 text-center animate-fade-in-slow">
                     <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                       Good evening, {firstName}.
@@ -1632,13 +1757,47 @@ function AppContent() {
                     {getGreeting()}, {firstName}.
                   </h1>
                   <p className={`text-sm font-sans ${isDarkMode ? 'text-white/45' : 'text-sage/50'}`}>
-                    {ritualDoneToday
-                      ? 'Practice complete. Well done.'
-                      : eveningDoneToday
-                        ? 'Evening reflection complete.'
-                        : hour < 12 ? 'Ready to rise?' : hour < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
+                    {ritualDoneToday && todaysPriming?.dailyIntention
+                      ? hour < 17 ? 'Your intention is set. Go live it.' : 'Day almost done. How did your intention hold?'
+                      : ritualDoneToday
+                        ? 'Practice complete. The day is yours.'
+                        : eveningDoneToday
+                          ? 'Evening reflection complete.'
+                          : hour < 12 ? 'Ready to rise?' : hour < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
                   </p>
                 </motion.div>
+
+                {/* ── Today's Intention ────────────────────── */}
+                {ritualDoneToday && todaysPriming?.dailyIntention && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.08 }}
+                  >
+                    <div
+                      className={`rounded-2xl px-5 py-4 border-l-[3px] ${isDarkMode ? 'bg-white/[0.04]' : 'bg-white/70 shadow-sm'}`}
+                      style={{ borderLeftColor: '#C96A3A', borderTop: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(201,106,58,0.15)', borderRight: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(201,106,58,0.12)', borderBottom: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(201,106,58,0.12)' }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/30' : 'text-[#C96A3A]/60'}`}>
+                          Today's Intention
+                        </p>
+                        <p className={`text-[10px] font-medium tabular-nums ${isDarkMode ? 'text-white/20' : 'text-sage/30'}`}>
+                          Practice {user?.practiceData?.totalPractices ?? 0} of 90
+                        </p>
+                      </div>
+                      <p className={`font-serif italic text-lg leading-snug mb-2 ${isDarkMode ? 'text-white/90' : 'text-sage-dark'}`}>
+                        "{todaysPriming.dailyIntention}"
+                      </p>
+                      {todaysPriming.gratitudes?.filter(g => g.trim()).slice(0, 2).length > 0 && (
+                        <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-white/35' : 'text-sage/45'}`}>
+                          Grateful for: {todaysPriming.gratitudes.filter(g => g.trim()).slice(0, 2).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* ── Mandala of Growth ─────────────────────── */}
                 {user && (
@@ -1653,7 +1812,7 @@ function AppContent() {
                         Mandala of Growth
                       </p>
                       <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-sage/40'}`}>
-                        {(user.streak || 0)} day streak · {(user.points || 0).toLocaleString()} pts
+                        {user.practiceData?.totalPractices ?? 0} of 90 practices
                       </p>
                     </div>
                     <GardenMandala
@@ -1683,10 +1842,35 @@ function AppContent() {
                         isFavorited={dailyQuote ? (user?.favoriteQuotes || []).some(q => q.quoteId === dailyQuote.id) : false}
                         isDarkMode={isDarkMode}
                         onRefresh={() => refreshDailyQuote(true)}
-                        onOpenSettings={() => setShowReorderModal(true)}
+                        onOpenSettings={() => setShowQuoteToneModal(true)}
                       />
                     </Suspense>
                   </motion.div>
+                )}
+
+                {/* ── Essential Tools ──────────────────────── */}
+                {user && (
+                  <HomeEssentialTools
+                    isDarkMode={isDarkMode}
+                    selectedTools={user.homeEssentialTools}
+                    fastingActive={(() => {
+                      try { return localStorage.getItem(STORAGE_KEYS.FASTING_STATUS) === 'active'; }
+                      catch { return false; }
+                    })()}
+                    fastingTime={(() => {
+                      try {
+                        const startTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
+                        if (!startTime) return '';
+                        const elapsed = Date.now() - new Date(startTime).getTime();
+                        if (isNaN(elapsed) || elapsed < 0) return '';
+                        return `${Math.floor(elapsed / 3_600_000)}h ${Math.floor((elapsed % 3_600_000) / 60_000)}m`;
+                      } catch { return ''; }
+                    })()}
+                    onNavigate={(id: EssentialToolId) => handleQuickAction(id)}
+                    onSave={(tools: EssentialToolId[]) => {
+                      if (user) updateProfile({ ...user, homeEssentialTools: tools });
+                    }}
+                  />
                 )}
 
                 {/* ── Coach strip ──────────────────────────── */}
@@ -1827,7 +2011,7 @@ function AppContent() {
                       }`}
                     >
                       <span className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white/50' : 'text-sage/55'}`}>
-                        Today's Story
+                        Today's Message
                       </span>
                       <div className={`transition-transform duration-300 ${showTodayStory ? 'rotate-180' : 'rotate-0'} ${isDarkMode ? 'text-white/30' : 'text-sage/35'}`}>
                         <ChevronDown size={16} />
@@ -1892,6 +2076,21 @@ function AppContent() {
                     Settings &amp; Layout
                   </button>
                 </div>
+
+                {user && (
+                  <QuoteToneModal
+                    isOpen={showQuoteToneModal}
+                    onClose={() => setShowQuoteToneModal(false)}
+                    isDarkMode={isDarkMode}
+                    quoteIntensity={user.quoteIntensity ?? 2}
+                    sourcePreference={user.sourcePreference ?? 'mix'}
+                    contentTypePreference={user.contentTypePreference ?? 'mix'}
+                    onSave={(prefs) => {
+                      updateProfile({ ...user, ...prefs });
+                      refreshDailyQuote(true);
+                    }}
+                  />
+                )}
 
                 <ReorderModal
                   isOpen={showReorderModal}
@@ -2225,7 +2424,7 @@ function AppContent() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[100] bg-black/20 overflow-hidden"
+            className="fixed inset-0 z-[100] overflow-hidden"
           >
             <CoachView
               user={user}
@@ -2389,10 +2588,11 @@ function AppContent() {
         </Suspense>
       )}
 
-      {/* Weekly Accomplishments Highlight — fires Monday mornings */}
+      {/* Weekly Accomplishments Highlight — fires Sunday evenings */}
       <WeeklyHighlightsModal
         isOpen={showWeeklyHighlights}
         accomplishments={weeklyAccomplishments}
+        reflectionMessage={weeklyReflectionMessage}
         userName={user?.name || 'Friend'}
         isDarkMode={isDarkMode}
         onClose={() => setShowWeeklyHighlights(false)}
@@ -2491,6 +2691,80 @@ function AppContent() {
           />
         )
       }
+
+      {/* Ring Ceremony */}
+      <RingCeremony
+        type={ringCeremony.type}
+        isOpen={ringCeremony.isOpen}
+        userName={user?.name}
+        isDarkMode={isDarkMode}
+        onClose={() => {
+          setRingCeremony(prev => ({ ...prev, isOpen: false }));
+          // After fullbloom ceremony closes, open the Growth Story
+          if (ringCeremony.type === 'fullbloom' && user) {
+            const allMorning = (user.dailyMorningPractice || user.dailyPriming || []);
+            const allEvening = (user.dailyEveningPractice || []);
+            const futureLetter = (user.futureLetters || []).find(l => l.hasBeenDelivered || l.content);
+            setGrowthStory({
+              isOpen: true,
+              data: {
+                morningPractices: allMorning.map(p => ({
+                  date: p.date,
+                  gratitudes: p.gratitudes,
+                  dailyIntention: p.dailyIntention,
+                })),
+                eveningPractices: allEvening.map(e => ({
+                  date: e.date,
+                  delight: e.delight,
+                  accomplishment: e.accomplishment,
+                  learning: e.learning,
+                })),
+                futureLetter: futureLetter?.content,
+                totalPractices: user.practiceData?.totalPractices ?? 90,
+                firstName: user.name?.split(' ')[0] || 'friend',
+                coachTone: user.coachSettings?.coachTone,
+                startDate: allMorning[0]?.date,
+              },
+            });
+          }
+        }}
+        onShare={async () => {
+          const { shareMilestoneAsImage } = await import('./utils/shareUtils');
+          const labels: Record<RingCeremonyType, string> = {
+            ring1: '10 Practices — Ring One Complete',
+            ring2: '28 Practices — Ring Two Complete',
+            ring3: '55 Practices — Ring Three Complete',
+            fullbloom: '90 Days — Full Bloom',
+          };
+          await shareMilestoneAsImage({
+            title: labels[ringCeremony.type],
+            label: 'Mandala of Growth',
+            count: user?.practiceData?.totalPractices ?? 0,
+            message: 'My garden is growing. Pa\'lante. 🌸',
+            iconName: 'Trophy',
+            shareText: `${labels[ringCeremony.type]} on my Palante journey. Pa'lante! #PalanteApp`,
+          });
+        }}
+      />
+
+      {/* Day 90 Growth Story */}
+      <GrowthStoryModal
+        isOpen={growthStory.isOpen}
+        data={growthStory.data}
+        isDarkMode={isDarkMode}
+        onClose={() => setGrowthStory(prev => ({ ...prev, isOpen: false }))}
+        onShare={async (memoir) => {
+          const { shareMilestoneAsImage } = await import('./utils/shareUtils');
+          await shareMilestoneAsImage({
+            title: 'Full Bloom — 90 Days',
+            label: 'My Growth Story',
+            count: user?.practiceData?.totalPractices ?? 90,
+            message: memoir.slice(0, 120) + (memoir.length > 120 ? '...' : ''),
+            iconName: 'Trophy',
+            shareText: `90 days with Palante. My story: ${memoir.slice(0, 100)}... Pa'lante! #PalanteApp`,
+          });
+        }}
+      />
 
       {/* Post-First-Practice Personalization Setup */}
       <Suspense fallback={null}>
@@ -2806,6 +3080,7 @@ function AppContent() {
               onClose={() => setShowKoiPond(false)}
               streak={user.streak || 0}
               points={user.points || 0}
+              totalPractices={user.practiceData?.totalPractices || 0}
             />
           )}
         </Suspense>

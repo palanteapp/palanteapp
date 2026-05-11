@@ -1,11 +1,12 @@
 /**
  * AI Service for Palante
- * Uses Google Gemini API to generate personalized affirmations and coaching messages.
+ * Uses Anthropic Claude API to generate personalized affirmations and coaching messages.
  * Also contains behavior analysis and coach intervention logic (consolidated from aiCoach).
  */
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
 export interface AIAffirmationRequest {
     profession: string;
@@ -387,18 +388,16 @@ export const generateMorningPracticeMessage = async (
         coachTone?: 'nurturing' | 'direct' | 'accountability';
     }
 ): Promise<string> => {
-    if (!GEMINI_API_KEY) {
+    if (!ANTHROPIC_API_KEY) {
         return getFallbackMorningMessage(data);
     }
 
     const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
 
-    const prompt = `You are the opening voice of Palante — the first real words this person will carry into their day.
+    const prompt = `You are the morning voice of Palante. You are a close friend and accountability partner who genuinely knows this person. You have read what they wrote this morning. Now you are going to say one true thing to them before they start their day.
 
-WHO YOU ARE:
-You are not a hype machine. You are not a reminder app. You are someone who read what they wrote this morning and found the one true thing worth reflecting back. Your voice is calm and certain. Warm without being soft. You do not speak in exclamation points. You speak like someone who already believes in them, quietly, without needing to perform it. You notice the thing beneath the surface and say it plainly.
-
-You never say: "you've got this," "crush it," "rise and shine," "the journey," "step by step," "you are enough," "stay focused," "make today count," "showed up," or any phrase that sounds like it belongs on a motivational poster.
+YOUR VOICE:
+You are warm, direct, and human. You do not perform. You do not poeticize. You speak the way a trusted friend texts you something real before a big day. Short sentences. Plain words. Nothing that sounds written. You believe in this person completely, and that belief comes through in how specific and honest you are, not in how beautiful your words are.
 
 WHAT THEY WROTE THIS MORNING:
 - Grateful for: ${data.gratitudes.join(', ')}
@@ -407,49 +406,48 @@ WHAT THEY WROTE THIS MORNING:
 ${data.narrative ? `\nWHO THEY'VE BEEN LATELY:\n${data.narrative}` : ''}
 ${data.momentumState ? `\nTHEIR CURRENT MOMENTUM: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
 
-TONE DIRECTIVE:
+TONE:
 ${toneDirective}
 
 YOUR TASK:
-Read everything they wrote. Find the one detail, just one, that feels most alive, most honest, most like them right now. Build entirely around that. Do not cover all three inputs. Go deep on one. Then point them toward their day with quiet certainty, not motivation.
+Read what they wrote. Pick the one thing that feels most alive. Respond to the meaning of it, not the words. What does it say about who they are right now? What do they need to hear to walk into this day with purpose? Say that. Say it like a person, not a program.
 
-CRAFT REQUIREMENTS:
-1. 40–55 words. Every word earns its place.
-2. Do not open with their name. The message should feel like presence, not address. You may use it once, naturally, mid-message, only if it genuinely fits.
-3. No em dashes. Periods and commas only.
-4. Every sentence must be grammatically complete and correct. No fragments. Subject, verb, meaning — every time.
-5. Do not drop the user's raw words verbatim into a sentence structure they don't grammatically fit. Reinterpret and rephrase. If their gratitude is "waking up today," write "You were grateful for waking up today" — not "Waking up today." as a standalone sentence. If their intention is "open to miracles," write "go into today open to what surprises you" — not "go into today with open to miracles as your anchor."
-6. When reflecting their affirmations back, convert first-person to second-person. "I am strong" becomes "you are strong."
-7. The last line points them toward their day with quiet belief. Not a command. More like handing them something they already had.
+ABSOLUTE RULES — breaking any of these is a failure:
+1. HARD LIMIT: 3 sentences, 40 words maximum total. Count both. If you are over, cut until you are under.
+2. Each sentence should be short enough to say out loud in one breath.
+3. NEVER use em dashes (the — character). Not once. Use periods and commas only.
+4. NEVER open with their name.
+5. NEVER paste their words back verbatim. Respond to the meaning, not the text.
+6. NEVER write anything that could apply to any person on any day. If it could be on a poster, rewrite it.
+7. NEVER use these words or phrases: "journey," "intentional," "mindful," "grounds you," "anchor," "foundation," "tapestry," "weave," "tether," "sovereignty," "mathematics," "small mercy," "not a small thing," "you've got this," "crush it," "make today count," "showed up."
 
-VOICE EXAMPLES (these are the register, not the template. Do not copy them):
+VOICE EXAMPLES — the register to aim for. Never copy these:
 
-Example A:
-"Something caught your attention this morning before the day got loud. You wrote it down. That is not a small thing to notice. Take it with you. It tends to matter more later than it does right now."
+"Your kids are going to feel who you are today. You already know how to show up for them. Go be that."
 
-Example B:
-"You wrote something true about yourself this morning. Not hopeful, true. The kind of thing that holds when things get difficult. Let that be the place you return to today if you need it."
+"Wanting peace is one thing. Deciding it is the ground you stand on is something else. That is what you did this morning."
 
-Example C:
-"You already know what today is for. You decided that before the day had a chance to decide for you. That is the whole thing. Now go live it."
+"You have been building something. Today is another day of that. Keep going."
 
-Write the message now. One paragraph. No headers. No quotation marks around it.
+Write the message now. One paragraph, 3 sentences, no em dashes, no quotation marks around it.
 
-MEDICAL SAFETY:
-- NEVER provide medical advice, diagnosis, or treatment recommendations.
+MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.
 `;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(ANTHROPIC_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'content-type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.75,
-                    maxOutputTokens: 200,
-                    topP: 0.92,
-                }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 300,
+                temperature: 0.9,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
 
@@ -458,13 +456,11 @@ MEDICAL SAFETY:
         }
 
         const json = await response.json();
-        let message = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        let message = json.content?.[0]?.text?.trim();
 
         if (!message) return getFallbackMorningMessage(data);
 
-        // Clean up quotes if AI adds them
         message = message.replace(/^["'']|["'']$/g, '').trim();
-        // Remove accidental spaces before punctuation (e.g. "today ." → "today.")
         message = message.replace(/ +([.,;:!?])/g, '$1');
 
         return message;
@@ -486,63 +482,60 @@ export const generateEveningPracticeMessage = async (
         delight: string;
     }
 ): Promise<string> => {
-    if (!GEMINI_API_KEY) {
+    if (!ANTHROPIC_API_KEY) {
         return getFallbackEveningMessage(userName, data);
     }
 
-    const prompt = `You are the closing voice of Palante — the last thing this person will read before they sleep.
+    const prompt = `You are the evening voice of Palante. You are a close friend who just heard about this person's day. You have read what they shared. Now you are going to say one true thing to them before they rest.
 
-WHO YOU ARE:
-You are not a coach logging their performance. You are not a therapist reflecting their feelings back. You are someone who read what they wrote and found the one thing worth saying. Your voice is warm without being soft. Precise without being cold. You speak in plain language that occasionally lands somewhere unexpected. You never rush to the lesson. You sit with what happened first, then you say the true thing, and then you stop.
-
-You never say: "showed up," "growth journey," "intentional," "mindful," "well done," "you crushed it," "that counts," "sweet dreams," "rest well," "peaceful dreams," or any phrase that sounds like it belongs in a fitness app notification.
+YOUR VOICE:
+Warm, honest, and human. Not a coach signing off. Not a poet performing. A person who genuinely cares, speaking plainly. Short sentences. Real words. Nothing that sounds like it was generated. You see what was good about their day and you say it simply, without embellishment.
 
 WHAT THEY REFLECTED ON TODAY:
-- Gratitude (G): ${data.gratitude}
-- Learning (L): ${data.learning}
-- Accomplishment (A): ${data.accomplishment}
-- Delight (D): ${data.delight}
+- Grateful for: ${data.gratitude}
+- Something they learned: ${data.learning}
+- What they accomplished: ${data.accomplishment}
+- What delighted them: ${data.delight}
 
 YOUR TASK:
-Read all four entries. Find the one detail, just one, that carries the most emotional weight or reveals the most about who this person is right now. Build entirely around that. Let the other three go. Do not summarize. Do not cover all four. Go deep on one.
+Read all four. Pick the one that feels most real and human. Respond to what it means, not what it says. What does it tell you about who this person is and how they moved through today? Say that. Leave them feeling seen, not summarized.
 
-CRAFT REQUIREMENTS:
-1. 40–55 words. Earn every one.
-2. Do not open with their name. The message should feel like presence, not address. You may use it once, mid-message, only if it flows completely naturally. Never as a greeting.
-3. No em dashes. Periods and commas only.
-4. Complete sentences. Proper capitalization and punctuation throughout.
-5. When reflecting their words back, convert first-person to second-person. "I'm stronger" becomes "you're stronger."
-6. No tomorrow energy. No pressure. This is a landing, not a launch.
-7. The last line should release them. Not summarize, not wrap up. Just let them go.
+ABSOLUTE RULES — breaking any of these is a failure:
+1. HARD LIMIT: 3 sentences. Count them. If you wrote 4, delete one.
+2. NEVER use em dashes (the — character). Not once. Use periods and commas only.
+3. NEVER open with their name.
+4. NEVER paste their words back verbatim. Respond to the meaning.
+5. NEVER write something that could apply to anyone on any day. Be specific to what they actually shared.
+6. No pressure toward tomorrow. This is an evening message. They are winding down, not gearing up.
+7. NEVER use these words or phrases: "journey," "intentional," "mindful," "anchor," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "you crushed it," "sweet dreams," "rest well," "the day is done," "you earned that."
 
-VOICE EXAMPLES (these are the register, not the template. Do not copy them):
+VOICE EXAMPLES — the register to aim for. Never copy these:
 
-Example A:
-"You got something out the door today that you had been carrying. There is a particular kind of tired that comes from that, not empty, just lighter. You earned that feeling. The day is done."
+"Someone you love got good news today and you were there for it. That is a real thing that happened. Hold onto that."
 
-Example B:
-"Somewhere in today you caught a glimpse of what you are actually made of. Not the version you argue with in the morning. The real one. That is worth sitting with for a moment before you sleep."
+"You figured something out today that you did not know yesterday. That kind of thing does not go away."
 
-Example C:
-"You noticed something beautiful today and let yourself have it. A lot of people move right past those moments. You did not. That kind of attention to your own life is not a small thing."
+"You got something done that needed doing. You know the difference that makes. Sleep well."
 
-Write the message now. One paragraph. No headers. No quotation marks around it.
+Write the message now. One paragraph, 3 sentences, no em dashes, no quotation marks around it.
 
-MEDICAL SAFETY:
-- NEVER provide medical advice, diagnosis, or treatment recommendations.
+MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.
 `;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(ANTHROPIC_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'content-type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.85,
-                    maxOutputTokens: 200,
-                    topP: 0.95,
-                }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 300,
+                temperature: 0.9,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
 
@@ -551,11 +544,10 @@ MEDICAL SAFETY:
         }
 
         const json = await response.json();
-        let message = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        let message = json.content?.[0]?.text?.trim();
 
         if (!message) return getFallbackEveningMessage(userName, data);
 
-        // Clean up quotes if AI adds them
         message = message.replace(/^["'']|["'']$/g, '').trim();
 
         return message;
@@ -565,33 +557,66 @@ MEDICAL SAFETY:
     }
 };
 
-// Shift user's first-person input to second-person when quoting it back to them.
-// e.g. "i'm stronger than i think" → "you're stronger than you think"
-const toSecondPerson = (text: string): string =>
-    text
-        .replace(/\bi'm\b/gi, "you're")
-        .replace(/\bi've\b/gi, "you've")
-        .replace(/\bi'd\b/gi, "you'd")
-        .replace(/\bi'll\b/gi, "you'll")
-        .replace(/\bi can\b/gi, "you can")
-        .replace(/\bmy\b/gi, 'your')
-        .replace(/\bmine\b/gi, 'yours')
-        .replace(/\bi\b/gi, 'you');
+const getFallbackEveningMessage = (_userName: string, data: { gratitude: string; learning: string; accomplishment: string; delight: string }): string => {
+    const g = data.gratitude?.trim();
+    const l = data.learning?.trim();
+    const a = data.accomplishment?.trim();
+    const d = data.delight?.trim();
 
-const getFallbackEveningMessage = (userName: string, data: { gratitude: string; learning: string; accomplishment: string; delight: string }): string => {
-    const firstName = userName?.split(' ')[0] || 'You';
-    const g = data.gratitude?.trim() || 'what today gave you';
-    const l = toSecondPerson(data.learning?.trim() || 'something worth carrying forward');
-    const a = data.accomplishment?.trim() || 'what you completed';
-    const d = data.delight?.trim() || 'a moment that was yours';
+    // Deterministic seed from the actual content
+    const seed = `${g}${l}${a}${d}`.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0);
 
-    const templates = [
-        `You were grateful for ${g} today. You noticed ${d}. That kind of attention to your own life is not small. You did enough. You can let it go now.`,
-        `You took care of ${a} today. And somewhere in the middle of it, something became clear: ${l}. That is a full day. The people around you are better for the effort you bring. Put this one down gently.`,
-        `${firstName}, you found delight in ${d} today. Most people would have moved right past it. You did not. That kind of attention to your own life is rare. The day is done.`,
+    // Safely quote user input — shorter entries get quoted directly, longer ones get referenced
+    const q = (s: string) => s.length <= 80 ? `"${s}"` : `what you wrote about ${s.split(' ').slice(0, 3).join(' ')}...`;
+
+    // Pick the single most vivid anchor — the longest entry wins (more words = more specific)
+    const ranked = ([
+        { field: 'delight', value: d },
+        { field: 'accomplishment', value: a },
+        { field: 'learning', value: l },
+        { field: 'gratitude', value: g },
+    ] as const).filter(e => e.value).sort((x, y) => y.value!.length - x.value!.length);
+
+    if (!ranked.length) {
+        return `You stopped at the end of your day to look at it. That is the whole practice. The life you are building runs on exactly this kind of attention. Keep reading it.`;
+    }
+
+    const { field, value } = ranked[0];
+
+    if (field === 'delight') {
+        const pool = [
+            `${q(value!)} — you noticed that. Not just that it happened, but that it was worth writing down. That is a specific kind of aliveness that a lot of people lose over time. You have not lost it. Carry that into tomorrow.`,
+            `You found delight in ${q(value!)} today. That moment, in a day full of things you could have rushed past, landed on you. The fact that you felt it and named it means you are still paying attention to the good parts of being alive. Protect that.`,
+            `${q(value!)} — that cracked you open a little today. Good. Let it. That is what a life worth living feels like from the inside. You recognized it. That recognition is the whole thing.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (field === 'accomplishment') {
+        const pool = [
+            `${q(value!)} — that moved from undone to done today, and you are the one who moved it. Not time. Not circumstance. You. Feel the full weight of that before you sleep. You earned the rest.`,
+            `You got ${q(value!)} done today. The gap between where that stood this morning and where it stands tonight — you are that gap. You closed it. Let that sit with you.`,
+            `${q(value!)} happened because you made it happen. That is the story of today. Tomorrow will ask something different of you. But today you delivered. Sleep knowing that.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (field === 'learning') {
+        const pool = [
+            `${q(value!)} — you walked away from today knowing that. You did not know it this morning. You know it now. That is a real thing you built today, and no one can take it from you.`,
+            `You figured out ${q(value!)} today. From being inside your own life and paying close enough attention to notice it. That kind of knowing does not expire. You will carry it into tomorrow without even trying.`,
+            `${q(value!)} — that is what the day taught you. You were open enough to receive it. Most people miss that lesson because they are moving too fast. You were not moving too fast today.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    // gratitude anchor
+    const pool = [
+        `You ended this day grateful for ${q(value!)}. That specific thing was still with you at the close of a whole day. That means it mattered — not just in the morning, but all the way through. Let it carry you into sleep.`,
+        `${q(value!)} — that is what you are taking into tonight. There is something right about ending a day with your attention on the things worth holding. You did that. Rest well with it.`,
+        `You found ${q(value!)} worth naming at the end of a full day. That kind of noticing is how people stay close to what their life is actually made of. You stayed close today.`,
     ];
-
-    return templates[Math.floor(Math.random() * templates.length)];
+    return pool[seed % pool.length];
 };
 
 /**
@@ -978,22 +1003,92 @@ const getCategoryFromRequest = (request: AIAffirmationRequest): string => {
 };
 
 const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
-    const { gratitudes, affirmations, intention } = data;
-    const g = gratitudes.length > 0 ? gratitudes[0].trim().toLowerCase() : "what is already here";
-    const rawAffirmation = affirmations.length > 0 ? affirmations[0].trim() : "I have what it takes";
-    const a = rawAffirmation.charAt(0).toUpperCase() + rawAffirmation.slice(1).replace(/^i /i, 'I ');
-    const i = intention ? intention.trim().toLowerCase() : "moving forward";
+    const hasGratitude = data.gratitudes.some(g => g.trim());
+    const hasAffirmation = data.affirmations.some(a => a.trim());
+    const intention = data.intention?.trim();
 
-    const templates = [
-        `You were grateful for ${g} this morning, before the day had a chance to take over. That is not a small thing. A lot of people miss it. Take that awareness with you. It will matter more later than it does right now.`,
-        `You wrote "${a}" this morning and you meant it. That is the kind of thing that holds when the day gets difficult. Let that be the place you return to if you need it. The intention you set will find you.`,
-        `Something in you was grateful for ${g} this morning. You named that before anything else, which says something true about where you are right now. That kind of attention is the whole practice.`,
-        `You set an intention this morning: ${i}. Most people let the day decide for them. You did not. Go live it.`,
-        `Something in you noticed ${g} this morning. That kind of attention is not accidental. You wrote "${a}" and that is worth carrying into whatever this day becomes.`
+    const hashStr = `${intention ?? ''}|${data.gratitudes[0] ?? ''}|${data.affirmations[0] ?? ''}`;
+    const seed = hashStr.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0);
+
+    // Embed intention only when it reads naturally as a phrase (short, doesn't open with "I")
+    const canEmbed = intention && intention.length <= 50 && !/^i\b/i.test(intention);
+
+    if (intention && hasGratitude && hasAffirmation) {
+        const pool = canEmbed ? [
+            `Today is for ${intention}. You walked in with gratitude and you know what you're made of. That's real. Go make it count.`,
+            `You've got your intention, you've got gratitude, and you know who you are. Someone who starts like that goes into the day differently. Go.`,
+            `${intention} is what today is for. You showed up knowing that and knowing yourself. Go live that out.`,
+        ] : [
+            `You know what today is for, you know what you're grateful for, and you know what you're made of. That's a real morning. Go.`,
+            `You came in with gratitude, with belief in yourself, and with a clear intention. Go make it count.`,
+            `Not everyone starts their day like this. You did. Go show up for the rest of it.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (intention && hasGratitude) {
+        const pool = canEmbed ? [
+            `Today is for ${intention}. You've got gratitude behind you. Go.`,
+            `You know what you're grateful for and you know what today is for. Let those two things carry you.`,
+        ] : [
+            `You started with gratitude and you know what today is for. That's enough to build a whole day on. Go.`,
+            `Gratitude and a clear intention in the same morning. That's yours today. Go live it.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (intention && hasAffirmation) {
+        const pool = canEmbed ? [
+            `Today is for ${intention} and you already know you've got what it takes. Go get it.`,
+            `You know what today is for and you know who you are. Go use both.`,
+        ] : [
+            `You know what today is for and you know what you're capable of. That's enough. Go.`,
+            `Clear on your intention, clear on yourself. Go see what that combination looks like today.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (intention) {
+        const pool = canEmbed ? [
+            `Today is for ${intention}. You named that before the day had a chance to name itself. Hold it.`,
+            `${intention}. That's what you're walking toward today. Go.`,
+            `You decided what today is for before anything else got a vote. That's yours now. Go live it.`,
+        ] : [
+            `You named what today is for before anything else could. Hold onto that and go.`,
+            `You know what today is for. Most people never get that clear. You already are. Go.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (hasGratitude && hasAffirmation) {
+        const pool = [
+            `Gratitude and belief in yourself in the same morning. Not everyone starts there. Go build on it.`,
+            `You found something worth being grateful for and you know who you are. That's a strong way to start. Go.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (hasGratitude) {
+        const pool = [
+            `You started with gratitude. That means you're paying attention to what's real. Keep paying attention today.`,
+            `You found something worth being grateful for this morning. Let that tell you something about the day you're capable of having.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    if (hasAffirmation) {
+        const pool = [
+            `You know who you are. You said it out loud this morning before the day could say otherwise. Go live it.`,
+            `You showed up for yourself today. That's the first move. Keep moving.`,
+        ];
+        return pool[seed % pool.length];
+    }
+
+    const pool = [
+        `You showed up. That's the move. Go find out what today has for you.`,
+        `You're here doing this. That matters more than it sounds like it does. Go.`,
     ];
-
-    const msg = templates[Math.floor(Math.random() * templates.length)];
-    return msg.replace(/ +([.,;:!?])/g, '$1');
+    return pool[seed % pool.length];
 };
 
 const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals: number; totalGoals: number }): string => {
@@ -1013,7 +1108,7 @@ const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals:
  * Check if AI features are available
  */
 export const isAIAvailable = (): boolean => {
-    return !!GEMINI_API_KEY;
+    return !!ANTHROPIC_API_KEY;
 };
 
 export interface ReflectionAnalysis {
@@ -1483,3 +1578,238 @@ function countOccurrences(arr: number[]): Record<number, number> {
     arr.forEach(item => { counts[item] = (counts[item] || 0) + 1; });
     return counts;
 }
+
+// ─── Weekly Reflection Generator ─────────────────────────────────────────────
+
+export const generateWeeklyReflection = async (
+    accomplishments: string[],
+    firstName: string
+): Promise<string> => {
+    const fallback = buildWeeklyReflectionFallback(accomplishments, firstName);
+    if (!GEMINI_API_KEY || accomplishments.length === 0) return fallback;
+
+    const bulletList = accomplishments.map((a, i) => `${i + 1}. ${a}`).join('\n');
+
+    const prompt = `You are Palante, a personal growth companion. A user named ${firstName} just completed their week and logged these accomplishments:
+
+${bulletList}
+
+Write a warm, specific 2-3 sentence reflection that speaks directly to them. Reference 2-3 of their actual wins by paraphrasing them — don't list them, weave them into flowing sentences. End with a short forward-leaning sentence that propels them into the next week (something like "Keep going." or "That's someone keeping their word to themselves.").
+
+Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max 60 words.`;
+
+    try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.88, maxOutputTokens: 120, topP: 0.95 }
+            })
+        });
+        if (!response.ok) return fallback;
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        return text || fallback;
+    } catch {
+        return fallback;
+    }
+};
+
+const buildWeeklyReflectionFallback = (accomplishments: string[], _firstName: string): string => {
+    if (accomplishments.length === 0) return "You showed up this week. That's the whole game.";
+    if (accomplishments.length === 1) return `You got it done — ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. One win is enough to build on. Keep going.`;
+    return `You held your ground this week, took care of what needed taking care of, and kept moving. Every one of these wins is evidence of someone who follows through. Keep going.`;
+};
+
+// ─── Day 90 Growth Story ──────────────────────────────────────────────────────
+
+export interface GrowthStoryData {
+    morningPractices: Array<{ date: string; gratitudes: string[]; dailyIntention?: string }>;
+    eveningPractices: Array<{ date: string; delight: string; accomplishment: string; learning: string }>;
+    futureLetter?: string; // Content of the Day 3 letter to self
+    totalPractices: number;
+    firstName: string;
+    coachTone?: 'nurturing' | 'direct' | 'accountability';
+    startDate?: string; // ISO date of first practice
+}
+
+export interface GrowthStory {
+    memoir: string; // 5-7 sentence AI-generated narrative
+    stats: { gratitudesWritten: number; eveningsReflected: number; totalPractices: number };
+}
+
+const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
+    const { morningPractices, eveningPractices, futureLetter, totalPractices, firstName } = data;
+
+    const firstIntention = morningPractices[0]?.dailyIntention?.trim();
+    const lastIntention = morningPractices[morningPractices.length - 1]?.dailyIntention?.trim();
+    const firstGratitude = morningPractices[0]?.gratitudes?.find(g => g.trim())?.trim();
+    const bestDelight = eveningPractices
+        .map(e => e.delight?.trim())
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)[0];
+    const bestAccomplishment = eveningPractices
+        .map(e => e.accomplishment?.trim())
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)[0];
+    const gratitudeCount = morningPractices.reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
+
+    const lines: string[] = [];
+
+    if (firstIntention) {
+        lines.push(`${firstName}, you walked in with "${firstIntention}." That was the first thing you named for yourself, and everything that came after grew from that seed.`);
+    } else {
+        lines.push(`${firstName}, you showed up 90 times when it would have been easier not to. That is the whole story, really — but it deserves to be told properly.`);
+    }
+
+    if (firstGratitude) {
+        lines.push(`You found ${firstGratitude} worth naming out loud — and you kept finding things. Over and over, you chose to look at what was good.`);
+    }
+
+    if (gratitudeCount > 0) {
+        lines.push(`In ${totalPractices} practices, you wrote ${gratitudeCount} moments of gratitude. That is ${gratitudeCount} times you consciously chose to see what was working instead of what wasn't.`);
+    }
+
+    if (bestDelight) {
+        lines.push(`And there were real delights along the way — like "${bestDelight}." You noticed those. You let them land. That is not small.`);
+    }
+
+    if (bestAccomplishment) {
+        lines.push(`You moved real things. "${bestAccomplishment}" is one of them. The gap between where that stood before and where it stands now — you are that gap.`);
+    }
+
+    if (futureLetter) {
+        lines.push(`At the beginning, you wrote yourself a letter for a hard day. Today is not that day. Today is the day your past self was hoping for when they wrote it.`);
+    }
+
+    if (lastIntention && lastIntention !== firstIntention) {
+        lines.push(`Ninety practices later, you are setting intentions like "${lastIntention}." That is not who walked in. That is who you built.`);
+    } else {
+        lines.push(`Ninety practices. The garden is not a metaphor anymore. It is the life you have been building, one morning at a time. Pa'lante.`);
+    }
+
+    return lines.join(' ');
+};
+
+/**
+ * Generates the Day 90 Growth Story — a personal memoir synthesized from
+ * the user's actual intentions, gratitudes, evening reflections, and letter to self.
+ */
+export const generateGrowthStory = async (data: GrowthStoryData): Promise<GrowthStory> => {
+    const { morningPractices, eveningPractices, futureLetter, totalPractices, firstName, coachTone = 'nurturing' } = data;
+
+    const gratitudeCount = morningPractices.reduce(
+        (n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0
+    );
+    const stats = {
+        gratitudesWritten: gratitudeCount,
+        eveningsReflected: eveningPractices.length,
+        totalPractices,
+    };
+
+    const fallbackMemoir = buildGrowthStoryFallback(data);
+    if (!ANTHROPIC_API_KEY) return { memoir: fallbackMemoir, stats };
+
+    // Build a curated data snapshot — first 3 + last 3 morning practices
+    const all = morningPractices;
+    const earliest = all.slice(0, 3);
+    const latest = all.slice(-3);
+    const highlights = [
+        ...earliest.map(p => ({
+            phase: 'early',
+            intention: p.dailyIntention,
+            gratitudes: p.gratitudes?.filter(g => g.trim()).slice(0, 2),
+        })),
+        ...latest.map(p => ({
+            phase: 'recent',
+            intention: p.dailyIntention,
+            gratitudes: p.gratitudes?.filter(g => g.trim()).slice(0, 2),
+        })),
+    ];
+
+    const eveningHighlights = [...eveningPractices]
+        .sort((a, b) =>
+            (b.delight?.length || 0) + (b.accomplishment?.length || 0) -
+            (a.delight?.length || 0) - (a.accomplishment?.length || 0)
+        )
+        .slice(0, 5)
+        .map(e => ({ delight: e.delight, accomplishment: e.accomplishment, learning: e.learning }));
+
+    const toneGuidance: Record<string, string> = {
+        nurturing: 'Warm, intimate, and literary. Like someone who has been quietly watching and deeply cares.',
+        direct: 'Clear-eyed and honest. You name what changed without embellishment. Every word earns its place.',
+        accountability: 'High-standard and proud. You name what they built with the full weight of what that took.',
+    };
+
+    const prompt = `You are writing a personal memoir for someone who just completed 90 days of a growth practice called Palante. This will be the first thing they read after their Full Bloom ceremony. It should feel like reading a short story about themselves — specific, earned, true.
+
+THEIR JOURNEY DATA:
+
+Early practices (how they started):
+${highlights.filter(h => h.phase === 'early').map(h =>
+    [h.intention && `Intention: "${h.intention}"`, h.gratitudes?.length && `Grateful for: ${h.gratitudes.join(', ')}`].filter(Boolean).join(' | ')
+).join('\n') || 'No early practice data.'}
+
+Recent practices (who they are now):
+${highlights.filter(h => h.phase === 'recent').map(h =>
+    [h.intention && `Intention: "${h.intention}"`, h.gratitudes?.length && `Grateful for: ${h.gratitudes.join(', ')}`].filter(Boolean).join(' | ')
+).join('\n') || 'No recent practice data.'}
+
+Top evening moments (delights and accomplishments they lived):
+${eveningHighlights.map(e =>
+    [e.delight && `Delight: "${e.delight}"`, e.accomplishment && `Accomplished: "${e.accomplishment}"`, e.learning && `Learned: "${e.learning}"`].filter(Boolean).join(' | ')
+).join('\n') || 'No evening reflection data.'}
+
+${futureLetter ? `Letter they wrote to themselves at the beginning:\n"${futureLetter.slice(0, 400)}${futureLetter.length > 400 ? '...' : ''}"` : ''}
+
+Total: ${totalPractices} practices, ${gratitudeCount} gratitudes written, ${eveningPractices.length} evenings reflected.
+Name: ${firstName}
+
+WRITING DIRECTIVE:
+${toneGuidance[coachTone]}
+
+Write a memoir of 5 to 7 sentences. Rules:
+1. Open with their name, then anchor in a real detail from the data (an intention they set, something they were grateful for, or a delight they named). If no real details exist, open with the weight of 90 practices.
+2. Show the arc: who they were at the start versus who they are now. Make the change specific and earned.
+3. Quote their actual words from the data — at least 1-2 quoted phrases. These are the moments that make it feel like their story, not anyone's story.
+4. If a letter exists, reference it: they wrote something to themselves then, and this is that day arriving.
+5. End with one sentence that looks forward without pressure — it should feel like a completion, not a launchpad.
+6. Speak directly to them ("you", "your"). Never write in third person.
+7. No em dashes. No bullet points. No headers. One flowing paragraph.
+8. Never use these words: journey, intentional, mindful, tapestry, weave, tether, manifested, sovereignty, transformational, incredible.
+9. HARD LIMIT: Under 150 words total.
+
+Write the memoir now — no quotation marks around the whole thing, no preamble:`;
+
+    try {
+        const response = await fetch(ANTHROPIC_API_URL, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+            },
+            body: JSON.stringify({
+                model: ANTHROPIC_MODEL,
+                max_tokens: 400,
+                temperature: 0.9,
+                messages: [{ role: 'user', content: prompt }],
+            }),
+        });
+
+        if (!response.ok) return { memoir: fallbackMemoir, stats };
+
+        const json = await response.json();
+        let memoir = json.content?.[0]?.text?.trim();
+        if (!memoir) return { memoir: fallbackMemoir, stats };
+
+        // Strip wrapping quotes if model added them
+        memoir = memoir.replace(/^["'']|["'']$/g, '').trim();
+
+        return { memoir, stats };
+    } catch {
+        return { memoir: fallbackMemoir, stats };
+    }
+};

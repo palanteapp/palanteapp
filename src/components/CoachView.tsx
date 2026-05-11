@@ -420,27 +420,32 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 position: 'fixed',
             }}
         >
-            {/* ── Background depth — matches app visual language ── */}
+            {/* ── Background depth — matches home page visual language exactly ── */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 {/* Central luminosity bloom */}
                 <div className="absolute inset-0" style={{
-                    background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.38) 0%, transparent 62%)',
+                    background: 'radial-gradient(ellipse 75% 55% at 50% 28%, rgba(105,145,90,0.45) 0%, transparent 62%)',
                 }} />
                 {/* Edge vignette */}
                 <div className="absolute inset-0" style={{
-                    background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.50) 100%)',
+                    background: 'radial-gradient(ellipse 120% 120% at 50% 50%, transparent 38%, rgba(18,32,16,0.55) 100%)',
                 }} />
                 {/* Bottom terracotta warmth */}
                 <div className="absolute bottom-0 inset-x-0" style={{
                     height: '40%',
                     background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.13) 0%, transparent 70%)',
                 }} />
-                {/* Bold structural arcs — upper corners */}
+                {/* Seed of Life — matches home page sacred geometry exactly */}
                 <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
-                    <circle cx="480" cy="-30" r="310" fill="none" stroke="#2A4A2A" strokeWidth="65" opacity="0.45" />
-                    <circle cx="480" cy="-30" r="228" fill="none" stroke="#E5D6A7" strokeWidth="1.2" opacity="0.18" strokeDasharray="6 10" />
-                    <circle cx="-90" cy="-30" r="320" fill="none" stroke="#1E3820" strokeWidth="60" opacity="0.40" />
-                    <circle cx="-90" cy="-30" r="238" fill="none" stroke="#C96A3A" strokeWidth="1.2" opacity="0.16" strokeDasharray="5 9" />
+                    <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
+                        <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+                        <circle cx="343" cy="413" r="148" />
+                        <circle cx="269" cy="541" r="148" />
+                        <circle cx="121" cy="541" r="148" />
+                        <circle cx="47"  cy="413" r="148" />
+                        <circle cx="121" cy="285" r="148" />
+                        <circle cx="269" cy="285" r="148" />
+                    </g>
                 </svg>
             </div>
 

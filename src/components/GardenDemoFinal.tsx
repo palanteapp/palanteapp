@@ -159,9 +159,10 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
   const centerEarned = completedDays >= 1;
   const earnedPetals = Math.min(completedDays - 1, 89); // how many of the 89 ring petals are earned
 
+  // gradient center ~44% aligns with mandala center (167/380)
   const bg = isDarkMode
-    ? 'linear-gradient(145deg, #252B1C 0%, #1C2116 60%, #22200E 100%)'
-    : 'linear-gradient(145deg, #E8DDD0 0%, #DCCFBA 55%, #D2DACC 100%)';
+    ? 'radial-gradient(ellipse at 50% 44%, #2A1508 0%, #1C2D1E 58%, #142018 100%)'
+    : 'radial-gradient(ellipse at 50% 44%, #EDD9BC 0%, #C6D1C3 58%, #B8CAB8 100%)';
 
   // Progress label
   let ringLabel = 'Full bloom';
@@ -174,7 +175,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
   // Flower of Life circles — same coordinate space as the mandala (center at CX, CY)
   // r = lattice constant = circle radius → each circle passes through its 6 neighbours' centers
   // bound = 90 = mandala outer ring radius → FoL bounding circle matches mandala edge exactly
-  const FOL_R = 32;
+  const FOL_R = 29;  // reduced 10% from 32
   const FOL_BOUND = 90;
   const folA2y = FOL_R * (Math.sqrt(3) / 2);
   const folCircles: { x: number; y: number }[] = [];
@@ -188,7 +189,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
     }
   }
   const folStroke = isDarkMode ? G : S;
-  const folOp = isDarkMode ? 0.10 : 0.08;
+  const folOp = isDarkMode ? 0.06 : 0.05;
 
   return (
     <div
@@ -204,18 +205,17 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
           : '0 12px 40px rgba(65,93,67,0.16)',
       }}
     >
-      {/* Ambient center glow — aligned to mandala center (~43% from top of 380px card) */}
+      {/* Ambient center glow — aligned to mandala center (~44% from top of 380px card) */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: isDarkMode
-          ? 'radial-gradient(ellipse 70% 60% at 50% 43%, rgba(201,106,58,0.20) 0%, transparent 68%)'
-          : 'radial-gradient(ellipse 70% 60% at 50% 43%, rgba(201,106,58,0.13) 0%, transparent 68%)',
+          ? 'radial-gradient(ellipse 70% 60% at 50% 44%, rgba(201,106,58,0.20) 0%, transparent 68%)'
+          : 'radial-gradient(ellipse 70% 60% at 50% 44%, rgba(201,106,58,0.13) 0%, transparent 68%)',
       }} />
 
-      {/* Mandala SVG — centered between card top and pill */}
-      {/* Pill top = 326px from card top; container centered in that 326px = 18px margin each side */}
+      {/* Mandala SVG — outer ring centered between card top and streak pill */}
       <div style={{
-        position: 'absolute', top: 18, left: 0, right: 0, bottom: 72,
+        position: 'absolute', top: 23, left: 0, right: 0, bottom: 69,
       }}>
         <svg
           width="100%" height="100%"
@@ -237,9 +237,9 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
 
           {/* ── Flower of Life background ──────────────────── */}
           <g stroke={folStroke} fill="none" opacity={folOp}>
-            <circle cx={CX} cy={CY} r={FOL_BOUND} strokeWidth="0.9" />
+            <circle cx={CX} cy={CY} r={FOL_BOUND} strokeWidth="0.7" />
             {folCircles.map((c, i) => (
-              <circle key={i} cx={c.x} cy={c.y} r={FOL_R} strokeWidth="0.55" />
+              <circle key={i} cx={c.x} cy={c.y} r={FOL_R} strokeWidth="0.4" />
             ))}
           </g>
 

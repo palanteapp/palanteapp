@@ -172,9 +172,9 @@ export const StackRunner: React.FC<StackRunnerProps> = ({
                 {currentStep.type === 'quote' && (
                     <div className="flex flex-col items-center justify-center p-8 text-center animate-fade-in min-h-[400px]">
                         <p className="text-2xl md:text-3xl font-serif italic mb-6 leading-relaxed">
-                            "The only way to do great work is to love what you do."
+                            "Between stimulus and response there is a space. In that space is our power to choose our response."
                         </p>
-                        <p className="text-sm opacity-60 tracking-widest uppercase">— Steve Jobs</p>
+                        <p className="text-sm opacity-60 tracking-widest uppercase">— Viktor Frankl</p>
 
                         <button
                             onClick={handleStepComplete}
