@@ -621,7 +621,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <button
                                 onClick={() => setShowHelp(!showHelp)}
                                 aria-label="Show help"
-                                className="p-1.5 rounded-full hover:bg-white/10 text-white/30 hover:text-white transition-all duration-300"
+                                className="p-1.5 rounded-full hover:bg-white/10 text-white hover:text-white transition-all duration-300"
                                 title="Show Help"
                             >
                                 <HelpCircle size={14} />
@@ -633,7 +633,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                     <div key={i} className={`w-0.5 h-2 rounded-full transition-all duration-500 ${activeSounds.size > 0 ? 'bg-green-400/80 animate-pulse' : 'bg-white/10'}`} style={{ animationDelay: `${i * 0.2}s` }} />
                                 ))}
                             </div>
-                            <p className="text-[8px] md:text-[10px] text-white/40 uppercase tracking-[0.2em] font-bold">
+                            <p className="text-xs md:text-xs text-white uppercase tracking-[0.2em] font-bold">
                                 {activeSounds.size > 0 ? `${activeSounds.size} ACTIVE` : 'READY'}
                             </p>
                         </div>
@@ -643,7 +643,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         {source === 'meditation' && (
                             <button
                                 onClick={onClose}
-                                className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-[0.1em] transition-all bg-white/10 text-white border border-white/10`}
+                                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-[0.1em] transition-all bg-white/10 text-white border border-white/10`}
                             >
                                 Back
                             </button>
@@ -651,7 +651,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         <button
                             onClick={onClose}
                             aria-label="Close"
-                            className="p-2.5 rounded-xl bg-white/5 text-white/40"
+                            className="p-2.5 rounded-xl bg-white/5 text-white"
                         >
                             <X size={18} />
                         </button>
@@ -662,18 +662,18 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                 <div className="flex bg-sage/40 rounded-2xl p-1 border border-white/10 items-center shadow-inner w-full md:w-auto overflow-x-auto no-scrollbar">
                     <button
                         onClick={() => setView('mixer')}
-                        className={`flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] transition-all duration-500 relative overflow-hidden ${view === 'mixer'
+                        className={`flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 rounded-xl text-xs md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] transition-all duration-500 relative overflow-hidden ${view === 'mixer'
                             ? 'bg-white text-sage shadow-[0_4px_15px_rgba(255,255,255,0.2)]'
-                            : 'text-white/40 hover:text-white hover:bg-white/5'
+                            : 'text-white hover:text-white hover:bg-white/5'
                             }`}
                     >
                         Mixer
                     </button>
                     <button
                         onClick={() => setView('library')}
-                        className={`flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] transition-all duration-500 flex items-center justify-center gap-2 relative overflow-hidden ${view === 'library'
+                        className={`flex-1 md:flex-none px-4 md:px-8 py-2 md:py-2.5 rounded-xl text-xs md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] transition-all duration-500 flex items-center justify-center gap-2 relative overflow-hidden ${view === 'library'
                             ? 'bg-white text-sage shadow-[0_4px_15px_rgba(255,255,255,0.2)]'
-                            : 'text-white/40 hover:text-white hover:bg-white/5'
+                            : 'text-white hover:text-white hover:bg-white/5'
                             }`}
                     >
                         Library
@@ -685,7 +685,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                 haptics.medium();
                                 stopAll();
                             }}
-                            className="px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] text-white/60 hover:text-white transition-all"
+                            className="px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs md:text-xs font-bold uppercase tracking-[0.1em] md:tracking-[0.15em] text-white hover:text-white transition-all"
                         >
                             Stop
                         </button>
@@ -696,7 +696,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                     {source === 'meditation' && (
                         <button
                             onClick={onClose}
-                            className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-[0.15em] transition-all bg-white/10 text-white hover:bg-white/20 border border-white/10`}
+                            className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-[0.15em] transition-all bg-white/10 text-white hover:bg-white/20 border border-white/10`}
                         >
                             Back to Meditation
                         </button>
@@ -704,7 +704,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                     <button
                         onClick={onClose}
                         aria-label="Close"
-                        className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white/40 hover:text-white transition-all duration-300"
+                        className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white hover:text-white transition-all duration-300"
                     >
                         <X size={20} />
                     </button>
@@ -721,7 +721,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                 localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true');
                             }}
                             aria-label="Close help"
-                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white hover:text-white transition-colors"
                         >
                             <X size={20} />
                         </button>
@@ -730,7 +730,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="p-3 rounded-full bg-pale-gold/20">
                                 <Info size={24} className="text-pale-gold" />
                             </div>
-                            <h3 className="text-2xl font-display font-medium text-white">How to Use Soundscape Mixer</h3>
+                            <h3 className="text-3xl font-display font-medium text-white">How to Use Soundscape Mixer</h3>
                         </div>
 
                         <div className="space-y-4 text-white/90">
@@ -805,7 +805,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                         <div className="flex-1 h-px bg-white/5" />
                                         <div className="flex items-center gap-2">
                                             <Sparkles size={12} className="text-pale-gold/60" />
-                                            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/80 text-center">Instant Atmospheres</span>
+                                            <span className="text-sm font-bold uppercase tracking-[0.3em] text-white/80 text-center">Instant Atmospheres</span>
                                         </div>
                                         <div className="flex-1 h-px bg-white/5" />
                                     </div>
@@ -819,7 +819,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                 >
                                                     <div className="absolute inset-0 bg-gradient-to-br from-amber/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                                                     <div className="relative z-10">
-                                                        <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-pale-gold mb-3 opacity-60">Personal Mix</div>
+                                                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-pale-gold mb-3 opacity-60">Personal Mix</div>
                                                         <div className="font-display font-medium text-2xl leading-tight text-white mb-1">{mix.name}</div>
                                                     </div>
                                                 </button>
@@ -829,7 +829,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                         if (onDeleteMix) onDeleteMix(mix.id);
                                                     }}
                                                     aria-label={`Delete ${mix.name}`}
-                                                    className="absolute top-6 right-6 z-20 p-2.5 rounded-2xl bg-sage/40 hover:bg-red-500/40 text-white/20 hover:text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md border border-white/5"
+                                                    className="absolute top-6 right-6 z-20 p-2.5 rounded-2xl bg-sage/40 hover:bg-red-500/40 text-white hover:text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md border border-white/5"
                                                 >
                                                     <X size={12} />
                                                 </button>
@@ -853,10 +853,10 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                             onClick={() => setView('library')}
                                             className="group relative h-40 md:h-48 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden border border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-700 flex flex-col items-center justify-center gap-3 md:gap-4"
                                         >
-                                            <div className="p-4 md:p-5 rounded-full bg-white/5 group-hover:bg-white/10 group-hover:scale-110 transition-all duration-500 text-white/20 group-hover:text-white">
+                                            <div className="p-4 md:p-5 rounded-full bg-white/5 group-hover:bg-white/10 group-hover:scale-110 transition-all duration-500 text-white group-hover:text-white">
                                                 <Plus size={26} strokeWidth={1} />
                                             </div>
-                                            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/75 group-hover:text-white transition-colors text-center">Custom Build</span>
+                                            <span className="text-sm font-bold uppercase tracking-[0.3em] text-white/75 group-hover:text-white transition-colors text-center">Custom Build</span>
                                         </button>
                                     </div>
                                 </div>
@@ -866,8 +866,8 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                     <div className="flex items-center gap-4 mb-8">
                                         <div className="flex-1 h-px bg-white/5" />
                                         <div className="flex items-center gap-2">
-                                            <Radio size={12} className="text-white/30" />
-                                            <span className="text-xs font-bold uppercase tracking-[0.3em] text-white/80">Explore Your Sounds</span>
+                                            <Radio size={12} className="text-white" />
+                                            <span className="text-sm font-bold uppercase tracking-[0.3em] text-white/80">Explore Your Sounds</span>
                                         </div>
                                         <div className="flex-1 h-px bg-white/5" />
                                     </div>
@@ -875,7 +875,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                     <div className="flex justify-center gap-3 mb-16">
                                         <button 
                                             onClick={() => { haptics.light(); setShowHelp(true); }}
-                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
+                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
                                         >
                                             How to Use
                                         </button>
@@ -884,7 +884,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                 haptics.light(); 
                                                 setShowSciencePopup(true); 
                                             }}
-                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
+                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
                                         >
                                             The Science
                                         </button>
@@ -903,10 +903,10 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                     }}
                                                     className="group flex flex-col items-center gap-4 md:gap-6 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-sage/20 border border-white/5 hover:bg-white/5 hover:border-white/10 hover:scale-[1.05] active:scale-95 transition-all duration-500 shadow-xl"
                                                 >
-                                                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-white/5 group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 text-white/65 group-hover:text-white">
+                                                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-white/5 group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 text-white group-hover:text-white">
                                                         <Icon size={26} strokeWidth={1} />
                                                     </div>
-                                                    <span className="text-xs font-bold uppercase tracking-[0.2em] md:tracking-[0.25em] text-white/75 group-hover:text-white transition-all">{cat}</span>
+                                                    <span className="text-sm font-bold uppercase tracking-[0.2em] md:tracking-[0.25em] text-white/75 group-hover:text-white transition-all">{cat}</span>
                                                 </button>
                                             );
                                         })}
@@ -984,10 +984,10 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
                                     {/* Label & Level */}
                                     <div className="mt-3 md:mt-8 text-center select-none relative z-10 w-full px-1">
-                                        <div className="font-display font-medium text-[8px] md:text-[12px] uppercase tracking-[0.1em] text-white/90 truncate">{sound.label}</div>
+                                        <div className="font-display font-medium text-xs md:text-[12px] uppercase tracking-[0.1em] text-white/90 truncate">{sound.label}</div>
                                         <div className="flex items-center justify-center gap-1 mt-1 md:mt-2">
                                             <div className="w-0.5 h-0.5 md:w-1 md:h-1 rounded-full bg-green-400" />
-                                            <div className="text-[8px] md:text-[10px] text-white/50 font-mono">{Math.round((volumes[sound.id] ?? 0) * 100)}%</div>
+                                            <div className="text-xs md:text-xs text-white font-mono">{Math.round((volumes[sound.id] ?? 0) * 100)}%</div>
                                         </div>
                                     </div>
 
@@ -995,7 +995,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                     <button
                                         onClick={() => toggleSound(sound.id)}
                                         aria-label={`Remove ${sound.label}`}
-                                        className="mt-6 p-2 rounded-full bg-white/5 text-white/40 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 border border-transparent transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
+                                        className="mt-6 p-2 rounded-full bg-white/5 text-white hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 border border-transparent transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
                                     >
                                         <X size={16} />
                                     </button>
@@ -1011,7 +1011,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         <div className="max-w-4xl mx-auto space-y-12">
                             {categories.map(cat => (
                                 <div key={cat} id={`category-${cat}`} className="scroll-mt-24">
-                                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-6 sticky top-0 py-4 z-10 backdrop-blur-xl border-b border-white/10 font-display">{cat}</h3>
+                                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-6 sticky top-0 py-4 z-10 backdrop-blur-xl border-b border-white/10 font-display">{cat}</h3>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                         {SOUNDS.filter(s => s.category === cat).map(sound => {
                                             const isActive = activeSounds.has(sound.id);
@@ -1032,7 +1032,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                     ></button>
 
                                                     <div className="flex items-start justify-between mb-6 pointer-events-none">
-                                                        <div className={`p-3.5 rounded-2xl transition-all duration-500 ${isActive ? 'bg-sage/10 text-sage' : 'bg-white/5 text-white/40 group-hover:bg-white/10 group-hover:text-white'}`}>
+                                                        <div className={`p-3.5 rounded-2xl transition-all duration-500 ${isActive ? 'bg-sage/10 text-sage' : 'bg-white/5 text-white group-hover:bg-white/10 group-hover:text-white'}`}>
                                                             <sound.icon size={22} strokeWidth={1.2} />
                                                         </div>
                                                         {isActive && (
@@ -1048,7 +1048,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                         <h4 className={`font-display font-medium text-lg tracking-tight mb-1 transition-all duration-500 ${isActive ? 'text-sage' : 'text-white/90 group-hover:text-white'}`}>{sound.label}</h4>
                                                         <div className="flex items-center gap-2">
                                                             <div className={`w-1 h-1 rounded-full ${isActive ? 'bg-sage/40' : 'bg-white/20'}`} />
-                                                            <p className={`text-[9px] font-bold uppercase tracking-[0.2em] opacity-40 transition-all duration-500 ${isActive ? 'text-sage' : 'text-white'}`}>{sound.category}</p>
+                                                            <p className={`text-xs font-bold uppercase tracking-[0.2em] opacity-40 transition-all duration-500 ${isActive ? 'text-sage' : 'text-white'}`}>{sound.category}</p>
                                                         </div>
                                                     </div>
 
@@ -1086,7 +1086,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                 </button>
                                 <button
                                     onClick={() => setIsSavingMix(false)}
-                                    className="p-3 rounded-xl hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                                    className="p-3 rounded-xl hover:bg-white/10 text-white hover:text-white transition-colors"
                                 >
                                     Cancel
                                 </button>
@@ -1110,8 +1110,8 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
                                 <Music size={32} className="text-pale-gold" />
                             </div>
-                            <h3 className="text-2xl font-display font-medium mb-2">Sonic Canvas</h3>
-                            <p className="text-sm text-white/40 uppercase tracking-widest font-bold">Mixing Your Environment</p>
+                            <h3 className="text-3xl font-display font-medium mb-2">Sonic Canvas</h3>
+                            <p className="text-sm text-white uppercase tracking-widest font-bold">Mixing Your Environment</p>
                         </div>
                         <div className="space-y-4 mb-8 text-sm text-white/70 leading-relaxed font-body">
                             <p>Welcome to your personal soundscape atelier. Here you can layer nature, frequencies, and ambient textures.</p>
@@ -1136,21 +1136,21 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
                                 <Zap size={32} className="text-pale-gold" />
                             </div>
-                            <h3 className="text-2xl font-display font-medium mb-2">Audio Biohacking</h3>
-                            <p className="text-sm text-white/40 uppercase tracking-widest font-bold">Why it works</p>
+                            <h3 className="text-3xl font-display font-medium mb-2">Audio Biohacking</h3>
+                            <p className="text-sm text-white uppercase tracking-widest font-bold">Why it works</p>
                         </div>
                         <div className="space-y-6 mb-8 text-sm text-white/70 leading-relaxed font-body">
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Binaural Beats</h4>
-                                <p className="text-xs opacity-70">By playing slightly different frequencies in each ear, we encourage 'brainwave entrainment' — naturally shifting your mind into Alpha (focus) or Theta (meditation).</p>
+                                <p className="text-sm opacity-70">By playing slightly different frequencies in each ear, we encourage 'brainwave entrainment' — naturally shifting your mind into Alpha (focus) or Theta (meditation).</p>
                             </div>
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Pink & Brown Noise</h4>
-                                <p className="text-xs opacity-70">These tailored noise profiles mask distracting sharp sounds while providing a 'constant' that reduces cognitive load, allowing for sustained flow states.</p>
+                                <p className="text-sm opacity-70">These tailored noise profiles mask distracting sharp sounds while providing a 'constant' that reduces cognitive load, allowing for sustained flow states.</p>
                             </div>
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Environmental Priming</h4>
-                                <p className="text-xs opacity-70">Nature sounds trigger parasympathetic activation (rest-and-digest), lowering cortisol and helping you feel safe and grounded during deep work.</p>
+                                <p className="text-sm opacity-70">Nature sounds trigger parasympathetic activation (rest-and-digest), lowering cortisol and helping you feel safe and grounded during deep work.</p>
                             </div>
                         </div>
                         <button

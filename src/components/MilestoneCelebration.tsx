@@ -59,7 +59,7 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
                     onClick={onClose}
                     className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors z-20"
                 >
-                    <X size={20} className="text-white/60" />
+                    <X size={20} className="text-white" />
                 </button>
 
                 {/* VISUAL SHARE CARD - This part is captured */}
@@ -75,12 +75,12 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
                     </div>
 
                     {/* Title */}
-                    <h2 className="text-3xl font-display font-bold text-white mb-2 leading-tight">
+                    <h2 className="text-4xl font-display font-bold text-white mb-2 leading-tight">
                         {finalDetails.title}
                     </h2>
 
                     {/* Milestone Type Tag */}
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-pale-gold/60 mb-8">
+                    <div className="text-xs font-black uppercase tracking-[0.3em] text-pale-gold/60 mb-8">
                         Palante Milestone
                     </div>
 
@@ -90,8 +90,8 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
                             {displayDays}
                         </span>
                         <div className="text-left">
-                            <div className="text-sm font-bold text-white uppercase tracking-widest">{finalDetails.label}</div>
-                            <div className="text-[10px] text-white/40 uppercase tracking-widest">Achieved</div>
+                            <div className="text-base font-bold text-white uppercase tracking-widest">{finalDetails.label}</div>
+                            <div className="text-xs text-white uppercase tracking-widest">Achieved</div>
                         </div>
                     </div>
 
@@ -103,9 +103,9 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
                     {/* App Logo/Branding for the share card */}
                     <div className="mt-8 flex items-center justify-center gap-2 opacity-40">
                          <div className="w-6 h-6 rounded-full bg-pale-gold flex items-center justify-center">
-                            <span className="text-[10px] font-black text-sage-dark">P</span>
+                            <span className="text-xs font-black text-sage-dark">P</span>
                          </div>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-white">Palante</span>
+                         <span className="text-xs font-black uppercase tracking-widest text-white">Palante</span>
                     </div>
                 </div>
 

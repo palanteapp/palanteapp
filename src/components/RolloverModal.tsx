@@ -37,7 +37,7 @@ export const RolloverModal: React.FC<RolloverModalProps> = ({
 
     const bgClass = isDarkMode ? 'bg-zinc-900 border-white/10' : 'bg-ivory border-sage/20';
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/20 backdrop-blur-sm animate-fade-in">
@@ -101,7 +101,7 @@ export const RolloverModal: React.FC<RolloverModalProps> = ({
 
                     <button
                         onClick={onClearAll}
-                        className={`w-full py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 ${isDarkMode ? 'text-white/40 hover:text-red-400 hover:bg-red-500/10' : 'text-sage-dark/40 hover:text-red-600 hover:bg-red-500/10'
+                        className={`w-full py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 ${isDarkMode ? 'text-white hover:text-red-400 hover:bg-red-500/10' : 'text-sage-dark/40 hover:text-red-600 hover:bg-red-500/10'
                             }`}
                     >
                         <Trash2 size={16} />

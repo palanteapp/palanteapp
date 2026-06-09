@@ -47,8 +47,19 @@ export const useTimeOfDay = (): TimeContext => {
     // Morning Mode: Show on first app open before noon
     const shouldShowMorningMode = isMorning && !sessionStorage.getItem(SESSION_KEYS.MORNING_MODE_SHOWN);
 
+    // Dev-only override: when localStorage `_dev_unlock_evening === '1'`, evening mode is always on.
+    // This lets a developer access the evening practice at any hour for testing without waiting for 8 PM.
+    // To enable, open the app in Safari Web Inspector and run:
+    //     localStorage.setItem('_dev_unlock_evening', '1')
+    // To disable: localStorage.removeItem('_dev_unlock_evening')
+    // Safe in production: defaults to off; no UI surface exposes it.
+    const devUnlockEvening =
+        typeof window !== 'undefined' &&
+        typeof window.localStorage !== 'undefined' &&
+        window.localStorage.getItem('_dev_unlock_evening') === '1';
+
     // Evening Mode: Show after 8 PM (20:00) per user feedback
-    const shouldShowEveningMode = hour >= 20;
+    const shouldShowEveningMode = hour >= 20 || devUnlockEvening;
 
     return {
         timeOfDay,

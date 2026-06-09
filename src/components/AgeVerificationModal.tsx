@@ -94,7 +94,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                             <h2 className={`text-2xl font-display font-bold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                 Age Verification
                             </h2>
-                            <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                 Required for AI features
                             </p>
                         </div>
@@ -103,7 +103,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                         onClick={onClose}
                         className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
                     >
-                        <X size={20} className={isDarkMode ? 'text-white/60' : 'text-sage-dark/60'} />
+                        <X size={20} className={isDarkMode ? 'text-white' : 'text-sage-dark/60'} />
                     </button>
                 </div>
 
@@ -125,7 +125,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                         <select
                             value={birthMonth}
                             onChange={(e) => setBirthMonth(e.target.value)}
-                            className={`w-full px-4 py-3 rounded-xl border transition-colors ${isDarkMode
+                            className={`w-full px-5 py-3 rounded-xl border transition-colors ${isDarkMode
                                     ? 'bg-white/5 border-white/10 text-white focus:border-pale-gold'
                                     : 'bg-white border-sage/20 text-sage-dark focus:border-sage'
                                 }`}
@@ -145,7 +145,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                         <select
                             value={birthYear}
                             onChange={(e) => setBirthYear(e.target.value)}
-                            className={`w-full px-4 py-3 rounded-xl border transition-colors ${isDarkMode
+                            className={`w-full px-5 py-3 rounded-xl border transition-colors ${isDarkMode
                                     ? 'bg-white/5 border-white/10 text-white focus:border-pale-gold'
                                     : 'bg-white border-sage/20 text-sage-dark focus:border-sage'
                                 }`}
@@ -168,7 +168,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
 
                 {/* Privacy Note */}
                 <div className={`p-3 rounded-lg mb-6 ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`}>
-                    <p className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                    <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                         🔒 Your age information is stored securely and never shared with third parties.
                         We only use it to ensure age-appropriate features.
                     </p>

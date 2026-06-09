@@ -36,7 +36,7 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
         return {
             bg: isDarkMode ? 'bg-warm-gray-green/10' : 'bg-white/40',
             border: isDarkMode ? 'border-white/10' : 'border-sage/20',
-            text: isDarkMode ? 'text-white/40' : 'text-sage/40',
+            text: isDarkMode ? 'text-white' : 'text-sage/40',
             glow: ''
         };
     };
@@ -82,11 +82,11 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
                             <span className={`text-4xl font-display font-bold ${colors.text}`}>
                                 {totalPractices}
                             </span>
-                            <span className={`${isDarkMode ? 'text-white/60' : 'text-sage/60'} text-sm font-medium`}>
+                            <span className={`${isDarkMode ? 'text-white' : 'text-sage/60'} text-sm font-medium`}>
                                 {totalPractices === 1 ? 'practice' : 'practices'}
                             </span>
                         </div>
-                        <p className={`${isDarkMode ? 'text-white/60' : 'text-sage/60'} text-sm mt-1`}>
+                        <p className={`${isDarkMode ? 'text-white' : 'text-sage/60'} text-sm mt-1`}>
                             {hasPractices ? (
                                 'Total completed'
                             ) : (
@@ -112,7 +112,7 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
                     {totalPractices >= 365 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20">
                             <Award size={14} className={colors.text} />
-                            <span className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage/60'} font-medium`}>
+                            <span className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/60'} font-medium`}>
                                 Legend Status
                             </span>
                         </div>
@@ -121,7 +121,7 @@ export const PracticeWidget: React.FC<PracticeWidgetProps> = ({
             </motion.div>
 
             {/* Tap hint */}
-            <div className={`absolute bottom-2 right-2 text-[10px] ${isDarkMode ? 'text-white/30' : 'text-sage/30'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+            <div className={`absolute bottom-2 right-2 text-xs ${isDarkMode ? 'text-white' : 'text-sage/30'} opacity-0 group-hover:opacity-100 transition-opacity`}>
                 Tap for details
             </div>
         </button>

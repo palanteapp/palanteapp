@@ -114,7 +114,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                     style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
                                 >
                                    <Instagram size={22} color="#C96A3A" />
-                                   <span className="text-[10px] font-bold uppercase tracking-widest">Stories</span>
+                                   <span className="text-xs font-bold uppercase tracking-widest">Stories</span>
                                 </button>
                                 <button 
                                     onClick={onGenerateImage}
@@ -125,7 +125,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C96A3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
                                    </svg>
-                                   <span className="text-[10px] font-bold uppercase tracking-widest">TikTok</span>
+                                   <span className="text-xs font-bold uppercase tracking-widest">TikTok</span>
                                 </button>
                                 <button 
                                     onClick={onGenerateImage}
@@ -134,7 +134,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                     style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
                                 >
                                    <Facebook size={22} color="#C96A3A" />
-                                   <span className="text-[10px] font-bold uppercase tracking-widest">Feed</span>
+                                   <span className="text-xs font-bold uppercase tracking-widest">Feed</span>
                                 </button>
                                 <button 
                                     onClick={onDownloadImage}
@@ -143,11 +143,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                     style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
                                 >
                                    <Download size={22} color="#C96A3A" />
-                                   <span className="text-[10px] font-bold uppercase tracking-widest">Save</span>
+                                   <span className="text-xs font-bold uppercase tracking-widest">Save</span>
                                 </button>
                             </div>
 
-                            <p className={`text-center mt-6 text-[10px] font-bold uppercase tracking-[0.2em] ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                            <p className={`text-center mt-6 text-xs font-bold uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>
                                 Works with Instagram, TikTok, & Facebook
                             </p>
                         </>

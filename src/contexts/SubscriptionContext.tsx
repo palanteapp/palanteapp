@@ -5,7 +5,6 @@ import { Capacitor } from '@capacitor/core';
 
 const RC_API_KEY_IOS = 'appl_wDTGjapNESRBZKFCnBICukFeQKy';
 
-// Set to false before App Store release
 const IS_BETA = true;
 
 export const ENTITLEMENT_ID = 'Palante: Personal Growth Partner Pro';

@@ -1,7 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import type { UserProfile } from '../types';
 import { PalanteWidgetBridge } from '../plugins/PalanteWidgetBridge';
-import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
@@ -42,15 +41,9 @@ function seededRandom(seed: number): () => number {
     };
 }
 
-function sampleQuotes(count: number, preference?: string): Array<{ text: string; author: string }> {
-    let pool;
-    if (preference === 'affirmations') {
-        pool = [...AFFIRMATIONS];
-    } else if (preference === 'quotes') {
-        pool = QUOTES.filter(q => !q.isAffirmation);
-    } else {
-        pool = [...QUOTES];
-    }
+function sampleQuotes(count: number, _preference?: string): Array<{ text: string; author: string }> {
+    // Widgets always show Palante affirmations — never external quotes
+    const pool = [...AFFIRMATIONS];
 
     // Use today's day-number as seed so each day gets a unique, deterministic batch
     const daySeed = Math.floor(Date.now() / 86_400_000);
@@ -82,16 +75,15 @@ export class WidgetDataSync {
                 streak: user.streak ?? 0,
                 practiceName: 'Morning Practice',
                 practiceComplete: isPracticeCompleteToday(user),
+                totalPractices: user.practiceData?.totalPractices ?? 0,
                 quotes,
                 quoteStartIndex: pinned ? 0 : hourlyStartIndex(quotes.length),
                 goals,
             };
             // Cache for AppDelegate's direct-read path (bypasses Capacitor plugin)
             try { localStorage.setItem('palante_widget_cache', JSON.stringify(payload)); } catch { /* ignore */ }
-            console.log('📲 WidgetDataSync.syncAll calling native bridge', { streak: payload.streak, quotesCount: quotes.length, goalsCount: goals.length });
             await PalanteWidgetBridge.updateWidgetData(payload);
             await PalanteWidgetBridge.reloadWidget();
-            console.log('✅ WidgetDataSync.syncAll complete');
         } catch (e) {
             console.error('Widget sync failed', e);
         }
@@ -153,6 +145,7 @@ export class WidgetDataSync {
                 streak: user.streak ?? 0,
                 practiceName: 'Morning Practice',
                 practiceComplete: isPracticeCompleteToday(user),
+                totalPractices: user.practiceData?.totalPractices ?? 0,
                 quotes,
                 quoteStartIndex: pinned ? 0 : hourlyStartIndex(quotes.length),
                 goals,

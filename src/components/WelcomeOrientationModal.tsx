@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Heart, Map, Compass, BookOpen, User, Maximize2, Sun, Zap, Sparkles, TrendingUp, Timer, Wind, Headphones, Flower2, Mail, Activity, Flame, Fish, Layers, Users } from 'lucide-react';
+import { Heart, Map, Compass, User, Maximize2, Sun, Sparkles, TrendingUp, Timer, Wind, Headphones, Flower2, Fish, Moon, MessageCircle, Mail, Users } from 'lucide-react';
 import { SlideUpModal } from './SlideUpModal';
 
 interface WelcomeOrientationModalProps {
@@ -31,25 +31,17 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
             <div className={`flex flex-col h-full ${bgClass} ${textPrimary}`}>
                 {/* Header */}
                 <div className="sticky top-0 z-10 backdrop-blur-xl bg-inherit/95 border-b border-white/10 px-6 pt-4 pb-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <h2 className={`text-2xl font-display font-medium ${textPrimary}`}>
-                                Welcome to Palante
-                            </h2>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage-mid/10'}`}
-                        >
-                            <X size={24} className={textSecondary} />
-                        </button>
+                    <div className="flex items-center mb-4">
+                        <h2 className={`text-2xl font-display font-medium ${textPrimary}`}>
+                            Welcome to Palante
+                        </h2>
                     </div>
 
                     {/* Tabs */}
                     <div className="flex gap-2">
                         <button
                             onClick={() => setActiveTab('philosophy')}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border-2 ${activeTab === 'philosophy' ? tabActiveBg : tabInactiveBg
+                            className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border-2 ${activeTab === 'philosophy' ? tabActiveBg : tabInactiveBg
                                 }`}
                         >
                             <Heart size={16} />
@@ -57,7 +49,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                         </button>
                         <button
                             onClick={() => setActiveTab('tour')}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all border-2 ${activeTab === 'tour' ? tabActiveBg : tabInactiveBg
+                            className={`flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border-2 ${activeTab === 'tour' ? tabActiveBg : tabInactiveBg
                                 }`}
                         >
                             <Map size={16} />
@@ -73,11 +65,10 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                             {/* Intro */}
                             <div className="text-center">
                                 <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
-                                    An App That Grows With You
+                                    Your partner in forward motion.
                                 </h3>
-                                <p className={`text-sm leading-relaxed ${textSecondary}`}>
-                                    Palante isn't just a to-do list. It's a home for your mind and goals.
-                                    We believe that productivity should be precise, not pressurized.
+                                <p className={`text-base leading-relaxed ${textSecondary}`}>
+                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Just showing up — and being met where you are.
                                 </p>
                             </div>
 
@@ -86,34 +77,30 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                 <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
                                     <div className="flex gap-4">
                                         <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
-                                            <Maximize2 size={20} className={accentColor} />
+                                            <Sun size={20} className={accentColor} />
                                         </div>
                                         <div>
-                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Use What You Need</h4>
+                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Morning sets the tone</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                Some days call for deep breathwork and reflection. Others just need a quick focus timer.
-                                                You can use as many or as few features as you like.
+                                                A few minutes of gratitude, affirmation, and intention in the morning isn't a ritual for its own sake — it literally shapes how your brain processes the rest of the day.
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={() => { onNavigate('settings'); onClose(); }}
-                                    className={`text-left w-full p-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-sage-mid/5 hover:bg-sage-mid/10'}`}
-                                >
+                                <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
                                     <div className="flex gap-4">
                                         <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
                                             <TrendingUp size={20} className={accentColor} />
                                         </div>
                                         <div>
-                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Your Own Pace</h4>
+                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Progress over perfection</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                There is no "falling behind" here. We offer tools to support you, not demands to stress you.
+                                                There is no "falling behind" here. Your 90-day Mandala grows one practice at a time. Every day you show up counts — regardless of what else happened.
                                             </p>
                                         </div>
                                     </div>
-                                </button>
+                                </div>
 
                                 <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
                                     <div className="flex gap-4">
@@ -121,9 +108,9 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                             <Compass size={20} className={accentColor} />
                                         </div>
                                         <div>
-                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Inner Wealth</h4>
+                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>You already have what it takes</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                Everything you need is already within you. Our goal is simply to help you reflect on it and amplify it.
+                                                Palante doesn't add pressure. It helps you hear what you already know — and stay close to it.
                                             </p>
                                         </div>
                                     </div>
@@ -137,45 +124,45 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     : 'bg-sage text-white border-sage hover:bg-sage/90'
                                     }`}
                             >
-                                Exploring the App →
+                                See what's inside →
                             </button>
                         </div>
                     )}
 
                     {activeTab === 'tour' && (
                         <div className="space-y-6 animate-fade-in">
-                            {/* Navigation Section */}
+                            {/* Navigation */}
                             <div>
-                                <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
+                                <h3 className={`text-base font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
                                     Navigation
                                 </h3>
-                                <div className={`p-4 rounded-2xl mb-4 ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
+                                <div className={`p-4 rounded-2xl mb-3 ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
                                     <h4 className={`font-semibold mb-2 flex items-center gap-2 ${textPrimary}`}>
                                         <Map size={18} className={accentColor} />
-                                        The Dock
+                                        Three tabs, one home
                                     </h4>
-                                    <p className={`text-sm ${textSecondary} mb-0`}>
-                                        Located at the bottom of your screen, this is your central hub for all tools (Home, Momentum, Reflections, etc).
+                                    <p className={`text-sm ${textSecondary}`}>
+                                        <strong>Home</strong> — your daily dashboard. <strong>Journey</strong> — goals and progress. <strong>Practice</strong> — tools for focus, breath, and sound.
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => { onNavigate('settings'); onClose(); }}
                                     className={`text-left w-full p-4 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-sage-mid/5 hover:bg-sage-mid/10'}`}
                                 >
-                                    <h4 className={`font-semibold mb-2 flex items-center gap-2 ${textPrimary}`}>
+                                    <h4 className={`font-semibold mb-1 flex items-center gap-2 ${textPrimary}`}>
                                         <User size={18} className={accentColor} />
-                                        Settings & Profile
+                                        Settings (gear icon, top left)
                                     </h4>
-                                    <p className={`text-sm ${textSecondary} mb-0`}>
-                                        Tap your profile icon (top right) to customize your motivation style, update your goals, or adjust preferences.
+                                    <p className={`text-sm ${textSecondary}`}>
+                                        Set your name, profession, focus goal, partner name, notifications, and more. Tap to open now.
                                     </p>
                                 </button>
                             </div>
 
-                            {/* Features Section */}
+                            {/* Daily Practice */}
                             <div>
-                                <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
-                                    Key Features
+                                <h3 className={`text-base font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
+                                    Daily Practice
                                 </h3>
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
@@ -183,96 +170,49 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Sun size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Morning Ritual</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Start with intention</p>
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Morning Practice</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Gratitude · affirmation · intention</p>
                                     </button>
                                     <button
-                                        onClick={() => { onNavigate('momentum'); onClose(); }}
+                                        onClick={() => { onNavigate('evening-routine'); onClose(); }}
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
-                                        <Zap size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Momentum</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Focus timers</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('reflections'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <BookOpen size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Reflections</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Journaling & Mood</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('ai-coach'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Sparkles size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>AI Coach</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Personal guidance</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('fasting'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Activity size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Fasting</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Track cellular repair</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('breathing'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Wind size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Breathwork</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Box breathing</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('routines'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Layers size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Routines</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Build habit stacks</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('koi-pond'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Fish size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Zen Pond</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Visual meditation</p>
+                                        <Moon size={24} className={`mb-2 ${accentColor}`} />
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Evening Reflection</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>G.L.A.D. method</p>
                                     </button>
                                     <button
                                         onClick={() => { onNavigate('garden'); onClose(); }}
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Flower2 size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Mandala</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Visualize growth</p>
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Mandala of Growth</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>90-day practice tracker</p>
                                     </button>
                                     <button
-                                        onClick={() => { onNavigate('future-letters'); onClose(); }}
+                                        onClick={() => { onNavigate('ai-coach'); onClose(); }}
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
-                                        <Mail size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Future Letters</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Past & future self</p>
+                                        <MessageCircle size={24} className={`mb-2 ${accentColor}`} />
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Palante Partner</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Your AI partner</p>
                                     </button>
+                                </div>
+                            </div>
+
+                            {/* Tools */}
+                            <div>
+                                <h3 className={`text-base font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
+                                    Essential Tools
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
                                     <button
-                                        onClick={() => { onNavigate('partners'); onClose(); }}
+                                        onClick={() => { onNavigate('breathing'); onClose(); }}
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
-                                        <Users size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Squad</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Accountability</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('evening-routine'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Flame size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Check-in</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Evening reflection</p>
+                                        <Wind size={24} className={`mb-2 ${accentColor}`} />
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Breathwork</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Energy · relax · balance</p>
                                     </button>
                                     <button
                                         onClick={() => { onNavigate('focus'); onClose(); }}
@@ -280,33 +220,87 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     >
                                         <Timer size={24} className={`mb-2 ${accentColor}`} />
                                         <h4 className={`font-medium text-sm ${textPrimary}`}>Focus Timer</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Time-boxed focus</p>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Pomodoro deep work</p>
+                                    </button>
+                                    <button
+                                        onClick={() => { onNavigate('meditate'); onClose(); }}
+                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
+                                    >
+                                        <Maximize2 size={24} className={`mb-2 ${accentColor}`} />
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Meditation</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Guided with soundscapes</p>
+                                    </button>
+                                    <button
+                                        onClick={() => { onNavigate('soundscapes'); onClose(); }}
+                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
+                                    >
+                                        <Headphones size={24} className={`mb-2 ${accentColor}`} />
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Sonic Canvas</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Immersive sound mixer</p>
+                                    </button>
+                                    <button
+                                        onClick={() => { onNavigate('koi-pond'); onClose(); }}
+                                        className={`text-left p-3 rounded-xl border col-span-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
+                                    >
+                                        <Fish size={24} className={`mb-2 ${accentColor}`} />
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Koi Pond</h4>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Your living zen space — grows as you practice</p>
                                     </button>
                                 </div>
                             </div>
 
-                            {/* New: The Personal Mentor Section */}
+                            {/* Coming up */}
                             <div>
-                                <h3 className={`text-sm font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
-                                    The "Coach" Upgrade
+                                <h3 className={`text-base font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
+                                    Coming Up
                                 </h3>
-                                <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
-                                    <div className="flex gap-4">
-                                        <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/20'}`}>
-                                            <Sparkles size={20} className={accentColor} />
+                                <div className="space-y-3">
+                                    <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
+                                        <div className="flex gap-3 items-start">
+                                            <div className={`p-1.5 rounded-full h-fit mt-0.5 ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
+                                                <Mail size={16} className={accentColor} />
+                                            </div>
+                                            <div>
+                                                <h4 className={`text-sm font-semibold mb-0.5 ${textPrimary}`}>Day 3 — Letter to your future self</h4>
+                                                <p className={`text-xs leading-relaxed ${textSecondary}`}>
+                                                    After your third practice, you'll be invited to write a letter to who you'll be 30 days from now. It's one of the most powerful things you can do on this journey.
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Predictive Mentorship</h4>
-                                            <p className={`text-sm ${textSecondary}`}>
-                                                Your Palante Coach now studies your patterns. She might notice if you struggle to focus on Tuesday afternoons or if your energy dips after fasting, and offer tailored guidance.
-                                            </p>
+                                    </div>
+                                    <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-sage-mid/5'}`}>
+                                        <div className="flex gap-3 items-start">
+                                            <div className={`p-1.5 rounded-full h-fit mt-0.5 ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
+                                                <Users size={16} className={accentColor} />
+                                            </div>
+                                            <div>
+                                                <h4 className={`text-sm font-semibold mb-0.5 ${textPrimary}`}>Add an accountability partner</h4>
+                                                <p className={`text-xs leading-relaxed ${textSecondary}`}>
+                                                    People who practice with a partner stick with it 3× longer. Find yours in Settings → Accountability Partner.
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
+                            {/* Palante Partner callout */}
+                            <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
+                                <div className="flex gap-4">
+                                    <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/20'}`}>
+                                        <Sparkles size={20} className={accentColor} />
+                                    </div>
+                                    <div>
+                                        <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Your Palante Partner</h4>
+                                        <p className={`text-sm ${textSecondary}`}>
+                                            Tap the chat icon (top right) any time to talk to your AI partner. It knows your intentions, sees your patterns, and meets you where you are — not where it thinks you should be.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Final CTA */}
-                            <div className={`mt-6 p-4 rounded-xl text-center ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
+                            <div className={`mt-2 p-4 rounded-xl text-center ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
                                 <p className={`text-sm ${textPrimary} mb-3`}>
                                     Ready to begin?
                                 </p>
@@ -314,10 +308,10 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     onClick={onClose}
                                     className={`w-full py-3 rounded-full font-display font-medium text-lg transition-all shadow-lg ${isDarkMode
                                         ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                                        : 'bg-terracotta-500 text-white hover:bg-sage-600'
+                                        : 'bg-sage text-white hover:bg-sage/90'
                                         }`}
                                 >
-                                    Let's Go
+                                    Let's go
                                 </button>
                             </div>
                         </div>

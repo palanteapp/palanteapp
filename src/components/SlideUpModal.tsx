@@ -152,12 +152,12 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                                     e.stopPropagation();
                                     onClose();
                                 }}
-                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 ${isDarkMode
-                                    ? 'bg-white/20 hover:bg-white/30 text-white'
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 ${isDarkMode
+                                    ? 'bg-white/15 hover:bg-white/25 text-white/70'
                                     : 'bg-black/5 hover:bg-black/10 text-sage-dark'
                                     }`}
                             >
-                                <X size={20} />
+                                <X size={14} />
                             </button>
                         </div>
                     )}

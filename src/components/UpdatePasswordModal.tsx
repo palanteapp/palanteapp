@@ -63,7 +63,7 @@ export const UpdatePasswordModal: React.FC<UpdatePasswordModalProps> = ({ isOpen
     };
 
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
     const inputBg = isDarkMode ? 'bg-white/5 border-white/10 focus:border-pale-gold text-white' : 'bg-white border-sage/10 focus:border-sage text-sage-dark';
 
     return (
@@ -73,7 +73,7 @@ export const UpdatePasswordModal: React.FC<UpdatePasswordModalProps> = ({ isOpen
             <div className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-xl animate-slide-up border ${isDarkMode ? 'bg-sage-mid border-white/10' : 'bg-white border-sage/20'}`}>
                 <button
                     onClick={onClose}
-                    className={`absolute top-4 right-4 p-1.5 rounded-full transition-all ${isDarkMode ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-sage/60 hover:text-sage hover:bg-sage/10'}`}
+                    className={`absolute top-4 right-4 p-1.5 rounded-full transition-all ${isDarkMode ? 'text-white hover:text-white hover:bg-white/10' : 'text-sage/60 hover:text-sage hover:bg-sage/10'}`}
                 >
                     <X size={18} />
                 </button>

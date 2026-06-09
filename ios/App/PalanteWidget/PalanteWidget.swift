@@ -22,6 +22,7 @@ struct PalanteWidgetData {
     static let appGroup = "group.com.move.palante.dev"
 
     let streak: Int
+    let totalPractices: Int
     let quotes: [WidgetQuote]
     let quoteStartIndex: Int
     let goals: [WidgetGoal]
@@ -29,6 +30,7 @@ struct PalanteWidgetData {
     static func load() -> PalanteWidgetData {
         let defaults = UserDefaults(suiteName: appGroup)
         let streak = defaults?.integer(forKey: "palante_streak") ?? 0
+        let totalPractices = defaults?.integer(forKey: "palante_total_practices") ?? 0
         let startIndex = defaults?.integer(forKey: "palante_quote_start_index") ?? 0
 
         var quotes: [WidgetQuote] = []
@@ -53,7 +55,7 @@ struct PalanteWidgetData {
             }
         }
 
-        return PalanteWidgetData(streak: streak, quotes: quotes, quoteStartIndex: startIndex, goals: goals)
+        return PalanteWidgetData(streak: streak, totalPractices: totalPractices, quotes: quotes, quoteStartIndex: startIndex, goals: goals)
     }
 }
 
@@ -62,6 +64,7 @@ struct PalanteWidgetData {
 struct PalanteEntry: TimelineEntry {
     let date: Date
     let streak: Int
+    let totalPractices: Int
     let quote: WidgetQuote
     let goals: [WidgetGoal]
 }
@@ -70,14 +73,14 @@ struct PalanteEntry: TimelineEntry {
 
 struct PalanteProvider: TimelineProvider {
     func placeholder(in context: Context) -> PalanteEntry {
-        PalanteEntry(date: .now, streak: 7,
+        PalanteEntry(date: .now, streak: 7, totalPractices: 7,
                      quote: WidgetQuote(text: "Keep going.", author: "Palante"),
                      goals: [WidgetGoal(text: "Build healthy habits", completed: false)])
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PalanteEntry) -> Void) {
         let data = PalanteWidgetData.load()
-        completion(PalanteEntry(date: .now, streak: data.streak,
+        completion(PalanteEntry(date: .now, streak: data.streak, totalPractices: data.totalPractices,
                                 quote: data.quotes[data.quoteStartIndex % data.quotes.count],
                                 goals: data.goals))
     }
@@ -91,7 +94,7 @@ struct PalanteProvider: TimelineProvider {
         for i in 0..<quotes.count {
             let quoteIndex = (data.quoteStartIndex + i) % quotes.count
             let entryDate = now.addingTimeInterval(Double(i) * 3600)
-            entries.append(PalanteEntry(date: entryDate, streak: data.streak,
+            entries.append(PalanteEntry(date: entryDate, streak: data.streak, totalPractices: data.totalPractices,
                                         quote: quotes[quoteIndex],
                                         goals: data.goals))
         }
@@ -187,38 +190,60 @@ struct MediumWidgetView: View {
                 .frame(width: 1)
                 .padding(.vertical, 6)
 
-            // Goals column
-            VStack(alignment: .leading, spacing: 8) {
-                Text("TODAY")
-                    .font(.system(size: 7, weight: .black, design: .default))
-                    .tracking(2)
-                    .foregroundColor(.paleGold.opacity(0.5))
+            // Right column: mandala ring + goals
+            VStack(alignment: .center, spacing: 6) {
+                // Mandala progress arc (90-day cycle)
+                ZStack {
+                    Circle()
+                        .stroke(Color.parchment.opacity(0.1), lineWidth: 3)
+                        .frame(width: 42, height: 42)
+                    Circle()
+                        .trim(from: 0, to: min(CGFloat(entry.totalPractices) / 90.0, 1.0))
+                        .stroke(Color.terracotta, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: 42, height: 42)
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 0) {
+                        Text("\(min(entry.totalPractices, 90))")
+                            .font(.system(size: 10, weight: .bold, design: .default))
+                            .foregroundColor(.parchment)
+                        Text("/ 90")
+                            .font(.system(size: 7, weight: .medium, design: .default))
+                            .foregroundColor(.parchment.opacity(0.45))
+                    }
+                }
+                .padding(.top, 4)
 
-                if entry.goals.isEmpty {
-                    Text("Set goals in the app")
-                        .font(.system(size: 10, design: .serif))
-                        .foregroundColor(.parchment.opacity(0.4))
-                        .italic()
-                } else {
-                    ForEach(Array(entry.goals.prefix(3).enumerated()), id: \.offset) { _, goal in
-                        HStack(alignment: .top, spacing: 6) {
-                            Circle()
-                                .fill(goal.completed ? Color.paleGold : Color.parchment.opacity(0.2))
-                                .frame(width: 6, height: 6)
-                                .padding(.top, 3)
-                            Text(goal.text)
-                                .font(.system(size: 10, weight: .medium, design: .default))
-                                .foregroundColor(goal.completed ? .parchment.opacity(0.4) : .parchment.opacity(0.85))
-                                .lineLimit(2)
-                                .strikethrough(goal.completed, color: .parchment.opacity(0.3))
+                Spacer()
+
+                // Goals list
+                VStack(alignment: .leading, spacing: 5) {
+                    if entry.goals.isEmpty {
+                        Text("Set goals in app")
+                            .font(.system(size: 9, design: .serif))
+                            .foregroundColor(.parchment.opacity(0.35))
+                            .italic()
+                    } else {
+                        ForEach(Array(entry.goals.prefix(3).enumerated()), id: \.offset) { _, goal in
+                            HStack(alignment: .top, spacing: 5) {
+                                Circle()
+                                    .fill(goal.completed ? Color.paleGold : Color.parchment.opacity(0.2))
+                                    .frame(width: 5, height: 5)
+                                    .padding(.top, 2.5)
+                                Text(goal.text)
+                                    .font(.system(size: 9, weight: .medium, design: .default))
+                                    .foregroundColor(goal.completed ? .parchment.opacity(0.35) : .parchment.opacity(0.80))
+                                    .lineLimit(1)
+                                    .strikethrough(goal.completed, color: .parchment.opacity(0.3))
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
             }
-            .frame(width: 110, alignment: .leading)
-            .padding(.leading, 12)
+            .frame(width: 110, alignment: .center)
+            .padding(.leading, 10)
             .padding(.vertical, 12)
             .padding(.trailing, 10)
         }
@@ -270,7 +295,7 @@ struct PalanteWidget: Widget {
 #Preview(as: .systemMedium) {
     PalanteWidget()
 } timeline: {
-    PalanteEntry(date: .now, streak: 7,
+    PalanteEntry(date: .now, streak: 7, totalPractices: 7,
                  quote: WidgetQuote(text: "The struggle itself toward the heights is enough to fill a man's heart.", author: "Albert Camus"),
                  goals: [
                     WidgetGoal(text: "Morning practice", completed: true),

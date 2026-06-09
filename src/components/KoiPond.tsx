@@ -1246,7 +1246,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 }}
                 className={`fixed bottom-8 left-8 z-50 p-2 rounded-full transition-all duration-500 pointer-events-auto ${showControls
                     ? 'opacity-0 pointer-events-none'
-                    : isDarkMode ? 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10' : 'bg-sage/5 text-sage/40 hover:text-sage hover:bg-sage/10'
+                    : isDarkMode ? 'bg-white/5 text-white hover:text-white hover:bg-white/10' : 'bg-sage/5 text-sage/40 hover:text-sage hover:bg-sage/10'
                     }`}
             >
                 <Eye size={20} />
@@ -1298,7 +1298,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                                 <button
                                     key={item.label}
                                     onClick={(e) => { e.stopPropagation(); item.setter(!item.state); }}
-                                    className={`w-full px-4 py-2 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'
+                                    className={`w-full px-5 py-2 rounded-xl flex items-center justify-between transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'
                                         }`}
                                 >
                                     <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
@@ -1354,7 +1354,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 <h1 className={`text-2xl font-display font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
                     Koi Pond
                 </h1>
-                <p className={`text-sm mt-1 mb-3 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                <p className={`text-sm mt-1 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                     {earnedKoi ? 'Observe and relax' : 'Your pond is alive'}
                 </p>
             </div>
@@ -1375,10 +1375,10 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             textShadow: '0 1px 8px rgba(0,0,0,0.4)',
                         }}
                     >
-                        <span className="text-xs font-medium tracking-widest uppercase" style={{ letterSpacing: '0.12em' }}>
+                        <span className="text-sm font-medium tracking-widest uppercase" style={{ letterSpacing: '0.12em' }}>
                             Your pond grows as you do
                         </span>
-                        <span className="text-[10px] font-bold tracking-widest uppercase" style={{ letterSpacing: '0.18em', opacity: 0.7 }}>
+                        <span className="text-xs font-bold tracking-widest uppercase" style={{ letterSpacing: '0.18em', opacity: 0.7 }}>
                             Day {streak}
                         </span>
                     </div>
@@ -1434,13 +1434,13 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
                             <div>
                                 <p
-                                    className="text-xs uppercase tracking-widest font-semibold mb-1"
+                                    className="text-sm uppercase tracking-widest font-semibold mb-1"
                                     style={{ color: '#C96A3A' }}
                                 >
                                     30-day streak reached
                                 </p>
                                 <h3
-                                    className="text-2xl font-display font-bold"
+                                    className="text-3xl font-display font-bold"
                                     style={{ color: '#E5D6A7', letterSpacing: '-0.02em' }}
                                 >
                                     Your koi has arrived.

@@ -26,7 +26,7 @@ export const TodayProgress: React.FC<TodayProgressProps> = ({
     return (
         <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
             <div className="flex items-center justify-between mb-3">
-                <h3 className={`text-sm font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>
+                <h3 className={`text-base font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>
                     Today's Progress
                 </h3>
                 <span className={`text-xs font-medium ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
@@ -49,11 +49,11 @@ export const TodayProgress: React.FC<TodayProgressProps> = ({
                         {item.complete ? (
                             <Check size={14} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                         ) : (
-                            <Circle size={14} className={isDarkMode ? 'text-white/20' : 'text-sage/20'} />
+                            <Circle size={14} className={isDarkMode ? 'text-white' : 'text-sage/20'} />
                         )}
                         <span className={`text-xs ${item.complete
                             ? (isDarkMode ? 'text-white/80' : 'text-sage/80')
-                            : (isDarkMode ? 'text-white/40' : 'text-sage/40')
+                            : (isDarkMode ? 'text-white' : 'text-sage/40')
                             }`}>
                             {item.label}
                         </span>

@@ -83,13 +83,13 @@ export const MonthlyPatternCard: React.FC<MonthlyPatternCardProps> = ({
                                 <TrendingUp size={15} className="text-pale-gold" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pale-gold/60">Your Pattern</p>
-                                <p className="text-[9px] text-white/30 uppercase tracking-widest">{monthLabel}</p>
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-pale-gold/60">Your Pattern</p>
+                                <p className="text-xs text-white uppercase tracking-widest">{monthLabel}</p>
                             </div>
                         </div>
                         <button
                             onClick={() => { haptics.light(); onDismiss(); }}
-                            className="p-1.5 rounded-full text-white/20 hover:text-white/60 transition-colors"
+                            className="p-1.5 rounded-full text-white hover:text-white/60 transition-colors"
                         >
                             <X size={14} />
                         </button>
@@ -109,14 +109,14 @@ export const MonthlyPatternCard: React.FC<MonthlyPatternCardProps> = ({
 
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                        <p className="text-[9px] text-white/20 uppercase tracking-widest flex items-center gap-1">
+                        <p className="text-xs text-white uppercase tracking-widest flex items-center gap-1">
                             <Sparkles size={9} className="text-pale-gold/30" />
                             From your last 30 days
                         </p>
                         <button
                             onClick={handleShare}
                             disabled={isSharing}
-                            className={`p-2 rounded-full transition-all ${isSharing ? 'opacity-40 animate-pulse' : 'text-white/30 hover:text-pale-gold'}`}
+                            className={`p-2 rounded-full transition-all ${isSharing ? 'opacity-40 animate-pulse' : 'text-white hover:text-pale-gold'}`}
                         >
                             <Share2 size={15} />
                         </button>

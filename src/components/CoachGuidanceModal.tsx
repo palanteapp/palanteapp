@@ -38,7 +38,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
     };
 
     const textPrimary = 'text-white';
-    const textSecondary = 'text-white/60';
+    const textSecondary = 'text-white';
     const bgCard = 'bg-white/[0.06] border-white/10';
 
     return (
@@ -65,7 +65,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
                 <div className="space-y-4">
                     {/* Accountability Section */}
                     <div>
-                        <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] px-1 mb-2 ${textSecondary}`}>Accountability</h3>
+                        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] px-1 mb-2 ${textSecondary}`}>Accountability</h3>
                         <div className={`p-4 rounded-2xl border ${bgCard}`}>
                             <div className="flex items-center gap-4">
                                 <div className={`p-2 rounded-full flex-shrink-0 ${progress === 100 ? 'bg-[#C96A3A] text-white' : 'bg-white/[0.12] text-white'}`}>
@@ -94,7 +94,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
 
                     {/* Wellness Section */}
                     <div>
-                        <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] px-1 mb-2 ${textSecondary}`}>Wellness & Spirit</h3>
+                        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] px-1 mb-2 ${textSecondary}`}>Wellness & Spirit</h3>
                         <div className={`p-4 rounded-2xl border ${bgCard}`}>
                             <div className="flex items-center gap-4">
                                 <div className="p-2 rounded-full flex-shrink-0 bg-white/[0.12] text-white">
@@ -104,7 +104,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
                                     <h4 className={`text-sm font-medium ${textPrimary}`}>
                                         Energy: {user.currentEnergy ? user.currentEnergy + '/5' : 'Unknown'}
                                     </h4>
-                                    <p className={`text-[11px] ${textSecondary} leading-normal`}>
+                                    <p className={`text-xs ${textSecondary} leading-normal`}>
                                         {user.currentEnergy ? getWellnessMessage(user.currentEnergy) : "How are you feeling?"}
                                     </p>
                                 </div>
@@ -116,17 +116,17 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
                     <div className="pt-2 grid grid-cols-2 gap-3">
                         <button
                             onClick={onAdjustGoals}
-                            className="py-3 px-4 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.08] border border-white/10 text-white/70 transition-all active:scale-[0.98]"
+                            className="py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.08] border border-white/10 text-white/70 transition-all active:scale-[0.98]"
                         >
                             <Target size={14} />
                             <span>Goals</span>
                         </button>
                         <button
                             onClick={onUpdateSettings}
-                            className="py-3 px-4 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.08] border border-white/10 text-white/70 transition-all active:scale-[0.98]"
+                            className="py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.08] border border-white/10 text-white/70 transition-all active:scale-[0.98]"
                         >
                             <Settings size={14} />
-                            <span>Coach</span>
+                            <span>Partner</span>
                         </button>
                     </div>
 

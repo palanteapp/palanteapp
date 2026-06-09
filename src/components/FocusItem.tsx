@@ -240,12 +240,12 @@ export const FocusItem: React.FC<FocusItemProps> = ({
                             haptics.medium();
                             onDelete(focus.id);
                         }}
-                        className={`p-2 rounded-full transition-all relative z-10 ${focus.isCompleted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${isDarkMode ? 'hover:bg-white/10 text-white/40' : 'hover:bg-sage/10 text-sage/40'}`}
+                        className={`p-2 rounded-full transition-all relative z-10 ${focus.isCompleted ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/40'}`}
                     >
                         <X size={18} />
                     </button>
 
-                    <div className={`p-2 cursor-grab active:cursor-grabbing transition-opacity ${focus.isCompleted ? 'hidden' : 'opacity-0 group-hover:opacity-100'} ${isDarkMode ? 'text-white/20' : 'text-sage/20'}`}>
+                    <div className={`p-2 cursor-grab active:cursor-grabbing transition-opacity ${focus.isCompleted ? 'hidden' : 'opacity-0 group-hover:opacity-100'} ${isDarkMode ? 'text-white' : 'text-sage/20'}`}>
                         <div className="grid grid-cols-2 gap-1">
                             {[...Array(6)].map((_, i) => (
                                 <div key={i} className="w-1 h-1 rounded-full bg-current" />

@@ -69,7 +69,7 @@ const SettingRow = ({
             <h4 className={`text-xs font-black uppercase tracking-[0.1em] transition-colors ${options[id] ? 'text-white' : 'text-white'}`}>
                 {label}
             </h4>
-            <p className={`text-[11px] leading-relaxed transition-opacity mt-0.5 font-medium ${options[id] ? 'text-white' : 'text-white'}`}>
+            <p className={`text-xs leading-relaxed transition-opacity mt-0.5 font-medium ${options[id] ? 'text-white' : 'text-white'}`}>
                 {description}
             </p>
         </div>
@@ -121,7 +121,7 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
     if (!isOpen) return null;
 
     const textPrimary = 'text-white';
-    const accentLabel = 'text-white/60 font-black text-[10px] uppercase tracking-[0.2em]';
+    const accentLabel = 'text-white font-black text-xs uppercase tracking-[0.2em]';
 
     return (
         <SlideUpModal
@@ -142,12 +142,12 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
                                 <h3 className={`text-xl font-display font-medium ${textPrimary}`}>
                                     Premium Experience
                                 </h3>
-                                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/60">Sensory Enhancements</p>
+                                <p className="text-xs uppercase tracking-[0.2em] font-black text-white">Sensory Enhancements</p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className={`p-2 rounded-full transition-all hover:bg-white/[0.06] text-white/40`}
+                            className={`p-2 rounded-full transition-all hover:bg-white/[0.06] text-white`}
                         >
                             <X size={24} />
                         </button>
@@ -156,13 +156,13 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
                     <div className="flex items-center gap-3">
                         <button
                             onClick={selectAll}
-                            className="flex-1 text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-2xl border-2 border-white/10 transition-all active:scale-95 bg-white/[0.08] hover:bg-white/[0.15] text-white"
+                            className="flex-1 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-white/10 transition-all active:scale-95 bg-white/[0.08] hover:bg-white/[0.15] text-white"
                         >
                             Select All
                         </button>
                         <button
                             onClick={deselectAll}
-                            className="flex-1 text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-2xl border-2 border-white/10 transition-all active:scale-95 bg-white/[0.08] hover:bg-white/[0.15] text-white"
+                            className="flex-1 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-white/10 transition-all active:scale-95 bg-white/[0.08] hover:bg-white/[0.15] text-white"
                         >
                             Deselect All
                         </button>
@@ -266,7 +266,7 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
                 {/* Footer - Minimalist */}
                 <div className="p-6 bg-white/[0.06] flex items-start gap-4">
                     <ShieldCheck size={20} className="text-[#98B07D] flex-shrink-0" />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] leading-relaxed text-white">
+                    <p className="text-xs font-bold uppercase tracking-[0.1em] leading-relaxed text-white">
                         Real-time enhancements optimized for your device. Adjust to find your perfect balance.
                     </p>
                 </div>

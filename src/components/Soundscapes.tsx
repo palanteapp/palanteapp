@@ -48,7 +48,7 @@ export const Soundscapes: React.FC<SoundscapesProps> = ({
 
     // ── Theme tokens — amber/sage accent palette ──────────────────────
     const text      = isDarkMode ? 'text-white'      : 'text-sage-dark';
-    const subText   = isDarkMode ? 'text-white/50'   : 'text-sage-dark/60';
+    const subText   = isDarkMode ? 'text-white'   : 'text-sage-dark/60';
     const labelText = isDarkMode ? 'text-pale-gold'      : 'text-terracotta-500';   // rich yellow / burnt orange
     const cardBg    = isDarkMode ? 'bg-white/5 border-white/10'  : 'bg-white/60 border-sage/20';
     const cardActive = isDarkMode
@@ -58,7 +58,7 @@ export const Soundscapes: React.FC<SoundscapesProps> = ({
     const toggleActive = isDarkMode
         ? 'bg-pale-gold text-sage-dark shadow-[0_2px_8px_rgba(212,148,58,0.3)]'
         : 'bg-terracotta-500 text-white shadow-spa';
-    const toggleInactive = isDarkMode ? 'text-white/40 hover:text-white' : 'text-sage/60 hover:text-sage';
+    const toggleInactive = isDarkMode ? 'text-white hover:text-white' : 'text-sage/60 hover:text-sage';
     const playBtnActive = 'bg-terracotta-500 text-white hover:scale-105';
     const playBtnIdle   = isDarkMode ? 'bg-white/10 text-white/70' : 'bg-sage/10 text-sage';
     const sectionCard   = isDarkMode
@@ -80,9 +80,9 @@ export const Soundscapes: React.FC<SoundscapesProps> = ({
                         <>
                             <button
                                 onClick={() => onShowTip?.()}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
                                     isDarkMode
-                                        ? 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                                        ? 'bg-white/10 text-white hover:bg-white/20 hover:text-white'
                                         : 'bg-sage/10 text-sage hover:bg-sage/20'
                                 }`}
                                 title="The Science"
@@ -92,7 +92,7 @@ export const Soundscapes: React.FC<SoundscapesProps> = ({
                             </button>
                             <button
                                 onClick={() => onShowTip?.()}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
                                     isDarkMode ? 'text-pale-gold hover:opacity-80' : 'text-pale-gold-600 hover:opacity-80'
                                 }`}
                             >

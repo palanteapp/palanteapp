@@ -50,7 +50,7 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({
 
     const cardBg = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20';
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/50' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     return (
         <div className={`p-8 rounded-card border mb-8 transition-colors ${cardBg}`}>
@@ -66,7 +66,7 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({
                 {canAddMore && (
                     <button
                         onClick={() => setShowAddGoal(!showAddGoal)}
-                        className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage-dark/60'}`}
+                        className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage-dark/60'}`}
                     >
                         <Plus size={20} />
                     </button>
@@ -134,7 +134,7 @@ export const GoalTracker: React.FC<GoalTrackerProps> = ({
                                                 haptics.medium();
                                                 onCheckIn(goal.id, 1);
                                             }}
-                                            className={`p-2 rounded-full transition-all hover:scale-110 ${isDarkMode ? 'hover:bg-white/10 text-white/40' : 'hover:bg-sage/10 text-sage-dark/40'
+                                            className={`p-2 rounded-full transition-all hover:scale-110 ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage-dark/40'
                                                 }`}
                                         >
                                             <CheckCircle2 size={24} />

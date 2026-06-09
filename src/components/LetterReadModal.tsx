@@ -45,7 +45,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                         haptics.light();
                         onClose();
                     }}
-                    className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'
+                    className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'
                         }`}
                 >
                     <X size={20} />
@@ -68,7 +68,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                 {/* Context */}
                 <div className="flex items-center justify-center gap-2 mb-6">
                     <Calendar size={14} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
-                    <p className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'
+                    <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'
                         }`}>
                         Written on {formatDate(letter.writtenDate)} {getContextMessage()}
                     </p>
@@ -98,7 +98,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                 </button>
 
                 {/* Message */}
-                <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'
+                <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
                     }`}>
                     {isScheduledDelivery ? 'You wrote this 90 days ago. Look how far you have come.' : "You wrote this for yourself. You've got this."}
                 </p>

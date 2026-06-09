@@ -41,7 +41,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
     };
 
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -58,7 +58,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                 <button
                     onClick={onClose}
                     disabled={isLoading}
-                    className={`absolute top-4 right-4 p-1.5 rounded-full transition-all ${isDarkMode ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-sage/60 hover:text-sage hover:bg-sage/10'
+                    className={`absolute top-4 right-4 p-1.5 rounded-full transition-all ${isDarkMode ? 'text-white hover:text-white hover:bg-white/10' : 'text-sage/60 hover:text-sage hover:bg-sage/10'
                         }`}
                 >
                     <X size={18} />
@@ -78,13 +78,13 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                         Your Invite Code
                     </label>
                     <div className="flex gap-2">
-                        <div className={`flex-1 px-4 py-3 rounded-xl font-mono text-lg font-bold text-center ${isDarkMode ? 'bg-white/10 text-pale-gold' : 'bg-sage/10 text-sage'
+                        <div className={`flex-1 px-5 py-3 rounded-xl font-mono text-lg font-bold text-center ${isDarkMode ? 'bg-white/10 text-pale-gold' : 'bg-sage/10 text-sage'
                             }`}>
                             {inviteCode || 'Generating...'}
                         </div>
                         <button
                             onClick={handleCopy}
-                            className={`px-4 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${copied
+                            className={`px-5 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${copied
                                 ? isDarkMode ? 'bg-sage/20 text-sage' : 'bg-sage/20 text-sage'
                                 : isDarkMode ? 'bg-pale-gold/20 text-pale-gold hover:bg-pale-gold/30' : 'bg-sage/20 text-sage hover:bg-sage/30'
                                 }`}
@@ -100,7 +100,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                         <div className={`w-full border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`} />
                     </div>
                     <div className="relative flex justify-center">
-                        <span className={`px-3 text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'bg-sage-mid text-white/40' : 'bg-white text-sage/40'
+                        <span className={`px-3 text-xs uppercase tracking-wider font-bold ${isDarkMode ? 'bg-sage-mid text-white' : 'bg-white text-sage/40'
                             }`}>
                             Or
                         </span>
@@ -120,7 +120,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                         onChange={(e) => setPartnerName(e.target.value)}
                         placeholder="Partner's Name (e.g. Maria)"
                         disabled={isLoading}
-                        className={`w-full px-4 py-3 mb-3 rounded-xl transition-all ${isDarkMode
+                        className={`w-full px-5 py-3 mb-3 rounded-xl transition-all ${isDarkMode
                             ? 'bg-white/10 border-2 border-white/20 text-white placeholder-white/40 focus:border-pale-gold focus:bg-white/20'
                             : 'bg-white/60 border-2 border-sage/20 text-sage-dark placeholder-sage-dark/40 focus:border-sage focus:bg-white'
                             }`}
@@ -135,7 +135,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                                 placeholder="XXXX-XXXX"
                                 maxLength={9}
                                 disabled={isLoading}
-                                className={`flex-1 px-4 py-3 rounded-xl font-mono text-lg uppercase transition-all ${isDarkMode
+                                className={`flex-1 px-5 py-3 rounded-xl font-mono text-lg uppercase transition-all ${isDarkMode
                                     ? 'bg-white/10 border-2 border-white/20 text-white placeholder-white/40 focus:border-pale-gold focus:bg-white/20'
                                     : 'bg-white/60 border-2 border-sage/20 text-sage-dark placeholder-sage-dark/40 focus:border-sage focus:bg-white'
                                     }`}
@@ -147,7 +147,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                                     ? isDarkMode
                                         ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
                                         : 'bg-terracotta-500 text-white hover:bg-sage-600'
-                                    : 'bg-white/10 text-white/20 cursor-not-allowed'
+                                    : 'bg-white/10 text-white cursor-not-allowed'
                                     }`}
                             >
                                 {isLoading ? 'Adding...' : 'Add'}

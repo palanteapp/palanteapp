@@ -117,7 +117,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
             <button
                 onClick={handleDismiss}
                 className={`absolute top-3 right-3 p-1.5 rounded-full transition-all ${isDarkMode
-                    ? 'hover:bg-white/10 text-white/40 hover:text-white/70'
+                    ? 'hover:bg-white/10 text-white hover:text-white/70'
                     : 'hover:bg-sage/10 text-sage/40 hover:text-sage/70'
                     }`}
             >
@@ -163,7 +163,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
                         }`}>
                         Personalize Your Experience
                     </h4>
-                    <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'
+                    <p className={`text-xs mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'
                         }`}>
                         Complete your profile for better quotes & insights
                     </p>
@@ -173,7 +173,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
                         {missingFields.slice(0, 3).map((field) => (
                             <span
                                 key={field.key}
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${isDarkMode
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${isDarkMode
                                     ? 'bg-white/10 text-white/70'
                                     : 'bg-sage/10 text-sage/70'
                                     }`}

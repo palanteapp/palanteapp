@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import type { DailyEveningPractice } from '../types';
+import { getISOWeek } from '../utils/weeklyHighlights';
 import { ShareModal } from './ShareModal';
 import { generateWeeklyReflectionShareImage } from '../utils/shareUtils';
 
@@ -186,9 +187,9 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                     <button
                         onClick={onClose}
                         className="absolute top-14 right-6 z-10 w-9 h-9 flex items-center justify-center rounded-full transition-all"
-                        style={{ background: 'rgba(255,255,255,0.12)' }}
+                        style={{ background: 'rgba(255,255,255,0.08)' }}
                     >
-                        <X size={16} strokeWidth={2.5} className="text-white/60" />
+                        <X size={16} strokeWidth={2.5} className="text-white" />
                     </button>
 
                     {/* Content scroll area */}
@@ -211,7 +212,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                             >
                                 <CalendarCheck size={10} style={{ color: '#E2CF9F' }} />
                                 <span
-                                    className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                                    className="text-xs font-bold uppercase tracking-[0.2em]"
                                     style={{ color: '#E2CF9F' }}
                                 >
                                     Weekly Wins
@@ -243,13 +244,13 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                 onClick={() => setScienceExpanded(e => !e)}
                                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full transition-all active:scale-95"
                                 style={{
-                                    background: 'rgba(255,255,255,0.07)',
+                                    background: 'rgba(255,255,255,0.08)',
                                     border: '1px solid rgba(226,207,159,0.2)',
                                 }}
                             >
                                 <FlaskConical size={10} style={{ color: 'rgba(226,207,159,0.9)' }} />
                                 <span
-                                    className="text-[10px] font-bold uppercase tracking-[0.18em]"
+                                    className="text-xs font-bold uppercase tracking-[0.18em]"
                                     style={{ color: 'rgba(226,207,159,0.9)' }}
                                 >
                                     The Science
@@ -277,7 +278,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                             className="mt-3 p-4 rounded-[18px]"
                                             style={{
                                                 background: 'rgba(0,0,0,0.2)',
-                                                border: '1px solid rgba(255,255,255,0.09)',
+                                                border: '1px solid rgba(255,255,255,0.12)',
                                             }}
                                         >
                                             <p
@@ -325,7 +326,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                 {/* Decorative quote mark */}
                                 <span
                                     className="absolute top-2 left-4 select-none pointer-events-none font-serif"
-                                    style={{ fontSize: 72, color: 'rgba(255,255,255,0.06)', lineHeight: 1 }}
+                                    style={{ fontSize: 72, color: 'rgba(255,255,255,0.85)', lineHeight: 1 }}
                                 >
                                     &ldquo;
                                 </span>
@@ -385,8 +386,8 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                     <div
                                         className="relative rounded-[20px] p-5 overflow-hidden"
                                         style={{
-                                            background: 'rgba(255,255,255,0.11)',
-                                            border: '1px solid rgba(255,255,255,0.18)',
+                                            background: 'rgba(255,255,255,0.08)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
                                         }}
                                     >
                                         {/* Left accent bar */}
@@ -396,17 +397,17 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                                 top: 14,
                                                 bottom: 14,
                                                 width: 3,
-                                                background: 'rgba(255,255,255,0.45)',
+                                                background: 'rgba(255,255,255,0.08)',
                                             }}
                                         />
 
                                         {/* Meta row */}
                                         <div className="flex items-center justify-between mb-2 ml-2">
                                             <div className="flex items-center gap-2">
-                                                <Award size={11} style={{ color: 'rgba(255,255,255,0.45)' }} />
+                                                <Award size={11} style={{ color: 'rgba(255,255,255,0.85)' }} />
                                                 <span
                                                     className="uppercase font-bold tracking-[0.18em]"
-                                                    style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9.5 }}
+                                                    style={{ color: 'rgba(255,255,255,0.85)', fontSize: 9.5 }}
                                                 >
                                                     {formatDay(item.date)}
                                                 </span>
@@ -415,8 +416,8 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                                 onClick={() => setEditingIndex(editingIndex === i ? null : i)}
                                                 className="px-2 py-0.5 rounded-full border transition-all active:scale-95"
                                                 style={{
-                                                    borderColor: 'rgba(255,255,255,0.25)',
-                                                    color: 'rgba(255,255,255,0.55)',
+                                                    borderColor: 'rgba(255,255,255,0.06)',
+                                                    color: 'rgba(255,255,255,0.85)',
                                                     fontSize: 9,
                                                 }}
                                             >
@@ -485,8 +486,8 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                             transition={{ delay: accomplishments.length * 0.18 + 0.45, duration: 0.4 }}
                             className="w-full flex items-center justify-center gap-3 py-4 rounded-[18px] transition-all active:scale-[0.98]"
                             style={{
-                                background: 'rgba(255,255,255,0.18)',
-                                border: '1px solid rgba(255,255,255,0.28)',
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.12)',
                             }}
                         >
                             <Star size={15} className="text-white" />
@@ -518,55 +519,5 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
     );
 };
 
-// ── Utility: compute whether to show the modal ─────────────────────────────────
-
-/** Returns ISO week string like "2026-W15" */
-const getISOWeek = (date: Date): string => {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
-};
-
-/** Returns the ISO date string for 7 days ago */
-const sevenDaysAgo = (): string => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split('T')[0];
-};
-
-export interface WeeklyHighlightsTrigger {
-    shouldShow: boolean;
-    accomplishments: { text: string; date: string }[];
-    markShown: () => void;
-}
-
-/**
- * Call this on app load (Sunday evenings) to determine if the
- * weekly highlights popup should fire.
- */
-export const computeWeeklyHighlights = (
-    practices: DailyEveningPractice[],
-    shownKey: string
-): WeeklyHighlightsTrigger => {
-    const today = new Date();
-    const isSunday = today.getDay() === 0;
-    const thisWeek = getISOWeek(today);
-    const alreadyShown = localStorage.getItem(shownKey) === thisWeek;
-    const cutoff = sevenDaysAgo();
-
-    // Gather accomplishments from last 7 days
-    const accomplishments = (practices || [])
-        .filter(p => p.date >= cutoff && p.accomplishment?.trim())
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map(p => ({ text: p.accomplishment.trim(), date: p.date }));
-
-    const shouldShow = isSunday && !alreadyShown && accomplishments.length >= 2;
-
-    return {
-        shouldShow,
-        accomplishments,
-        markShown: () => localStorage.setItem(shownKey, thisWeek),
-    };
-};
+export type { WeeklyHighlightsTrigger } from '../utils/weeklyHighlights';
+export { computeWeeklyHighlights } from '../utils/weeklyHighlights';

@@ -43,10 +43,10 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
     // Color palette - Matching the new "Sanctuary" vibe
     const textPrimary = 'text-white';
     const textSecondary = 'text-white'; // Full opacity for readability
-    const accentColor = 'text-white/60 font-black text-[12px]'; // Darker, bolder Terracotta
+    const accentColor = 'text-white font-black text-[12px]'; // Darker, bolder Terracotta
     const accentBg = 'bg-[#E5D6A7]'; // Solid Pale Gold
     const tabActiveBg = 'bg-[#E5D6A7] shadow-sm border-[#E5D6A7] text-[#1B4332]';
-    const tabInactiveBg = 'bg-transparent border-white/10 text-white/50';
+    const tabInactiveBg = 'bg-transparent border-white/10 text-white';
 
     return (
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode} showCloseButton={false}>
@@ -69,7 +69,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                     <div className="flex gap-2 p-1 bg-white/[0.06] rounded-2xl">
                         <button
                             onClick={() => setActiveTab('how')}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${activeTab === 'how' ? tabActiveBg : tabInactiveBg
+                            className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${activeTab === 'how' ? tabActiveBg : tabInactiveBg
                                 }`}
                         >
                             <HelpCircle size={14} />
@@ -78,7 +78,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                         {theScience && (
                             <button
                                 onClick={() => setActiveTab('science')}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${activeTab === 'science' ? tabActiveBg : tabInactiveBg
+                                className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border ${activeTab === 'science' ? tabActiveBg : tabInactiveBg
                                     }`}
                             >
                                 <Microscope size={14} />
@@ -97,7 +97,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                                 <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
                                     {howToUse.title}
                                 </h3>
-                                <p className={`text-sm leading-relaxed text-white/70`}>
+                                <p className={`text-base leading-relaxed text-white/70`}>
                                     {howToUse.description}
                                 </p>
                             </div>
@@ -113,7 +113,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                                             <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#E5D6A7] flex items-center justify-center text-sm font-black text-[#1B4332] shadow-sm">
                                                 {index + 1}
                                             </div>
-                                            <p className="text-sm leading-relaxed pt-1.5 font-medium text-white/80">
+                                            <p className="text-base leading-relaxed pt-1.5 font-medium text-white/80">
                                                 {step}
                                             </p>
                                         </div>
@@ -124,7 +124,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                             {/* Tips */}
                             {howToUse.tips && howToUse.tips.length > 0 && (
                                 <div className="p-6 rounded-[2rem] bg-white/[0.06] border border-white/10">
-                                    <h4 className="text-xs font-black uppercase tracking-[0.2em] mb-3 text-white/60">
+                                    <h4 className="text-sm font-black uppercase tracking-[0.2em] mb-3 text-white">
                                         Palante Pro Tips
                                     </h4>
                                     <ul className="space-y-3">
@@ -147,7 +147,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                                 <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
                                     {theScience.title}
                                 </h3>
-                                <p className="text-sm leading-relaxed text-white/70 italic">
+                                <p className="text-base leading-relaxed text-white/70 italic">
                                     &ldquo;{theScience.overview}&rdquo;
                                 </p>
                             </div>

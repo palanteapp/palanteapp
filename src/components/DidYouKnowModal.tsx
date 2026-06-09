@@ -39,9 +39,9 @@ export const DidYouKnowModal: React.FC<DidYouKnowModalProps> = ({ isOpen, onClos
                 </div>
 
                 <div className="flex items-center gap-2 mb-3">
-                    <Sparkles size={16} className="text-white/40" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-white/60">Did You Know?</span>
-                    <Sparkles size={16} className="text-white/40" />
+                    <Sparkles size={16} className="text-white" />
+                    <span className="text-sm font-bold uppercase tracking-widest text-white">Did You Know?</span>
+                    <Sparkles size={16} className="text-white" />
                 </div>
 
                 <p className="text-xl md:text-2xl font-display font-bold leading-relaxed mb-8 text-white">

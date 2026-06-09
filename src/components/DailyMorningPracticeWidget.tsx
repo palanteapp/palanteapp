@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Sun, Sparkles, Check, ChevronRight, Loader2, Sprout, Flame } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Sun, Sparkles, Check, ChevronRight, Sprout, Flame, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { DailyMorningPractice } from '../types';
-import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
+import type { DailyMorningPractice, Quote } from '../types';
 import type { UserProfile } from '../types';
-import { MORNING_PROMPTS } from '../data/smartPrompts';
-import { getDailyRotatedItems } from '../utils/dailyRotation';
+import { DashboardQuoteCard } from './DashboardQuoteCard';
+import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
+import { supabase } from '../lib/supabase';
 
 interface DailyMorningPracticeProps {
     onComplete: (data: DailyMorningPractice) => void;
@@ -15,10 +15,12 @@ interface DailyMorningPracticeProps {
     userName?: string;
     hideEnergyCheckIn?: boolean;
     onFinish: () => void;
+    onStepChange?: (step: 'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary') => void;
     user?: UserProfile;
+    isFirstEver?: boolean;
 }
 
-export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, user }) => {
+export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver }) => {
     const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
     const [gratitudes, setGratitudes] = useState<string[]>(['', '', '', '', '']);
     const [affirmations, setAffirmations] = useState<string[]>(['', '', '', '', '']);
@@ -26,12 +28,10 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     const [generatedMessage, setGeneratedMessage] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
-    const [showSpecialEffect, setShowSpecialEffect] = useState(false);
     const [hasRefreshed, setHasRefreshed] = useState(false);
 
     useEffect(() => {
         if (existingPriming && !hasRefreshed) {
-            // Ensure we have 5 slots even if data is empty (e.g. after refresh)
             const loadedGratitudes = (existingPriming.gratitudes && existingPriming.gratitudes.length > 0)
                 ? existingPriming.gratitudes
                 : ['', '', '', '', ''];
@@ -44,17 +44,29 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
             setAffirmations(loadedAffirmations);
             setIntention(existingPriming.dailyIntention || '');
 
-            // Only jump to summary if we ACTUALLY have practice data (gratitudes)
             if (existingPriming.gratitudes && existingPriming.gratitudes.length > 0) {
                 setStep('summary');
             }
         }
     }, [existingPriming, hasRefreshed]);
 
-    // ... (keep handleInputChange, handleNext, etc.)
-
-    // ... inside renderSummary button ...
-
+    useEffect(() => {
+        onStepChange?.(step);
+        // resize:'body' (capacitor.config) causes iOS to scroll the body upward
+        // when the keyboard appears on the intention step. Reset scroll the instant
+        // we land on any centered step so the card doesn't appear glued to the top.
+        if (step === 'message' || step === 'intro') {
+            // resize:'body' causes iOS to scroll the body while the keyboard is up.
+            // Double-rAF ensures we reset AFTER the keyboard dismiss animation lands.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                });
+            });
+        }
+    }, [step, onStepChange]);
 
     const handleInputChange = (
         index: number,
@@ -69,40 +81,59 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     };
 
     const handleNext = () => {
+        // Fire the API call BEFORE the animation delay so the request is in-flight
+        // during the 300ms step transition — shaves ~300ms off perceived wait time.
+        if (step === 'intention') {
+            setIsGenerating(true);
+            import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
+
+            // Hard 8-second timeout — on cold-start edge functions this prevents
+            // the user from waiting indefinitely.
+            const fallbackData = {
+                gratitudes: gratitudes.filter(g => g.trim().length > 0),
+                affirmations: affirmations.filter(a => a.trim().length > 0),
+                intention,
+                coachTone: user?.coachSettings?.coachTone,
+            };
+            const fallbackTimer = setTimeout(() => {
+                setGeneratedMessage(
+                    intention.trim()
+                        ? `Today I carry what I named this morning. I move through ${intention.trim()} with everything I brought to this practice.`
+                        : "Today I showed up. That's the whole thing. I carry this forward."
+                );
+                setIsGenerating(false);
+            }, 8000);
+
+            generateMorningPracticeMessage(userName || 'Friend', {
+                ...fallbackData,
+                narrative: user?.userNarrative?.text,
+                momentumState: user ? getMomentumState(user) : undefined,
+                userVoiceProfile: user?.userVoiceProfile,
+            }).then(msg => {
+                clearTimeout(fallbackTimer);
+                setGeneratedMessage(msg);
+                setIsGenerating(false);
+            }).catch(() => {
+                clearTimeout(fallbackTimer);
+                setGeneratedMessage(
+                    intention.trim()
+                        ? `Today I carry what I named this morning. I move through ${intention.trim()} with everything I brought to this practice.`
+                        : "Today I showed up. That's the whole thing. I carry this forward."
+                );
+                setIsGenerating(false);
+            });
+        }
+
         setIsAnimating(true);
         setTimeout(() => {
             if (step === 'intro') setStep('gratitude');
             else if (step === 'gratitude') setStep('affirmation');
             else if (step === 'affirmation') setStep('intention');
             else if (step === 'intention') {
-                setShowSpecialEffect(true);
-                // Start generating message early
-                setIsGenerating(true);
-                const activeGratitudes = gratitudes.filter(g => g.trim().length > 0);
-                const activeAffirmations = affirmations.filter(a => a.trim().length > 0);
-
-                generateMorningPracticeMessage(userName || "Friend", {
-                    gratitudes: activeGratitudes,
-                    affirmations: activeAffirmations,
-                    intention: intention,
-                    narrative: user?.userNarrative?.text,
-                    momentumState: user ? getMomentumState(user) : undefined,
-                    coachTone: user?.coachSettings?.coachTone,
-                }).then(msg => {
-                    setGeneratedMessage(msg);
-                    setIsGenerating(false);
-                });
-
-                // Trigger Dopamine Pop Haptic
-                import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
-
-                setTimeout(() => {
-                    setStep('message');
-                    setShowSpecialEffect(false);
-                }, 2000); // Duration of the special effect
+                setStep('message');
             } else if (step === 'message') {
-                setStep('summary');
                 handleFinish();
+                onFinish();
             }
             setIsAnimating(false);
         }, 300);
@@ -131,10 +162,6 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         onComplete(primingData);
     };
 
-    const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
-    const inputBg = isDarkMode ? 'bg-white/5 border-white/10 focus:border-pale-gold' : 'bg-white/60 border-sage/20 focus:border-sage';
-
     const isStepValid = () => {
         if (step === 'gratitude') return gratitudes.some(g => g.trim().length > 0);
         if (step === 'affirmation') return affirmations.some(a => a.trim().length > 0);
@@ -150,55 +177,139 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         const hour = new Date().getHours();
         const timeLabel = hour < 12 ? 'Start your morning.' : hour < 18 ? 'Take a moment.' : 'Close the day right.';
 
-        return (
-            <div className="flex flex-col overflow-hidden rounded-3xl animate-fade-in">
-                {/* Top: garden preview + copy */}
-                <div className={`flex flex-col items-center px-6 pt-10 pb-8 ${isDarkMode ? 'bg-white/[0.04]' : 'bg-sage/[0.07]'}`}>
-                    {/* Plant icon */}
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
-                        <Sprout size={36} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+        if (isFirstEver) {
+            return (
+                <motion.div
+                    className="flex flex-col items-center text-center px-4"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                >
+                    <div
+                        className="w-20 h-20 rounded-full flex items-center justify-center mb-8"
+                        style={{ background: 'rgba(229,214,167,0.12)', border: '1px solid rgba(229,214,167,0.12)' }}
+                    >
+                        <Sprout size={36} style={{ color: '#E5D6A7' }} />
                     </div>
 
-                    {/* Streak / points badges */}
-                    {(streak > 0 || pts > 0) && (
-                        <div className="flex gap-5 mb-6">
-                            {streak > 0 && (
-                                <div className="flex items-center gap-1.5">
-                                    <Flame size={14} className="text-[#C96A3A]" />
-                                    <span className={`text-sm font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
-                                        {streak}-day streak
-                                    </span>
-                                </div>
-                            )}
-                            {pts > 0 && (
-                                <div className={`text-sm font-semibold ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
-                                    {pts.toLocaleString()} pts
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Invitation */}
-                    <h3 className={`text-2xl font-display font-bold text-center mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                        Let's set the tone of the day.
+                    <h3
+                        className="text-4xl font-display font-bold text-white mb-4 tracking-tight leading-tight"
+                        style={{ textShadow: '0 2px 16px rgba(0,0,0,0.25)' }}
+                    >
+                        Your first practice.
                     </h3>
-                    <p className={`text-sm text-center ${isDarkMode ? 'text-white/45' : 'text-sage/55'}`}>
-                        {timeLabel} Gratitude · Affirmations · Intention
+                    <p className="text-base mb-12" style={{ color: 'rgba(229,214,167,0.90)', maxWidth: '20rem' }}>
+                        Gratitude, affirmation, intention, and a personal message written for exactly where you are today.
                     </p>
+
+                    <div className="flex items-start gap-5 mb-14">
+                        {[
+                            { label: 'Gratitude', n: 1 },
+                            { label: 'Affirm', n: 2 },
+                            { label: 'Intention', n: 3 },
+                            { label: 'Message', n: 4 },
+                        ].map(({ label, n }) => (
+                            <div key={n} className="flex flex-col items-center gap-3">
+                                <div
+                                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+                                    style={{ background: 'rgba(229,214,167,0.12)', color: '#E5D6A7', border: '1px solid rgba(229,214,167,0.12)' }}
+                                >
+                                    {n}
+                                </div>
+                                <span
+                                    className="text-xs font-black uppercase tracking-[0.14em] whitespace-nowrap"
+                                    style={{ color: 'rgba(229,214,167,0.90)' }}
+                                >
+                                    {label}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <motion.button
+                        onClick={handleNext}
+                        whileTap={{ scale: 0.97 }}
+                        className="w-full py-5 rounded-full font-bold text-base tracking-wide"
+                        style={{
+                            background: '#E5D6A7',
+                            color: '#2D3E33',
+                            boxShadow: '0 10px 32px rgba(229,214,167,0.30)',
+                        }}
+                    >
+                        Let's begin →
+                    </motion.button>
+                </motion.div>
+            );
+        }
+
+        return (
+            <motion.div
+                className="flex flex-col items-center text-center px-4"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+            >
+                {/* Icon with glow */}
+                <div className="relative mb-6">
+                    <div
+                        style={{
+                            position: 'absolute',
+                            width: 100, height: 100,
+                            borderRadius: '50%',
+                            background: 'radial-gradient(circle, rgba(229,214,167,0.12) 0%, transparent 70%)',
+                            filter: 'blur(16px)',
+                            top: '50%', left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                        }}
+                    />
+                    <div
+                        className="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
+                        style={{ background: 'rgba(229,214,167,0.12)', border: '1px solid rgba(229,214,167,0.12)' }}
+                    >
+                        <Sprout size={28} style={{ color: '#E5D6A7' }} />
+                    </div>
                 </div>
 
-                {/* CTA — full-width terracotta bar */}
+                {(streak > 0 || pts > 0) && (
+                    <div className="flex gap-5 mb-5">
+                        {streak > 0 && (
+                            <div className="flex items-center gap-1.5">
+                                <Flame size={13} style={{ color: '#E5D6A7' }} />
+                                <span className="text-sm font-semibold text-white/70">{streak}-day streak</span>
+                            </div>
+                        )}
+                        {pts > 0 && (
+                            <div className="text-sm font-semibold text-white">{pts.toLocaleString()} pts</div>
+                        )}
+                    </div>
+                )}
+
+                <h3
+                    className="text-4xl font-display font-bold text-white mb-2 tracking-tight leading-tight"
+                    style={{ textShadow: '0 2px 16px rgba(0,0,0,0.25)' }}
+                >
+                    Let's set the tone.
+                </h3>
+                <p className="text-sm mb-1.5" style={{ color: 'rgba(229,214,167,0.85)' }}>
+                    {timeLabel}
+                </p>
+                <p className="text-sm mb-10" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                    Gratitude · Affirmations · Intention
+                </p>
+
                 <motion.button
                     onClick={handleNext}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full py-5 text-white font-bold text-base tracking-wide transition-colors"
-                    style={{ background: '#C96A3A' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#b55e32')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#C96A3A')}
+                    whileTap={{ scale: 0.97 }}
+                    className="w-full py-4 rounded-full font-bold text-base tracking-wide"
+                    style={{
+                        background: '#E5D6A7',
+                        color: '#2D3E33',
+                        boxShadow: '0 8px 28px rgba(229,214,167,0.30)',
+                    }}
                 >
                     Begin Morning Practice
                 </motion.button>
-            </div>
+            </motion.div>
         );
     };
 
@@ -208,101 +319,88 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         icon: React.ReactNode,
         values: string[],
         setter: React.Dispatch<React.SetStateAction<string[]>>,
-        placeholderPrefix: string
+        placeholderPrefix: string,
+        stepNum: number
     ) => {
-        // Determine prompt type based on title
-        const promptType = title.toLowerCase().includes('gratitude') ? 'gratitude' :
-            title.toLowerCase().includes('affirmation') ? 'affirmation' : null;
-
-        // Get daily rotated prompts
-        const allPrompts = promptType === 'gratitude' ? MORNING_PROMPTS.gratitude :
-            promptType === 'affirmation' ? MORNING_PROMPTS.affirmation : [];
-        const prompts = getDailyRotatedItems(allPrompts, 5);
-
-        const handlePromptClick = (prompt: string) => {
-            // Find first empty slot
-            const emptyIndex = values.findIndex(v => v.trim() === '');
-            if (emptyIndex !== -1) {
-                handleInputChange(emptyIndex, prompt, setter);
-            } else {
-                // If full, overwrite the last one or do nothing? Let's overwrite last for now or just shake.
-                // Better: Just overwrite the *current* focused one if we had focus tracking, 
-                // but since we don't, filling the first empty is the "Smart" behavior. 
-                // If all full, maybe overwrite the last one?
-                handleInputChange(values.length - 1, prompt, setter);
-            }
-        };
-
         return (
             <div className="w-full animate-fade-in">
-                <div className="text-center mb-6">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                        {icon}
-                        <h3 className={`text-xl font-display font-medium ${textPrimary}`}>{title}</h3>
-                    </div>
-                    <p className={`text-sm ${textSecondary}`}>{subtitle}</p>
+                {/* Step counter */}
+                <div className="flex items-center justify-end mb-10">
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(229,214,167,0.90)' }}>
+                        {stepNum} / 3
+                    </span>
                 </div>
 
-                <div className="space-y-3 mb-6">
+                {/* Title block */}
+                <div className="mb-10">
+                    <h2 className="text-[3.25rem] font-display font-bold text-white tracking-tight leading-[1.0] mb-3">
+                        {title}
+                    </h2>
+                    <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.70)' }}>
+                        {subtitle}
+                    </p>
+                </div>
+
+                {/* Journal-style inputs */}
+                <div className="flex flex-col mb-8">
                     {values.map((val, idx) => (
-                        <div key={idx} className="relative group">
-                            <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold ${textSecondary} opacity-50`}>
-                                {idx + 1}.
+                        <div
+                            key={idx}
+                            data-input-row=""
+                            className="flex items-center gap-4 py-4 transition-all"
+                            style={{ borderBottom: `1px solid ${val.trim() ? 'rgba(229,214,167,0.90)' : 'rgba(255,255,255,0.06)'}` }}
+                        >
+                            <span
+                                className="text-sm font-black w-4 flex-shrink-0 tabular-nums"
+                                style={{ color: val.trim() ? 'rgba(229,214,167,0.65)' : 'rgba(229,214,167,0.90)' }}
+                            >
+                                {idx + 1}
                             </span>
                             <input
                                 type="text"
                                 value={val}
                                 onChange={(e) => handleInputChange(idx, e.target.value, setter)}
-                                onFocus={(e) => e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                                onFocus={(e) => {
+                                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    const row = e.currentTarget.parentElement!;
+                                    row.style.borderBottomColor = 'rgba(229,214,167,0.65)';
+                                }}
+                                onBlur={(e) => {
+                                    const row = e.currentTarget.parentElement!;
+                                    row.style.borderBottomColor = e.currentTarget.value.trim()
+                                        ? 'rgba(229,214,167,0.90)'
+                                        : 'rgba(255,255,255,0.85)';
+                                }}
                                 placeholder={`${placeholderPrefix}...`}
-                                className={`w-full py-3 pl-10 pr-4 rounded-xl border outline-none transition-all ${inputBg}`}
+                                className="flex-1 bg-transparent outline-none text-[17px] text-white placeholder:text-white/20 py-1 font-medium"
                                 autoFocus={idx === 0}
                             />
+                            {val.trim() && (
+                                <Check size={13} style={{ color: 'rgba(229,214,167,0.90)', flexShrink: 0 }} />
+                            )}
                         </div>
                     ))}
                 </div>
 
-                {/* SMART PROMPTS CAROUSEL */}
-                {prompts.length > 0 && (
-                    <>
-                        <p className={`text-[10px] font-bold uppercase tracking-widest mb-2 opacity-50 ${textSecondary}`}>
-                            Tap a prompt to spark your entry
-                        </p>
-                        <div className="mb-8 -mx-6 px-6 overflow-x-auto flex gap-2 no-scrollbar pb-2 snap-x">
-                        {prompts.map((prompt, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handlePromptClick(prompt)}
-                                className={`
-                                    whitespace-nowrap px-4 py-2 rounded-full text-xs font-medium border transition-all snap-start
-                                    hover:scale-105 active:scale-95
-                                    ${isDarkMode
-                                        ? 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-pale-gold/30'
-                                        : 'bg-white border-sage/10 text-sage/70 hover:bg-sage/5 hover:border-sage/30 hover:text-sage'
-                                    }
-                                `}
-                            >
-                                {prompt}
-                            </button>
-                        ))}
-                    </div>
-                    </>
-                )}
-
+                {/* Navigation */}
                 <div className="flex gap-3">
                     <button
                         onClick={handleBack}
-                        className={`flex-1 py-3 rounded-xl font-medium transition-colors ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-sage/10 hover:bg-sage/20 text-sage'}`}
+                        className="flex-1 py-4 rounded-xl font-medium text-base text-white transition-colors"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}
                     >
                         Back
                     </button>
                     <button
                         onClick={handleNext}
                         disabled={!isStepValid()}
-                        className={`flex-[2] py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${!isStepValid()
-                            ? 'opacity-50 cursor-not-allowed bg-gray-500/20'
-                            : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
-                            }`}
+                        className="flex-[2] py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                        style={{
+                            background: isStepValid() ? '#E5D6A7' : 'rgba(229,214,167,0.12)',
+                            color: isStepValid() ? '#2D3E33' : 'rgba(229,214,167,0.90)',
+                            boxShadow: isStepValid() ? '0 6px 20px rgba(229,214,167,0.30)' : 'none',
+                            cursor: isStepValid() ? 'pointer' : 'not-allowed',
+                        }}
                     >
                         Next Step <ChevronRight size={18} />
                     </button>
@@ -312,119 +410,161 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     };
 
     const renderIntention = () => (
-        <div className="w-full flex flex-col py-4 animate-fade-in">
-            <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-full ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
-                    <Sun size={20} />
-                </div>
-                <h3 className={`text-xl font-display font-medium ${textPrimary}`}>Your Intention</h3>
+        <div className="w-full animate-fade-in">
+            {/* Step counter */}
+            <div className="flex items-center justify-end mb-10">
+                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(229,214,167,0.90)' }}>
+                    3 / 3
+                </span>
             </div>
-            <p className={`text-sm mb-6 ${textSecondary}`}>
-                Choose one word to guide your energy today. This will be your North Star.
+
+            {/* Title block */}
+            <div className="mb-10">
+                <h2 className="text-[3.25rem] font-display font-bold text-white tracking-tight leading-[1.0] mb-3">
+                    Set intention
+                </h2>
+                <p className="text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.70)' }}>
+                    One word to guide your energy today. Your North Star.
+                </p>
+            </div>
+
+            {/* Large single input */}
+            <input
+                type="text"
+                value={intention}
+                onChange={(e) => setIntention(e.target.value)}
+                placeholder="One word…"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck={false}
+                className="w-full text-[17px] font-medium bg-transparent border-b-2 outline-none transition-all py-4 text-white placeholder:text-white/20 mb-6"
+                style={{ borderColor: intention.trim() ? 'rgba(229,214,167,0.90)' : 'rgba(229,214,167,0.90)' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(229,214,167,0.75)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = e.currentTarget.value.trim() ? 'rgba(229,214,167,0.90)' : 'rgba(229,214,167,0.90)'; }}
+                autoFocus
+            />
+
+            <p className="text-xs uppercase tracking-[0.22em] mb-10" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                Presence · Flow · Strength · Ease · Courage
             </p>
 
-            <div className="bg-transparent border-none">
-                <input
-                    type="text"
-                    value={intention}
-                    onChange={(e) => setIntention(e.target.value)}
-                    onFocus={(e) => e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                    placeholder="e.g. Courage, Peace, Focus, Joy..."
-                    className={`w-full text-center text-3xl font-display font-bold bg-transparent border-b-2 outline-none transition-all py-4 placeholder:font-normal placeholder:opacity-30 ${isDarkMode
-                        ? 'border-white/20 focus:border-pale-gold text-white placeholder-white'
-                        : 'border-sage/20 focus:border-sage text-sage placeholder-sage'
-                        }`}
-                    autoFocus
-                />
-            </div>
-
-            <div className={`mt-8 flex gap-3 ${isDarkMode ? 'text-white/40' : 'text-sage/40'} text-xs justify-center uppercase tracking-widest`}>
-                Examples: Presence • Flow • Strength • Ease
-            </div>
-
-            <div className="flex gap-3 mt-10">
+            <div className="flex gap-3">
                 <button
                     onClick={handleBack}
-                    className={`flex-1 py-3 rounded-xl font-medium transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-sage'
-                        }`}
+                    className="flex-1 py-4 rounded-xl font-medium text-base text-white transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
                     Back
                 </button>
-                <button
+                <motion.button
                     onClick={handleNext}
                     disabled={!isStepValid()}
-                    className={`flex-[2] py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${!isStepValid()
-                        ? 'opacity-50 cursor-not-allowed bg-gray-500/20'
-                        : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
-                        }`}
+                    whileTap={{ scale: 0.97 }}
+                    className="flex-[2] py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                    style={{
+                        background: isStepValid() ? '#E5D6A7' : 'rgba(229,214,167,0.12)',
+                        color: isStepValid() ? '#2D3E33' : 'rgba(229,214,167,0.90)',
+                        boxShadow: isStepValid() ? '0 6px 20px rgba(229,214,167,0.30)' : 'none',
+                        cursor: isStepValid() ? 'pointer' : 'not-allowed',
+                    }}
                 >
-                    Complete Practice <ChevronRight size={18} />
-                </button>
+                    Next Step →
+                </motion.button>
             </div>
         </div>
     );
 
     const renderMessage = () => {
+        const messageQuote: Quote = {
+            id: 'morning-message',
+            text: generatedMessage || '...',
+            author: 'Palante',
+            intensity: 2,
+            category: 'morning-practice',
+            isAI: true,
+        };
+
         return (
-            <div className="w-full py-8 text-center animate-fade-in min-h-[300px] flex flex-col justify-center">
+            <div className="w-full flex flex-col animate-fade-in">
                 {isGenerating ? (
-                    <div className="flex flex-col items-center justify-center space-y-4">
-                        <Loader2 size={40} className={`animate-spin ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
-                        <p className={`text-sm font-medium ${textSecondary}`}>Crafting your morning boost...</p>
+                    <div className="flex flex-col items-center justify-center py-24 gap-6">
+                        <Loader2 size={36} className="animate-spin" style={{ color: 'rgba(229,214,167,0.90)' }} />
+                        <p className="text-sm uppercase tracking-widest" style={{ color: 'rgba(229,214,167,0.90)' }}>
+                            Writing your message...
+                        </p>
                     </div>
                 ) : (
-                    <>
-                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg ${'bg-terracotta-500 text-white hover:scale-105'}`}>
-                            <Sun size={40} className="animate-spin-slow" />
-                        </div>
-                        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] mb-6 ${textSecondary}`}>
-                            Your message for the day
-                        </h3>
-                        <div className={`text-2xl font-display font-medium leading-[1.6] italic px-4 ${textPrimary}`}>
-                            "{generatedMessage}"
-                        </div>
-
-                        <button
-                            onClick={handleNext}
-                            className="mt-12 px-10 py-3 bg-pale-gold text-sage-dark rounded-full font-bold shadow-lg active:scale-95 transition-all"
-                        >
-                            Carry It Forward
-                        </button>
-                    </>
+                    <div className="w-full mb-8">
+                        <p className="text-xs font-black uppercase tracking-[0.22em] mb-4 text-center" style={{ color: 'rgba(229,214,167,0.90)' }}>
+                            Your message for today
+                        </p>
+                        <DashboardQuoteCard
+                            quote={messageQuote}
+                            isDarkMode={true}
+                        />
+                    </div>
                 )}
+
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleBack}
+                        className="flex-1 py-4 rounded-xl font-medium text-base text-white transition-colors"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    >
+                        Back
+                    </button>
+                    <motion.button
+                        onClick={handleNext}
+                        disabled={isGenerating}
+                        whileTap={{ scale: 0.97 }}
+                        className="flex-[2] py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                        style={{
+                            background: isGenerating ? 'rgba(229,214,167,0.12)' : '#E5D6A7',
+                            color: isGenerating ? 'rgba(229,214,167,0.90)' : '#2D3E33',
+                            boxShadow: isGenerating ? 'none' : '0 6px 20px rgba(229,214,167,0.30)',
+                            cursor: isGenerating ? 'not-allowed' : 'pointer',
+                        }}
+                    >
+                        Begin my day →
+                    </motion.button>
+                </div>
             </div>
         );
     };
 
-    // Summary Rendering with Intention
     const renderSummary = () => (
         <div className="w-full py-4 animate-fade-in text-center">
             <div className="mb-8">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'}`}>
-                    <Check size={24} />
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{ background: 'rgba(64,145,108,0.25)', border: '1px solid rgba(64,145,108,0.40)' }}>
+                    <Check size={26} style={{ color: '#6FCF97' }} />
                 </div>
-                <h3 className={`text-xl font-display font-medium ${textPrimary}`}>Practice Complete.</h3>
+                <h3 className="text-3xl font-display font-bold text-white">Practice Complete.</h3>
                 {intention && (
-                    <div className={`mt-4 inline-block px-6 py-2 rounded-full border ${isDarkMode ? 'border-pale-gold/30 bg-pale-gold/10 text-pale-gold' : 'border-sage/30 bg-sage/10 text-sage'}`}>
-                        <span className="text-xs uppercase tracking-widest mr-2 opacity-70">Today's Intention</span>
-                        <span className="font-bold font-display uppercase">{intention}</span>
+                    <div
+                        className="mt-4 inline-block px-6 py-2 rounded-full"
+                        style={{ border: '1px solid rgba(229,214,167,0.12)', background: 'rgba(229,214,167,0.12)' }}
+                    >
+                        <span className="text-sm uppercase tracking-widest mr-2" style={{ color: 'rgba(229,214,167,0.90)' }}>Today's Intention</span>
+                        <span className="font-bold font-display uppercase" style={{ color: '#E5D6A7' }}>{intention}</span>
                     </div>
                 )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-left">
-                <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-white/60'}`}>
-                    <h4 className={`text-xs font-bold uppercase tracking-widest mb-3 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Gratitude</h4>
-                    <ul className={`text-sm space-y-2 ${textSecondary}`}>
+                <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h4 className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: '#E5D6A7' }}>Gratitude</h4>
+                    <ul className="text-base space-y-2 text-white">
                         {gratitudes.filter(g => g).slice(0, 3).map((g, i) => (
                             <li key={i} className="line-clamp-1 truncate">• {g}</li>
                         ))}
                         {gratitudes.filter(g => g).length > 3 && <li>+ {gratitudes.filter(g => g).length - 3} more</li>}
                     </ul>
                 </div>
-                <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5' : 'bg-white/60'}`}>
-                    <h4 className={`text-xs font-bold uppercase tracking-widest mb-3 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Affirmations</h4>
-                    <ul className={`text-sm space-y-2 ${textSecondary}`}>
+                <div className="p-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <h4 className="text-sm font-bold uppercase tracking-widest mb-3" style={{ color: '#E5D6A7' }}>Affirmations</h4>
+                    <ul className="text-base space-y-2 text-white">
                         {affirmations.filter(a => a).slice(0, 3).map((a, i) => (
                             <li key={i} className="line-clamp-1 truncate">• {a}</li>
                         ))}
@@ -432,25 +572,46 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     </ul>
                 </div>
             </div>
+
+            {/* Breathing close */}
+            <div className="mb-6 px-5 py-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <p className="text-xs font-black uppercase tracking-[0.18em] mb-2" style={{ color: 'rgba(229,214,167,0.90)' }}>
+                    Before you go
+                </p>
+                <p className="text-base leading-relaxed text-white/70">
+                    Five slow belly breaths — in through your nose.{' '}
+                    <span className="font-semibold text-white/90">Inhale:</span>{' '}
+                    <span className="italic">I love you.</span>{' '}
+                    <span className="font-semibold text-white/90">Exhale:</span>{' '}
+                    <span className="italic">I am enough.</span>
+                </p>
+            </div>
+
             <div className="flex flex-col gap-3">
                 <motion.button
                     onClick={onFinish}
-                    whileHover={{ scale: 1.03 }}
+                    whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.97 }}
-                    className="w-full py-4 bg-[#C96A3A] text-white rounded-xl text-lg font-bold tracking-wide shadow-lg active:scale-95 transition-all hover:bg-[#b55e32]"
+                    className="w-full py-4 rounded-xl text-base font-bold tracking-wide transition-all"
+                    style={{
+                        background: '#E5D6A7',
+                        color: '#2D3E33',
+                        boxShadow: '0 8px 28px rgba(229,214,167,0.30)',
+                    }}
                 >
                     Return to Dashboard
                 </motion.button>
                 <button
                     onClick={() => {
-                        setHasRefreshed(true); // Block useEffect from re-populating
+                        setHasRefreshed(true);
                         setGratitudes(['', '', '', '', '']);
                         setAffirmations(['', '', '', '', '']);
                         setGeneratedMessage('');
                         setStep('intro');
                         if (onRefresh) onRefresh();
                     }}
-                    className={`w-full py-3 rounded-xl text-sm font-medium border border-dashed transition-all ${isDarkMode ? 'border-white/20 text-white/40 hover:text-white hover:border-white/40' : 'border-sage/20 text-sage/40 hover:text-sage hover:border-sage/40'}`}
+                    className="w-full py-3 rounded-xl text-base font-medium border border-dashed transition-all text-white hover:text-white/60"
+                    style={{ borderColor: 'rgba(255,255,255,0.06)' }}
                 >
                     Refresh Practice
                 </button>
@@ -459,18 +620,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     );
 
     return (
-        <div className={`w-full rounded-3xl border transition-all duration-300 relative overflow-hidden ${step === 'intro'
-            ? 'p-0 border-transparent bg-transparent'
-            : isDarkMode
-                ? 'p-6 bg-white/5 border-white/10'
-                : 'p-6 bg-gradient-to-br from-white to-sage/5 border-sage/20 shadow-sm'
-            }`}>
-
-            {/* Background Decor — hidden on intro (hero handles its own bg) */}
-            {step !== 'intro' && (
-                <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-20 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
-            )}
-
+        <div className="w-full relative">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={step}
@@ -483,18 +633,20 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     {step === 'gratitude' && renderInputs(
                         "Gratitude",
                         "List 5 things you're thankful for right now.",
-                        <Sun size={20} className="text-pale-gold-400" fill="currentColor" />,
+                        <Sun size={22} style={{ color: '#E5D6A7' }} />,
                         gratitudes,
                         setGratitudes,
-                        "I am grateful for"
+                        "I am grateful for",
+                        1
                     )}
                     {step === 'affirmation' && renderInputs(
                         "Affirmations",
                         "List 5 truths about your highest self.",
-                        <Sparkles size={20} className="text-pale-gold" fill="currentColor" />,
+                        <Sparkles size={22} style={{ color: '#E5D6A7' }} />,
                         affirmations,
                         setAffirmations,
-                        "I am"
+                        "I am",
+                        2
                     )}
                     {step === 'intention' && renderIntention()}
                     {step === 'message' && renderMessage()}
@@ -502,33 +654,19 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 </motion.div>
             </AnimatePresence>
 
-            {/* Special Completion Effect (Sun Rise + Rays) */}
-            {showSpecialEffect && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-md animate-fade-in">
-                    <div className="relative flex flex-col items-center">
-                        {/* Sun Rays */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 pointer-events-none">
-                            <div className="absolute inset-0 border-[20px] border-pale-gold/30 rounded-full animate-sun-rays" stroke-dasharray="10 20" />
-                            <div className="absolute inset-0 border-[40px] border-pale-gold/20 rounded-full animate-sun-rays delay-700" />
-                        </div>
-
-                        <div className={`w-32 h-32 rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 blur-2xl opacity-60 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
-                        <Sun size={88} className={`relative z-10 animate-rise-up ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
-
-                        <div className="mt-12 text-center animate-fade-in delay-700">
-                            <p className="text-white font-display text-lg font-bold tracking-wide px-6">Rising to meet the day...</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Step Indicator dots (only during active flow) */}
-            {(step === 'gratitude' || step === 'affirmation' || step === 'intention' || step === 'message') && (
-                <div className="flex justify-center gap-2 mt-6">
-                    <div className={`w-2 h-2 rounded-full transition-all ${step === 'gratitude' ? (isDarkMode ? 'bg-pale-gold w-6' : 'bg-sage w-6') : (isDarkMode ? 'bg-white/20' : 'bg-sage/20')}`} />
-                    <div className={`w-2 h-2 rounded-full transition-all ${step === 'affirmation' ? (isDarkMode ? 'bg-pale-gold w-6' : 'bg-sage w-6') : (isDarkMode ? 'bg-white/20' : 'bg-sage/20')}`} />
-                    <div className={`w-2 h-2 rounded-full transition-all ${step === 'intention' ? (isDarkMode ? 'bg-pale-gold w-6' : 'bg-sage w-6') : (isDarkMode ? 'bg-white/20' : 'bg-sage/20')}`} />
-                    <div className={`w-2 h-2 rounded-full transition-all ${step === 'message' ? (isDarkMode ? 'bg-pale-gold w-6' : 'bg-sage w-6') : (isDarkMode ? 'bg-white/20' : 'bg-sage/20')}`} />
+            {/* Step indicator dots */}
+            {(step === 'gratitude' || step === 'affirmation' || step === 'intention') && (
+                <div className="flex justify-center gap-2 mt-8">
+                    {(['gratitude', 'affirmation', 'intention'] as const).map(s => (
+                        <div
+                            key={s}
+                            className="h-1.5 rounded-full transition-all duration-300"
+                            style={{
+                                width: step === s ? 24 : 6,
+                                background: step === s ? '#E5D6A7' : 'rgba(229,214,167,0.12)',
+                            }}
+                        />
+                    ))}
                 </div>
             )}
         </div>

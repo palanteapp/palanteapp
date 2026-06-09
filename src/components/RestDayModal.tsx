@@ -31,7 +31,7 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
                         haptics.light();
                         onClose();
                     }}
-                    className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'
+                    className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'
                         }`}
                 >
                     <X size={20} />
@@ -57,7 +57,7 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
                     You didn't check in on <span className="font-medium">{formatDate(missedDate)}</span>.
                 </p>
 
-                <p className={`text-center mb-8 text-sm ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'
+                <p className={`text-center mb-8 text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/50'
                     }`}>
                     Did you take a well-deserved rest day?
                 </p>
@@ -95,7 +95,7 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
                 </div>
 
                 {/* Reassurance */}
-                <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'
+                <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
                     }`}>
                     Rest is part of growth. Your streak is safe. 🌱
                 </p>

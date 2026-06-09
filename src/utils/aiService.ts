@@ -4,9 +4,22 @@
  * Also contains behavior analysis and coach intervention logic (consolidated from aiCoach).
  */
 
-const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+
+// The proxy validates via the project anon key — no user session needed.
+// This avoids Capacitor WKWebView issues where getSession() returns null
+// during background/foreground cycles even when the user is authenticated.
+function getProxyHeaders(): HeadersInit {
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!anonKey) {
+        console.error('[Palante AI] VITE_SUPABASE_ANON_KEY not set');
+    }
+    return {
+        'content-type': 'application/json',
+        'apikey': anonKey ?? '',
+    };
+}
 
 export interface AIAffirmationRequest {
     profession: string;
@@ -41,6 +54,7 @@ export interface UserContext {
     currentMood?: string;
     focusAreas?: string[];
     coachTone?: 'nurturing' | 'direct' | 'accountability';
+    persistedMemories?: string[];
 }
 
 export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
@@ -71,7 +85,7 @@ export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountabilit
     accountability: `Be firm and high-standard. You see what they're capable of and you won't let them coast. Acknowledge the work but name the gap. No cruelty — but no excuses either. The coach who pushes because they believe in you more than you believe in yourself right now.`,
 };
 
-import type { ChatMessage, UserProfile, UserBehaviorPattern, CoachIntervention } from '../types';
+import type { ChatMessage, UserProfile, UserBehaviorPattern, CoachIntervention, UserVoiceProfile } from '../types';
 
 export interface AIAffirmationResponse {
     text: string;
@@ -79,6 +93,48 @@ export interface AIAffirmationResponse {
     category: string;
     isAI: boolean;
 }
+
+/**
+ * Extract the user's core values and themes from their gratitudes and affirmations.
+ * Used to inform personalized message generation.
+ */
+export const extractUserValues = (user: UserProfile): { values: string[]; themes: string[] } => {
+    const gratitudes = (user.dailyMorningPractice || [])
+        .slice(-14) // Last 2 weeks
+        .flatMap(p => p.gratitudes || [])
+        .join(' ');
+
+    const affirmations = (user.dailyMorningPractice || [])
+        .slice(-14)
+        .flatMap(p => p.affirmations || [])
+        .join(' ');
+
+    const combined = `${gratitudes} ${affirmations}`.toLowerCase();
+
+    // Common value words to extract
+    const valueKeywords = [
+        'courage', 'strength', 'peace', 'presence', 'growth', 'love', 'connection',
+        'authenticity', 'integrity', 'wisdom', 'balance', 'joy', 'purpose', 'freedom',
+        'resilience', 'trust', 'clarity', 'compassion', 'grace', 'gratitude', 'creativity'
+    ];
+
+    const foundValues = valueKeywords.filter(v => combined.includes(v));
+
+    // Extract themes by looking for repeated short phrases
+    const words = combined.match(/\b\w{4,}\b/g) || [];
+    const wordFreq: Record<string, number> = {};
+    words.forEach(w => { wordFreq[w] = (wordFreq[w] || 0) + 1; });
+
+    const themes = Object.entries(wordFreq)
+        .filter(([_, count]) => count >= 2)
+        .map(([word]) => word)
+        .slice(0, 5);
+
+    return {
+        values: foundValues.length > 0 ? foundValues : ['growth'],
+        themes: themes.length > 0 ? themes : []
+    };
+};
 
 /**
  * Generates a 4-5 sentence "growth memoir" for the user by synthesizing
@@ -94,12 +150,41 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
     const activeGoals = (user.goals || []).filter(g => !g.completedAt).slice(0, 3);
     const totalPractices = user.practiceData?.totalPractices ?? 0;
 
+    // First name only — extract from full name if needed.
+    const firstName = (user.name || '').trim().split(/\s+/)[0] || 'they';
+
+    // Behavior pattern facts (skip days, avg energy, preferred practice time)
+    const pattern = user.behaviorPattern;
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const skipDayNames = pattern?.patterns.skipPatterns.daysOfWeek
+        ?.map(d => DAY_NAMES[d])
+        .filter(Boolean) ?? [];
+    const consecutiveSkips = pattern?.patterns.skipPatterns.consecutiveSkips ?? 0;
+    const avgEnergy = pattern?.patterns.moodPatterns.averageEnergy;
+    const lowEnergyDays = pattern?.patterns.moodPatterns.lowEnergyDays
+        ?.map(d => DAY_NAMES[d])
+        .filter(Boolean) ?? [];
+    const preferredMeditationTime = pattern?.patterns.preferredPracticeTime.meditation;
+    const preferredMorningWindow = pattern?.patterns.preferredPracticeTime.morningPractice;
+    const goalRate = pattern?.patterns.goalCompletionRate;
+
+    const behaviorBlock = [
+        skipDayNames.length ? `Days they tend to skip: ${skipDayNames.join(', ')}` : '',
+        consecutiveSkips > 0 ? `Consecutive skip days right now: ${consecutiveSkips}` : '',
+        typeof avgEnergy === 'number' ? `Average energy (rolling): ${avgEnergy.toFixed(1)}/5` : '',
+        lowEnergyDays.length ? `Days their energy typically dips: ${lowEnergyDays.join(', ')}` : '',
+        preferredMeditationTime && preferredMeditationTime !== 'unknown' ? `Preferred meditation time: ${preferredMeditationTime}` : '',
+        preferredMorningWindow && preferredMorningWindow !== 'unknown' ? `Morning practice window: ${preferredMorningWindow.replace('_', ' ')}` : '',
+        typeof goalRate === 'number' ? `Goal completion rate: ${Math.round(goalRate * 100)}%` : '',
+    ].filter(Boolean).join('\n');
+
     const contextBlock = [
+        `First name: ${firstName}`,
         user.profession ? `Profession: ${user.profession}` : '',
         `Current streak: ${user.streak || 0} days`,
         `Total practices completed all-time: ${totalPractices}`,
         user.currentMood ? `Current mood: ${user.currentMood}` : '',
-        user.currentEnergy ? `Current energy: ${user.currentEnergy}/5` : '',
+        user.currentEnergy ? `Current energy right now: ${user.currentEnergy}/5` : '',
         user.focusAreas?.length ? `Working on: ${user.focusAreas.join(', ')}` : '',
         activeGoals.length
             ? `Active goals: ${activeGoals.map(g => g.title).join('; ')}`
@@ -125,38 +210,49 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
         recentNoise.length
             ? `Current stressors they've named: ${recentNoise.map(n => n.text).join('; ')}`
             : '',
+        behaviorBlock ? `\nBEHAVIOR PATTERN:\n${behaviorBlock}` : '',
     ].filter(Boolean).join('\n');
 
     const fallback = buildFallbackNarrative(user);
 
-    if (!GEMINI_API_KEY) return fallback;
+    const prompt = `You are Palante, a personal growth companion. Based on the data below, write a warm 4-5 sentence observation of this specific person's pattern. This will appear on their profile as a personal note from Palante.
 
-    const prompt = `You are Palante, a personal growth companion. Based on the data below, write a warm 3-4 sentence reflection that speaks directly to the user. This will appear on their profile as a personal note from Palante.
+Tone: supportive, specific, and human — like a trusted friend who has genuinely been paying attention to how this person actually moves through their weeks. Use second person ("you", "your"). Reference what they've actually been grateful for and intending toward. If there is meaningful behavior pattern data (skip days, energy dips, preferred practice time), weave at least one specific observation about it in — but only if it's there. Make it feel like a real read on this person, not a template that could apply to anyone.
 
-Tone: supportive, specific, and human — like a trusted friend who has genuinely been paying attention. Always use second person ("you", "your"). Reference what they've actually been grateful for and what they're working toward — make it feel personal and seen. Never use the person's name. Never use generic filler. Weave details into flowing sentences, no lists.
-
-Start with "You're" or "You've" — never with their name.
+ABSOLUTE RULES:
+- 4-5 sentences. No more.
+- No headers, no lists, no bullets. Flowing sentences only.
+- Never use the person's name in the text. Start with "You're" or "You've".
+- No em dashes (the — character). Use periods and commas only.
+- Never use the words: journey, intentional, mindful, anchor, foundation, tapestry, weave, tether, sovereignty.
+- Never write something that could apply to any person on any week. Be specific to what their data actually shows.
 
 USER DATA:
 ${contextBlock}
 
-Write the reflection now (3-4 sentences, second person, no headers, no lists):`;
+Write the observation now (4-5 sentences, second person, no headers, no lists):`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.85, maxOutputTokens: 300, topP: 0.95 }
-            })
+                model: ANTHROPIC_MODEL,
+                max_tokens: 400,
+                temperature: 0.85,
+                messages: [{ role: 'user', content: prompt }],
+            }),
         });
 
         if (!response.ok) return fallback;
 
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        return text || fallback;
+        const json = await response.json();
+        let text = json.content?.[0]?.text?.trim();
+        if (!text) return fallback;
+
+        // Strip wrapping quotes if the model added them.
+        text = text.replace(/^["'']|["'']$/g, '').trim();
+        return text;
     } catch {
         return fallback;
     }
@@ -164,8 +260,6 @@ Write the reflection now (3-4 sentences, second person, no headers, no lists):`;
 
 const buildFallbackNarrative = (user: UserProfile): string => {
     const streak = user.streak || 0;
-    const name = user.name || 'this person';
-    const profession = user.profession || 'their field';
     const goals = (user.goals || []).filter(g => !g.completedAt).map(g => g.title);
     const recentGratitude = user.dailyMorningPractice?.[user.dailyMorningPractice.length - 1]?.gratitudes?.[0];
 
@@ -179,7 +273,7 @@ const buildFallbackNarrative = (user: UserProfile): string => {
 
     const goalsLine = goals.length
         ? ` Right now you're working toward ${goals.slice(0, 2).join(' and ')}, and every small step you take here is part of that.`
-        : ` Whatever brought you here today, you showed up — and that\'s always the hardest part.`;
+        : ` Whatever brought you here today, you showed up — and that's always the hardest part.`;
 
     return `${streakLine}${gratitudeLine}${goalsLine}`.replace(/\s+/g, ' ').trim();
 };
@@ -203,11 +297,6 @@ const getTimeContext = (timeOfDay?: string): string => {
 };
 
 export const generateAffirmation = async (request: AIAffirmationRequest): Promise<AIAffirmationResponse> => {
-    if (!GEMINI_API_KEY) {
-        console.warn('Gemini API key not configured, using fallback');
-        return getFallbackAffirmation(request);
-    }
-
     const intensityDesc = getIntensityDescription(request.quoteIntensity);
     const timeContext = getTimeContext(request.timeOfDay);
     const streakContext = request.streak && request.streak > 0
@@ -225,7 +314,8 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
         ? `- Current State: User is feeling low-energy or stressed. Be gentle and grounding, not high-intensity.`
         : '';
 
-    const coachIdentity = request.coachName ? `Coach ${request.coachName}` : 'Palante Coach';
+    // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
+    const coachIdentity = request.coachName?.trim() || 'Palante';
 
     const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation coach. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
 
@@ -256,48 +346,44 @@ MEDICAL SAFETY GUIDE:
 - If the user asks for medical advice, gently steer them toward consulting a professional.
 
 OUTPUT FORMAT:
-Provide the response in exactly this JSON format:
-{
-    "text": "The affirmation or quote text (under 25 words)",
-    "author": "${coachIdentity}" (Default to ${coachIdentity} unless you are quoting a specific historical figure that perfectly fits this persona's ${intensityDesc} tone)
-}
+Respond with ONLY a single valid JSON object, no markdown fences, no commentary before or after. Exactly this shape:
+{"text":"The affirmation or quote text (under 25 words)","author":"${coachIdentity}"}
 
-Generate JSON now:`;
+The author field defaults to ${coachIdentity} unless you are quoting a specific historical figure that perfectly fits this persona's ${intensityDesc} tone.`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    temperature: 0.9,
-                    maxOutputTokens: 200,
-                    topP: 0.95,
-                    responseMimeType: "application/json"
-                }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 250,
+                temperature: 0.9,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
 
         if (!response.ok) {
-            console.error('Gemini API error:', response.status);
+            console.error('Anthropic API error:', response.status);
             return getFallbackAffirmation(request);
         }
 
         const data = await response.json();
-        const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const jsonText = data.content?.[0]?.text?.trim();
 
         if (!jsonText) {
             return getFallbackAffirmation(request);
         }
 
         try {
-            const cleanJson = jsonText.replace(/```json\n|\n```/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(cleanJson);
+            // Strip any fences and isolate the first {...} block, in case the model wrapped it.
+            let clean = jsonText.replace(/```json\n?|\n?```/g, '').replace(/```/g, '').trim();
+            const first = clean.indexOf('{');
+            const last = clean.lastIndexOf('}');
+            if (first !== -1 && last !== -1 && last > first) {
+                clean = clean.slice(first, last + 1);
+            }
+            const result = JSON.parse(clean);
 
             return {
                 text: result.text || "Keep moving forward.",
@@ -310,7 +396,7 @@ Generate JSON now:`;
             return getFallbackAffirmation(request);
         }
     } catch (error) {
-        console.error('Error calling Gemini API:', error);
+        console.error('Error calling Anthropic API:', error);
         return getFallbackAffirmation(request);
     }
 };
@@ -328,11 +414,7 @@ export const generateCoachingMessage = async (
         profession: string;
     }
 ): Promise<string> => {
-    if (!GEMINI_API_KEY) {
-        return getDefaultCoachingMessage(context);
-    }
-
-    const prompt = `You are Palante Coach. Generate a brief, personalized coaching message (under 15 words) for ${userName}.
+    const prompt = `You are Palante. Generate a brief, personalized coaching message (under 15 words) for ${userName}.
 
 Context:
 - Time: ${context.timeOfDay}
@@ -342,24 +424,22 @@ Context:
 
 TONE: Be warm, friendly, and professional. NEVER use overly familiar terms like "my love", "dear", "honey". Address them by name or "you".
 
-Be direct and focus on what matters most right now.
+Be direct and focus on what matters most right now. Respond with ONLY the message — no preamble, no quotation marks around it.
 
 MEDICAL SAFETY GUIDE:
 - Use only motivational language.
 - NEVER give health, medical, or dietary advice.
-- Stay within the bounds of a supportive coach.
-`;
+- Stay within the bounds of a supportive coach.`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.8,
-                    maxOutputTokens: 50,
-                }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 80,
+                temperature: 0.8,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
 
@@ -368,7 +448,10 @@ MEDICAL SAFETY GUIDE:
         }
 
         const data = await response.json();
-        return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || getDefaultCoachingMessage(context);
+        let text = data.content?.[0]?.text?.trim();
+        if (!text) return getDefaultCoachingMessage(context);
+        text = text.replace(/^["'']|["'']$/g, '').trim();
+        return text;
     } catch {
         return getDefaultCoachingMessage(context);
     }
@@ -376,6 +459,7 @@ MEDICAL SAFETY GUIDE:
 
 /**
  * Generate a personalized morning practice message based on gratitude, affirmations, and intention.
+ * Now with synthesis focus: makes the user feel SEEN, not told what to do.
  */
 export const generateMorningPracticeMessage = async (
     userName: string,
@@ -383,95 +467,180 @@ export const generateMorningPracticeMessage = async (
         gratitudes: string[];
         affirmations: string[];
         intention: string;
+        commitment?: string;
         narrative?: string;
         momentumState?: MomentumState;
         coachTone?: 'nurturing' | 'direct' | 'accountability';
+        userVoiceProfile?: UserVoiceProfile;
     }
 ): Promise<string> => {
-    if (!ANTHROPIC_API_KEY) {
-        return getFallbackMorningMessage(data);
-    }
-
     const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
+    const voiceContext = data.userVoiceProfile
+        ? `\nTheir core values: ${data.userVoiceProfile.extractedValues.join(', ')}\nHow they want to be spoken to: ${data.userVoiceProfile.voiceTone}`
+        : '';
 
-    const prompt = `You are the morning voice of Palante. You are a close friend and accountability partner who genuinely knows this person. You have read what they wrote this morning. Now you are going to say one true thing to them before they start their day.
+    const prompt = `You are a wise, present partner who knows ${userName} deeply.
 
-YOUR VOICE:
-You are warm, direct, and human. You do not perform. You do not poeticize. You speak the way a trusted friend texts you something real before a big day. Short sentences. Plain words. Nothing that sounds written. You believe in this person completely, and that belief comes through in how specific and honest you are, not in how beautiful your words are.
+YOUR RELATIONSHIP WITH THEM:
+You listen. You remember. You see the pattern in what they care about.
+${voiceContext}
+${data.narrative ? `\nWho they've been lately: ${data.narrative}` : ''}
 
-WHAT THEY WROTE THIS MORNING:
+WHAT THEY SHARED THIS MORNING:
 - Grateful for: ${data.gratitudes.join(', ')}
-- Affirmations: ${data.affirmations.join(', ')}
+- Affirmations (who they're becoming): ${data.affirmations.join(', ')}
 - Today's intention: ${data.intention}
-${data.narrative ? `\nWHO THEY'VE BEEN LATELY:\n${data.narrative}` : ''}
-${data.momentumState ? `\nTHEIR CURRENT MOMENTUM: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
-
-TONE:
-${toneDirective}
+${data.commitment ? `- One concrete thing they committed to: ${data.commitment}` : ''}
+${data.momentumState ? `\nTheir current momentum: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
 
 YOUR TASK:
-Read what they wrote. Pick the one thing that feels most alive. Respond to the meaning of it, not the words. What does it say about who they are right now? What do they need to hear to walk into this day with purpose? Say that. Say it like a person, not a program.
+Write 1-2 first-person affirmation sentences as if the user is speaking them.
+Use "I" or "Today I" — they should read this and feel it as their own voice,
+grounded in exactly what they shared this morning.
 
-ABSOLUTE RULES — breaking any of these is a failure:
-1. HARD LIMIT: 3 sentences, 40 words maximum total. Count both. If you are over, cut until you are under.
-2. Each sentence should be short enough to say out loud in one breath.
-3. NEVER use em dashes (the — character). Not once. Use periods and commas only.
-4. NEVER open with their name.
-5. NEVER paste their words back verbatim. Respond to the meaning, not the text.
-6. NEVER write anything that could apply to any person on any day. If it could be on a poster, rewrite it.
-7. NEVER use these words or phrases: "journey," "intentional," "mindful," "grounds you," "anchor," "foundation," "tapestry," "weave," "tether," "sovereignty," "mathematics," "small mercy," "not a small thing," "you've got this," "crush it," "make today count," "showed up."
+If they committed to something concrete: make the affirmation point toward that action.
+If they only set an intention word: reflect the feeling of living that word — don't repeat it verbatim.
 
-VOICE EXAMPLES — the register to aim for. Never copy these:
+The user should read this and think: "Yes. That is exactly who I am today."
 
-"Your kids are going to feel who you are today. You already know how to show up for them. Go be that."
+ABSOLUTE RULES:
+- 30 words MAX (count carefully)
+- ALWAYS write in first person: "I am," "Today I," "I carry," "I know," etc.
+- NEVER write in second person ("you," "your") — this is the user's own voice
+- NEVER paste their words back. Respond to the MEANING
+- NEVER use em dashes (—). Periods and commas only.
+- NEVER use: "journey," "intentional," "mindful," "anchor," "showed up," "tapestry," "sovereignty"
+- No quotation marks around the output
+- Sound grounded and real, not performative
 
-"Wanting peace is one thing. Deciding it is the ground you stand on is something else. That is what you did this morning."
+EXAMPLES — study the register, never copy:
+"I already know what this day is for. The strength is in me."
+"Today I carry gratitude and I know who I am. That is enough."
+"I am ready. What I need, I already have."
+"Today I choose this. I move through it with everything I brought this morning."
 
-"You have been building something. Today is another day of that. Keep going."
+TONE DIRECTIVE:
+${toneDirective}
 
-Write the message now. One paragraph, 3 sentences, no em dashes, no quotation marks around it.
+Write the message now. Make them feel seen and grounded.
 
-MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.
-`;
+MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
     try {
-        const response = await fetch(ANTHROPIC_API_URL, {
+        const headers = getProxyHeaders();
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true',
-            },
+            headers,
             body: JSON.stringify({
                 model: ANTHROPIC_MODEL,
                 max_tokens: 300,
-                temperature: 0.9,
+                temperature: 0.78,
                 messages: [{ role: 'user', content: prompt }],
             })
         });
 
         if (!response.ok) {
+            const errBody = await response.text().catch(() => '(unreadable)');
+            console.error(`[Palante AI] morning message proxy failed — status ${response.status}:`, errBody);
             return getFallbackMorningMessage(data);
         }
 
         const json = await response.json();
         let message = json.content?.[0]?.text?.trim();
 
-        if (!message) return getFallbackMorningMessage(data);
+        if (!message) {
+            console.error('[Palante AI] morning message: empty response body', json);
+            return getFallbackMorningMessage(data);
+        }
 
         message = message.replace(/^["'']|["'']$/g, '').trim();
         message = message.replace(/ +([.,;:!?])/g, '$1');
 
         return message;
     } catch (error) {
-        console.error('Error generating morning message:', error);
+        console.error('[Palante AI] morning message exception:', error);
         return getFallbackMorningMessage(data);
     }
 };
 
 /**
+ * Generate a short, quotable Palante affirmation anchored in what the user
+ * actually wrote during their morning practice. Used for the garden card on
+ * the home screen — should feel like a real quote, not a coaching message.
+ */
+export const generatePalanteQuote = async (data: {
+    gratitudes: string[];
+    affirmations: string[];
+    intention: string;
+    commitment?: string;
+    coachTone?: 'nurturing' | 'direct' | 'accountability';
+    streak?: number;
+}): Promise<string> => {
+    const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
+
+    const contentBlock = [
+        data.gratitudes.length ? `Grateful for: ${data.gratitudes.slice(0, 3).join(', ')}` : '',
+        data.affirmations.length ? `Their own affirmations: ${data.affirmations.slice(0, 3).join(', ')}` : '',
+        data.intention ? `Today's intention: ${data.intention}` : '',
+        data.commitment ? `What they committed to do: ${data.commitment}` : '',
+        data.streak ? `Current streak: ${data.streak} days` : '',
+    ].filter(Boolean).join('\n');
+
+    const prompt = `You are Palante. Based on what this person wrote in their morning practice, write ONE short quote-like affirmation — 8 to 18 words. It should feel like something they could save, share, or return to.
+
+WHAT THEY WROTE:
+${contentBlock}
+
+TONE:
+${toneDirective}
+
+RULES:
+- 8–18 words. No more.
+- Written in second person ("you", "your") OR as a universal present-tense truth.
+- Must feel DIRECTLY connected to what they wrote — not generic.
+- Quotable, specific, resonant. Like a line they'd underline.
+- No em dashes. No colons. Commas and periods only.
+- No quotation marks in the output.
+- NEVER use: "journey," "intentional," "mindful," "anchor," "tapestry," "weave," "sovereignty," "make it count," "you've got this."
+- Do NOT repeat their exact words back verbatim — reframe, distill, elevate.
+
+Write only the affirmation. Nothing else.`;
+
+    try {
+        const response = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: getProxyHeaders(),
+            body: JSON.stringify({
+                model: ANTHROPIC_MODEL,
+                max_tokens: 100,
+                temperature: 0.85,
+                messages: [{ role: 'user', content: prompt }],
+            }),
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text().catch(() => '(unreadable)');
+            console.error(`[Palante AI] garden affirmation proxy failed — status ${response.status}:`, errBody);
+            return '';
+        }
+
+        const json = await response.json();
+        let text = json.content?.[0]?.text?.trim();
+        if (!text) {
+            console.error('[Palante AI] garden affirmation: empty response', json);
+            return '';
+        }
+        text = text.replace(/^["'']|["'']$/g, '').trim();
+        return text;
+    } catch (error) {
+        console.error('[Palante AI] garden affirmation exception:', error);
+        return '';
+    }
+};
+
+/**
  * Generate a personalized evening reflection message based on GLAD responses.
+ * Enhanced to synthesize and honor what the user actually reflected on.
  */
 export const generateEveningPracticeMessage = async (
     userName: string,
@@ -480,61 +649,76 @@ export const generateEveningPracticeMessage = async (
         learning: string;
         accomplishment: string;
         delight: string;
+        /**
+         * What the user committed to this morning, if anything. Stored on the morning practice as `commitment`.
+         */
+        morningCommitment?: string;
+        /**
+         * The user's evening reflection on how the morning commitment went. May be empty even if a commitment was set.
+         */
+        commitmentReflection?: string;
+        userVoiceProfile?: UserVoiceProfile;
     }
 ): Promise<string> => {
-    if (!ANTHROPIC_API_KEY) {
-        return getFallbackEveningMessage(userName, data);
-    }
+    const voiceContext = data.userVoiceProfile
+        ? `\nTheir core values: ${data.userVoiceProfile.extractedValues.join(', ')}\nHow they want to be spoken to: ${data.userVoiceProfile.voiceTone}`
+        : '';
 
-    const prompt = `You are the evening voice of Palante. You are a close friend who just heard about this person's day. You have read what they shared. Now you are going to say one true thing to them before they rest.
+    const commitmentBlock = data.morningCommitment
+        ? `\nWHAT THEY COMMITTED TO THIS MORNING:\n"${data.morningCommitment}"\n${data.commitmentReflection ? `\nHOW IT WENT:\n"${data.commitmentReflection}"` : '\n(No reflection on how it went. Treat this as neutral—maybe they did it, maybe not. Be curious, not assumptive.)'}`
+        : '';
+
+    const prompt = `You are the evening voice of Palante. A close friend who just listened to this person's day.
 
 YOUR VOICE:
-Warm, honest, and human. Not a coach signing off. Not a poet performing. A person who genuinely cares, speaking plainly. Short sentences. Real words. Nothing that sounds like it was generated. You see what was good about their day and you say it simply, without embellishment.
+Warm, honest, human. A person who genuinely cares, speaking plainly. Not performing. Not a coach signing off. You see what was real about their day and you honor it simply, without fluff.
+${voiceContext}
 
-WHAT THEY REFLECTED ON TODAY:
+WHAT THEY REFLECTED ON TODAY (G.L.A.D.):
 - Grateful for: ${data.gratitude}
-- Something they learned: ${data.learning}
-- What they accomplished: ${data.accomplishment}
-- What delighted them: ${data.delight}
+- Learned: ${data.learning}
+- Accomplished: ${data.accomplishment}
+- Delighted by: ${data.delight}
+${commitmentBlock}
 
 YOUR TASK:
-Read all four. Pick the one that feels most real and human. Respond to what it means, not what it says. What does it tell you about who this person is and how they moved through today? Say that. Leave them feeling seen, not summarized.
+Read all of it. Find the MOST ALIVE thread—the thing that feels most real and human about their day.
 
-ABSOLUTE RULES — breaking any of these is a failure:
-1. HARD LIMIT: 3 sentences. Count them. If you wrote 4, delete one.
-2. NEVER use em dashes (the — character). Not once. Use periods and commas only.
+If the morning commitment is present AND they reflected on it: this is often the most alive thread. But only respond if you can do so without shame, scorekeeping, or pep-talk energy.
+- If they did it: witness it plainly, with quiet pride.
+- If they didn't: witness that plainly too, with affection and zero judgment.
+
+Otherwise: respond to what's most alive in the four reflections (G, L, A, or D).
+
+Your job is simple: let them know they were SEEN. Not fixed. Not graded. Seen.
+
+ABSOLUTE RULES — these are non-negotiable:
+1. EXACTLY 3 sentences. Count them. If 4, delete one.
+2. NEVER use em dashes (—). Periods and commas only.
 3. NEVER open with their name.
-4. NEVER paste their words back verbatim. Respond to the meaning.
-5. NEVER write something that could apply to anyone on any day. Be specific to what they actually shared.
-6. No pressure toward tomorrow. This is an evening message. They are winding down, not gearing up.
-7. NEVER use these words or phrases: "journey," "intentional," "mindful," "anchor," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "you crushed it," "sweet dreams," "rest well," "the day is done," "you earned that."
+4. NEVER paste their exact words back. Respond to the MEANING.
+5. NEVER write something generic. Be specific to what they actually shared.
+6. No pressure toward tomorrow. This is EVENING. They're winding down.
+7. NEVER use: "journey," "intentional," "mindful," "anchor," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "crushed it," "sweet dreams," "rest well," "earned it," "the day is done"
+8. No quotation marks around the output.
 
-VOICE EXAMPLES — the register to aim for. Never copy these:
+EXAMPLES — register, never copy:
+"You figured out something today that you didn't know this morning. That doesn't go away."
+"Someone important got good news and you were there for it. That is a real thing."
+"You got it done. The thing that needed doing. You know what that means."
 
-"Someone you love got good news today and you were there for it. That is a real thing that happened. Hold onto that."
+Write the message. Three sentences. Make them feel seen, honored, and ready to rest.
 
-"You figured something out today that you did not know yesterday. That kind of thing does not go away."
-
-"You got something done that needed doing. You know the difference that makes. Sleep well."
-
-Write the message now. One paragraph, 3 sentences, no em dashes, no quotation marks around it.
-
-MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.
-`;
+MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
     try {
-        const response = await fetch(ANTHROPIC_API_URL, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true',
-            },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
                 model: ANTHROPIC_MODEL,
                 max_tokens: 300,
-                temperature: 0.9,
+                temperature: 0.82,
                 messages: [{ role: 'user', content: prompt }],
             })
         });
@@ -620,7 +804,7 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
 };
 
 /**
- * Chat with Palante Coach
+ * Chat with Palante
  */
 // Smart Fallback Engine
 const getSimulatedResponse = (message: string, context: UserContext): string => {
@@ -652,16 +836,38 @@ const getSimulatedResponse = (message: string, context: UserContext): string => 
     return `I'm listening. Tell me more about that? I'm here for as long as you need.`;
 };
 
+/**
+ * Safety net: strip markdown that slips through the system prompt's "plain prose" rule.
+ * Coach replies render as plain text in the chat bubble, so raw `**asterisks**` and
+ * leading `- bullets` show up as ugly literals. This removes the most common patterns.
+ */
+const stripMarkdown = (text: string): string => {
+    return text
+        // **bold** and __bold__ — keep inner text
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/__([^_]+)__/g, '$1')
+        // *italic* and _italic_ — keep inner text (single chars only, not paired **)
+        .replace(/(^|[^*])\*([^*\n]+)\*([^*]|$)/g, '$1$2$3')
+        .replace(/(^|[^_])_([^_\n]+)_([^_]|$)/g, '$1$2$3')
+        // Leading bullets at line start: `- foo` or `* foo` → `foo`
+        .replace(/^[ \t]*[-*][ \t]+/gm, '')
+        // Leading numbered list: `1. foo` → `foo`
+        .replace(/^[ \t]*\d+\.[ \t]+/gm, '')
+        // Leading `# `, `## ` headers — just keep the text
+        .replace(/^[ \t]*#{1,6}[ \t]+/gm, '')
+        // Inline code backticks → keep inner text
+        .replace(/`([^`]+)`/g, '$1')
+        // Collapse 3+ consecutive newlines that may result from bullet stripping
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+};
+
 export const chatWithCoach = async (
     message: string,
     history: ChatMessage[],
     context: UserContext
 ): Promise<string> => {
     // If no key, skip straight to simulation to avoid error logs
-    if (!GEMINI_API_KEY || GEMINI_API_KEY.includes('placeholder')) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Fake realistic delay
-        return getSimulatedResponse(message, context);
-    }
 
     const intensityDesc = getIntensityDescription(context.quoteIntensity);
     const timeOfDay = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening';
@@ -694,44 +900,56 @@ export const chatWithCoach = async (
         ? `\nTONE DIRECTIVE FOR THIS SESSION:\n${COACH_TONE_GUIDANCE[context.coachTone]}\n`
         : `\nTONE DIRECTIVE FOR THIS SESSION:\n${COACH_TONE_GUIDANCE['nurturing']}\n`;
 
-    // Construct System Prompt
-    const systemPrompt = `You are Palante Coach, a warm, nurturing, and deeply supportive friend and mentor.
+    const memoriesBlock = context.persistedMemories?.length
+        ? `MEMORIES FROM PAST CONVERSATIONS (reference naturally, not robotically):\n${context.persistedMemories.slice(0, 12).map(m => `- ${m}`).join('\n')}\n`
+        : '';
 
-    USER CONTEXT:
-    - Name: ${context.name}
-    - Profession: ${context.profession || 'Undisclosed'}
-    - Streak: ${context.currentStreak} days
-    - Today's Progress: ${context.completedGoals}/${context.totalGoals} goals completed.
-    - Time: ${timeOfDay}
-    ${moodBlock}
-    ${focusBlock}
+    // Construct System Prompt — sent as Anthropic's top-level `system` field, not as a user message.
+    const systemPrompt = `You are Palante, a warm, nurturing, and deeply supportive friend and mentor.
 
-    ${narrativeBlock}
-    ${momentumBlock}
-    ${energyMemory}
-    ${journalMemory}
-    ${reflectionMemory}
-    ${toneBlock}
+USER CONTEXT:
+- Name: ${context.name}
+- Profession: ${context.profession || 'Undisclosed'}
+- Streak: ${context.currentStreak} days
+- Today's Progress: ${context.completedGoals}/${context.totalGoals} goals completed.
+- Time: ${timeOfDay}
+${moodBlock}
+${focusBlock}
 
-    YOUR PERSONA:
-    - Tone: Deeply conversational, empathetic, and patient. ${intensityDesc}
-    - Memory: You have context on their recent wins, challenges, and meditations. Reference them naturally if they are relevant to the current conversation (e.g., "I remember you were working on [X] yesterday...").
-    - Conversation Style: Focus on a natural back-and-forth. Keep your responses relatively short at first. Listen more than you talk.
-    - App Guidance: Only suggest ONE relevant app feature if it feels truly helpful.
-    - Reassurance: Softly remind the user that you are there for them.
+${memoriesBlock}
+${narrativeBlock}
+${momentumBlock}
+${energyMemory}
+${journalMemory}
+${reflectionMemory}
+${toneBlock}
 
-    GOAL:
-    Build a genuine connection. Be a supportive presence. Use their history to provide more personalized, insightful guidance. Only transition to "coaching" once you've truly listened.
+YOUR PERSONA:
+- Tone: Deeply conversational, empathetic, and patient. ${intensityDesc}
+- Memory: You have context on their recent wins, challenges, and meditations. Reference them naturally if they are relevant to the current conversation (e.g., "I remember you were working on [X] yesterday...").
+- Conversation Style: Focus on a natural back-and-forth. Keep your responses relatively short at first. Listen more than you talk.
+- App Guidance: Only suggest ONE relevant app feature if it feels truly helpful.
+- Reassurance: Softly remind the user that you are there for them.
 
-    MEDICAL SAFETY GUIDE:
-    - You are a wellness coach, NOT a doctor.
-    - NEVER provide medical advice or suggest specific diets.
-    - If asked for medical advice, clearly state you are an AI coach and they should consult a professional.
-    `;
+GOAL:
+Build a genuine connection. Be a supportive presence. Use their history to provide more personalized, insightful guidance. Only transition to "coaching" once you've truly listened.
 
-    // Format History for Gemini
-    // Filter out init-greeting messages (they're represented by the fake model ack below),
-    // and drop the last message if it's the current user message to avoid duplication.
+FORMATTING:
+- Plain prose only. NEVER use markdown — no asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
+- Write the way you would text a close friend. Short paragraphs. Real sentences.
+- If you want to emphasize a question or idea, do it through phrasing, not punctuation.
+
+MEDICAL SAFETY GUIDE:
+- You are a wellness coach, NOT a doctor.
+- NEVER provide medical advice or suggest specific diets.
+- If asked for medical advice, clearly state you are an AI coach and they should consult a professional.`;
+
+    // Build threaded history for Anthropic.
+    // - Filter out init-greeting messages.
+    // - Take the last 10 turns for context.
+    // - Drop the last message if it's the current user message (avoid duplication with `message`).
+    // - Anthropic requires strict user/assistant alternation starting with user — collapse any
+    //   consecutive same-role messages by joining with a newline.
     const cleanHistory = history
         .filter(msg => !msg.id?.startsWith('init-'))
         .slice(-10);
@@ -739,42 +957,56 @@ export const chatWithCoach = async (
         ? cleanHistory.slice(0, -1)
         : cleanHistory;
 
-    const contents = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: "Got it! I'm ready to be a friendly, feature-focused guide." }] },
-        ...historyForAPI.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }]
-        })),
-        { role: 'user', parts: [{ text: message }] }
-    ];
+    type AnthropicMessage = { role: 'user' | 'assistant'; content: string };
+    const threaded: AnthropicMessage[] = [];
+    for (const msg of historyForAPI) {
+        const role: 'user' | 'assistant' = msg.role === 'user' ? 'user' : 'assistant';
+        const last = threaded[threaded.length - 1];
+        if (last && last.role === role) {
+            last.content = `${last.content}\n\n${msg.text}`;
+        } else {
+            threaded.push({ role, content: msg.text });
+        }
+    }
+    // The conversation must start with a user turn. If our first message is an assistant turn
+    // (e.g. the seeded greeting got through), drop it.
+    while (threaded.length > 0 && threaded[0].role !== 'user') {
+        threaded.shift();
+    }
+    // Append the current user message. If the last threaded turn was also `user`, join instead
+    // of producing two user turns in a row.
+    const lastThreaded = threaded[threaded.length - 1];
+    if (lastThreaded && lastThreaded.role === 'user') {
+        lastThreaded.content = `${lastThreaded.content}\n\n${message}`;
+    } else {
+        threaded.push({ role: 'user', content: message });
+    }
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents,
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 300,
-                }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 400,
+                temperature: 0.7,
+                system: systemPrompt,
+                messages: threaded,
             })
         });
 
         if (!response.ok) {
-            // Silently fall back to simulation instead of showing error
-            console.warn('Gemini Chat API fail, using fallback.');
+            console.warn('Anthropic Chat API fail, using fallback.');
             return getSimulatedResponse(message, context);
         }
 
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        return text || getSimulatedResponse(message, context); // Fallback if empty
+        const text = data.content?.[0]?.text?.trim();
+        if (!text) return getSimulatedResponse(message, context);
+        return stripMarkdown(text);
 
     } catch (error) {
-        console.error('Error calling Gemini Chat:', error);
-        // Fallback to simulation
+        console.error('Error calling Anthropic Chat:', error);
         return getSimulatedResponse(message, context);
     }
 };
@@ -785,7 +1017,7 @@ export const chatWithCoach = async (
 export type CoachPillarKey = 'anxiety' | 'focus' | 'motivation' | 'setbacks' | 'open';
 
 const PILLAR_SYSTEM_PROMPTS: Record<CoachPillarKey, string> = {
-    anxiety: `You are Palante Coach, operating specifically as an anxiety and stress-relief guide.
+    anxiety: `You are Palante, operating specifically as an anxiety and stress-relief guide.
 The user has come to you specifically because they are dealing with anxiety, worry, or overwhelm.
 
 YOUR APPROACH:
@@ -799,7 +1031,7 @@ YOUR APPROACH:
 NEVER: minimize their feelings, rush to fix-it mode, or give medical diagnoses.
 TONE: Warm, unhurried, steady. Like a trusted friend who also happens to know a lot.`,
 
-    focus: `You are Palante Coach, operating specifically as a focus and deep-work guide.
+    focus: `You are Palante, operating specifically as a focus and deep-work guide.
 The user has come to you because they are struggling to concentrate, stay on task, or cut through distraction.
 
 YOUR APPROACH:
@@ -812,7 +1044,7 @@ YOUR APPROACH:
 NEVER: be vague or fluffy. They chose Focus because they need real help cutting through the noise.
 TONE: Crisp, efficient, warm-but-direct. Like a high-performance coach who respects their time.`,
 
-    motivation: `You are Palante Coach, operating specifically as a motivation and momentum guide.
+    motivation: `You are Palante, operating specifically as a motivation and momentum guide.
 The user has come to you because their drive is low — they may feel stuck, uninspired, or disconnected from their why.
 
 YOUR APPROACH:
@@ -826,7 +1058,7 @@ YOUR APPROACH:
 NEVER: give generic "you got this!" platitudes. They want to feel it, not just hear it.
 TONE: Igniting, purposeful, real. Like someone who genuinely believes in them and has the receipts to prove it.`,
 
-    setbacks: `You are Palante Coach, operating specifically as a resilience and recovery guide.
+    setbacks: `You are Palante, operating specifically as a resilience and recovery guide.
 The user has come to you after a setback — a failure, a rough day, a disappointment, or a knock to their confidence.
 
 YOUR APPROACH:
@@ -840,7 +1072,7 @@ YOUR APPROACH:
 NEVER: rush to silver linings, dismiss their pain, or make them feel weak for struggling.
 TONE: Grounded, compassionate, honest. Like a friend who has been through hard things and made it.`,
 
-    open: `You are Palante Coach, a warm, nurturing, and deeply supportive friend and mentor.
+    open: `You are Palante, a warm, nurturing, and deeply supportive friend and mentor.
 The user has come for an open conversation — no specific agenda.
 
 YOUR APPROACH:
@@ -853,7 +1085,7 @@ TONE: Conversational, human, patient. Like a trusted friend who happens to be a 
 };
 
 /**
- * Chat with Palante Coach using a pillar-specific system prompt.
+ * Chat with Palante using a pillar-specific system prompt.
  * Drops straight into the chat — no separate intro card.
  */
 export const chatWithCoachPillar = async (
@@ -862,10 +1094,6 @@ export const chatWithCoachPillar = async (
     context: UserContext,
     pillar: CoachPillarKey
 ): Promise<string> => {
-    if (!GEMINI_API_KEY || GEMINI_API_KEY.includes('placeholder')) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return getSimulatedResponse(message, context);
-    }
 
     const pillarPrompt = PILLAR_SYSTEM_PROMPTS[pillar];
     const intensityDesc = getIntensityDescription(context.quoteIntensity);
@@ -911,12 +1139,17 @@ ${reflectionMemory}
 STYLE: ${intensityDesc}
 RESPONSE LENGTH: Keep responses focused and conversational. Under 120 words unless the user asks for something detailed.
 
+FORMATTING:
+- Plain prose only. NEVER use markdown — no asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
+- Write the way you would text a close friend. Short paragraphs. Real sentences.
+- If you want to emphasize a question or idea, do it through phrasing, not punctuation.
+
 MEDICAL SAFETY GUIDE:
 - You are a wellness coach, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI coach and they should consult a professional.`;
 
-    // Filter out init-greeting messages and drop last message if it's the current user message (avoid duplication)
+    // Build threaded history for Anthropic — same shape as chatWithCoach.
     const cleanHistoryPillar = history
         .filter(msg => !msg.id?.startsWith('init-'))
         .slice(-10);
@@ -924,37 +1157,52 @@ MEDICAL SAFETY GUIDE:
         ? cleanHistoryPillar.slice(0, -1)
         : cleanHistoryPillar;
 
-    const contents = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: `Understood. I'm ready to be a focused ${pillar} coach for ${context.name}.` }] },
-        ...historyForAPIPillar.map(msg => ({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }]
-        })),
-        { role: 'user', parts: [{ text: message }] }
-    ];
+    type AnthropicMessage = { role: 'user' | 'assistant'; content: string };
+    const threaded: AnthropicMessage[] = [];
+    for (const msg of historyForAPIPillar) {
+        const role: 'user' | 'assistant' = msg.role === 'user' ? 'user' : 'assistant';
+        const last = threaded[threaded.length - 1];
+        if (last && last.role === role) {
+            last.content = `${last.content}\n\n${msg.text}`;
+        } else {
+            threaded.push({ role, content: msg.text });
+        }
+    }
+    while (threaded.length > 0 && threaded[0].role !== 'user') {
+        threaded.shift();
+    }
+    const lastThreaded = threaded[threaded.length - 1];
+    if (lastThreaded && lastThreaded.role === 'user') {
+        lastThreaded.content = `${lastThreaded.content}\n\n${message}`;
+    } else {
+        threaded.push({ role: 'user', content: message });
+    }
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents,
-                generationConfig: { temperature: 0.72, maxOutputTokens: 350 }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 450,
+                temperature: 0.72,
+                system: systemPrompt,
+                messages: threaded,
             })
         });
 
         if (!response.ok) {
-            console.warn('Gemini Pillar Chat fail, using fallback.');
+            console.warn('Anthropic Pillar Chat fail, using fallback.');
             return getSimulatedResponse(message, context);
         }
 
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        return text || getSimulatedResponse(message, context);
+        const text = data.content?.[0]?.text?.trim();
+        if (!text) return getSimulatedResponse(message, context);
+        return stripMarkdown(text);
 
     } catch (error) {
-        console.error('Error calling Gemini Pillar Chat:', error);
+        console.error('Error calling Anthropic Pillar Chat:', error);
         return getSimulatedResponse(message, context);
     }
 };
@@ -986,7 +1234,8 @@ const getFallbackAffirmation = (request: AIAffirmationRequest): AIAffirmationRes
     // @ts-expect-error - FALLBACK_AFFIRMATIONS uses numeric index keys
     const affirmations = FALLBACK_AFFIRMATIONS[intensity] || FALLBACK_AFFIRMATIONS[2];
     const text = affirmations[Math.floor(Math.random() * affirmations.length)];
-    const coachIdentity = request.coachName ? `Coach ${request.coachName}` : 'Palante Coach';
+    // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
+    const coachIdentity = request.coachName?.trim() || 'Palante';
 
     return {
         text,
@@ -1015,47 +1264,47 @@ const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: s
 
     if (intention && hasGratitude && hasAffirmation) {
         const pool = canEmbed ? [
-            `Today is for ${intention}. You walked in with gratitude and you know what you're made of. That's real. Go make it count.`,
-            `You've got your intention, you've got gratitude, and you know who you are. Someone who starts like that goes into the day differently. Go.`,
-            `${intention} is what today is for. You showed up knowing that and knowing yourself. Go live that out.`,
+            `Today I move with ${intention}. I am grateful, I know who I am, and I am ready.`,
+            `I came in with gratitude, belief in myself, and a clear intention. Today I live all three.`,
+            `I am ${intention} today. I carry gratitude and I know exactly what I am made of.`,
         ] : [
-            `You know what today is for, you know what you're grateful for, and you know what you're made of. That's a real morning. Go.`,
-            `You came in with gratitude, with belief in yourself, and with a clear intention. Go make it count.`,
-            `Not everyone starts their day like this. You did. Go show up for the rest of it.`,
+            `I know what today is for. I am grateful and I know what I am capable of. That is enough.`,
+            `Today I carry gratitude, belief in myself, and a clear intention. I am ready.`,
+            `I started today with everything I need. I am grounded and I am going.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (intention && hasGratitude) {
         const pool = canEmbed ? [
-            `Today is for ${intention}. You've got gratitude behind you. Go.`,
-            `You know what you're grateful for and you know what today is for. Let those two things carry you.`,
+            `Today I move with ${intention}. I have gratitude behind me and I am ready.`,
+            `I am grateful and I know what today is for. Those two things carry me.`,
         ] : [
-            `You started with gratitude and you know what today is for. That's enough to build a whole day on. Go.`,
-            `Gratitude and a clear intention in the same morning. That's yours today. Go live it.`,
+            `I started with gratitude and I know what today is for. That is enough to build on.`,
+            `Today I have gratitude and a clear intention. I carry both with me.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (intention && hasAffirmation) {
         const pool = canEmbed ? [
-            `Today is for ${intention} and you already know you've got what it takes. Go get it.`,
-            `You know what today is for and you know who you are. Go use both.`,
+            `Today I am ${intention} and I already know I have what it takes.`,
+            `I know what today is for and I know who I am. Today I use both.`,
         ] : [
-            `You know what today is for and you know what you're capable of. That's enough. Go.`,
-            `Clear on your intention, clear on yourself. Go see what that combination looks like today.`,
+            `I know what today is for and I know what I am capable of. That is enough.`,
+            `I am clear on my intention and clear on myself. Today I live that.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (intention) {
         const pool = canEmbed ? [
-            `Today is for ${intention}. You named that before the day had a chance to name itself. Hold it.`,
-            `${intention}. That's what you're walking toward today. Go.`,
-            `You decided what today is for before anything else got a vote. That's yours now. Go live it.`,
+            `Today I am ${intention}. I named that before the day had a chance to name itself.`,
+            `I am ${intention}. That is what I am walking toward today.`,
+            `I decided what today is for before anything else could. That is mine now.`,
         ] : [
-            `You named what today is for before anything else could. Hold onto that and go.`,
-            `You know what today is for. Most people never get that clear. You already are. Go.`,
+            `I named what today is for before anything else could. I hold onto that.`,
+            `I know what today is for. I am already clear. I am going.`,
         ];
         return pool[seed % pool.length];
     }
@@ -1108,7 +1357,7 @@ const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals:
  * Check if AI features are available
  */
 export const isAIAvailable = (): boolean => {
-    return !!ANTHROPIC_API_KEY;
+    return !!import.meta.env.VITE_SUPABASE_URL;
 };
 
 export interface ReflectionAnalysis {
@@ -1127,59 +1376,54 @@ export interface ReflectionData {
  * Generate AI Analysis for Daily Reflection
  */
 export const generateReflectionAnalysis = async (data: ReflectionData): Promise<ReflectionAnalysis> => {
-    if (!GEMINI_API_KEY) {
-        return getFallbackReflectionAnalysis();
-    }
+    const prompt = `You are Palante, a warm and compassionate accountability partner. Analyze these 3 daily reflection answers from a user.
 
-    const prompt = `You are a Compassionate Mindset Coach. Analyze these 3 daily reflection answers from a user.
-    
-    ANSWERS:
-    1. ${data.q1}
-    2. ${data.q2}
-    3. ${data.q3}
-    ${data.freeform ? `Journal: ${data.freeform}` : ''}
+ANSWERS:
+1. ${data.q1}
+2. ${data.q2}
+3. ${data.q3}
+${data.freeform ? `Journal: ${data.freeform}` : ''}
 
-    TASK:
-    Provide immediate, high-impact feedback in exactly this JSON format:
-    {
-        "praise": "1 brief sentence validating their specific win or insight.",
-        "powerMove": "1 specific, actionable sentence advice for tomorrow based on their challenge/pivot."
-    }
+TASK:
+Provide immediate, high-impact feedback. Respond with ONLY a single valid JSON object, no markdown fences, no commentary. Exactly this shape:
+{"praise":"1 brief sentence validating their specific win or insight.","powerMove":"1 specific, actionable sentence of advice for tomorrow based on their challenge/pivot."}
 
-    TONE:
-    - Praise: Warm, acknowledging, specific.
-    - Power Move: Direct, strategic, encouraging. "Try this...", "Focus on...", "Remember to..."
-
-    Generate JSON now:`;
+TONE:
+- Praise: Warm, acknowledging, specific to what they actually wrote.
+- Power Move: Direct, strategic, encouraging. "Try this...", "Focus on...", "Remember to..."`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 150,
-                    responseMimeType: "application/json"
-                }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 200,
+                temperature: 0.7,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
 
         if (!response.ok) return getFallbackReflectionAnalysis();
 
         const json = await response.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const text = json.content?.[0]?.text?.trim();
 
         if (!text) return getFallbackReflectionAnalysis();
 
-        // Parse JSON safely
         try {
-            const cleanText = text.replace(/```json\n|\n```/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(cleanText);
+            let clean = text.replace(/```json\n?|\n?```/g, '').replace(/```/g, '').trim();
+            const first = clean.indexOf('{');
+            const last = clean.lastIndexOf('}');
+            if (first !== -1 && last !== -1 && last > first) {
+                clean = clean.slice(first, last + 1);
+            }
+            const result = JSON.parse(clean);
+            // Strip wrapping quotes (smart or straight) that Claude sometimes adds around its own strings.
+            const stripQuotes = (s: string) => s.replace(/^["'""'']+|["'""'']+$/g, '').trim();
             return {
-                praise: result.praise || "Great work reflecting today.",
-                powerMove: result.powerMove || "Keep pushing forward tomorrow."
+                praise: result.praise ? stripQuotes(result.praise) : "Great work reflecting today.",
+                powerMove: result.powerMove ? stripQuotes(result.powerMove) : "Keep pushing forward tomorrow."
             };
         } catch (e) {
             console.error("Failed to parse reflection JSON", e);
@@ -1316,7 +1560,6 @@ export const generateMonthlyPatternInsight = async (
     if (facts.length < 2) return null;
 
     const fallback = buildFallbackInsight(facts);
-    if (!GEMINI_API_KEY) return fallback;
 
     const factsText = facts.map(f => `- ${f.label}: ${f.value} (${f.dataPoint})`).join('\n');
 
@@ -1331,25 +1574,33 @@ RULES:
 3. Extract the most concrete data point (a day name, a number, a count).
 4. Bad: "You practice regularly." Good: "Your energy consistently peaks on Thursdays."
 
-Respond in JSON only:
-{"insight": "...", "dataPoint": "..."}`;
+Respond with ONLY a single valid JSON object, no markdown fences, no commentary. Exactly:
+{"insight":"...","dataPoint":"..."}`;
 
     try {
-        const res = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const res = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.7, maxOutputTokens: 120, responseMimeType: 'application/json' }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 180,
+                temperature: 0.7,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
         if (!res.ok) return fallback;
 
         const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        const text = data.content?.[0]?.text?.trim();
         if (!text) return fallback;
 
-        const result = JSON.parse(text.replace(/```json\n?|\n?```/g, '').trim());
+        let clean = text.replace(/```json\n?|\n?```/g, '').replace(/```/g, '').trim();
+        const first = clean.indexOf('{');
+        const last = clean.lastIndexOf('}');
+        if (first !== -1 && last !== -1 && last > first) {
+            clean = clean.slice(first, last + 1);
+        }
+        const result = JSON.parse(clean);
         if (result.insight && result.dataPoint) return { insight: result.insight, dataPoint: result.dataPoint };
         return fallback;
     } catch {
@@ -1586,7 +1837,7 @@ export const generateWeeklyReflection = async (
     firstName: string
 ): Promise<string> => {
     const fallback = buildWeeklyReflectionFallback(accomplishments, firstName);
-    if (!GEMINI_API_KEY || accomplishments.length === 0) return fallback;
+    if (accomplishments.length === 0) return fallback;
 
     const bulletList = accomplishments.map((a, i) => `${i + 1}. ${a}`).join('\n');
 
@@ -1599,18 +1850,22 @@ Write a warm, specific 2-3 sentence reflection that speaks directly to them. Ref
 Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max 60 words.`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.88, maxOutputTokens: 120, topP: 0.95 }
+                model: ANTHROPIC_MODEL,
+                max_tokens: 200,
+                temperature: 0.88,
+                messages: [{ role: 'user', content: prompt }],
             })
         });
         if (!response.ok) return fallback;
         const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        return text || fallback;
+        let text = data.content?.[0]?.text?.trim();
+        if (!text) return fallback;
+        text = text.replace(/^["'']|["'']$/g, '').trim();
+        return text;
     } catch {
         return fallback;
     }
@@ -1709,8 +1964,6 @@ export const generateGrowthStory = async (data: GrowthStoryData): Promise<Growth
     };
 
     const fallbackMemoir = buildGrowthStoryFallback(data);
-    if (!ANTHROPIC_API_KEY) return { memoir: fallbackMemoir, stats };
-
     // Build a curated data snapshot — first 3 + last 3 morning practices
     const all = morningPractices;
     const earliest = all.slice(0, 3);
@@ -1783,14 +2036,9 @@ Write a memoir of 5 to 7 sentences. Rules:
 Write the memoir now — no quotation marks around the whole thing, no preamble:`;
 
     try {
-        const response = await fetch(ANTHROPIC_API_URL, {
+        const response = await fetch(PROXY_URL, {
             method: 'POST',
-            headers: {
-                'content-type': 'application/json',
-                'x-api-key': ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true',
-            },
+            headers: getProxyHeaders(),
             body: JSON.stringify({
                 model: ANTHROPIC_MODEL,
                 max_tokens: 400,

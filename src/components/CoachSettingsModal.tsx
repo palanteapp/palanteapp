@@ -36,7 +36,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
     ];
 
     const textPrimary = 'text-white';
-    const accentLabel = 'text-white/60 font-black text-[10px] uppercase tracking-[0.2em]';
+    const accentLabel = 'text-white font-black text-xs uppercase tracking-[0.2em]';
 
     return (
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
@@ -48,21 +48,21 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                         </div>
                         <div>
                             <h2 className={`text-2xl font-display font-medium ${textPrimary}`}>
-                                Coach Settings
+                                Partner Settings
                             </h2>
-                            <p className={`text-[11px] font-black uppercase tracking-wider text-white/60`}>
+                            <p className={`text-xs font-black uppercase tracking-wider text-white`}>
                                 Personalize your guidance
                             </p>
                         </div>
                     </div>
                     <p className={`text-sm font-medium leading-relaxed ${textPrimary}`}>
-                        Customize how often your Palante Coach checks in.
+                        Set the tone of your accountability partner and how often they check in.
                     </p>
                 </div>
 
                 {/* Coach Tone Picker */}
                 <div className="mb-10">
-                    <p className={accentLabel + ' block mb-4'}>How should your coach show up?</p>
+                    <p className={accentLabel + ' block mb-4'}>How should your partner show up?</p>
                     <div className="flex flex-col gap-3">
                         {(
                             [
@@ -70,7 +70,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'nurturing' as CoachTone,
                                     label: 'Nurturing',
                                     sub: 'Warm, poetic, patient',
-                                    desc: 'Your coach wraps around you — soft presence, deep listening, no pressure. Best for days when you need to feel held.',
+                                    desc: 'No agenda, no pressure. Your partner listens first — meeting you where you are before going anywhere.',
                                     accent: 'rgba(229,214,167,0.85)',
                                     bg: 'rgba(229,214,167,0.08)',
                                 },
@@ -78,7 +78,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'direct' as CoachTone,
                                     label: 'Direct',
                                     sub: 'Honest, clear, grounded',
-                                    desc: 'Your coach tells you the real thing — plainly, with care. No inflation, no noise. Best for everyday clarity.',
+                                    desc: 'Says the real thing, plainly. No inflation, no filler. The partner who respects you enough to be straight.',
                                     accent: 'rgba(135,149,130,0.9)',
                                     bg: 'rgba(135,149,130,0.08)',
                                 },
@@ -86,7 +86,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'accountability' as CoachTone,
                                     label: 'Accountability',
                                     sub: 'Firm, high-standard, in your corner',
-                                    desc: "Your coach sees you at your best and won't let you settle. Real talk, no excuses — but always rooted in belief in you.",
+                                    desc: "Sees what you're capable of and holds you to it. High standard, zero cruelty — rooted in the belief that you've got more in you.",
                                     accent: 'rgba(201,106,58,0.9)',
                                     bg: 'rgba(201,106,58,0.10)',
                                 },
@@ -105,13 +105,9 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-sm font-black uppercase tracking-wider text-white">{tone.label}</span>
-                                                <span className="text-[10px] font-medium" style={{ color: tone.accent }}>
-                                                    {tone.sub}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-white/50 leading-relaxed">{tone.desc}</p>
+                                            <span className="text-sm font-black uppercase tracking-wider text-white">{tone.label}</span>
+                                            <p className="text-sm font-semibold mb-2 mt-0.5 text-white">{tone.sub}</p>
+                                            <p className="text-[15px] text-white/75 leading-relaxed">{tone.desc}</p>
                                         </div>
                                         <div
                                             className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
@@ -183,7 +179,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                             <div className={`font-black uppercase tracking-wider text-xs mb-1 ${textPrimary}`}>
                                                 {freq.label}
                                             </div>
-                                            <div className={`text-[11px] font-medium transition-opacity ${localSettings.nudgeFrequency === freq.value ? 'text-white' : 'text-white/60'}`}>
+                                            <div className={`text-xs font-medium transition-opacity ${localSettings.nudgeFrequency === freq.value ? 'text-white' : 'text-white'}`}>
                                                 {freq.description}
                                             </div>
                                         </div>
@@ -203,7 +199,8 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                 {/* Save Button */}
                 <button
                     onClick={() => { haptics.light(); onClose(); }}
-                    className="w-full py-5 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] bg-white/[0.15] text-white shadow-xl shadow-black/10 transition-all active:scale-95"
+                    className="w-full py-5 rounded-[2.5rem] text-xs font-black uppercase tracking-[0.3em] shadow-xl shadow-black/10 transition-all active:scale-95"
+                    style={{ background: '#E5D6A7', color: '#1F3824' }}
                 >
                     Save Preferences
                 </button>

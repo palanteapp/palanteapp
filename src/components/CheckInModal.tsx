@@ -57,7 +57,7 @@ const RESPONSES: Record<Feeling, {
     message: "You've been giving a lot today. That's worth acknowledging.",
     boldPhrase: "Let's take two minutes",
     Icon: Wind,
-    title: 'Box Breathing',
+    title: 'Energy Breathing',
     sub: '2 min · Reset your system',
     cta: 'Start breathing',
     dest: 'breath',
@@ -172,7 +172,7 @@ export function CheckInModal({ isOpen, userName, onFeelingSaved, onNavigate, onD
                   <Leaf size={18} color="#D4B882" />
                 </div>
                 <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#D4B882' }}>
-                  Palante Coach
+                  Palante
                 </span>
               </div>
 

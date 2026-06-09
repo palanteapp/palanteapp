@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Share2, RefreshCw } from 'lucide-react';
+import { Share2, RefreshCw, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShareModal } from './ShareModal';
 import type { Quote } from '../types';
@@ -13,6 +13,8 @@ interface MorningMessageCardProps {
     userName?: string;
     coachTone?: 'nurturing' | 'direct' | 'accountability';
     onOpenToneSettings?: () => void;
+    messageRating?: 1 | 2 | 3 | 4 | 5;
+    onRateMessage?: (rating: 1 | 2 | 3 | 4 | 5) => void;
 }
 
 export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
@@ -23,14 +25,17 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
     userName,
     coachTone = 'nurturing',
     onOpenToneSettings,
+    messageRating,
+    onRateMessage,
 }) => {
     const [showShareModal, setShowShareModal] = useState(false);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [hoveredStar, setHoveredStar] = useState<number | null>(null);
 
     const mockQuote: Quote = {
         id: `morning_msg_${Date.now()}`,
         text: message || 'Rise and shine.',
-        author: 'Palante Coach',
+        author: 'Palante',
         category: 'Morning Message',
         intensity: 1,
         isAI: true,
@@ -55,10 +60,14 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                     url: savedFile.uri,
                 });
             } catch {
-                const link = document.createElement('a');
-                link.href = image;
-                link.download = `palante_morning_${Date.now()}.png`;
-                link.click();
+                // Web fallback only — iOS ignores link.download
+                const { Capacitor } = await import('@capacitor/core');
+                if (!Capacitor.isNativePlatform()) {
+                    const link = document.createElement('a');
+                    link.href = image;
+                    link.download = `palante_morning_${Date.now()}.png`;
+                    link.click();
+                }
             }
         } catch (error) {
             console.error('Error sharing morning message:', error);
@@ -84,12 +93,12 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
             className="w-full relative overflow-hidden rounded-3xl"
             style={{
                 background: isDarkMode
-                    ? 'linear-gradient(135deg, rgba(65,93,67,0.55) 0%, rgba(30,50,35,0.80) 100%)'
+                    ? 'linear-gradient(135deg, rgba(65,93,67,0.85) 0%, rgba(30,50,35,0.80) 100%)'
                     : 'linear-gradient(135deg, rgba(253,251,247,0.95) 0%, rgba(240,234,220,0.90) 100%)',
-                border: isDarkMode ? '1px solid rgba(229,214,167,0.14)' : '1px solid rgba(65,93,67,0.12)',
+                border: isDarkMode ? '1px solid rgba(229,214,167,0.22)' : '1px solid rgba(65,93,67,0.85)',
                 boxShadow: isDarkMode
                     ? '0 8px 32px rgba(0,0,0,0.28)'
-                    : '0 4px 20px rgba(65,93,67,0.10)',
+                    : '0 4px 20px rgba(65,93,67,0.85)',
             }}
         >
             {/* Warm glow blob */}
@@ -100,8 +109,8 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                     width: '55%', height: '120%',
                     borderRadius: '50%',
                     background: isDarkMode
-                        ? 'radial-gradient(circle, rgba(201,106,58,0.12) 0%, transparent 70%)'
-                        : 'radial-gradient(circle, rgba(201,106,58,0.08) 0%, transparent 70%)',
+                        ? 'radial-gradient(circle, rgba(201,106,58,0.16) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(201,106,58,0.16) 0%, transparent 70%)',
                     pointerEvents: 'none',
                 }}
             />
@@ -113,8 +122,8 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                     <div
                         style={{
                             width: 32, height: 32, borderRadius: '50%',
-                            background: isDarkMode ? 'rgba(201,106,58,0.18)' : 'rgba(201,106,58,0.12)',
-                            border: '1px solid rgba(201,106,58,0.30)',
+                            background: isDarkMode ? 'rgba(201,106,58,0.12)' : 'rgba(201,106,58,0.12)',
+                            border: '1px solid rgba(201,106,58,0.15)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             flexShrink: 0,
                         }}
@@ -131,11 +140,11 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                             color: isDarkMode ? '#E5D6A7' : '#415D43',
                             lineHeight: 1,
                         }}>
-                            Your Coach
+                            Your Partner
                         </p>
                         <p style={{
                             fontSize: '10px', fontWeight: 500, letterSpacing: '0.04em',
-                            color: isDarkMode ? 'rgba(229,214,167,0.50)' : 'rgba(65,93,67,0.50)',
+                            color: isDarkMode ? 'rgba(229,214,167,0.90)' : 'rgba(65,93,67,0.85)',
                             lineHeight: 1, marginTop: 2,
                         }}>
                             for today
@@ -187,15 +196,15 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                         style={{
                             padding: '10px 14px',
                             borderRadius: 14,
-                            background: isDarkMode ? 'rgba(229,214,167,0.07)' : 'rgba(65,93,67,0.06)',
-                            borderLeft: '2.5px solid rgba(201,106,58,0.45)',
+                            background: isDarkMode ? 'rgba(229,214,167,0.12)' : 'rgba(65,93,67,0.85)',
+                            borderLeft: '2.5px solid rgba(201,106,58,0.12)',
                             marginBottom: 18,
                         }}
                     >
                         <p style={{
                             fontSize: '10px', fontWeight: 800,
                             letterSpacing: '0.13em', textTransform: 'uppercase',
-                            color: isDarkMode ? 'rgba(229,214,167,0.45)' : 'rgba(65,93,67,0.45)',
+                            color: isDarkMode ? 'rgba(229,214,167,0.90)' : 'rgba(65,93,67,0.85)',
                             marginBottom: 3,
                         }}>
                             Today's intention
@@ -211,20 +220,20 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                 )}
 
                 {/* Action row */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap mb-3">
                     {onOpenToneSettings && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onOpenToneSettings(); }}
                             style={{
                                 padding: '8px 14px', borderRadius: 12,
-                                background: isDarkMode ? 'rgba(229,214,167,0.08)' : 'rgba(65,93,67,0.06)',
-                                border: `1px solid ${isDarkMode ? 'rgba(229,214,167,0.18)' : 'rgba(65,93,67,0.15)'}`,
+                                background: isDarkMode ? 'rgba(229,214,167,0.12)' : 'rgba(65,93,67,0.85)',
+                                border: `1px solid ${isDarkMode ? 'rgba(229,214,167,0.22)' : 'rgba(65,93,67,0.85)'}`,
                                 cursor: 'pointer',
                                 color: isDarkMode ? 'rgba(229,214,167,0.7)' : '#415D43',
                                 display: 'flex', alignItems: 'center', gap: 5,
                                 fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
                             }}
-                            aria-label="Change coach tone"
+                            aria-label="Change partner tone"
                         >
                             <span style={{ opacity: 0.6, fontSize: '10px' }}>Tone:</span>
                             <span style={{ textTransform: 'capitalize' }}>{coachTone}</span>
@@ -236,7 +245,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                         disabled={isGeneratingImage}
                         style={{
                             padding: '8px 14px', borderRadius: 12,
-                            background: isDarkMode ? 'rgba(255,255,255,0.07)' : 'rgba(65,93,67,0.07)',
+                            background: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(65,93,67,0.85)',
                             border: 'none', cursor: isGeneratingImage ? 'default' : 'pointer',
                             color: isDarkMode ? 'rgba(229,214,167,0.6)' : '#415D43',
                             display: 'flex', alignItems: 'center', gap: 6,
@@ -260,7 +269,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                             padding: '8px 14px', borderRadius: 12,
                             background: 'none',
                             border: 'none', cursor: 'pointer',
-                            color: isDarkMode ? 'rgba(255,255,255,0.25)' : 'rgba(65,93,67,0.35)',
+                            color: isDarkMode ? 'rgba(255,255,255,0.85)' : 'rgba(65,93,67,0.85)',
                             display: 'flex', alignItems: 'center', gap: 6,
                             fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em',
                         }}
@@ -271,6 +280,45 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                         New practice
                     </button>
                 </div>
+
+                {/* Message rating */}
+                {message && onRateMessage && (
+                    <div style={{ paddingTop: 12, borderTop: `1px solid ${isDarkMode ? 'rgba(229,214,167,0.90)' : 'rgba(65,93,67,0.85)'}` }}>
+                        <p style={{
+                            fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+                            color: isDarkMode ? 'rgba(229,214,167,0.90)' : 'rgba(65,93,67,0.85)',
+                            marginBottom: 6,
+                        }}>
+                            How well did this land?
+                        </p>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRateMessage(star as 1 | 2 | 3 | 4 | 5);
+                                    }}
+                                    onMouseEnter={() => setHoveredStar(star)}
+                                    onMouseLeave={() => setHoveredStar(null)}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer', padding: 2,
+                                        opacity: (hoveredStar ?? messageRating ?? 0) >= star ? 1 : 0.25,
+                                        transition: 'opacity 0.15s',
+                                    }}
+                                    aria-label={`Rate ${star}`}
+                                >
+                                    <Star
+                                        size={16}
+                                        fill={(hoveredStar ?? messageRating ?? 0) >= star ? '#C96A3A' : 'none'}
+                                        stroke={(hoveredStar ?? messageRating ?? 0) >= star ? '#C96A3A' : isDarkMode ? 'rgba(229,214,167,0.3)' : 'rgba(65,93,67,0.3)'}
+                                        strokeWidth={1.5}
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {showShareModal && message && (

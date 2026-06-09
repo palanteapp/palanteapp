@@ -36,7 +36,7 @@ const getInsightColor = (type: Insight['type'], isDarkMode: boolean) => {
 export const WeeklyInsightsCard: React.FC<WeeklyInsightsCardProps> = ({ user, isDarkMode, onClick }) => {
     const insights = generateWeeklyInsights(user);
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     if (insights.length === 0) {
         return (

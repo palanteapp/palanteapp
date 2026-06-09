@@ -79,7 +79,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
 
                             {/* Header label */}
                             <motion.p
-                                className="text-[9px] font-black uppercase tracking-[0.35em] text-white/30 mb-6"
+                                className="text-xs font-black uppercase tracking-[0.35em] text-white mb-6"
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3, duration: 0.6 }}
@@ -145,14 +145,14 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.7, duration: 0.6 }}
                             >
-                                <p className="text-[10px] font-black uppercase tracking-[0.28em] mb-2"
+                                <p className="text-xs font-black uppercase tracking-[0.28em] mb-2"
                                     style={{ color: ACCENT }}>
                                     Full Bloom · Day 90
                                 </p>
-                                <h1 className="text-3xl font-display font-medium text-white leading-tight">
+                                <h1 className="text-4xl font-display font-medium text-white leading-tight">
                                     Your Growth Story
                                 </h1>
-                                <p className="text-sm font-medium text-white/40 mt-1 tracking-wide">
+                                <p className="text-sm font-medium text-white mt-1 tracking-wide">
                                     {firstName}'s Mandala
                                 </p>
                             </motion.div>
@@ -171,7 +171,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
                                             animate={{ rotate: 360 }}
                                             transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
                                         />
-                                        <p className="text-xs text-white/30 tracking-wider uppercase">
+                                        <p className="text-sm text-white tracking-wider uppercase">
                                             Reading your story...
                                         </p>
                                     </div>
@@ -205,11 +205,11 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
                                         { value: stats.eveningsReflected, label: 'Evenings' },
                                     ].map(({ value, label }) => (
                                         <div key={label} className="flex flex-col items-center gap-1">
-                                            <span className="text-2xl font-display font-medium"
+                                            <span className="text-3xl font-display font-medium"
                                                 style={{ color: GOLD }}>
                                                 {value}
                                             </span>
-                                            <span className="text-[10px] font-medium uppercase tracking-wider text-white/30">
+                                            <span className="text-xs font-medium uppercase tracking-wider text-white">
                                                 {label}
                                             </span>
                                         </div>
@@ -247,7 +247,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
                                     {onShare && memoir && (
                                         <button
                                             onClick={() => onShare(memoir)}
-                                            className="w-full py-3 text-[11px] font-black uppercase tracking-widest transition-colors active:scale-95"
+                                            className="w-full py-3 text-xs font-black uppercase tracking-widest transition-colors active:scale-95"
                                             style={{ color: `${ACCENT}90` }}
                                         >
                                             Share My Story

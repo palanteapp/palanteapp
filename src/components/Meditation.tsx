@@ -1,4 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, Pause, RotateCcw, Sparkles, X, Mic, HelpCircle, Music, Settings, Waves, CloudRain, Leaf, Wind } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Countdown } from './Countdown';
@@ -9,6 +10,7 @@ import { haptics } from '../utils/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EnhancementSettings, type EnhancementOptions } from './EnhancementSettings';
 import type { UserProfile, SoundMix } from '../types';
+import { Capacitor } from '@capacitor/core';
 
 // Pre-generated petal data (module-level, stable across renders)
 const SAKURA_PETALS = Array.from({ length: 15 }).map((_, i) => ({
@@ -68,6 +70,7 @@ interface MeditationProps {
     onSaveMix?: (mix: SoundMix) => void;
     onDeleteMix?: (mixId: string) => void;
     onOpenSoundMixer?: () => void;
+    onWriteLetter?: () => void;
 }
 
 interface Mantra {
@@ -125,7 +128,7 @@ const matchMantraToIntention = (intention: string): Mantra => {
     return MANTRAS[Math.floor(Math.random() * MANTRAS.length)];
 };
 
-export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSaveReflection, tipsEnabled: _tipsEnabled = true, onShowTip: _onShowTip, onStrategize: _onStrategize, user: _user, onSaveMix: _onSaveMix, onDeleteMix: _onDeleteMix, onOpenSoundMixer }) => {
+export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSaveReflection, tipsEnabled: _tipsEnabled = true, onShowTip: _onShowTip, onStrategize: _onStrategize, user: _user, onSaveMix: _onSaveMix, onDeleteMix: _onDeleteMix, onOpenSoundMixer, onWriteLetter }) => {
     const [isActive, setIsActive] = useState(false);
     const [duration, setDuration] = useState(10); // minutes
     const [timeLeft, setTimeLeft] = useState(10 * 60);
@@ -145,7 +148,8 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
             immersiveHaptics: false,
             dynamicBackgrounds: false,
             smoothTransitions: false,
-            groundingHeartbeat: false
+            groundingHeartbeat: false,
+            natureParticles: false
         };
     });
 
@@ -188,8 +192,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
 
     const releaseWakeLock = async () => {
         try {
-            // Keep persistent for now
-            console.log('🔓 Wake Lock release requested (suppressed)');
+            // Wake lock kept persistent intentionally
         } catch (err) {
             console.error('❌ Failed to release wake lock:', err);
         }
@@ -198,8 +201,39 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
     const playGong = async () => {
         try {
             const gong = new Audio('/sounds/gong-sfx.mp3');
-            gong.volume = 0.5;
+            gong.volume = 0;
             await gong.play();
+
+            const peakVolume = 0.65;
+            const attackMs = 400;
+            const sustainMs = 2200;
+            const decayMs = 3800;
+            const intervalMs = 30;
+
+            // Fade in
+            const start = Date.now();
+            const fadeIn = setInterval(() => {
+                const elapsed = Date.now() - start;
+                if (elapsed >= attackMs) {
+                    gong.volume = peakVolume;
+                    clearInterval(fadeIn);
+
+                    // Sustain, then fade out
+                    setTimeout(() => {
+                        const decayStart = Date.now();
+                        const fadeOut = setInterval(() => {
+                            const t = (Date.now() - decayStart) / decayMs;
+                            gong.volume = Math.max(0, peakVolume * (1 - t));
+                            if (t >= 1) {
+                                gong.pause();
+                                clearInterval(fadeOut);
+                            }
+                        }, intervalMs);
+                    }, sustainMs);
+                } else {
+                    gong.volume = peakVolume * (elapsed / attackMs);
+                }
+            }, intervalMs);
         } catch (error) {
             console.error('❌ Gong playback failed:', error);
         }
@@ -210,7 +244,6 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
         haptics.success();
         await releaseWakeLock();
         setShowNamaste(true);
-        if (onComplete) onComplete();
         setTimeout(() => {
             setShowNamaste(false);
             setShowReflectionModal(true);
@@ -282,7 +315,6 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
 
     const startReflectionDictation = () => {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert('Speech recognition is not supported in your browser.');
             return;
         }
 
@@ -311,11 +343,18 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
     };
 
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
     const accentColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
 
     return (
-        <div className="w-full flex flex-col items-center px-6 pb-32 animate-fade-in transition-colors duration-500 overflow-hidden relative">
+        <div className="w-full max-w-md mx-auto flex flex-col items-center px-6 pt-6 pb-32 animate-fade-in transition-colors duration-500 overflow-hidden relative">
+            {/* Page headline */}
+            <div className="w-full mb-8 px-1">
+                <h2 className={`font-display font-medium text-3xl ${textPrimary}`}>Meditation</h2>
+                <p className={`text-xs uppercase tracking-[0.25em] font-black mt-1 ${textSecondary}`}>
+                    Find your stillness
+                </p>
+            </div>
             {enhancements.natureParticles && (isActive || isCountingDown) && <SakuraPetals isDarkMode={isDarkMode} />}
             <Countdown isActive={isCountingDown} onComplete={handleCountdownComplete} />
 
@@ -335,13 +374,13 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                 )}
             </AnimatePresence>
 
-            {/* Reflection Modal */}
-            {showReflectionModal && (
+            {/* Reflection Modal — portalled to body so Framer Motion transforms don't offset fixed positioning */}
+            {showReflectionModal && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
                     <div className="w-full max-w-lg p-8 rounded-2xl shadow-2xl bg-sage-mid border border-white/10">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className={`text-2xl font-display font-medium ${textPrimary}`}>Reflect on your practice</h3>
-                            <button onClick={resetTimer} className={`p-2 rounded-full hover:bg-black/20 ${textSecondary}`}>
+                            <button onClick={() => { resetTimer(); if (onComplete) onComplete(); }} className={`p-2 rounded-full hover:bg-black/20 ${textSecondary}`}>
                                 <X size={24} />
                             </button>
                         </div>
@@ -356,14 +395,16 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                     }`}
                                 placeholder="I feel..."
                             />
-                            <button
-                                type="button"
-                                onClick={startReflectionDictation}
-                                className={`absolute right-3 top-3 p-2 rounded-full transition-all ${isListeningReflection ? 'bg-red-500 text-white animate-pulse' : isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
-                                title="Voice Dictation"
-                            >
-                                <Mic size={13} />
-                            </button>
+                            {!Capacitor.isNativePlatform() && (
+                                <button
+                                    type="button"
+                                    onClick={startReflectionDictation}
+                                    className={`absolute right-3 top-3 p-2 rounded-full transition-all ${isListeningReflection ? 'bg-red-500 text-white animate-pulse' : isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+                                    title="Voice Dictation"
+                                >
+                                    <Mic size={13} />
+                                </button>
+                            )}
                         </div>
                         <button
                             onClick={() => {
@@ -376,20 +417,29 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                     });
                                 }
                                 resetTimer();
+                                if (onComplete) onComplete();
                             }}
                             className={`w-full py-4 rounded-full font-display font-medium text-lg transition-all ${isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-white' : 'bg-1B4332 text-white hover:shadow-spa'}`}
                         >
                             Save Reflection
                         </button>
+                        {onWriteLetter && (
+                            <button
+                                onClick={() => { resetTimer(); if (onComplete) onComplete(); onWriteLetter(); }}
+                                className="w-full mt-4 py-2 text-sm text-center text-white hover:text-white/60 transition-colors"
+                            >
+                                Write a letter to your future self →
+                            </button>
+                        )}
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* Header Area */}
             <div className={`w-full max-w-md text-center z-10 transition-opacity duration-1000 ${showNamaste ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 {showIntentionInput && !isActive && (
                     <div className="flex items-center justify-center gap-2 mb-4">
-                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`}>1</span>
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`}>1</span>
                         <span className={`text-xs font-bold uppercase tracking-widest ${textSecondary}`}>Set Your Intention</span>
                     </div>
                 )}
@@ -420,14 +470,14 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                         <div className="flex justify-center items-center gap-3 mb-6">
                             <button
                                 onClick={() => setShowFeatureInfo(true)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/20' : 'bg-sage/5 text-sage hover:bg-sage/10'}`}
+                                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/20' : 'bg-sage/5 text-sage hover:bg-sage/10'}`}
                             >
                                 <HelpCircle size={14} />
                                 Guide
                             </button>
                             <button
                                 onClick={() => setShowSettings(true)}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${enhancements.groundingHeartbeat ? 'bg-pale-gold text-warm-gray-green' : isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/20' : 'bg-sage/5 text-sage hover:bg-sage/10'}`}
+                                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${enhancements.groundingHeartbeat ? 'bg-pale-gold text-warm-gray-green' : isDarkMode ? 'bg-white/10 text-white/80 hover:bg-white/20' : 'bg-sage/5 text-sage hover:bg-sage/10'}`}
                             >
                                 <Settings size={14} />
                                 Settings
@@ -435,7 +485,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                         </div>
 
                         <div className="w-full space-y-4">
-                            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 text-center ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            <p className={`text-xs font-bold uppercase tracking-[0.2em] opacity-40 text-center ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                 Select Atmosphere
                             </p>
                             <div className="grid grid-cols-2 gap-3">
@@ -448,7 +498,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                     <button
                                         key={preset.id}
                                         onClick={() => window.dispatchEvent(new CustomEvent('palante-load-preset', { detail: { preset: preset.id } }))}
-                                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-medium transition-all ${isDarkMode
+                                        className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-xs font-medium transition-all ${isDarkMode
                                             ? 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/5'
                                             : 'bg-sage/5 text-sage hover:bg-sage/10 border border-sage/10'}`}
                                     >
@@ -465,7 +515,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                     <div className="flex justify-center mt-4">
                         <button
                             onClick={onOpenSoundMixer}
-                            className={`px-8 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all border flex items-center justify-center gap-2 w-full max-w-[200px] ${isDarkMode ? 'bg-white/5 border-white/10 text-white/40 hover:text-white' : 'bg-sage/5 border-sage/10 text-sage/40 hover:text-sage'}`}
+                            className={`px-8 py-3 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] transition-all border flex items-center justify-center gap-2 w-full max-w-[200px] ${isDarkMode ? 'bg-white/5 border-white/10 text-white hover:text-white' : 'bg-sage/5 border-sage/10 text-sage/40 hover:text-sage'}`}
                         >
                             <Music size={14} />
                             Full Sound Mixer
@@ -517,7 +567,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
             <div className={`flex flex-col items-center gap-8 z-10 transition-opacity duration-1000 ${showNamaste ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 {!isActive && (
                     <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`}>2</span>
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`}>2</span>
                         <span className={`text-xs font-bold uppercase tracking-widest ${textSecondary}`}>Choose Duration</span>
                     </div>
                 )}
@@ -527,7 +577,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                             <button
                                 key={m}
                                 onClick={() => handleDurationChange(m)}
-                                className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${duration === m ? (isDarkMode ? 'bg-white text-warm-gray-green' : 'bg-sage text-white') : (isDarkMode ? 'bg-white/10 text-white/60' : 'bg-sage/10 text-sage')}`}
+                                className={`px-5 py-2 rounded-full text-base font-bold transition-all ${duration === m ? (isDarkMode ? 'bg-white text-warm-gray-green' : 'bg-sage text-white') : (isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage')}`}
                             >
                                 {m}m
                             </button>
@@ -536,7 +586,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                 )}
 
                 <div className="flex items-center justify-center gap-2 mb-2">
-                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`}>3</span>
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-base font-bold ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`}>3</span>
                     <span className={`text-xs font-bold uppercase tracking-widest ${textSecondary}`}>Begin Meditation</span>
                 </div>
 
@@ -545,7 +595,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                         <button
                             onClick={toggleTimer}
                             disabled={!isActive && !intention.trim()}
-                            className={`p-6 rounded-full transition-all ${!isActive && !intention.trim() ? (isDarkMode ? 'bg-white/5 text-white/30 cursor-not-allowed' : 'bg-sage/5 text-sage/30 cursor-not-allowed') : isActive ? (isDarkMode ? 'bg-white text-sage-dark' : 'bg-sage text-white') : ('bg-1B4332 text-white hover:scale-105')}`}
+                            className={`p-6 rounded-full transition-all ${!isActive && !intention.trim() ? (isDarkMode ? 'bg-white/5 text-white cursor-not-allowed' : 'bg-sage/5 text-sage/30 cursor-not-allowed') : isActive ? (isDarkMode ? 'bg-white text-sage-dark' : 'bg-sage text-white') : ('bg-1B4332 text-white hover:scale-105')}`}
                         >
                             {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                         </button>
@@ -557,7 +607,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                     </div>
 
                     {!isActive && !intention.trim() && (
-                        <p className={`text-[10px] font-bold uppercase tracking-[0.2em] animate-pulse mt-2 ${isDarkMode ? 'text-pale-gold/60' : 'text-sage/60'}`}>
+                        <p className={`text-xs font-bold uppercase tracking-[0.2em] animate-pulse mt-2 ${isDarkMode ? 'text-pale-gold/60' : 'text-sage/60'}`}>
                             set an intention above to get started
                         </p>
                     )}

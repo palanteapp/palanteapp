@@ -94,9 +94,9 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
         try { localStorage.setItem(getTodayKey(), n.toString()); } catch { /* ignore */ }
     };
 
-    const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' || quote.author === 'Palante Coach' || quote.isAI;
+    const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' || quote.author === 'Palante' || quote.author === 'Palante Coach' || quote.isAI;
     const quoteText   = quote?.text   || 'Keep moving forward.';
-    const quoteAuthor = quote?.author || 'Palante Coach';
+    const quoteAuthor = quote?.author || 'Palante';
     const seed = `${quote.id}-${new Date().toLocaleDateString()}-${refreshCount}`;
 
     // ── Share ──────────────────────────────────────────────────────────────
@@ -145,11 +145,31 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
         try {
             const { generateShareImage } = await import('../utils/shareUtils');
             const dataUrl = await generateShareImage(quote, seed);
-            
-            // On desktop/Mac, standard anchor d/l works best
+            const base64 = dataUrl.split(',')[1];
+            const fileName = getShareFileName();
+
+            try {
+                const { Capacitor } = await import('@capacitor/core');
+                if (Capacitor.isNativePlatform()) {
+                    const { Directory, Filesystem } = await import('@capacitor/filesystem');
+                    const saved = await Filesystem.writeFile({
+                        path: fileName,
+                        data: base64,
+                        directory: Directory.Documents,
+                    });
+                    const { Share } = await import('@capacitor/share');
+                    await Share.share({
+                        title: 'Saved from Palante',
+                        files: [saved.uri],
+                        dialogTitle: 'Save image',
+                    });
+                    return;
+                }
+            } catch { /* fall through to web download */ }
+
             const link = document.createElement('a');
             link.href = dataUrl;
-            link.download = getShareFileName();
+            link.download = fileName;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -226,15 +246,23 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
             return;
         }
 
-        // Request on first native touchend anywhere on the page
-        const requestOnFirstTouch = () => {
+        const tryRequestPermission = () => {
             DOE.requestPermission()
                 .then((result: string) => { if (result === 'granted') setGyroPermitted(true); })
-                .catch(() => { setGyroPermitted(true); });
+                .catch(() => { /* denied or unavailable */ });
         };
 
-        window.addEventListener('touchend', requestOnFirstTouch, { once: true });
-        return () => window.removeEventListener('touchend', requestOnFirstTouch);
+        // Re-check on every foreground resume in case the user granted in Settings after prior denial
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') tryRequestPermission();
+        };
+
+        window.addEventListener('touchend', tryRequestPermission, { once: true });
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            window.removeEventListener('touchend', tryRequestPermission);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

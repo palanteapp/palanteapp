@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, Bot, Mic, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
-    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star
+    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2
 } from 'lucide-react';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
 import type { CoachPillarKey } from '../utils/aiService';
@@ -12,6 +12,8 @@ import { haptics } from '../utils/haptics';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { useTheme } from '../contexts/ThemeContext';
 import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
+import { loadConversationMemories, extractAndSaveMemories } from '../utils/memoryService';
+import { Capacitor } from '@capacitor/core';
 
 // ── Speech recognition type ──────────────────────────────────────────────────
 interface SpeechRecognitionInstance {
@@ -151,12 +153,20 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [isListening, setIsListening] = useState(false);
     const [showCompletionMoment, setShowCompletionMoment] = useState(false);
     const completionShownRef = useRef(false);
+    const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<{ stop: () => void } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Load cross-session memories so Palante remembers the user across conversations
+    useEffect(() => {
+        if (user.id) {
+            loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
+        }
+    }, [user.id]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -209,6 +219,11 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         });
     }, []);
 
+    // Path B: the pillar picker is gone. New sessions always start as 'open' and Palante figures
+    // out the right tone from what the user says. startPillarSession is kept for callers, but we
+    // no longer persist the session at creation time — only when the user actually sends a message.
+    // This prevents the Archive from filling up with empty single-greeting sessions every time
+    // the user taps "Palante" without saying anything.
     const startPillarSession = useCallback((pillar: CoachPillar) => {
         completionShownRef.current = false;
         haptics.medium();
@@ -233,7 +248,8 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             messageCount: 0,
         };
 
-        upsertSession(newSession);
+        // Do NOT persist yet — wait for the first user message. The existing message-send flow
+        // calls upsertSession when a message lands, which is when the session becomes worth saving.
         setActiveSession(newSession);
         setView('chat');
     }, [user.name, upsertSession]);
@@ -242,6 +258,43 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         haptics.light();
         setActiveSession(session);
         setView('chat');
+    }, []);
+
+    // Path B: skip the pillar picker entirely. When the user lands on the Coach home view
+    // and there's no active session, immediately start a fresh open conversation. Archive
+    // is still reachable via the icon in the chat header.
+    useEffect(() => {
+        if (view === 'home' && !activeSession) {
+            startPillarSession('open');
+        }
+    }, [view, activeSession, startPillarSession]);
+
+    // Two-step delete: tap once to arm, tap again within 3s to commit. Auto-disarms.
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+    const pendingDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const armDelete = useCallback((sessionId: string) => {
+        haptics.medium();
+        setPendingDeleteId(sessionId);
+        if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
+        pendingDeleteTimerRef.current = setTimeout(() => setPendingDeleteId(null), 3000);
+    }, []);
+
+    const deleteSession = useCallback((sessionId: string) => {
+        haptics.heavy();
+        setPendingDeleteId(null);
+        if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
+        setSessions(prev => {
+            const next = prev.filter(s => s.id !== sessionId);
+            saveSessions(next);
+            return next;
+        });
+        // If the deleted session is the currently active one, clear it
+        setActiveSession(prev => prev?.id === sessionId ? null : prev);
+    }, []);
+
+    useEffect(() => () => {
+        if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
     }, []);
 
     const buildContext = useCallback(() => ({
@@ -269,7 +322,8 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         currentMood: user.currentMood,
         focusAreas: user.focusAreas,
         coachTone: user.coachSettings?.coachTone,
-    }), [user]);
+        persistedMemories,
+    }), [user, persistedMemories]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -336,6 +390,17 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             }
         } catch (error) {
             console.error('Chat error:', error);
+            const errMsg: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                text: "I'm having trouble connecting right now. Check your connection and try again — I'm here when you're ready.",
+                timestamp: Date.now(),
+                role: 'assistant',
+            };
+            if (activeSession) {
+                const errSession = { ...updatedSession, messages: [...updatedSession.messages, errMsg], updatedAt: Date.now() };
+                setActiveSession(errSession);
+                upsertSession(errSession);
+            }
         } finally {
             setIsTyping(false);
         }
@@ -350,10 +415,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         const SpeechRecognitionCtor =
             (window as Record<string, unknown>).SpeechRecognition ||
             (window as Record<string, unknown>).webkitSpeechRecognition;
-        if (!SpeechRecognitionCtor) {
-            alert('Speech recognition is not supported in your browser.');
-            return;
-        }
+        if (!SpeechRecognitionCtor) return;
         const recognition = new (SpeechRecognitionCtor as new () => SpeechRecognitionInstance)();
         recognitionRef.current = recognition as { stop: () => void };
         recognition.continuous = true;
@@ -391,18 +453,25 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
 
     const bg = forestSage; // User requested "New Forest Sage" background
     const textPrimary = 'text-[#E5D6A7]'; // Pale Gold for premium titles
-    const textSecondary = 'text-white/60';
+    const textSecondary = 'text-white';
     const cardBg = 'rgba(255, 255, 255, 0.05)';
     const borderColor = 'rgba(229, 214, 167, 0.15)';
 
     if (!canUseAI(user)) {
+        const isDisabledInSettings = user.aiDisabled;
         return (
             <div className={`flex flex-col items-center justify-center min-h-[60vh] p-8 text-center space-y-6 ${textPrimary}`}>
                 <div className="p-8 rounded-full bg-white/5">
                     <Bot size={48} className="opacity-20 text-[#E5D6A7]" />
                 </div>
-                <h2 className="text-2xl font-display font-medium text-[#E5D6A7]">Coming Soon</h2>
-                <p className="text-sm opacity-60 max-w-xs text-[#E5D6A7]/60">Your AI Coach is currently calibrating for your journey.</p>
+                <h2 className="text-3xl font-display font-medium text-[#E5D6A7]">
+                    {isDisabledInSettings ? 'AI Coach Disabled' : 'Coming Soon'}
+                </h2>
+                <p className="text-sm opacity-60 max-w-xs text-[#E5D6A7]/60">
+                    {isDisabledInSettings
+                        ? 'AI features are turned off in your settings. Go to Settings → toggle AI on to access your coach.'
+                        : 'Your AI Coach is currently calibrating for your journey.'}
+                </p>
             </div>
         );
     }
@@ -450,97 +519,18 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             </div>
 
             {/* ── HOME VIEW ──────────────────────────────────────────────── */}
+            {/* Path B: the pillar picker is gone. When view === 'home' is briefly active,
+                an effect immediately starts an open conversation, transitioning to view === 'chat'.
+                This minimal loader prevents a flash of empty content during that handoff. */}
             {view === 'home' && (
-                <>
-                    <header className="relative z-20 px-8 pt-16 pb-4">
-                        <div className="flex items-center justify-between mb-6">
-                            <button
-                                onClick={onBack}
-                                className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
-                            >
-                                <ChevronLeft size={20} />
-                            </button>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => { haptics.light(); setView('history'); }}
-                                    className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
-                                >
-                                    <Clock size={17} />
-                                </button>
-                                <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 text-[#E5D6A7] border border-[#E5D6A7]/20">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                                    Live
-                                </div>
-                            </div>
-                        </div>
-                        <h2 className="text-5xl font-display font-medium tracking-tight text-white mb-2">
-                            {user.coachName || 'Palante Coach'}
-                        </h2>
-                        <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${textSecondary}`}>
-                            Guidance for your journey.
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="flex items-center gap-3 opacity-40 text-[#E5D6A7]">
+                        <Sparkles size={14} className="animate-pulse" />
+                        <p className="text-xs font-black uppercase tracking-[0.3em]">
+                            Opening Palante…
                         </p>
-                    </header>
-
-                    <div className="flex-1 overflow-y-auto px-6 py-2 relative z-10 space-y-4" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '7rem' }}>
-                        <p className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-40 ${textPrimary}`}>
-                            Choose your focus
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            {PILLAR_CONFIGS.map((pillar) => (
-                                <button
-                                    key={pillar.key}
-                                    onClick={() => startPillarSession(pillar.key)}
-                                    className="relative overflow-hidden rounded-[2.5rem] p-6 text-left transition-all duration-300 active:scale-95 group"
-                                    style={{
-                                        background: cardBg,
-                                        border: `2px solid ${borderColor}`,
-                                    }}
-                                >
-                                    <div className="w-14 h-14 rounded-2xl bg-[#E5D6A7] flex items-center justify-center mb-5 text-[#1B4332] shadow-sm transform group-hover:rotate-6 transition-transform">
-                                        {pillar.icon}
-                                    </div>
-                                    <div className="relative z-10">
-                                        <p className="font-display font-medium text-[16px] tracking-tight text-[#E5D6A7]">
-                                            {pillar.label}
-                                        </p>
-                                        <p className="text-[11px] mt-1 font-medium text-white/40 leading-snug">
-                                            {pillar.hint}
-                                        </p>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="flex items-center gap-4 py-4">
-                            <div className="flex-1 h-px bg-[#E5D6A7]/10" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-30 text-[#E5D6A7]">
-                                OR TALK FREELY
-                            </span>
-                            <div className="flex-1 h-px bg-[#E5D6A7]/10" />
-                        </div>
-
-                        <button
-                            onClick={() => startPillarSession('open')}
-                            className="w-full flex items-center gap-6 px-6 py-5 rounded-[2.5rem] transition-all bg-[#C96A3A] hover:bg-[#D4895A] active:scale-[0.98] shadow-xl group"
-                        >
-                            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0 text-white">
-                                <MessageCircle size={24} />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="font-display font-medium text-lg text-white leading-tight">
-                                    Open Conversation
-                                </p>
-                                <p className="text-[11px] text-white/60 font-medium">
-                                    Let's talk about anything.
-                                </p>
-                            </div>
-                            <span className="text-white opacity-40 font-light text-2xl group-hover:translate-x-1 transition-transform">›</span>
-                        </button>
-
-                        <div className="h-4" />
                     </div>
-                </>
+                </div>
             )}
 
             {/* ── CHAT VIEW ──────────────────────────────────────────────── */}
@@ -548,14 +538,29 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 <>
                     <header className="relative z-20 px-6 pt-14 pb-4">
                         <div className="flex items-center justify-between mb-5">
+                            {/* Back button now exits Coach entirely (no more pillar-picker home to return to). */}
                             <button
-                                onClick={() => { setView('home'); }}
+                                onClick={() => {
+                                    if (activeSession && user.id) {
+                                        extractAndSaveMemories(activeSession.messages, user.id, user.name || 'Friend').catch(() => {});
+                                    }
+                                    onBack?.();
+                                }}
                                 className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
+                                aria-label="Back to Palante"
                             >
                                 <ChevronLeft size={20} />
                             </button>
                             <div className="flex items-center gap-2">
-                                <div className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 text-[#E5D6A7] border border-[#E5D6A7]/20">
+                                {/* Archive icon — moved from the (now-deleted) pillar-picker home into the chat header. */}
+                                <button
+                                    onClick={() => { haptics.light(); setView('history'); }}
+                                    className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
+                                    aria-label="Archive"
+                                >
+                                    <Clock size={17} />
+                                </button>
+                                <div className="px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 text-[#E5D6A7] border border-[#E5D6A7]/20">
                                     <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                                     Live
                                 </div>
@@ -563,22 +568,23 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         </div>
 
                         <div>
-                            <h2 className="text-3xl font-display font-medium tracking-tight text-white">
-                                {user.coachName || 'Palante Coach'}
+                            <h2 className="text-4xl font-display font-medium tracking-tight text-white">
+                                {user.coachName || 'Palante'}
                             </h2>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mt-1">
-                                {activeSession.pillar === 'open' ? 'HERE FOR YOU' : `${pillarLabel(activeSession.pillar)} SESSION`}
+                            {/* Path B: always show one consistent identity. No more "ANXIETY SESSION" / "FOCUS SESSION" labels. */}
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-white mt-1">
+                                HERE FOR YOU
                             </p>
                         </div>
                     </header>
 
                     <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2 space-y-10 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '9rem' }}>
-                        {activeSession.messages.map((msg: ChatMessage) => (
+                        {activeSession.messages.map((msg: ChatMessage, idx: number) => (
                             <div key={msg.id} className={`flex flex-col min-w-0 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                {msg.role === 'assistant' && (
-                                    <div className="flex items-center gap-2 mb-3 opacity-30 text-[10px] font-black uppercase tracking-widest text-[#E5D6A7]">
+                                {msg.role === 'assistant' && idx > 0 && (
+                                    <div className="flex items-center gap-2 mb-3 opacity-30 text-xs font-black uppercase tracking-widest text-[#E5D6A7]">
                                         <Sparkles size={10} />
-                                        {user.coachName || 'Coach'}
+                                        {user.coachName || 'Palante'}
                                     </div>
                                 )}
                                 <div className={`
@@ -593,9 +599,99 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             </div>
                         ))}
 
+                        {/* Fresh-chat affordances. Only show when the conversation is brand new
+                            (greeting only, no user replies yet). Adds life to the empty state and
+                            reduces blank-page paralysis without re-introducing the pillar picker. */}
+                        {activeSession.messages.length <= 1 && !isTyping && (() => {
+                            const today = new Date().toISOString().split('T')[0];
+                            const todayPractice = (user.dailyMorningPractice || [])
+                                .find(p => p.date === today);
+                            const todayIntention = todayPractice?.dailyIntention?.trim();
+                            const todayCommitment = todayPractice?.commitment?.trim();
+
+                            // Rotate 3 prompts from a pool using time-of-day + day-of-year
+                            // so they feel fresh each morning/afternoon/evening without randomness.
+                            const hour = new Date().getHours();
+                            const dayOfYear = Math.floor(
+                                (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+                            );
+                            const timeBucket = hour < 12 ? 0 : hour < 17 ? 1 : 2;
+                            const rotateSeed = dayOfYear * 3 + timeBucket;
+
+                            const promptPool: string[] = [
+                                "Something's been on my mind",
+                                "I want to think out loud",
+                                "Tell me what you see in me lately",
+                                hour < 12
+                                    ? "Help me set the right tone today"
+                                    : hour < 17
+                                    ? "I need a midday reset"
+                                    : "I want to make sense of today",
+                                "I've been avoiding something",
+                                "I feel stuck and I'm not sure why",
+                                hour < 17
+                                    ? "I want to talk about where I'm headed"
+                                    : "I'm carrying something into tomorrow",
+                                "Check in with me",
+                                "I need to hear something true",
+                                "What do you notice about me?",
+                                todayIntention
+                                    ? `Help me live into "${todayIntention}" today`
+                                    : "I want to move with more intention",
+                            ];
+                            const n = promptPool.length;
+                            const stride = Math.floor(n / 3);
+                            const seedPrompts = [
+                                promptPool[rotateSeed % n],
+                                promptPool[(rotateSeed + stride) % n],
+                                promptPool[(rotateSeed + stride * 2) % n],
+                            ];
+
+                            return (
+                                <div className="space-y-5 animate-fade-in">
+                                    {(todayIntention || todayCommitment) && (
+                                        <div className="flex items-start gap-3 pl-1">
+                                            <div className="w-1 self-stretch rounded-full bg-[#C96A3A]/60 mt-0.5" />
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#E5D6A7]/40 mb-1">
+                                                    Today
+                                                </p>
+                                                <p className="text-sm text-[#E5D6A7]/75 font-medium leading-snug">
+                                                    {todayCommitment
+                                                        ? <>You said today would look like <span className="italic text-[#E5D6A7]">{todayCommitment}</span></>
+                                                        : <>Your intention is <span className="italic text-[#E5D6A7]">{todayIntention}</span></>}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#E5D6A7]/30 pl-1">
+                                            Try one
+                                        </p>
+                                        <div className="flex flex-col gap-2">
+                                            {seedPrompts.map((prompt, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => {
+                                                        haptics.light();
+                                                        setInputText(prompt);
+                                                        inputRef.current?.focus();
+                                                    }}
+                                                    className="text-left px-5 py-3 rounded-2xl text-[15px] font-semibold text-[#1F3824] bg-[#E5D6A7] hover:bg-[#D4C28F] active:scale-[0.98] shadow-md transition-all"
+                                                >
+                                                    {prompt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {isTyping && (
                             <div className="flex flex-col items-start">
-                                <div className="flex items-center gap-2 mb-3 opacity-30 text-[10px] font-black uppercase tracking-widest text-[#E5D6A7]">
+                                <div className="flex items-center gap-2 mb-3 opacity-30 text-xs font-black uppercase tracking-widest text-[#E5D6A7]">
                                     Thinking...
                                 </div>
                                 <div className="flex gap-2">
@@ -606,19 +702,21 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             </div>
                         )}
 
-                        <div ref={messagesEndRef} className="h-24" />
+                        <div ref={messagesEndRef} className="h-36" />
                     </div>
 
                     <div className="fixed bottom-0 left-0 right-0 z-30 px-6 pb-12 pt-4">
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">
                             <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
-                                <button
-                                    type="button"
-                                    onClick={startDictation}
-                                    className={`p-2 rounded-full transition-all ${isListening ? 'text-red-400 scale-125' : 'text-[#E5D6A7] opacity-60 hover:opacity-100'}`}
-                                >
-                                    <Mic size={20} />
-                                </button>
+                                {!Capacitor.isNativePlatform() && (
+                                    <button
+                                        type="button"
+                                        onClick={startDictation}
+                                        className={`p-2 rounded-full transition-all ${isListening ? 'text-red-400 scale-125' : 'text-[#E5D6A7] opacity-60 hover:opacity-100'}`}
+                                    >
+                                        <Mic size={20} />
+                                    </button>
+                                )}
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -684,8 +782,18 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         <div className="flex items-center justify-between mb-8">
                             <h2 className={`text-4xl font-display font-medium ${textPrimary}`}>Archive</h2>
                             <button
-                                onClick={() => { setHistorySearch(''); setView('home'); }}
+                                onClick={() => {
+                                    setHistorySearch('');
+                                    // Return to chat if we have one; otherwise exit Coach entirely.
+                                    // (We never return to 'home' anymore — that view is a transient redirect.)
+                                    if (activeSession) {
+                                        setView('chat');
+                                    } else {
+                                        onBack?.();
+                                    }
+                                }}
                                 className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 text-[#E5D6A7]"
+                                aria-label="Close archive"
                             >
                                 <X size={20} />
                             </button>
@@ -706,24 +814,43 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
 
                     <div className="flex-1 overflow-y-auto px-6 py-4 relative z-10 space-y-3" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '7rem' }}>
                         {filteredSessions.map(s => {
-                            const pillarConf = PILLAR_CONFIGS.find(p => p.key === s.pillar);
+                            const isPending = pendingDeleteId === s.id;
                             return (
-                                <button
+                                <div
                                     key={s.id}
-                                    onClick={() => resumeSession(s)}
-                                    className="w-full flex items-center gap-5 px-6 py-5 rounded-[2.5rem] bg-white/5 border-2 border-[#E5D6A7]/10 text-left transition-all active:scale-[0.98] hover:bg-white/10"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => { if (!isPending) resumeSession(s); }}
+                                    onKeyDown={(e) => { if (!isPending && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); resumeSession(s); } }}
+                                    className={`w-full flex items-center gap-5 px-6 py-5 rounded-[2.5rem] bg-white/5 border-2 text-left transition-all active:scale-[0.98] hover:bg-white/10 cursor-pointer ${isPending ? 'border-red-400/60 bg-red-400/5' : 'border-[#E5D6A7]/10'}`}
                                 >
                                     <div className="w-12 h-12 rounded-2xl bg-[#E5D6A7] flex items-center justify-center text-[#1B4332] flex-shrink-0">
                                         {pillarIcon(s.pillar, 20)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-display font-medium text-lg text-[#E5D6A7] truncate">{s.title}</p>
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#E5D6A7]/40 mt-1">
+                                        <p className="font-display font-medium text-lg text-[#E5D6A7] truncate">
+                                            {isPending ? 'Tap trash again to delete' : s.title}
+                                        </p>
+                                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#E5D6A7]/40 mt-1">
                                             {pillarLabel(s.pillar)} · {formatDate(s.updatedAt)}
                                         </p>
                                     </div>
-                                    <ChevronLeft size={20} className="rotate-180 opacity-20 text-[#E5D6A7]" />
-                                </button>
+                                    <button
+                                        type="button"
+                                        aria-label={isPending ? `Confirm delete ${s.title}` : `Delete ${s.title}`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (isPending) {
+                                                deleteSession(s.id);
+                                            } else {
+                                                armDelete(s.id);
+                                            }
+                                        }}
+                                        className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 transition-all ${isPending ? 'bg-red-400/20 text-red-300' : 'bg-white/0 hover:bg-white/10 text-[#E5D6A7]/40 hover:text-[#E5D6A7]/70'}`}
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
                             );
                         })}
                     </div>

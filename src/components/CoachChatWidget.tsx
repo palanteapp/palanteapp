@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Send, Mic, Lock, Sparkles } from 'lucide-react';
 import { chatWithCoach } from '../utils/aiService';
+import { loadConversationMemories, extractAndSaveMemories } from '../utils/memoryService';
 import type { UserProfile, ChatMessage } from '../types';
 import { canUseAI } from '../types';
 import { SlideUpModal } from './SlideUpModal';
+import { Capacitor } from '@capacitor/core';
 
 interface CoachChatWidgetProps {
     user: UserProfile;
@@ -17,6 +19,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<{ stop: () => void; start: () => void; onresult: unknown; onerror: unknown; onend: unknown } | null>(null);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -46,6 +49,9 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
 
     useEffect(() => {
         if (isOpen) {
+            // Load memories from previous sessions
+            loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
+
             const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
             let greetingText = `Hey ${firstName}! `;
             const hour = new Date().getHours();
@@ -65,6 +71,9 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                 }
                 return prev;
             });
+        } else {
+            // Chat closed — extract and save memories from this session
+            extractAndSaveMemories(messages, user.id, user.name || 'Friend').catch(() => {});
         }
     }, [isOpen, user]);
 
@@ -85,10 +94,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
 
         const SpeechRecognition = (window as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition
             || (window as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert('Speech recognition is not supported in your browser.');
-            return;
-        }
+        if (!SpeechRecognition) return;
 
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
@@ -142,7 +148,8 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
             currentStreak: user.streak || 0,
             completedGoals: user.dailyFocuses?.filter(f => f.isCompleted).length || 0,
             totalGoals: user.dailyFocuses?.length || 0,
-            profession: user.profession
+            profession: user.profession,
+            persistedMemories,
         };
 
         try {
@@ -179,14 +186,14 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                 {!canUseAI(user) ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6">
                         <div className={`p-8 rounded-full ${isDarkMode ? 'bg-white/5' : 'bg-sage/10'}`}>
-                            <Lock size={40} className={isDarkMode ? 'text-white/20' : 'text-sage/40'} />
+                            <Lock size={40} className={isDarkMode ? 'text-white' : 'text-sage/40'} />
                         </div>
                         <div className="space-y-2">
                             <h3 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                AI Coach Unavailable
+                                AI Partner Unavailable
                             </h3>
                             <p className={`text-xs leading-relaxed opacity-40 px-4 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                The AI Coach feature is available for users 13 years and older. You can still enjoy all other aspects of Palante.
+                                The AI Partner feature is available for users 13 years and older. You can still enjoy all other aspects of Palante.
                             </p>
                         </div>
                     </div>
@@ -200,17 +207,17 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className={`text-base font-display font-medium leading-none mb-1 ${isDarkMode ? 'text-white' : 'text-rich-black'}`}>
-                                        {user.coachName ? (user.coachName.startsWith('Coach') ? user.coachName : 'Coach ' + user.coachName) : 'Palante Coach'}
+                                        {user.coachName ? (user.coachName.startsWith('Coach') ? user.coachName : 'Coach ' + user.coachName) : 'Palante'}
                                     </h3>
                                     <div className="flex items-center gap-1.5 opacity-40">
                                         <div className={`w-1 h-1 rounded-full animate-pulse ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
-                                        <span className="text-[8px] font-black uppercase tracking-[0.2em]">Minimal Ethereal Presence</span>
+                                        <span className="text-xs font-black uppercase tracking-[0.2em]">Minimal Ethereal Presence</span>
                                     </div>
                                 </div>
                             </div>
                             <button
                                 onClick={onToggle}
-                                className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-white/20 hover:text-white hover:bg-white/10' : 'text-sage-dark/30 hover:text-sage-dark hover:bg-sage/5'}`}
+                                className={`p-2 rounded-full transition-all ${isDarkMode ? 'text-white hover:text-white hover:bg-white/10' : 'text-sage-dark/30 hover:text-sage-dark hover:bg-sage/5'}`}
                             >
                                 <X size={18} />
                             </button>
@@ -224,7 +231,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
                                     <div className={`
-                                        max-w-[88%] px-5 py-4 text-sm leading-relaxed font-body tracking-wide
+                                        max-w-[88%] px-5 py-4 text-base leading-relaxed font-body tracking-wide
                                         ${msg.role === 'user'
                                             ? `rounded-[1.5rem] rounded-tr-none shadow-sm ${isDarkMode ? 'bg-pale-gold text-warm-gray-green' : 'bg-sage text-white'}`
                                             : `rounded-[1.5rem] rounded-tl-none ${isDarkMode ? 'bg-white/[0.03] text-white/90 border border-white/10' : 'bg-sage/[0.03] text-sage-dark border border-sage/10'}`
@@ -252,16 +259,18 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                         {/* Input Area - Floats elegantly */}
                         <div className={`p-6 border-t ${isDarkMode ? 'border-white/5' : 'border-sage/5'}`}>
                             <form onSubmit={handleSend} className="relative flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={startDictation}
-                                    className={`p-3.5 rounded-2xl transition-all ${isListening
-                                        ? 'bg-red-500 text-white animate-pulse'
-                                        : isDarkMode ? 'bg-white/5 text-white/40 hover:text-white/60' : 'bg-sage/5 text-sage/40 hover:text-sage/60'
-                                        }`}
-                                >
-                                    <Mic size={14} />
-                                </button>
+                                {!Capacitor.isNativePlatform() && (
+                                    <button
+                                        type="button"
+                                        onClick={startDictation}
+                                        className={`p-3.5 rounded-2xl transition-all ${isListening
+                                            ? 'bg-red-500 text-white animate-pulse'
+                                            : isDarkMode ? 'bg-white/5 text-white hover:text-white/60' : 'bg-sage/5 text-sage/40 hover:text-sage/60'
+                                            }`}
+                                    >
+                                        <Mic size={14} />
+                                    </button>
+                                )}
 
                                 <div className="relative flex-1">
                                     <input
@@ -287,16 +296,16 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                                 </div>
                             </form>
                             {isAtLimit && (
-                                <p className="mt-2 text-[10px] text-center opacity-50 text-pale-gold-500">
+                                <p className="mt-2 text-xs text-center opacity-50 text-pale-gold-500">
                                     Session limit reached. Restart the app to continue.
                                 </p>
                             )}
                             {!isAtLimit && userMessageCount >= MESSAGE_LIMIT - 5 && (
-                                <p className="mt-2 text-[10px] text-center opacity-40">
+                                <p className="mt-2 text-xs text-center opacity-40">
                                     {MESSAGE_LIMIT - userMessageCount} messages remaining this session
                                 </p>
                             )}
-                            <p className="mt-4 text-[8px] text-center font-black uppercase tracking-[0.25em] opacity-20">
+                            <p className="mt-4 text-xs text-center font-black uppercase tracking-[0.25em] opacity-20">
                                 Powered by Palante Intelligence
                             </p>
                         </div>

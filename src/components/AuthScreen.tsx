@@ -44,7 +44,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isDarkMode }) => {
                     color="#E5D6A7"
                 />
                 <h1 className="text-4xl font-display font-medium mb-2">Welcome</h1>
-                <p className={`text-lg mb-8 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                <p className={`text-lg mb-8 ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                     Sign in to start your journey
                 </p>
 

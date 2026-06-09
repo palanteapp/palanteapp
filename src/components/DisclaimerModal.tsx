@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ShieldCheck, ChevronDown, Sparkles } from 'lucide-react';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 interface DisclaimerModalProps {
     isOpen: boolean;
@@ -18,7 +19,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
             timestamp: new Date().toISOString(),
             version: LEGAL_DISCLAIMER.lastUpdated
         };
-        localStorage.setItem('disclaimerAccepted', JSON.stringify(acceptance));
+        localStorage.setItem(STORAGE_KEYS.DISCLAIMER_ACCEPTED, JSON.stringify(acceptance));
         onAccept();
     };
 
@@ -44,7 +45,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                 </div>
 
                 {/* Header */}
-                <h2 className="text-3xl font-display font-medium mb-3 tracking-wide">
+                <h2 className="text-4xl font-display font-medium mb-3 tracking-wide">
                     Welcome to Palante
                 </h2>
 
@@ -58,7 +59,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                         <ShieldCheck size={24} className={`mt-0.5 shrink-0 ${iconColor}`} />
                         <div>
                             <h3 className="font-display font-medium text-lg mb-1">Mindful Disclaimer</h3>
-                            <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
+                            <p className={`text-base leading-relaxed ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
                                 Palante is a tool for coaching and wellness. It is <strong>not</strong> a substitute for professional medical or mental health advice.
                             </p>
                         </div>
@@ -82,13 +83,13 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                                     <h4 className={`font-bold text-sm mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                         {section.heading}
                                     </h4>
-                                    <p className="text-xs leading-relaxed opacity-90">
+                                    <p className="text-sm leading-relaxed opacity-90">
                                         {section.content}
                                     </p>
                                 </div>
                             ))}
                             <div className={`pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>
-                                <p className="text-[10px] text-center opacity-50">
+                                <p className="text-xs text-center opacity-50">
                                     Last Updated: {LEGAL_DISCLAIMER.lastUpdated}
                                 </p>
                             </div>

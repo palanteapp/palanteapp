@@ -39,7 +39,7 @@ export const MinorAIDisclaimer: React.FC<MinorAIDisclaimerProps> = ({
                             <h2 className={`text-2xl font-display font-bold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                 AI Features - Important Notice
                             </h2>
-                            <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                 Please read carefully
                             </p>
                         </div>
@@ -48,7 +48,7 @@ export const MinorAIDisclaimer: React.FC<MinorAIDisclaimerProps> = ({
                         onClick={handleDecline}
                         className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
                     >
-                        <X size={20} className={isDarkMode ? 'text-white/60' : 'text-sage-dark/60'} />
+                        <X size={20} className={isDarkMode ? 'text-white' : 'text-sage-dark/60'} />
                     </button>
                 </div>
 
@@ -84,7 +84,7 @@ export const MinorAIDisclaimer: React.FC<MinorAIDisclaimerProps> = ({
 
                 {/* Parental Note */}
                 <div className={`p-4 rounded-lg mb-6 ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`}>
-                    <p className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                    <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                         <strong>Note for Parents/Guardians:</strong> We encourage you to discuss AI usage with your teen.
                         AI features can be disabled in Settings at any time.
                     </p>

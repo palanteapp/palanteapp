@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   },
   plugins: {
     Keyboard: {
-      resize: 'none',
+      resize: 'body',
     }
   }
 };

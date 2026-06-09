@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, Moon, Star, CheckCircle } from 'lucide-react';
 import type { JournalEntry, DailyFocus } from '../types';
+import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface EveningCheckInProps {
     isOpen: boolean;
@@ -22,6 +23,8 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
     username,
     onSaveReflection
 }) => {
+    const containerRef = useAutoScroll(isOpen);
+
     const [step, setStep] = useState<Step>('intro');
     const [highlight, setHighlight] = useState(''); // Wins
     const [lowlight, setLowlight] = useState('');   // Challenges
@@ -63,7 +66,7 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className={`fixed inset-0 z-[60] flex items-start justify-center bg-[linear-gradient(180deg,transparent_0%,rgba(30,27,75,0.7)_12%,rgba(30,27,75,0.95)_100%)] backdrop-blur-2xl text-white overflow-y-auto overflow-x-hidden transition-opacity duration-1000 ${isExiting ? 'opacity-0' : 'opacity-100'} pt-safe`}>
+        <div ref={containerRef} className={`fixed inset-0 z-[60] flex items-start justify-center bg-[linear-gradient(180deg,transparent_0%,rgba(30,27,75,0.7)_12%,rgba(30,27,75,0.95)_100%)] backdrop-blur-2xl text-white overflow-y-auto overflow-x-hidden transition-opacity duration-1000 ${isExiting ? 'opacity-0' : 'opacity-100'} pt-safe`}>
             {/* Ambient Background */}
             <div className="absolute inset-0 opacity-30 pointer-events-none fixed">
                 <div className="absolute top-[-20%] right-[-20%] w-[80%] h-[80%] bg-purple-900 rounded-full blur-[120px] animate-pulse-slow" />
@@ -76,7 +79,7 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                 {step === 'intro' && (
                     <div className="animate-fade-in-up">
                         <Moon size={48} className="text-purple-300 mx-auto mb-6 animate-pulse" />
-                        <h2 className="text-xl font-light text-white/60 mb-2">The sun has set.</h2>
+                        <h2 className="text-xl font-light text-white mb-2">The sun has set.</h2>
                         <h1 className="text-4xl font-display font-medium leading-relaxed">
                             Time to reflect,<br />
                             <span className="text-purple-300">{username}</span>.
@@ -87,7 +90,7 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                 {/* Step 2: Recap */}
                 {step === 'recap' && (
                     <div className="animate-fade-in">
-                        <h2 className="text-2xl font-display font-medium mb-8">Today's Journey</h2>
+                        <h2 className="text-4xl font-display font-medium mb-8">Today's Journey</h2>
 
                         <div className="bg-white/5 rounded-[2.5rem] p-10 mb-8 border border-white/5 backdrop-blur-2xl shadow-2xl">
                             <div className="flex items-center justify-center gap-3 mb-6">
@@ -107,7 +110,7 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-white/60 text-center italic">A quiet day for goals, but a day lived nonetheless.</p>
+                                    <p className="text-white text-center italic">A quiet day for goals, but a day lived nonetheless.</p>
                                 )}
                             </div>
                         </div>
@@ -124,8 +127,8 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                     <div className="animate-fade-in">
                         <div className="mb-6">
                             <Star size={32} className="text-yellow-400 mx-auto mb-4" />
-                            <h3 className="text-xs font-bold tracking-widest uppercase text-white/40 mb-2">Highlight</h3>
-                            <h2 className="text-2xl font-display font-medium">What went well today?</h2>
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-white mb-2">Highlight</h3>
+                            <h2 className="text-4xl font-display font-medium">What went well today?</h2>
                         </div>
                         <textarea
                             value={highlight}
@@ -144,8 +147,8 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                 {step === 'challenges' && (
                     <div className="animate-fade-in">
                         <div className="mb-6">
-                            <h3 className="text-xs font-bold tracking-widest uppercase text-white/40 mb-2">Challenge</h3>
-                            <h2 className="text-2xl font-display font-medium">What got in the way?</h2>
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-white mb-2">Challenge</h3>
+                            <h2 className="text-4xl font-display font-medium">What got in the way?</h2>
                         </div>
                         <textarea
                             value={lowlight}
@@ -164,8 +167,8 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                 {step === 'learnings' && (
                     <div className="animate-fade-in">
                         <div className="mb-6">
-                            <h3 className="text-xs font-bold tracking-widest uppercase text-white/40 mb-2">Growth</h3>
-                            <h2 className="text-2xl font-display font-medium">One thing I learned...</h2>
+                            <h3 className="text-sm font-bold tracking-widest uppercase text-white mb-2">Growth</h3>
+                            <h2 className="text-4xl font-display font-medium">One thing I learned...</h2>
                         </div>
                         <textarea
                             value={midpoint}
@@ -184,7 +187,7 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
                 {step === 'closing' && (
                     <div className="animate-fade-in">
                         <h1 className="text-4xl font-display font-medium mb-6">Rest well, {username}.</h1>
-                        <p className="text-white/60 mb-12">Your reflection has been saved. Tomorrow is a new beginning.</p>
+                        <p className="text-white mb-12">Your reflection has been saved. Tomorrow is a new beginning.</p>
 
                         <button onClick={handleClose} className="px-8 py-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-md">
                             Good Night
@@ -196,7 +199,7 @@ export const EveningCheckIn: React.FC<EveningCheckInProps> = ({
 
             <style>{`
                 .btn-primary-purple {
-                    @apply flex items-center justify-center gap-3 px-8 py-4 bg-purple-500 hover:bg-purple-400 text-white rounded-full mx-auto transition-all shadow-lg font-medium;
+                    @apply flex items-center justify-center gap-3 px-8 py-5 bg-purple-500 hover:bg-purple-400 text-white rounded-full mx-auto transition-all shadow-lg font-medium;
                 }
             `}</style>
         </div>

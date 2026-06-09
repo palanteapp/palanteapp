@@ -31,7 +31,7 @@ export class DebugErrorBoundary extends Component<Props, State> {
             return this.props.fallback || (
                 <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-500/30">
                     <h3 className="text-red-600 dark:text-red-400 font-medium mb-1">Something went wrong</h3>
-                    <p className="text-xs text-red-500/80 break-words font-mono">
+                    <p className="text-sm text-red-500/80 break-words font-mono">
                         {this.state.error?.message}
                     </p>
                 </div>

@@ -84,6 +84,37 @@ const pushRecentQuote = (id: string) => {
     saveRecentQuotes();
 };
 
+// ── Author cooldown (14 days — prevents same author from repeating too soon) ──
+
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+
+interface AuthorHistory {
+    [author: string]: number;
+}
+
+const loadAuthorHistory = (): AuthorHistory => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEYS.SEEN_AUTHORS);
+        return saved ? JSON.parse(saved) : {};
+    } catch {
+        return {};
+    }
+};
+
+let authorHistory: AuthorHistory = loadAuthorHistory();
+
+const saveAuthorHistory = () => {
+    localStorage.setItem(STORAGE_KEYS.SEEN_AUTHORS, JSON.stringify(authorHistory));
+};
+
+const markAuthorSeen = (author: string) => {
+    // Skip Palante-branded attributions. Includes legacy "Palante Coach" / "AI Coach" / "Coach Sarah" data
+    // saved on existing devices before the rename — we don't want to log those as if they were real authors.
+    if (!author || author === 'Palante' || author === 'Palante Coach' || author === 'AI Coach' || author.startsWith('Coach')) return;
+    authorHistory[author] = Date.now();
+    saveAuthorHistory();
+};
+
 // ── Keyword extraction helpers ────────────────────────────────────────────────
 
 const STOP_WORDS = new Set([
@@ -297,6 +328,11 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
             });
         }
 
+        // Author cooldown: penalize quotes from authors shown in the last 14 days
+        if (quote.author && authorHistory[quote.author] && (now - authorHistory[quote.author]) < FOURTEEN_DAYS_MS) {
+            score -= 350;
+        }
+
         // Small random factor — variety without overriding real matches
         score += Math.random() * 15;
 
@@ -357,6 +393,7 @@ export const pickAndMarkQuote = (user: UserProfile, excludeId?: string): Quote |
     const selected = pool[Math.floor(Math.random() * topN)];
 
     markQuoteSeen(selected.id);
+    markAuthorSeen(selected.author);
     pushRecentQuote(selected.id);
     return selected;
 };
@@ -407,7 +444,7 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
         return {
             id: `ai_fallback_${Date.now()}`,
             text: "Your potential is limitless. Keep moving forward.",
-            author: user.coachName ? `Coach ${user.coachName}` : "Palante Coach",
+            author: user.coachName?.trim() || "Palante",
             category: "Motivation",
             intensity: user.quoteIntensity,
             isAI: true,

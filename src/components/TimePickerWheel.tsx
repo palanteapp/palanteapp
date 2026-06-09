@@ -24,7 +24,7 @@ export const TimePickerWheel: React.FC<TimePickerWheelProps> = ({ value, onChang
             <div className="flex flex-col items-center gap-2">
                 <button
                     onClick={() => updateTime((h + 1) % 24, m)}
-                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'}`}
+                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'}`}
                 >
                     <ChevronDown size={24} className="rotate-180" />
                 </button>
@@ -33,19 +33,19 @@ export const TimePickerWheel: React.FC<TimePickerWheelProps> = ({ value, onChang
                 </div>
                 <button
                     onClick={() => updateTime((h - 1 + 24) % 24, m)}
-                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'}`}
+                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'}`}
                 >
                     <ChevronDown size={24} />
                 </button>
             </div>
 
-            <div className={`text-3xl font-bold pb-2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>:</div>
+            <div className={`text-3xl font-bold pb-2 ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>:</div>
 
             {/* Minutes */}
             <div className="flex flex-col items-center gap-2">
                 <button
                     onClick={() => updateTime(h, (m + 1) % 60)}
-                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'}`}
+                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'}`}
                 >
                     <ChevronDown size={24} className="rotate-180" />
                 </button>
@@ -54,7 +54,7 @@ export const TimePickerWheel: React.FC<TimePickerWheelProps> = ({ value, onChang
                 </div>
                 <button
                     onClick={() => updateTime(h, (m - 1 + 60) % 60)}
-                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'}`}
+                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'}`}
                 >
                     <ChevronDown size={24} />
                 </button>
@@ -64,7 +64,7 @@ export const TimePickerWheel: React.FC<TimePickerWheelProps> = ({ value, onChang
             <div className="flex flex-col items-center gap-2 ml-2">
                 <button
                     onClick={() => updateTime((h + 12) % 24, m)}
-                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'}`}
+                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'}`}
                 >
                     <ChevronDown size={24} className="rotate-180" />
                 </button>
@@ -73,7 +73,7 @@ export const TimePickerWheel: React.FC<TimePickerWheelProps> = ({ value, onChang
                 </div>
                 <button
                     onClick={() => updateTime((h + 12) % 24, m)}
-                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'}`}
+                    className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'}`}
                 >
                     <ChevronDown size={24} />
                 </button>

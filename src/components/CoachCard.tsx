@@ -266,14 +266,14 @@ export const CoachCard: React.FC<CoachCardProps> = ({
                         <div className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/5'}`}>
                             {actionIcon || <Sparkles size={14} className={isDarkMode ? "text-pale-gold" : "text-sage"} />}
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-[0.25em] ${textLabel}`}>
-                            Palante Coach
+                        <span className={`text-xs font-black uppercase tracking-[0.25em] ${textLabel}`}>
+                            Palante
                         </span>
                     </div>
                     {/* Active Presence */}
                     <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5">
                         <div className={`w-1 h-1 rounded-full animate-pulse ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
-                        <span className={`text-[8px] font-black uppercase tracking-widest opacity-70 ${textPrimary}`}>Presence</span>
+                        <span className={`text-xs font-black uppercase tracking-widest opacity-70 ${textPrimary}`}>Presence</span>
                     </div>
                 </div>
 
@@ -287,8 +287,8 @@ export const CoachCard: React.FC<CoachCardProps> = ({
 
                 <div className="flex items-center gap-3">
                     {totalPractices > 0 && (
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full backdrop-blur-md border text-[10px] font-bold tracking-wider ${isDarkMode
-                            ? 'bg-white/5 border-white/10 text-white/60'
+                        <div className={`inline-flex items-center gap-2 px-5 py-1.5 rounded-full backdrop-blur-md border text-xs font-bold tracking-wider ${isDarkMode
+                            ? 'bg-white/5 border-white/10 text-white'
                             : 'bg-sage/5 border-sage/10 text-sage/70'
                             }`}>
                             <Sparkles size={12} className={isDarkMode ? "text-pale-gold" : "text-sage"} />

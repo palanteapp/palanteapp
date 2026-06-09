@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { QUOTES } from '../data/quotes';
-import { AFFIRMATIONS } from '../data/affirmations';
 import type { ContentType } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import type { DispatchMessage } from '../utils/dailyDispatch';
@@ -17,6 +15,8 @@ interface NotificationSettings {
     morningReminderTime: string; // "07:00"
     eveningReminderEnabled: boolean;
     eveningReminderTime: string; // "20:00"
+    lastCallEnabled: boolean;
+    lastCallTime: string; // "21:30"
     nudgeEnabled: boolean;
     nudgeFrequency: 'hourly' | 'every-2-hours' | 'every-4-hours' | 'morning-evening' | 'off';
     waterRemindersEnabled: boolean; // Accountability toggle
@@ -34,22 +34,26 @@ export const useNotifications = () => {
                 morningReminderTime: parsed.morningReminderTime ?? '07:00',
                 eveningReminderEnabled: parsed.eveningReminderEnabled ?? true,
                 eveningReminderTime: parsed.eveningReminderTime ?? '20:00',
-                nudgeEnabled: parsed.nudgeEnabled ?? true,
-                nudgeFrequency: parsed.nudgeFrequency ?? 'every-2-hours',
+                lastCallEnabled: parsed.lastCallEnabled ?? true,
+                lastCallTime: parsed.lastCallTime ?? '21:30',
+                nudgeEnabled: parsed.nudgeEnabled ?? false,
+                nudgeFrequency: parsed.nudgeFrequency ?? 'every-4-hours',
                 waterRemindersEnabled: parsed.waterRemindersEnabled ?? false
             };
         }
         return {
             enabled: false,
-            frequency: 3,
+            frequency: 2,
             quietStart: '22:00',
             quietEnd: '08:00',
             morningReminderEnabled: false,
             morningReminderTime: '07:00',
             eveningReminderEnabled: true,
             eveningReminderTime: '20:00',
-            nudgeEnabled: true,
-            nudgeFrequency: 'every-2-hours',
+            lastCallEnabled: true,
+            lastCallTime: '21:30',
+            nudgeEnabled: false,
+            nudgeFrequency: 'every-4-hours',
             waterRemindersEnabled: false
         };
     });
@@ -248,123 +252,90 @@ export const useNotifications = () => {
         }
     };
 
-    const scheduleEveningReminder = async (enabled: boolean, timeStr: string, coachName?: string, userName?: string) => {
+    const scheduleEveningReminder = async (enabled: boolean, timeStr: string, coachName?: string, userName?: string, streak: number = 0, lastCallEnabled: boolean = true, lastCallTimeStr: string = '21:30') => {
         if (permission !== 'granted') return;
-        await LocalNotifications.cancel({ notifications: [{ id: 4000 }] });
+        await LocalNotifications.cancel({ notifications: [{ id: 4000 }, { id: 4001 }] });
         if (!enabled) return;
 
         const first = userName?.split(' ')[0];
-        const eveningBodies = first ? [
-            `${first}, how did today feel? Your G.L.A.D. reflection is waiting.`,
-            `Before you close the day, ${first} — what are you grateful for right now?`,
-            `${first}, one honest reflection tonight compounds into clarity tomorrow.`,
+        const coach = coachName || 'Palante';
+        const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
+        const isFriday = new Date().getDay() === 5;
+        const streakLine = streak > 1 ? ` You're on a ${streak}-day streak.` : '';
+
+        // Main reminder — personal, G.L.A.D.-aware, streak-aware
+        const mainBodies = first ? [
+            `${first}, how did today feel? Your G.L.A.D. reflection is waiting.${streakLine}`,
+            `Before you close ${dayName}, ${first} — what's one thing you're grateful for right now?`,
+            `${first}, one honest reflection tonight compounds into clarity tomorrow.${streakLine}`,
+            `Your wins from today deserve to be captured, ${first}. G.L.A.D. takes 3 minutes.`,
+            `${isFriday ? `End the week strong, ${first}.` : `${first}, how did ${dayName} treat you?`} Your evening reflection is open.`,
+            `${first}, Grateful · Learned · Accomplished · Desired — close the day with intention.${streakLine}`,
+            `The best version of tomorrow starts with reflecting on today, ${first}.`,
         ] : [
-            "How did today feel? Your evening reflection takes 3 minutes and builds lasting clarity.",
-            "The day is winding down. What went well? What did you learn?",
+            "How did today feel? Your G.L.A.D. evening reflection takes 3 minutes.",
+            `${isFriday ? 'End the week strong.' : `How did ${dayName} treat you?`} Capture your wins before the day slips away.`,
+            "What are you grateful for right now? Your evening reflection is waiting.",
+            "One honest reflection tonight builds lasting clarity tomorrow.",
+            "Grateful · Learned · Accomplished · Desired — close the day with intention.",
+            "The best version of tomorrow starts with reflecting on today.",
         ];
-        const body = eveningBodies[Math.floor(Math.random() * eveningBodies.length)];
+        const mainBody = mainBodies[Math.floor(Math.random() * mainBodies.length)];
+
+        // Last-call reminder at 9:30pm — softer, zero pressure
+        const lastCallBodies = first ? [
+            `Still here, ${first}. Your G.L.A.D. reflection takes just a few minutes before bed.`,
+            `No rush, ${first} — just a gentle nudge to close the day with intention.`,
+            `${first}, even one sentence of reflection tonight makes tomorrow clearer.`,
+            `Last chance to capture today's wins, ${first}. You've got this.`,
+        ] : [
+            "Still here — your evening reflection is just a few minutes before bed.",
+            "A gentle nudge to close the day with intention before you rest.",
+            "Even one sentence of reflection tonight makes tomorrow clearer.",
+        ];
+        const lastCallBody = lastCallBodies[Math.floor(Math.random() * lastCallBodies.length)];
 
         const [hour, minute] = timeStr.split(':').map(Number);
-        try {
-            await LocalNotifications.schedule({
-                notifications: [{
-                    id: 4000,
-                    title: coachName ? `${coachName} • Evening Reflection` : "Evening Reflection",
-                    body,
-                    schedule: { on: { hour, minute }, allowWhileIdle: true },
-                    sound: 'beep.caf',
-                    smallIcon: 'ic_stat_icon_config_sample',
-                }]
+        const [lcHour, lcMinute] = lastCallTimeStr.split(':').map(Number);
+
+        const notifications: Parameters<typeof LocalNotifications.schedule>[0]['notifications'] = [
+            {
+                id: 4000,
+                title: `${coach} • Evening Reflection`,
+                body: mainBody,
+                schedule: { on: { hour, minute }, allowWhileIdle: true },
+                sound: 'beep.caf',
+                smallIcon: 'ic_stat_icon_config_sample',
+            }
+        ];
+
+        if (lastCallEnabled) {
+            notifications.push({
+                id: 4001,
+                title: `${coach} • Last call 🌙`,
+                body: lastCallBody,
+                schedule: { on: { hour: lcHour, minute: lcMinute }, allowWhileIdle: true },
+                sound: 'beep.caf',
+                smallIcon: 'ic_stat_icon_config_sample',
             });
+        }
+
+        try {
+            await LocalNotifications.schedule({ notifications });
         } catch (e) {
             console.error('Error scheduling evening reminder:', e);
         }
     };
 
-    const scheduleEncouragement = async (freq: number, quietStart: string, quietEnd: string, contentType: ContentType = 'mix', coachName?: string) => {
-        if (permission !== 'granted' || freq <= 0) return;
-
-        // Cancel existing encouragement (IDs 1000-1050)
-        const idsToCancel = Array.from({ length: 50 }, (_, i) => ({ id: 1000 + i }));
-        await LocalNotifications.cancel({ notifications: idsToCancel });
-
-        // Calculate available window
-        const [startH, startM] = quietStart.split(':').map(Number);
-        const [endH, endM] = quietEnd.split(':').map(Number);
-
-        const activeWindowStart = endH * 60 + endM; // Start scheduling AFTER quiet end
-        let activeWindowEnd = startH * 60 + startM; // Stop scheduling BEFORE quiet start
-
-        // Handle day wrap (e.g., quiet from 22:00 to 08:00)
-        // Window is 08:00 to 22:00 (1320)
-        // But if quiet is 01:00 to 05:00
-        // Window is 05:00 to 01:00 (next day) -> 05:00 to 25:00
-        if (activeWindowEnd <= activeWindowStart) activeWindowEnd += 24 * 60;
-
-        const totalAvailableMinutes = activeWindowEnd - activeWindowStart;
-        if (totalAvailableMinutes <= 60) {
-            console.warn("Notification window too small:", totalAvailableMinutes);
-            return;
-        }
-
-        let encouragementPool: string[] = [];
-
-        if (contentType === 'quotes' || contentType === 'mix') {
-            encouragementPool = [...encouragementPool, ...QUOTES.map(q => `"${q.text}" - ${q.author}`)];
-        }
-
-        if (contentType === 'affirmations' || contentType === 'mix') {
-            encouragementPool = [...encouragementPool, ...AFFIRMATIONS.map(a => a.text)];
-        }
-
-        // Fallback if empty (shouldn't happen)
-        if (encouragementPool.length === 0) {
-            encouragementPool = ["You have everything you need to succeed today."];
-        }
-
-        const notifications = [];
-        const slotDuration = Math.floor(totalAvailableMinutes / freq);
-
-        for (let i = 0; i < freq; i++) {
-            const slotStart = activeWindowStart + (i * slotDuration);
-            // Safe buffer to avoid edge cases
-            const innerBuffer = 10;
-            const safeSlotDuration = Math.max(1, slotDuration - (innerBuffer * 2));
-            const randomOffset = Math.floor(Math.random() * safeSlotDuration) + innerBuffer;
-
-            let scheduleMinutes = slotStart + randomOffset;
-
-            // Normalize to 0-1439 for the actual notification object
-            let _dayOffset = 0;
-            if (scheduleMinutes >= 24 * 60) {
-                scheduleMinutes -= 24 * 60;
-                _dayOffset = 1; // It's tomorrow (technically LocalNotifications 'on' doesn't support 'tomorrow' easily without 'at')
-                // However, 'schedule: { on: { hour, minute } }' repeats DAILY.
-                // So we just need the correct hour/minute.
-            }
-
-            const hour = Math.floor(scheduleMinutes / 60);
-            const minute = scheduleMinutes % 60;
-            const quoteText = encouragementPool[Math.floor(Math.random() * encouragementPool.length)];
-
-            notifications.push({
-                id: 1000 + i,
-                title: coachName || "Palante",
-                body: quoteText,
-                extra: { quote: quoteText },
-                schedule: { on: { hour, minute }, allowWhileIdle: true },
-                sound: 'beep.caf',
-                smallIcon: 'ic_stat_icon_config_sample',
-                actionTypeId: 'QUOTE_ACTIONS'
-            });
-        }
-
-        if (notifications.length > 0) {
-            try {
-                await LocalNotifications.schedule({ notifications });
-            } catch (e) {
-                console.error('Error scheduling encouragement:', e);
-            }
+    // Cancel just the 9:30pm last-call notification for tonight.
+    // Called from App when the user completes their evening practice.
+    // The daily reminder (4000) keeps firing on future nights.
+    // 4001 re-schedules on the next rescheduleAll call (next settings change or new day).
+    const cancelEveningLastCall = async () => {
+        try {
+            await LocalNotifications.cancel({ notifications: [{ id: 4001 }] });
+        } catch (e) {
+            console.error('Error cancelling last-call reminder:', e);
         }
     };
 
@@ -509,7 +480,7 @@ export const useNotifications = () => {
 
             notifications.push({
                 id: 3000 + i,
-                title: coachName || "Palante Coach",
+                title: coachName || "Palante",
                 body: bodyText,
                 schedule: { on: { hour: Math.floor(scheduleMinutes / 60), minute: scheduleMinutes % 60 }, allowWhileIdle: true },
                 sound: 'beep.caf',
@@ -581,6 +552,7 @@ export const useNotifications = () => {
             const allIds = [
                 2000,
                 4000,
+                4001,
                 6000,
                 ...Array.from({ length: 50 }, (_, i) => 1000 + i),
                 ...Array.from({ length: 50 }, (_, i) => 3000 + i),
@@ -591,8 +563,11 @@ export const useNotifications = () => {
         }
 
         await scheduleMorningReminder(targetSettings.morningReminderEnabled, targetSettings.morningReminderTime, coachName, userName);
-        await scheduleEveningReminder(targetSettings.eveningReminderEnabled, targetSettings.eveningReminderTime, coachName, userName);
-        await scheduleEncouragement(targetSettings.frequency, targetSettings.quietStart, targetSettings.quietEnd, contentType, coachName);
+        await scheduleEveningReminder(targetSettings.eveningReminderEnabled, targetSettings.eveningReminderTime, coachName, userName, 0, targetSettings.lastCallEnabled, targetSettings.lastCallTime);
+
+        // Cancel any previously scheduled quote/encouragement notifications (IDs 1000-1050)
+        const encouragementIds = Array.from({ length: 50 }, (_, i) => ({ id: 1000 + i }));
+        await LocalNotifications.cancel({ notifications: encouragementIds });
 
         if (targetSettings.nudgeEnabled) {
             await scheduleNudges(targetSettings.nudgeFrequency, targetSettings.quietStart, targetSettings.quietEnd, currentFocuses, intensity, coachName, userName);
@@ -628,9 +603,9 @@ export const useNotifications = () => {
                         actionTypeId: 'QUOTE_ACTIONS'
                     }]
                 });
-                alert('✅ Test notification scheduled!');
+                // Notification will appear in ~1s — no alert needed
             } else {
-                alert('❌ Permission denied.');
+                console.warn('Test notification: permission denied.');
             }
         } catch (error) {
             console.error('❌ Notification error:', error);
@@ -669,6 +644,18 @@ export const useNotifications = () => {
             setSettings(newSettings);
             setTimeout(() => rescheduleAll(newSettings), 100);
         },
+        updateLastCallConfig: async (enabled: boolean, time: string) => {
+            if (enabled && permission !== 'granted') {
+                const granted = await requestPermission();
+                if (!granted) {
+                    console.warn('Cannot enable last-call reminder: Permission denied');
+                    return;
+                }
+            }
+            const newSettings = { ...settings, lastCallEnabled: enabled, lastCallTime: time };
+            setSettings(newSettings);
+            setTimeout(() => rescheduleAll(newSettings), 100);
+        },
         updateNudgeConfig: async (enabled: boolean, frequency: NotificationSettings['nudgeFrequency'], intensity: number = 2, contentType: ContentType = 'mix') => {
             if (enabled && permission !== 'granted') {
                 const granted = await requestPermission();
@@ -700,6 +687,7 @@ export const useNotifications = () => {
             setTimeout(() => rescheduleAll(newSettings), 100);
         },
         rescheduleAll,
+        cancelEveningLastCall,
 
         // Schedule personalized daily dispatch notifications after morning practice.
         //
@@ -761,7 +749,7 @@ export const useNotifications = () => {
 
             const now = Date.now();
             const notifications = messages
-                .slice(0, 10)
+                .slice(0, 4)
                 .map((msg, i) => ({ msg, idx: i, fireAt: new Date(now + msg.minutesFromNow * 60 * 1000) }))
                 .filter(({ fireAt }) => !inQuiet(fireAt))
                 .map(({ msg, idx, fireAt }) => ({

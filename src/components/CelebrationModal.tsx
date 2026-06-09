@@ -102,7 +102,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
             >
                 <button
                     onClick={onClose}
-                    className={`absolute top-4 right-4 p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white/60' : 'hover:bg-sage/10 text-sage/60'
+                    className={`absolute top-4 right-4 p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/60'
                         }`}
                 >
                     <X size={20} />
@@ -125,7 +125,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
                         {message}
                     </p>
 
-                    <div className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                    <div className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                         You completed {completedCount} {completedCount === 1 ? 'goal' : 'goals'} today
                     </div>
                 </div>

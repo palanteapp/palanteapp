@@ -128,7 +128,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
 
     // Theme values
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage/60';
     const accentColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
     const bgCard = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-sage/10 shadow-sm';
 
@@ -164,7 +164,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
                             haptics.light();
                             setShowInfo('how-to');
                         }}
-                        className={`flex-1 py-2 px-3 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white/40 hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
+                        className={`flex-1 py-2 px-3 rounded-full text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
                     >
                         <HelpCircle size={12} /> How to Use
                     </button>
@@ -173,7 +173,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
                             haptics.light();
                             setShowInfo('science');
                         }}
-                        className={`flex-1 py-2 px-3 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white/40 hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
+                        className={`flex-1 py-2 px-3 rounded-full text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
                     >
                         <Microscope size={12} /> The Science
                     </button>
@@ -190,7 +190,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
                             setIsActive(false);
                             haptics.selection();
                         }}
-                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === m
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${mode === m
                             ? (isDarkMode ? 'bg-pale-gold text-warm-gray-green shadow-lg' : 'bg-sage text-white shadow-lg')
                             : textSecondary
                             }`}
@@ -245,7 +245,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
             <div className="flex items-center gap-6 mb-12">
                 <button
                     onClick={resetTimer}
-                    className={`p-4 rounded-full border transition-all ${isDarkMode ? 'border-white/10 text-white/40 hover:text-white' : 'border-sage/10 text-sage/40 hover:text-sage'}`}
+                    className={`p-4 rounded-full border transition-all ${isDarkMode ? 'border-white/10 text-white hover:text-white' : 'border-sage/10 text-sage/40 hover:text-sage'}`}
                 >
                     <RotateCcw size={24} />
                 </button>
@@ -271,8 +271,8 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
                         <div className={`inline-flex p-3 rounded-2xl mb-4 ${isDarkMode ? 'bg-pale-gold/10 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
                             <currentSuggestion.icon size={24} />
                         </div>
-                        <h3 className={`text-lg font-display font-medium mb-3 ${textPrimary}`}>Coach Suggestion</h3>
-                        <p className={`text-sm leading-relaxed mb-6 ${textSecondary}`}>
+                        <h3 className={`text-lg font-display font-medium mb-3 ${textPrimary}`}>Partner Suggestion</h3>
+                        <p className={`text-base leading-relaxed mb-6 ${textSecondary}`}>
                             {currentSuggestion.text}
                         </p>
                         {currentSuggestion.action === 'hydrate' && (
@@ -304,7 +304,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
                         <h3 className={`text-2xl font-display font-medium ${textPrimary}`}>Timer Settings</h3>
                         <button
                             onClick={() => setShowSettings(false)}
-                            className={`p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white/40' : 'hover:bg-sage/10 text-sage/40'}`}
+                            className={`p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/40'}`}
                         >
                             <X size={20} />
                         </button>
@@ -317,7 +317,7 @@ export const PomodoroTimer: React.FC<PomodoroTimerProps> = ({ isDarkMode, onAddH
                                     <span className={`text-xs font-bold uppercase tracking-widest ${textSecondary}`}>
                                         {key === 'focus' ? 'Focus Work' : key === 'shortBreak' ? 'Short Break' : 'Long Break'}
                                     </span>
-                                    <span className={`text-sm font-bold ${textPrimary}`}>{settings[key]}m</span>
+                                    <span className={`text-base font-bold ${textPrimary}`}>{settings[key]}m</span>
                                 </div>
                                 <input
                                     type="range"

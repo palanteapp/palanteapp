@@ -52,29 +52,56 @@ const BREAK_SUGGESTIONS = [
     { text: "Leg Extensions: Straighten your legs under the desk 15 times to activate blood flow.", icon: Activity },
 ];
 
+// iOS WKWebView blocks AudioContext creation unless triggered by a user gesture.
+// We create and unlock the context on the first user tap (play/pause), store it
+// in a module-level ref, then reuse it when the bell fires at timer completion.
+let _sharedAudioCtx: AudioContext | null = null;
+
+const getOrCreateAudioCtx = (): AudioContext | null => {
+    try {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!_sharedAudioCtx) {
+            _sharedAudioCtx = new AudioCtx();
+        }
+        if (_sharedAudioCtx.state === 'suspended') {
+            _sharedAudioCtx.resume();
+        }
+        return _sharedAudioCtx;
+    } catch {
+        return null;
+    }
+};
+
 const playBell = (isMuted: boolean) => {
     if (isMuted) return;
     try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        const ctx = new AudioCtx();
-        // Tibetan singing bowl: fundamental + two harmonics with long exponential decay
-        const tone = (freq: number, gain: number, startOffset: number) => {
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.connect(env);
-            env.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            env.gain.setValueAtTime(0, ctx.currentTime + startOffset);
-            env.gain.linearRampToValueAtTime(gain, ctx.currentTime + startOffset + 0.012);
-            env.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startOffset + 4);
-            osc.start(ctx.currentTime + startOffset);
-            osc.stop(ctx.currentTime + startOffset + 4.2);
+        const ctx = getOrCreateAudioCtx();
+        if (!ctx) return;
+        // Resume in case the context was suspended (iOS requirement)
+        const doPlay = () => {
+            // Tibetan singing bowl: fundamental + two harmonics with long exponential decay
+            const tone = (freq: number, gain: number, startOffset: number) => {
+                const osc = ctx.createOscillator();
+                const env = ctx.createGain();
+                osc.connect(env);
+                env.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                env.gain.setValueAtTime(0, ctx.currentTime + startOffset);
+                env.gain.linearRampToValueAtTime(gain, ctx.currentTime + startOffset + 0.012);
+                env.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startOffset + 4);
+                osc.start(ctx.currentTime + startOffset);
+                osc.stop(ctx.currentTime + startOffset + 4.2);
+            };
+            tone(432,  0.28, 0);
+            tone(864,  0.14, 0.02);
+            tone(1296, 0.07, 0.04);
         };
-        tone(432,  0.28, 0);      // fundamental
-        tone(864,  0.14, 0.02);   // octave
-        tone(1296, 0.07, 0.04);   // fifth above octave
-        setTimeout(() => ctx.close(), 5000);
+        if (ctx.state === 'suspended') {
+            ctx.resume().then(doPlay).catch(e => console.warn('Bell resume failed', e));
+        } else {
+            doPlay();
+        }
     } catch (e) {
         console.warn('Bell audio failed', e);
     }
@@ -242,6 +269,9 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
         setIsActive(nextActive);
         haptics.medium();
 
+        // Unlock AudioContext during this user gesture so bell can fire later
+        getOrCreateAudioCtx();
+
         if (nextActive) {
             // Starting: Set endTime
             const end = Date.now() + (timeLeft * 1000);
@@ -279,7 +309,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
 
     // Theme values
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage/60';
     const bgCard = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-sage/10 shadow-sm';
 
     // Session circle fill color
@@ -319,13 +349,13 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                 <div className="flex gap-3 w-full">
                     <button
                         onClick={() => { haptics.light(); setShowInfo('how-to'); }}
-                        className={`flex-1 py-2 px-3 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white/40 hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
+                        className={`flex-1 py-2 px-3 rounded-full text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
                     >
                         <HelpCircle size={12} /> How to Use
                     </button>
                     <button
                         onClick={() => { haptics.light(); setShowInfo('science'); }}
-                        className={`flex-1 py-2 px-3 rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white/40 hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
+                        className={`flex-1 py-2 px-3 rounded-full text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5' : 'border-sage/10 text-sage/40 hover:bg-sage/5'}`}
                     >
                         <Microscope size={12} /> The Science
                     </button>
@@ -341,7 +371,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                             resetToMode(m);
                             haptics.selection();
                         }}
-                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${mode === m
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${mode === m
                             ? (isDarkMode ? 'bg-pale-gold text-sage-dark shadow-lg' : 'bg-1B4332 text-white shadow-lg')
                             : textSecondary
                             }`}
@@ -421,7 +451,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                 <div className="flex items-center gap-4">
                 <button
                     onClick={resetTimer}
-                    className={`p-4 rounded-full border transition-all ${isDarkMode ? 'border-white/10 text-white/40 hover:text-white' : 'border-sage/10 text-sage/40 hover:text-sage'}`}
+                    className={`p-4 rounded-full border transition-all ${isDarkMode ? 'border-white/10 text-white hover:text-white' : 'border-sage/10 text-sage/40 hover:text-sage'}`}
                     title="Reset current timer"
                 >
                     <RotateCcw size={24} />
@@ -450,7 +480,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         }
                         haptics.light();
                     }}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white/40 hover:bg-white/5 hover:text-white' : 'border-sage/10 text-sage/40 hover:bg-sage/5 hover:text-sage'}`}
+                    className={`flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5 hover:text-white' : 'border-sage/10 text-sage/40 hover:bg-sage/5 hover:text-sage'}`}
                     title="Skip to next session"
                 >
                     <SkipForward size={14} />
@@ -460,7 +490,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                 {/* Reset full cycle */}
                 <button
                     onClick={resetCycle}
-                    className={`flex items-center gap-1.5 px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white/30 hover:bg-white/5 hover:text-white/60' : 'border-sage/10 text-sage/30 hover:bg-sage/5 hover:text-sage/60'}`}
+                    className={`flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest border transition-all active:scale-95 ${isDarkMode ? 'border-white/10 text-white hover:bg-white/5 hover:text-white/60' : 'border-sage/10 text-sage/30 hover:bg-sage/5 hover:text-sage/60'}`}
                 >
                     <RotateCcw size={12} />
                     Reset Cycle
@@ -479,8 +509,8 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         <div className={`inline-flex p-3 rounded-2xl mb-4 ${isDarkMode ? 'bg-pale-gold/10 text-pale-gold' : 'bg-1B4332/10 text-1B4332'}`}>
                             <currentSuggestion.icon size={24} />
                         </div>
-                        <h3 className={`text-lg font-display font-medium mb-3 ${textPrimary}`}>Coach Suggestion</h3>
-                        <p className={`text-sm leading-relaxed mb-6 ${textSecondary}`}>
+                        <h3 className={`text-lg font-display font-medium mb-3 ${textPrimary}`}>Partner Suggestion</h3>
+                        <p className={`text-base leading-relaxed mb-6 ${textSecondary}`}>
                             {currentSuggestion.text}
                         </p>
                         {currentSuggestion.action === 'hydrate' && (
@@ -515,44 +545,41 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                             {/* Top accent bar */}
                             <div className={`h-1.5 w-full ${isDarkMode ? 'bg-pale-gold' : 'bg-1B4332'}`} />
                             <div className="p-7 text-center">
-                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5 ${isDarkMode ? 'bg-pale-gold/15 text-pale-gold' : 'bg-1B4332/10 text-1B4332'}`}>
-                                    <Bell size={28} />
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-pale-gold/15 text-pale-gold' : 'bg-1B4332/10 text-1B4332'}`}>
+                                    <Bell size={24} />
                                 </div>
-                                <h3 className={`text-xl font-display font-bold mb-2 ${textPrimary}`}>
-                                    Focus session complete!
+                                <h3 className={`text-xl font-display font-bold mb-1 ${textPrimary}`}>
+                                    {pendingBreakMode === 'longBreak' ? 'All 4 sessions done.' : 'Session complete.'}
                                 </h3>
-                                <p className={`text-sm mb-7 ${textSecondary}`}>
+                                <p className={`text-sm mb-6 opacity-60 ${textPrimary}`}>
                                     {pendingBreakMode === 'longBreak'
-                                        ? "4 sessions done — you've earned a long break. Ready?"
-                                        : "Great work. Would you like to take a short break?"}
+                                        ? "You've earned a long break."
+                                        : "Time to rest before the next round."}
                                 </p>
-                                <div className="flex flex-col gap-3">
-                                    <button
-                                        onClick={() => {
-                                            if (pendingBreakMode) {
-                                                const mode = pendingBreakMode;
-                                                setPendingBreakMode(null);
-                                                setShowBreakPrompt(false);
-                                                resetToMode(mode);
-                                            }
-                                        }}
-                                        className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 ${'bg-1B4332 text-white hover:scale-105'}`}
-                                    >
-                                        <Coffee size={16} />
-                                        {pendingBreakMode === 'longBreak' ? 'Start Long Break (15 min)' : 'Start Short Break (5 min)'}
-                                    </button>
-                                    <button
-                                        onClick={() => {
+                                <button
+                                    onClick={() => {
+                                        if (pendingBreakMode) {
+                                            const mode = pendingBreakMode;
                                             setPendingBreakMode(null);
                                             setShowBreakPrompt(false);
-                                            resetToMode('focus');
-                                        }}
-                                        className={`w-full py-3 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${isDarkMode ? 'border-white/10 text-white/50 hover:bg-white/5' : 'border-sage/15 text-sage/50 hover:bg-sage/5'}`}
-                                    >
-                                        <SkipForward size={14} />
-                                        Skip — Keep Going
-                                    </button>
-                                </div>
+                                            resetToMode(mode);
+                                        }
+                                    }}
+                                    className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 mb-3 ${'bg-1B4332 text-white hover:scale-105'}`}
+                                >
+                                    <Coffee size={16} />
+                                    {pendingBreakMode === 'longBreak' ? 'Start Long Break' : 'Start Short Break'}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setPendingBreakMode(null);
+                                        setShowBreakPrompt(false);
+                                        resetToMode('focus');
+                                    }}
+                                    className={`text-xs font-bold uppercase tracking-widest opacity-40 hover:opacity-70 transition-opacity ${textPrimary}`}
+                                >
+                                    Skip break
+                                </button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -572,7 +599,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         <h3 className={`text-2xl font-display font-medium ${textPrimary}`}>Timer Settings</h3>
                         <button
                             onClick={() => setShowSettings(false)}
-                            className={`p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white/40' : 'hover:bg-sage/10 text-sage/40'}`}
+                            className={`p-2 rounded-full transition-all ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/40'}`}
                         >
                             <X size={20} />
                         </button>
@@ -585,7 +612,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                                     <span className={`text-xs font-bold uppercase tracking-widest ${textSecondary}`}>
                                         {key === 'focus' ? 'Focus Work' : key === 'shortBreak' ? 'Short Break' : 'Long Break'}
                                     </span>
-                                    <span className={`text-sm font-bold ${textPrimary}`}>{settings[key]}m</span>
+                                    <span className={`text-base font-bold ${textPrimary}`}>{settings[key]}m</span>
                                 </div>
                                 <input
                                     type="range"

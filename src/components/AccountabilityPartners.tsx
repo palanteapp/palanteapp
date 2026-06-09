@@ -1,14 +1,37 @@
 import React, { useState } from 'react';
-import { Users, UserPlus, Calendar, X, Flame, Zap, Sparkles as SparklesIcon, AlertTriangle, ShieldOff } from 'lucide-react';
+import { Users, UserPlus, Calendar, X, Flame, Zap, Sparkles as SparklesIcon, AlertTriangle, ShieldOff, Lightbulb, ToggleLeft, ToggleRight } from 'lucide-react';
 import { haptics } from '../utils/haptics';
-import type { AccountabilityPartner } from '../types';
+import type { AccountabilityPartner, CoachSettings } from '../types';
+
+// Rotating partner coaching tips — deterministic by day so they don't flash on re-render
+const PARTNER_TIPS: { category: string; tip: string }[] = [
+    { category: 'Time', tip: 'Block 15 minutes each morning before checking your phone. That window belongs to you.' },
+    { category: 'Habit', tip: 'Attach your practice to something you already do — coffee, brushing teeth, lacing up shoes.' },
+    { category: 'Accountability', tip: 'Text your partner when you finish a practice. The act of sharing doubles the commitment.' },
+    { category: 'Focus', tip: 'Set one clear intention before you start. Vague goals fade; specific ones stick.' },
+    { category: 'Recovery', tip: 'A missed day isn\'t a broken streak — it\'s data. Ask: what made it hard? Then adjust.' },
+    { category: 'Momentum', tip: 'Two-minute rule: if it takes less than two minutes, do it now. Momentum compounds.' },
+    { category: 'Time', tip: 'Protect your last 10 minutes before bed. That\'s when your brain consolidates the day\'s work.' },
+    { category: 'Habit', tip: 'Make your practice visible. If it\'s out of sight, it\'s out of mind.' },
+    { category: 'Accountability', tip: 'Check in with your partner on hard days, not just good ones. That\'s when it counts most.' },
+    { category: 'Focus', tip: 'One priority per day beats five equal priorities every time.' },
+    { category: 'Recovery', tip: 'Rest is part of the practice, not the absence of it.' },
+    { category: 'Momentum', tip: 'Small consistent actions outlast every burst of motivation. Show up even when it\'s imperfect.' },
+];
+
+const getTodaysTip = () => {
+    const day = Math.floor(Date.now() / 86_400_000);
+    return PARTNER_TIPS[day % PARTNER_TIPS.length];
+};
 
 interface AccountabilityPartnersProps {
     partners: AccountabilityPartner[];
+    coachSettings?: CoachSettings;
     onAddPartner: () => void;
     onRemovePartner: (id: string) => void;
     onReportPartner: (id: string, name: string) => void;
     onBlockPartner: (id: string, name: string) => void;
+    onTogglePartnerTips?: (enabled: boolean) => void;
     isDarkMode: boolean;
 }
 
@@ -28,14 +51,18 @@ const getDaysSinceActivity = (lastActivityDate: string): number => {
 
 export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
     partners,
+    coachSettings,
     onAddPartner,
     onRemovePartner,
     onReportPartner,
     onBlockPartner,
+    onTogglePartnerTips,
     isDarkMode,
 }) => {
+    const partnerTipsEnabled = coachSettings?.partnerTipsEnabled ?? false;
+    const todaysTip = getTodaysTip();
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     const activePartners = partners.filter(p => p.inviteStatus === 'accepted');
     const pendingPartners = partners.filter(p => p.inviteStatus === 'pending');
@@ -53,7 +80,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
             } relative`}>
             {/* TOAST NOTIFICATION */}
             {toast && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-black/20 backdrop-blur text-white text-xs font-bold shadow-xl animate-fade-in-up flex items-center gap-2 pointer-events-none">
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-5 py-2 rounded-full bg-black/20 backdrop-blur text-white text-xs font-bold shadow-xl animate-fade-in-up flex items-center gap-2 pointer-events-none">
                     <Flame size={12} className="text-orange-500" fill="currentColor" />
                     {toast}
                 </div>
@@ -93,7 +120,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                     </p>
                     <button
                         onClick={onAddPartner}
-                        className={`px-4 py-2 rounded-full font-medium transition-all ${isDarkMode
+                        className={`px-5 py-2 rounded-full font-medium transition-all ${isDarkMode
                             ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
                             : 'bg-terracotta-500 text-white hover:bg-sage-600'
                             }`}
@@ -137,7 +164,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Calendar size={10} className={textSecondary} />
-                                                <span className={`text-[10px] ${textSecondary}`}>
+                                                <span className={`text-xs ${textSecondary}`}>
                                                     {daysSince === 0 ? 'Today' : `${daysSince}d ago`}
                                                 </span>
                                             </div>
@@ -160,7 +187,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                                                 onReportPartner(partner.id, partner.name);
                                             }}
                                             className={`p-1.5 rounded-full transition-all ${isDarkMode
-                                                ? 'text-white/20 hover:text-red-400'
+                                                ? 'text-white hover:text-red-400'
                                                 : 'text-sage/20 hover:text-red-500'
                                                 }`}
                                             title="Report"
@@ -173,7 +200,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                                                 onBlockPartner(partner.id, partner.name);
                                             }}
                                             className={`p-1.5 rounded-full transition-all ${isDarkMode
-                                                ? 'text-white/20 hover:text-red-400'
+                                                ? 'text-white hover:text-red-400'
                                                 : 'text-sage/20 hover:text-red-500'
                                                 }`}
                                             title="Block"
@@ -186,7 +213,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                                                 onRemovePartner(partner.id);
                                             }}
                                             className={`p-1.5 rounded-full transition-all ${isDarkMode
-                                                ? 'text-white/20 hover:text-white'
+                                                ? 'text-white hover:text-white'
                                                 : 'text-sage/20 hover:text-sage'
                                                 }`}
                                             title="Remove"
@@ -240,6 +267,38 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                             {Math.round(activePartners.reduce((sum, p) => sum + p.currentStreak, 0) / activePartners.length)} days
                         </span>
                     </div>
+                </div>
+            )}
+
+            {/* Partner Tips — toggle + daily tip card */}
+            {onTogglePartnerTips && (
+                <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>
+                    <button
+                        onClick={() => { haptics.selection(); onTogglePartnerTips(!partnerTipsEnabled); }}
+                        className="flex items-center justify-between w-full"
+                    >
+                        <div className="flex items-center gap-2">
+                            <Lightbulb size={14} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                            <span className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>
+                                Coaching Tips
+                            </span>
+                        </div>
+                        {partnerTipsEnabled
+                            ? <ToggleRight size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                            : <ToggleLeft size={20} className={`${textSecondary} opacity-40`} />
+                        }
+                    </button>
+
+                    {partnerTipsEnabled && (
+                        <div className={`mt-3 p-3 rounded-xl ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-sage/5 border border-sage/10'}`}>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDarkMode ? 'text-pale-gold/70' : 'text-sage/50'}`}>
+                                {todaysTip.category}
+                            </p>
+                            <p className={`text-xs leading-relaxed ${textSecondary}`}>
+                                {todaysTip.tip}
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

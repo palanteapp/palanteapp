@@ -25,7 +25,7 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({ currentMood, onSelec
     return (
         <div className="w-full">
             <div className="text-center mb-4">
-                <p className={`text-sm font-medium ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>
                     How are you feeling right now?
                 </p>
             </div>
@@ -41,12 +41,12 @@ export const MoodSelector: React.FC<MoodSelectorProps> = ({ currentMood, onSelec
                                 haptics.light();
                                 onSelect(mood.id);
                             }}
-                            className={`flex items-center justify-center gap-2 h-10 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex-shrink-0 ${isSelected
+                            className={`flex items-center justify-center gap-2 h-10 px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 flex-shrink-0 ${isSelected
                                 ? isDarkMode
                                     ? 'bg-pale-gold text-rich-black shadow-[0_0_15px_rgba(212,175,55,0.3)] scale-105'
                                     : 'bg-sage text-white shadow-spa scale-105'
                                 : isDarkMode
-                                    ? 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                    ? 'bg-white/5 text-white hover:bg-white/10 hover:text-white'
                                     : 'bg-white/40 text-sage hover:bg-white/60'
                                 }`}
                         >

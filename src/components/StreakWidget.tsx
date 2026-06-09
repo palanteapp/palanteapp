@@ -34,7 +34,7 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
         return {
             bg: 'bg-warm-gray-green/10',
             border: 'border-white/10',
-            text: 'text-white/40',
+            text: 'text-white',
             glow: ''
         };
     };
@@ -86,12 +86,12 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
                             >
                                 {currentStreak}
                             </motion.span>
-                            <span className="text-white/60 text-sm font-medium">
+                            <span className="text-white text-sm font-medium">
 
                                 {currentStreak === 1 ? 'day' : 'days'}
                             </span>
                         </div>
-                        <p className="text-white/60 text-sm mt-1">
+                        <p className="text-white text-sm mt-1">
                             {isGracePeriod ? (
                                 <span className="text-orange-400 font-medium">⚠️ Grace period - Complete a practice today!</span>
                             ) : hasActiveStreak ? (
@@ -108,8 +108,8 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
                     {/* Longest streak */}
                     {longestStreak > 0 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20">
-                            <Award size={14} className="text-white/40" />
-                            <span className="text-xs text-white/60 font-medium">
+                            <Award size={14} className="text-white" />
+                            <span className="text-sm text-white font-medium">
                                 Best: {longestStreak}
                             </span>
                         </div>
@@ -128,7 +128,7 @@ export const StreakWidget: React.FC<StreakWidgetProps> = ({ streakData, onClick 
             </div>
 
             {/* Tap hint */}
-            <div className="absolute bottom-2 right-2 text-[10px] text-white/30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-2 right-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity">
                 Tap for details
             </div>
         </button>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Wind, Flower2, BookOpen, Utensils, Music, Layers, Sparkles, Timer,
+    Wind, Flower2, Music, Timer,
     Wrench, X, Check, Pencil, GripVertical,
 } from 'lucide-react';
 import {
@@ -16,8 +16,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { haptics } from '../utils/haptics';
 
 export type EssentialToolId =
-    | 'breath' | 'meditate' | 'reflect' | 'fasting'
-    | 'soundscapes' | 'routines' | 'wisdom' | 'focus' | 'toolkit';
+    | 'breath' | 'meditate' | 'soundscapes' | 'focus' | 'toolkit';
 
 interface Tool {
     id: EssentialToolId;
@@ -25,27 +24,23 @@ interface Tool {
     sublabel: string;
     icon: React.ReactNode;
     color: string;
+    iconBg: string;
+    glow: string;
 }
 
 const ALL_TOOLS: Tool[] = [
-    { id: 'breath',      label: 'Breathe',      sublabel: 'REGULATE',    icon: <Wind size={24} />,     color: '#7A9B84' },
-    { id: 'fasting',     label: 'Fast',          sublabel: 'FASTING',     icon: <Utensils size={24} />, color: '#C96A3A' },
-    { id: 'toolkit',     label: 'Toolkit',       sublabel: 'RESOURCES',   icon: <Wrench size={24} />,   color: '#8B6914' },
-    { id: 'meditate',    label: 'Meditate',      sublabel: 'MINDFULNESS', icon: <Flower2 size={24} />,  color: '#879582' },
-    { id: 'reflect',     label: 'Reflect',       sublabel: 'JOURNAL',     icon: <BookOpen size={24} />, color: '#B07B5A' },
-    { id: 'soundscapes', label: 'Sonic Canvas',   sublabel: 'AUDIO',       icon: <Music size={24} />,    color: '#415D43' },
-    { id: 'routines',    label: 'Routines',      sublabel: 'HABITS',      icon: <Layers size={24} />,   color: '#5C7A5E' },
-    { id: 'wisdom',      label: 'Wisdom',        sublabel: 'QUOTES',      icon: <Sparkles size={24} />, color: '#8B6914' },
-    { id: 'focus',       label: 'Focus Timer',   sublabel: 'CYCLES',      icon: <Timer size={24} />,    color: '#4A6741' },
+    { id: 'breath',      label: 'Breathe',      sublabel: 'REGULATE',    icon: <Wind size={24} />,    color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
+    { id: 'meditate',    label: 'Meditate',     sublabel: 'MINDFULNESS', icon: <Flower2 size={24} />, color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
+    { id: 'soundscapes', label: 'Sonic Canvas', sublabel: 'AUDIO',       icon: <Music size={24} />,   color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
+    { id: 'focus',       label: 'Focus Timer',  sublabel: 'CYCLES',      icon: <Timer size={24} />,   color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
+    { id: 'toolkit',     label: 'Practice',     sublabel: 'RESOURCES',   icon: <Wrench size={24} />,  color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
 ];
 
-const DEFAULT_TOOLS: EssentialToolId[] = ['breath', 'fasting', 'toolkit'];
+const DEFAULT_TOOLS: EssentialToolId[] = ['breath', 'meditate', 'focus'];
 
 interface HomeEssentialToolsProps {
     isDarkMode: boolean;
     selectedTools?: string[];
-    fastingActive?: boolean;
-    fastingTime?: string;
     onNavigate: (id: EssentialToolId) => void;
     onSave: (tools: EssentialToolId[]) => void;
 }
@@ -63,9 +58,7 @@ const SortableToolRow: React.FC<{
         <div
             ref={setNodeRef}
             style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : 'auto', opacity: isDragging ? 0.75 : 1 }}
-            className={`flex items-center gap-3 p-3 rounded-2xl border transition-colors ${
-                isDarkMode ? 'bg-white/5 border-white/8' : 'bg-sage/5 border-sage/10'
-            }`}
+            className="flex items-center gap-3 p-3 rounded-2xl border transition-colors bg-white/[0.06] border-white/10"
         >
             {/* Drag handle */}
             <button
@@ -74,23 +67,23 @@ const SortableToolRow: React.FC<{
                 className="touch-none p-1 cursor-grab active:cursor-grabbing"
                 aria-label="Drag to reorder"
             >
-                <GripVertical size={16} className={isDarkMode ? 'text-white/25' : 'text-sage/30'} />
+                <GripVertical size={16} className={isDarkMode ? 'text-white' : 'text-sage/30'} />
             </button>
 
             <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                style={{ backgroundColor: tool.color }}
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: tool.iconBg, color: tool.color }}
             >
                 {React.cloneElement(tool.icon as React.ReactElement<{ size?: number }>, { size: 16 })}
             </div>
 
-            <span className={`flex-1 text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+            <span className={`flex-1 text-base font-semibold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                 {tool.label}
             </span>
 
             <div
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-                style={{ backgroundColor: tool.color }}
+                className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                style={{ background: tool.iconBg, color: tool.color }}
             >
                 {index + 1}
             </div>
@@ -100,7 +93,7 @@ const SortableToolRow: React.FC<{
                 className={`p-1 ml-0.5 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
                 aria-label={`Remove ${tool.label}`}
             >
-                <X size={14} className={isDarkMode ? 'text-white/30' : 'text-sage/30'} />
+                <X size={14} className={isDarkMode ? 'text-white' : 'text-sage/30'} />
             </button>
         </div>
     );
@@ -110,8 +103,6 @@ const SortableToolRow: React.FC<{
 export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
     isDarkMode,
     selectedTools,
-    fastingActive,
-    fastingTime,
     onNavigate,
     onSave,
 }) => {
@@ -164,30 +155,27 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
     };
 
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const textMuted = isDarkMode ? 'text-white/50' : 'text-sage-dark/50';
-    const overlayBg = isDarkMode ? 'bg-sage-dark/95' : 'bg-ivory/97';
+    const textMuted = isDarkMode ? 'text-white' : 'text-sage-dark/50';
 
     return (
-        <div className="w-full mb-6 px-1">
+        <div className="w-full mb-6">
             {/* Section header */}
             <div className="flex items-center justify-between mb-3">
                 <p className={`text-xs font-bold uppercase tracking-[0.18em] ${textMuted}`}>Essential Tools</p>
                 <button
                     onClick={handleEdit}
                     className={`flex items-center gap-1.5 text-xs font-medium py-1 px-3 rounded-full transition-all active:scale-95 ${
-                        isDarkMode ? 'text-white/50 hover:text-white/80 hover:bg-white/10' : 'text-sage/50 hover:text-sage hover:bg-sage/10'
+                        isDarkMode ? 'text-white hover:text-white/80 hover:bg-white/10' : 'text-sage/50 hover:text-sage hover:bg-sage/10'
                     }`}
                 >
                     <Pencil size={11} /> Customize
                 </button>
             </div>
 
-            {/* 3 big tool cards */}
+            {/* 3 tool cards — equal width, no overflow */}
             <div className="w-full flex gap-3">
                 {active.map((id, i) => {
                     const tool = ALL_TOOLS.find(t => t.id === id)!;
-                    const isFastingCard = id === 'fasting';
-
                     return (
                         <motion.button
                             key={id}
@@ -196,35 +184,23 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                             transition={{ delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => { haptics.medium(); onNavigate(id); }}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 p-4 rounded-[2rem] border transition-all ${
-                                isFastingCard && fastingActive
-                                    ? isDarkMode
-                                        ? 'bg-[#2D6A4F] border-[#40916C] shadow-xl backdrop-blur-md'
-                                        : 'bg-[#40916C]/20 border-[#2D6A4F]/30 shadow-spa backdrop-blur-md'
-                                    : isDarkMode
-                                        ? 'bg-[#1B4332]/50 border-white/10 shadow-xl backdrop-blur-md hover:bg-[#1B4332]/70'
-                                        : 'bg-white/60 border-sage/10 shadow-spa backdrop-blur-md hover:bg-sage/5'
+                            className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-5 px-2 rounded-[2rem] border transition-all ${
+                                isDarkMode
+                                    ? 'bg-[#1B4332]/50 border-white/10 shadow-xl backdrop-blur-md hover:bg-[#1B4332]/70'
+                                    : 'bg-white/60 border-sage/10 shadow-spa backdrop-blur-md hover:bg-sage/5'
                             }`}
                         >
                             <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 shadow-lg ${
-                                    isFastingCard && fastingActive
-                                        ? 'bg-[#52B788] text-white animate-pulse'
-                                        : 'text-white'
-                                }`}
-                                style={!(isFastingCard && fastingActive) ? { backgroundColor: tool.color + 'cc' } : {}}
+                                className="w-11 h-11 rounded-full flex items-center justify-center mb-2.5 shrink-0"
+                                style={{ background: tool.iconBg, boxShadow: tool.glow, color: tool.color }}
                             >
-                                {React.cloneElement(tool.icon as React.ReactElement<{ fill?: string }>, {
-                                    fill: isFastingCard && fastingActive ? 'currentColor' : 'none',
-                                })}
+                                {tool.icon}
                             </div>
-                            <div className="text-center flex flex-col items-center">
-                                <div className={`text-base font-display font-bold leading-tight mb-1 text-center max-w-[80px] ${
-                                    isFastingCard && fastingActive ? 'text-white' : textPrimary
-                                }`}>
-                                    {isFastingCard && fastingActive && fastingTime ? fastingTime : tool.label}
+                            <div className="text-center flex flex-col items-center w-full min-w-0">
+                                <div className={`text-sm font-display font-bold leading-tight mb-0.5 text-center w-full ${textPrimary}`}>
+                                    {tool.label}
                                 </div>
-                                <div className={`text-[10px] uppercase tracking-[0.2em] opacity-60 font-bold ${textPrimary}`}>
+                                <div className={`text-[10px] uppercase tracking-[0.18em] opacity-60 font-bold ${textPrimary}`}>
                                     {tool.sublabel}
                                 </div>
                             </div>
@@ -250,23 +226,56 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                 animate={{ y: 0, opacity: 1 }}
                                 exit={{ y: 60, opacity: 0 }}
                                 transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-                                className={`w-full max-w-md rounded-t-[2.5rem] pb-10 px-6 pt-6 ${overlayBg} shadow-2xl`}
-                                style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}
+                                className="w-full max-w-md rounded-t-[3rem] overflow-hidden relative shadow-2xl"
+                                style={{ background: '#415D43', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}
                                 onClick={(e) => e.stopPropagation()}
                             >
+                                {/* Seed-of-life background — matches SlideUpModal */}
+                                <svg aria-hidden viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice"
+                                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+                                    <defs>
+                                        <radialGradient id="et-bloom" cx="50%" cy="28%" r="55%">
+                                            <stop offset="0%" stopColor="#69915A" stopOpacity="0.45" />
+                                            <stop offset="100%" stopColor="#69915A" stopOpacity="0" />
+                                        </radialGradient>
+                                        <radialGradient id="et-vignette" cx="50%" cy="50%" r="60%">
+                                            <stop offset="38%" stopColor="#121810" stopOpacity="0" />
+                                            <stop offset="100%" stopColor="#121810" stopOpacity="0.55" />
+                                        </radialGradient>
+                                        <radialGradient id="et-terra" cx="50%" cy="100%" r="45%">
+                                            <stop offset="0%" stopColor="#C96A3A" stopOpacity="0.12" />
+                                            <stop offset="100%" stopColor="#C96A3A" stopOpacity="0" />
+                                        </radialGradient>
+                                    </defs>
+                                    <rect width="400" height="800" fill="url(#et-bloom)" />
+                                    <rect width="400" height="800" fill="url(#et-vignette)" />
+                                    <rect y="480" width="400" height="320" fill="url(#et-terra)" />
+                                    <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
+                                        <circle cx="200" cy="400" r="148" strokeWidth="0.9" />
+                                        <circle cx="348" cy="400" r="148" />
+                                        <circle cx="274" cy="528" r="148" />
+                                        <circle cx="126" cy="528" r="148" />
+                                        <circle cx="52"  cy="400" r="148" />
+                                        <circle cx="126" cy="272" r="148" />
+                                        <circle cx="274" cy="272" r="148" />
+                                    </g>
+                                </svg>
+
+                                {/* All content sits above SVG */}
+                                <div className="relative z-10 px-6 pt-6">
                                 {/* Handle */}
-                                <div className={`w-10 h-1 rounded-full mx-auto mb-5 ${isDarkMode ? 'bg-white/20' : 'bg-sage/20'}`} />
+                                <div className="w-10 h-1 rounded-full mx-auto mb-5 bg-white/20" />
 
                                 <div className="flex items-center justify-between mb-1">
-                                    <h3 className={`font-display font-semibold text-lg ${textPrimary}`}>My Essential Tools</h3>
+                                    <h3 className="font-display font-bold text-xl text-white">My Essential Tools</h3>
                                     <button
                                         onClick={() => setEditing(false)}
-                                        className={`p-2 rounded-full ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
+                                        className="p-2 rounded-full hover:bg-white/10"
                                     >
-                                        <X size={18} className={textMuted} />
+                                        <X size={18} className="text-white" />
                                     </button>
                                 </div>
-                                <p className={`text-sm mb-5 ${textMuted}`}>
+                                <p className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-5">
                                     {draft.length}/3 selected · drag to reorder
                                 </p>
 
@@ -306,12 +315,12 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                 )}
 
                                 {/* Divider */}
-                                <div className={`flex items-center gap-3 mb-4 ${draft.length < 3 ? '' : 'opacity-50'}`}>
-                                    <div className={`flex-1 h-px ${isDarkMode ? 'bg-white/10' : 'bg-sage/15'}`} />
-                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${textMuted}`}>
+                                <div className={`flex items-center gap-3 mb-4 ${draft.length < 3 ? '' : 'opacity-60'}`}>
+                                    <div className="flex-1 h-px bg-white/10" />
+                                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-white">
                                         {draft.length < 3 ? `Choose ${3 - draft.length} more` : 'Tap to swap'}
                                     </span>
-                                    <div className={`flex-1 h-px ${isDarkMode ? 'bg-white/10' : 'bg-sage/15'}`} />
+                                    <div className="flex-1 h-px bg-white/10" />
                                 </div>
 
                                 {/* Tool grid */}
@@ -328,35 +337,28 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                                     selected
                                                         ? 'border-transparent shadow-md'
                                                         : disabled
-                                                            ? `opacity-30 cursor-not-allowed ${isDarkMode ? 'border-white/5' : 'border-sage/10'}`
-                                                            : `${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/15 hover:bg-sage/5'}`
+                                                            ? 'opacity-25 cursor-not-allowed border-white/5'
+                                                            : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
                                                 }`}
-                                                style={selected ? { backgroundColor: tool.color + '22', borderColor: tool.color + '66' } : {}}
+                                                style={selected ? { backgroundColor: 'rgba(229,214,167,0.14)', borderColor: 'rgba(229,214,167,0.40)' } : {}}
                                             >
                                                 <div
                                                     className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                                                     style={{
-                                                        backgroundColor: selected
-                                                            ? tool.color
-                                                            : isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(65,93,67,0.12)',
+                                                        backgroundColor: selected ? 'rgba(229,214,167,0.90)' : 'rgba(255,255,255,0.08)',
                                                     }}
                                                 >
-                                                    <span style={{ color: selected ? 'white' : isDarkMode ? 'rgba(255,255,255,0.5)' : '#415D43' }}>
+                                                    <span style={{ color: selected ? '#1F3824' : 'rgba(255,255,255,0.45)' }}>
                                                         {React.cloneElement(tool.icon as React.ReactElement<{ size?: number }>, { size: 18 })}
                                                     </span>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className={`text-sm font-semibold ${selected ? textPrimary : textMuted}`}>
+                                                    <p className={`text-sm font-semibold ${selected ? 'text-white' : 'text-white'}`}>
                                                         {tool.label}
                                                     </p>
                                                 </div>
                                                 {selected && (
-                                                    <div
-                                                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                                                        style={{ backgroundColor: tool.color }}
-                                                    >
-                                                        <Check size={11} className="text-white" strokeWidth={3} />
-                                                    </div>
+                                                    <Check size={14} strokeWidth={3} style={{ color: '#E5D6A7', flexShrink: 0 }} />
                                                 )}
                                             </button>
                                         );
@@ -367,13 +369,13 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                     onClick={handleSave}
                                     disabled={draft.length !== 3}
                                     className={`w-full py-4 rounded-[2rem] font-display font-semibold text-sm uppercase tracking-widest transition-all active:scale-[0.98] ${
-                                        draft.length === 3
-                                            ? 'bg-[#1B4332] text-white shadow-lg'
-                                            : isDarkMode ? 'bg-white/10 text-white/30' : 'bg-sage/10 text-sage/30'
+                                        draft.length !== 3 ? 'bg-white/10 text-white' : ''
                                     }`}
+                                    style={draft.length === 3 ? { background: '#E5D6A7', color: '#1F3824' } : {}}
                                 >
                                     Save My Toolkit
                                 </button>
+                                </div>{/* end z-10 wrapper */}
                             </motion.div>
                         </motion.div>
                     )}

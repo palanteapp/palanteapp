@@ -58,7 +58,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                                 journalPromptsEnabled: localUser.journalPromptsEnabled ?? true,
                                 aiDisabled: localUser.aiDisabled ?? false,
                                 quoteIntensity: (Number(localUser.quoteIntensity) || Number((localUser as Record<string, unknown>).tier) || 2) as 1 | 2 | 3,
-                                coachName: localUser.coachName ?? 'Palante Coach'
+                                // Migrate legacy "Palante Coach" coachName to "Palante" on load.
+                                // Custom user-set names like "Sarah" are preserved as-is.
+                                coachName: (!localUser.coachName || localUser.coachName === 'Palante Coach')
+                                    ? 'Palante'
+                                    : localUser.coachName
                             };
                         }
                     } catch (e) {
@@ -70,25 +74,42 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 if (authUser) {
                     try {
                         const cloudProfile = await api.getProfile(authUser.id);
-                        if (cloudProfile) {
-                            // Cloud takes precedence
+
+                        // Determine if local data is richer than cloud (user filled settings before signing in).
+                        // A guest profile has an id starting with "guest-". If local was a guest session
+                        // with real content (name, interests, career set), prefer local over an empty cloud profile.
+                        const localIsGuest = localUser?.id?.startsWith('guest-');
+                        const localHasContent = localUser && (
+                            (localUser.name && localUser.name !== 'Friend') ||
+                            (localUser.interests && localUser.interests.length > 0) ||
+                            (localUser.career && localUser.career !== '') ||
+                            (localUser.goals && localUser.goals.length > 0)
+                        );
+
+                        if (cloudProfile && !(localIsGuest && localHasContent)) {
+                            // Cloud takes precedence — returning user with cloud data, no local guest content to preserve
                             setUser(cloudProfile);
                             userRef.current = cloudProfile;
                             localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(cloudProfile));
                             // Sync Widgets
                             WidgetDataSync.syncAll(cloudProfile).catch(e => console.error('Initial cloud widget sync failed', e));
-                        } else if (localUser && localUser.id === authUser.id) {
-                            // First time cloud sync
-                            await api.updateProfile(authUser.id, localUser);
-                            setUser(localUser);
-                            userRef.current = localUser;
+                        } else if (localUser) {
+                            // Guest just signed up / signed in — migrate their local data to this account.
+                            // Re-stamp the ID so future loads match on localUser.id === authUser.id.
+                            // If cloud has progress data (streak, points), merge it in — local profile fields win.
+                            const migratedUser: UserProfile = cloudProfile
+                                ? { ...cloudProfile, ...localUser, id: authUser.id }
+                                : { ...localUser, id: authUser.id };
+                            await api.updateProfile(authUser.id, migratedUser);
+                            setUser(migratedUser);
+                            userRef.current = migratedUser;
+                            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(migratedUser));
                             // Sync Widgets
-                            WidgetDataSync.syncAll(localUser).catch(e => console.error('Initial local sync to cloud failed', e));
+                            WidgetDataSync.syncAll(migratedUser).catch(e => console.error('Initial guest-migration widget sync failed', e));
                         } else {
-                            // No cloud, no matching local -> New User or Guest
-                            // Initialize Default Guest User
+                            // Truly new user with no local data — start fresh
                             const guestUser: UserProfile = {
-                                id: 'guest-' + Date.now(),
+                                id: authUser.id,
                                 name: 'Friend',
                                 career: '',
                                 profession: '',
@@ -110,7 +131,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                             userRef.current = guestUser;
                             localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(guestUser));
                             // Sync Widgets
-                            WidgetDataSync.syncAll(guestUser).catch(e => console.error('Initial guest widget sync failed', e));
+                            WidgetDataSync.syncAll(guestUser).catch(e => console.error('Initial new-user widget sync failed', e));
                         }
                     } catch (err) {
                         console.error('Error fetching profile:', err);

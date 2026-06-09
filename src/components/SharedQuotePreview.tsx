@@ -24,7 +24,7 @@ const H = 356;
 export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, seed }) => {
     const isTierQuote =
         quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' ||
-        quote.author === 'Palante Coach' || quote.isAI;
+        quote.author === 'Palante' || quote.author === 'Palante Coach' || quote.isAI;
 
     const finalSeed = seed || `${quote.id}-${new Date().toLocaleDateString()}`;
 

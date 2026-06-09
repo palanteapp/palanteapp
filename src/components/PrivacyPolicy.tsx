@@ -15,7 +15,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack, isDarkMode
     }, []);
 
     const textPrimary = isDarkMode ? 'text-white' : 'text-white';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-white/70';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-white/70';
     const bgClass = isDarkMode ? 'bg-[#1a1c1a]' : 'bg-[#6F7B6D]';
     const cardClass = isDarkMode ? 'bg-white/[0.03]' : 'bg-white/10 backdrop-blur-md';
 

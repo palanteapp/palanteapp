@@ -7,12 +7,12 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 // Written as outcomes the user lives, not features the app has.
 
 const FEATURES = [
-    'Morning practice — intention, gratitude, a message that actually reads you',
-    'Coach check-ins that carry your intention through the day',
-    'Evening reflection to close every day the right way',
-    'Your 90-day Mandala of Growth, blooming with every practice',
-    'Breathing, soundscapes, and focus tools when you need to reset',
-    'Weekly story of your growth, told in your own words',
+    'Morning practice — intention, gratitude, a message written just for today',
+    'An AI that remembers what you said yesterday and uses it tomorrow',
+    'Evening reflection to close every day with honesty',
+    'Your Mandala of Growth, built ring by ring with every practice',
+    'Partner chat for the moments between practices',
+    'Weekly story of your growth, written in your own words',
 ];
 
 // ─── Ghost mandala SVG ─────────────────────────────────────────────────────────
@@ -108,11 +108,11 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
 
     const headline = isReturning
         ? (firstName ? `${firstName}, keep going.` : 'Keep going.')
-        : 'Start with gratitude.\nBuild something real.';
+        : 'You started.\nKeep going — free for 7 days.';
 
     const subhead = isReturning
         ? 'Your practice is already taking root. Subscribe to keep building on what you started.'
-        : 'Everything you need for a daily practice that actually sticks — one place, no noise.';
+        : 'That was your first morning practice. Your Palante Partner already knows your intention. Come back tonight and it will remember.';
 
     const annualBadge = isReturning
         ? 'Pick up where you left off · 50% off monthly'
@@ -132,7 +132,7 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex flex-col"
-            style={{ background: 'linear-gradient(160deg, #2e4a30 0%, #1a2e1c 60%, #0d1e0f 100%)' }}
+            style={{ background: 'linear-gradient(160deg, #4a6741 0%, #3a5438 50%, #2d4a2e 100%)' }}
         >
             {/* Grain overlay */}
             <svg className="absolute inset-0 w-full h-full opacity-[0.04] pointer-events-none" aria-hidden>
@@ -189,7 +189,7 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
                         ].map(({ value, label }) => (
                             <div
                                 key={label}
-                                className="flex flex-col items-center px-4 py-2 rounded-xl"
+                                className="flex flex-col items-center px-5 py-2 rounded-xl"
                                 style={{ background: 'rgba(201,106,58,0.1)', border: '1px solid rgba(201,106,58,0.2)' }}
                             >
                                 <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#C96A3A', fontSize: '20px', lineHeight: 1.1 }}>

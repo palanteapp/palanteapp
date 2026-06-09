@@ -92,7 +92,7 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
                     </div>
                     <button
                         onClick={onClose}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white/40' : 'bg-sage/5 hover:bg-sage/10 text-sage/40'
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-sage/5 hover:bg-sage/10 text-sage/40'
                             }`}
                     >
                         <X size={18} />
@@ -108,11 +108,11 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
                             }`}
                         >
                             <div className="flex items-center gap-3">
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                     }`}>
                                     {index + 1}
                                 </div>
-                                <span className={`text-sm font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                                <span className={`text-base font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-sage'}`}>
                                     {getLabel(sectionId)}
                                 </span>
                             </div>
@@ -146,7 +146,7 @@ export const ReorderModal: React.FC<ReorderModalProps> = ({
                 <div className="p-6">
                     <button
                         onClick={handleSave}
-                        className={`w-full py-4 rounded-[2rem] font-bold uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-2xl ${
+                        className={`w-full py-4 rounded-[2rem] font-bold uppercase tracking-[0.2em] text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-2xl ${
                             isDarkMode ? 'bg-pale-gold text-sage-dark shadow-[0_10px_30px_rgba(229,214,167,0.3)]' : 'bg-sage-dark text-white shadow-[0_10px_30px_rgba(90,99,81,0.3)]'
                         }`}
                     >

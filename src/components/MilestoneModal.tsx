@@ -24,7 +24,7 @@ export const MilestoneModal: React.FC<MilestoneModalProps> = ({ milestone, onClo
             <div className={`relative max-w-md w-full max-h-[90vh] overflow-y-auto p-8 rounded-3xl shadow-2xl animate-scale-in-up bg-[#1B4332] border border-white/10`}>
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-full transition-colors hover:bg-white/10 text-white/40"
+                    className="absolute top-4 right-4 p-2 rounded-full transition-colors hover:bg-white/10 text-white"
                 >
                     <X size={20} />
                 </button>

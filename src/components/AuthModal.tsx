@@ -93,7 +93,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                     </div>
                     <button
                         onClick={onClose}
-                        className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/40' : 'hover:bg-sage/10 text-sage/40'}`}
+                        className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white' : 'hover:bg-sage/10 text-sage/40'}`}
                     >
                         <X size={20} />
                     </button>
@@ -108,13 +108,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                             <p className={`text-base font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                 Check your inbox
                             </p>
-                            <p className={`text-sm mb-8 leading-relaxed px-2 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                            <p className={`text-sm mb-8 leading-relaxed px-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                 We've sent a link to <span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>{email}</span>. Please click the link to activate your cloud sync.
                             </p>
 
-                            <div className={`mb-8 p-3 rounded-xl border flex items-center gap-3 text-left ${isDarkMode ? 'bg-white/5 border-white/5 text-white/40' : 'bg-sage/5 border-sage/5 text-sage-dark/50'}`}>
+                            <div className={`mb-8 p-3 rounded-xl border flex items-center gap-3 text-left ${isDarkMode ? 'bg-white/5 border-white/5 text-white' : 'bg-sage/5 border-sage/5 text-sage-dark/50'}`}>
                                 <AlertCircle size={16} className="shrink-0" />
-                                <p className="text-[11px] leading-tight">
+                                <p className="text-xs leading-tight">
                                     Don't see it? Check your <span className="font-bold">Spam folder</span> or try resending. Emails can take up to 2 minutes.
                                 </p>
                             </div>
@@ -134,7 +134,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                                 className={`w-full py-3 mb-3 rounded-xl border-2 transition-all text-sm font-medium ${linkResent
                                     ? isDarkMode ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-green-50 border-green-200 text-green-600'
                                     : isDarkMode
-                                        ? 'bg-transparent border-white/10 text-white/60 hover:bg-white/5'
+                                        ? 'bg-transparent border-white/10 text-white hover:bg-white/5'
                                         : 'bg-transparent border-sage/20 text-sage-dark/60 hover:bg-sage/5'
                                     }`}
                             >
@@ -158,11 +158,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                             )}
 
                             <div>
-                                <label className={`text-xs font-medium uppercase tracking-widest mb-2 block ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
+                                <label className={`text-xs font-medium uppercase tracking-widest mb-2 block ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                                     Email Address
                                 </label>
                                 <div className="relative">
-                                    <Mail size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/20' : 'text-sage/30'}`} />
+                                    <Mail size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/30'}`} />
                                     <input
                                         required
                                         type="email"
@@ -177,11 +177,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                             </div>
 
                             <div>
-                                <label className={`text-xs font-medium uppercase tracking-widest mb-2 block ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
+                                <label className={`text-xs font-medium uppercase tracking-widest mb-2 block ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                                     Password
                                 </label>
                                 <div className="relative">
-                                    <Lock size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/20' : 'text-sage/30'}`} />
+                                    <Lock size={18} className={`absolute left-4 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/30'}`} />
                                     <input
                                         required
                                         type={showPassword ? "text" : "password"}
@@ -196,7 +196,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDarkMode ? 'text-white/20 hover:text-white/40' : 'text-sage/30 hover:text-sage/50'}`}
+                                        className={`absolute right-4 top-1/2 -translate-y-1/2 transition-colors ${isDarkMode ? 'text-white hover:text-white/40' : 'text-sage/30 hover:text-sage/50'}`}
                                     >
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
@@ -240,7 +240,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                                                 // For MVP reusing the existing success UI is fine as it says "Check your inbox".
                                             }
                                         }}
-                                        className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-white/30 hover:text-white/60' : 'text-sage-dark/40 hover:text-sage-dark/60'}`}
+                                        className={`text-xs font-medium transition-colors ${isDarkMode ? 'text-white hover:text-white/60' : 'text-sage-dark/40 hover:text-sage-dark/60'}`}
                                     >
                                         Forgot Password?
                                     </button>
@@ -248,7 +248,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                                 <button
                                     type="button"
                                     onClick={() => { setIsLogin(!isLogin); setError(null); }}
-                                    className={`block w-full text-sm transition-colors ${isDarkMode ? 'text-white/40 hover:text-white' : 'text-sage-dark/40 hover:text-sage-dark'}`}
+                                    className={`block w-full text-sm transition-colors ${isDarkMode ? 'text-white hover:text-white' : 'text-sage-dark/40 hover:text-sage-dark'}`}
                                 >
                                     {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
                                 </button>
@@ -260,7 +260,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                         <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/5 text-pale-gold' : 'bg-sage/5 text-sage'}`}>
                             <Sparkles size={16} />
                         </div>
-                        <p className={`text-[11px] leading-relaxed italic ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>
+                        <p className={`text-xs leading-relaxed italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                             Cloud accounts enable cross-device synchronization and ensure your settings, goals, and reflections are never lost.
                         </p>
                     </div>

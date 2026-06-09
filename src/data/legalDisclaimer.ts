@@ -11,11 +11,16 @@ export const LEGAL_DISCLAIMER = {
 
 You should always consult with qualified healthcare professionals, licensed therapists, registered dietitians, certified fitness trainers, or other appropriate specialists before making any decisions regarding your health, wellness, lifestyle changes, or before beginning any new health-related program or activity.
 
-Never disregard professional medical advice or delay seeking it because of something you have read, heard, or experienced through this application. If you think you may have a medical emergency, call your doctor or emergency services immediately.`
+Never disregard professional medical advice or delay seeking it because of something you have read, heard, or experienced through this application. If you think you may have a medical emergency, call your doctor or emergency services immediately.
+
+If you or someone you know is in crisis or experiencing thoughts of suicide or self-harm, please reach out for help immediately:
+• National Suicide & Crisis Lifeline: Call or text 988 (US)
+• Crisis Text Line: Text HOME to 741741 (US)
+• International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/`
         },
         {
             heading: "2. AI-GENERATED CONTENT DISCLAIMER",
-            content: `The Palante Coach and certain features of this application utilize artificial intelligence (AI) technology to generate personalized responses, suggestions, and content. AI-generated content may contain errors, inaccuracies, biases, inappropriate suggestions, or information that is incomplete, outdated, or incorrect.
+            content: `The Palante and certain features of this application utilize artificial intelligence (AI) technology to generate personalized responses, suggestions, and content. AI-generated content may contain errors, inaccuracies, biases, inappropriate suggestions, or information that is incomplete, outdated, or incorrect.
 
 AI responses are generated based on algorithms and training data and do not constitute professional advice of any kind. The creators and operators of Palante do not endorse, verify, or guarantee the accuracy, completeness, reliability, or appropriateness of any AI-generated content.
 

@@ -32,20 +32,22 @@ const breathe = {
     },
 };
 
+const ORIENTING_OPTIONS = [
+    { id: 'consistency', label: 'Build consistency', sub: 'Show up every day, no matter what' },
+    { id: 'clarity',     label: 'Find clarity & focus', sub: 'Cut through the noise' },
+    { id: 'stress',      label: 'Manage stress', sub: 'Stay grounded when life gets heavy' },
+    { id: 'purpose',     label: 'Connect to purpose', sub: 'Make my days mean something' },
+];
+
 export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const [step, setStep] = useState(0);
     const [name, setName] = useState('');
+    const [orientingChoice, setOrientingChoice] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     const [nameError, setNameError] = useState('');
 
     const handleComplete = async () => {
-        const trimmed = name.trim();
-        if (!trimmed) {
-            setNameError('Tell us your name so we can make this yours.');
-            return;
-        }
-        setNameError('');
         setIsSubmitting(true);
         try {
             localStorage.setItem('disclaimerAccepted', JSON.stringify({
@@ -54,9 +56,9 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 version: LEGAL_DISCLAIMER.lastUpdated,
             }));
             await onComplete({
-                name: trimmed,
+                name: name.trim(),
                 profession: 'Other',
-                focusGoal: '',
+                focusGoal: orientingChoice,
                 interests: '',
                 quoteIntensity: 2,
                 contentType: 'mix',
@@ -67,6 +69,16 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
             console.error('CinematicIntro error:', err);
             setIsSubmitting(false);
         }
+    };
+
+    const handleNameNext = () => {
+        const trimmed = name.trim();
+        if (!trimmed) {
+            setNameError('Tell us your name so we can make this yours.');
+            return;
+        }
+        setNameError('');
+        setStep(2);
     };
 
     return (
@@ -150,7 +162,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
 
                         {/* Wordmark */}
                         <motion.h1
-                            className="text-5xl font-display font-bold text-white tracking-tight mb-5"
+                            className="text-5xl font-display font-bold text-white tracking-tight mb-4"
                             style={{ textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}
                             initial={{ opacity: 0, y: 14 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -159,33 +171,30 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             Palante
                         </motion.h1>
 
-                        {/* Three-line descriptor */}
-                        <motion.div className="flex flex-col items-center gap-2 mb-14">
-                            {[
-                                'Start every morning with intention.',
-                                'End every evening with clarity.',
-                                'A coach who holds you accountable.',
-                            ].map((line, i) => (
-                                <motion.p
-                                    key={i}
-                                    className="text-lg font-display font-medium tracking-wide"
-                                    style={{ color: 'rgba(229,214,167,0.92)' }}
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.5, delay: 0.48 + i * 0.13 }}
-                                >
-                                    {line}
-                                </motion.p>
-                            ))}
-                        </motion.div>
+                        {/* Positioning line */}
+                        <motion.p
+                            className="font-serif italic text-center mb-14 px-6"
+                            style={{
+                                color: 'rgba(229,214,167,0.62)',
+                                fontSize: '1rem',
+                                lineHeight: '1.55',
+                                maxWidth: '22rem',
+                            }}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.52 }}
+                        >
+                            The art of moving forward.
+                        </motion.p>
 
                         {/* CTA */}
                         <motion.button
                             onClick={() => setStep(1)}
-                            className="px-12 py-4 rounded-full font-bold text-white text-base tracking-wide transition-all hover:brightness-110"
+                            className="px-12 py-4 rounded-full font-bold text-base tracking-wide transition-all hover:brightness-110"
                             style={{
-                                background: '#C96A3A',
-                                boxShadow: '0 10px 36px rgba(201,106,58,0.55)',
+                                background: '#E5D6A7',
+                                color: '#2D3E33',
+                                boxShadow: '0 10px 36px rgba(229,214,167,0.40)',
                             }}
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -198,7 +207,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         {/* Terms */}
                         <motion.button
                             onClick={() => setShowDisclaimer(true)}
-                            className="mt-6 text-[10px] uppercase tracking-widest font-medium"
+                            className="mt-6 text-xs uppercase tracking-widest font-medium"
                             style={{ color: 'rgba(229,214,167,0.32)' }}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -213,7 +222,8 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 {step === 1 && (
                     <motion.div
                         key="name"
-                        className="absolute inset-0 flex flex-col items-center justify-center px-8"
+                        className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
+                        style={{ paddingTop: 'max(env(safe-area-inset-top), 32px)', paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
@@ -225,7 +235,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             </div>
 
                             <motion.h2
-                                className="text-3xl font-display font-bold text-white text-center mb-2 tracking-tight"
+                                className="text-5xl font-display font-bold text-white text-center mb-3 tracking-tight"
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.08 }}
@@ -233,7 +243,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 What is your name?
                             </motion.h2>
                             <motion.p
-                                className="text-center text-sm mb-10"
+                                className="text-center text-base mb-10"
                                 style={{ color: 'rgba(229,214,167,0.55)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -251,36 +261,35 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                     type="text"
                                     value={name}
                                     onChange={e => { setName(e.target.value); setNameError(''); }}
-                                    onKeyDown={e => e.key === 'Enter' && handleComplete()}
+                                    onKeyDown={e => e.key === 'Enter' && handleNameNext()}
                                     placeholder="Your name"
-                                    autoFocus
-                                    className="w-full px-5 py-4 rounded-2xl text-white text-xl text-center font-display outline-none transition-all mb-2"
+                                    className="w-full px-5 py-4 rounded-2xl text-xl text-center font-display outline-none transition-all mb-2"
                                     style={{
-                                        background: 'rgba(255,255,255,0.16)',
-                                        border: nameError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.35)',
-                                        caretColor: '#E5D6A7',
+                                        background: '#FDFBF7',
+                                        color: '#2D3E33',
+                                        border: nameError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.9)',
+                                        caretColor: '#C96A3A',
                                     }}
                                 />
                                 {nameError && (
-                                    <p className="text-xs text-center mb-4" style={{ color: '#C96A3A' }}>{nameError}</p>
+                                    <p className="text-sm text-center mb-4" style={{ color: '#C96A3A' }}>{nameError}</p>
                                 )}
                             </motion.div>
 
                             <motion.button
-                                onClick={handleComplete}
-                                disabled={isSubmitting}
-                                className="w-full mt-4 py-4 rounded-2xl font-bold text-white text-base tracking-wide transition-all active:scale-[0.98]"
+                                onClick={handleNameNext}
+                                className="w-full mt-4 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
                                 style={{
-                                    background: name.trim() ? '#C96A3A' : 'rgba(201,106,58,0.50)',
-                                    boxShadow: name.trim() ? '0 8px 28px rgba(201,106,58,0.48)' : 'none',
-                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                    background: '#E5D6A7',
+                                    color: '#2D3E33',
+                                    boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
                                 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.30 }}
                                 whileTap={{ scale: 0.97 }}
                             >
-                                {isSubmitting ? 'Setting up your practice…' : "Let's go →"}
+                                Continue →
                             </motion.button>
 
                             <motion.button
@@ -296,11 +305,112 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         </div>
                     </motion.div>
                 )}
+                {/* ── STEP 2 · ORIENTING QUESTION ── */}
+                {step === 2 && (
+                    <motion.div
+                        key="orient"
+                        className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
+                        style={{ paddingTop: 'max(env(safe-area-inset-top), 32px)', paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
+                        initial={{ opacity: 0, x: 44 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -44 }}
+                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                        <div className="w-full max-w-sm">
+                            <div className="flex justify-center mb-10">
+                                <Logo className="w-10 h-10" color="rgba(229,214,167,0.55)" />
+                            </div>
+
+                            <motion.h2
+                                className="text-4xl font-display font-bold text-white text-center mb-2 tracking-tight"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.08 }}
+                            >
+                                What's bringing you here?
+                            </motion.h2>
+                            <motion.p
+                                className="text-center text-sm mb-8"
+                                style={{ color: 'rgba(229,214,167,0.55)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.18 }}
+                            >
+                                Your answer shapes how Palante shows up for you.
+                            </motion.p>
+
+                            <motion.div
+                                className="space-y-3"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.22 }}
+                            >
+                                {ORIENTING_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => setOrientingChoice(opt.id)}
+                                        className="w-full text-left px-5 py-4 rounded-2xl transition-all"
+                                        style={{
+                                            background: orientingChoice === opt.id ? 'rgba(229,214,167,0.22)' : 'rgba(255,255,255,0.12)',
+                                            border: orientingChoice === opt.id ? '1.5px solid rgba(229,214,167,0.75)' : '1.5px solid rgba(255,255,255,0.18)',
+                                        }}
+                                    >
+                                        <p className="text-white font-semibold text-sm leading-tight">{opt.label}</p>
+                                        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.70)' }}>{opt.sub}</p>
+                                    </button>
+                                ))}
+                            </motion.div>
+
+                            <motion.button
+                                onClick={handleComplete}
+                                disabled={isSubmitting}
+                                className="w-full mt-6 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
+                                style={{
+                                    background: orientingChoice ? '#E5D6A7' : 'rgba(229,214,167,0.25)',
+                                    color: orientingChoice ? '#2D3E33' : 'rgba(229,214,167,0.40)',
+                                    boxShadow: orientingChoice ? '0 8px 28px rgba(229,214,167,0.40)' : 'none',
+                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.38 }}
+                                whileTap={{ scale: 0.97 }}
+                            >
+                                {isSubmitting ? 'Setting up your practice…' : "Let's begin →"}
+                            </motion.button>
+
+                            {!orientingChoice && (
+                                <motion.button
+                                    onClick={handleComplete}
+                                    disabled={isSubmitting}
+                                    className="w-full mt-3 py-2 text-sm font-medium"
+                                    style={{ color: 'rgba(229,214,167,0.25)' }}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.55 }}
+                                >
+                                    Skip
+                                </motion.button>
+                            )}
+
+                            <motion.button
+                                onClick={() => setStep(1)}
+                                className="w-full mt-2 py-2 text-sm font-medium"
+                                style={{ color: 'rgba(229,214,167,0.25)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.60 }}
+                            >
+                                ← Back
+                            </motion.button>
+                        </div>
+                    </motion.div>
+                )}
             </AnimatePresence>
 
             {/* Progress dots */}
             <div className="absolute bottom-10 inset-x-0 flex justify-center gap-2 pointer-events-none">
-                {[0, 1].map(i => (
+                {[0, 1, 2].map(i => (
                     <div
                         key={i}
                         className="h-1.5 rounded-full transition-all duration-500"

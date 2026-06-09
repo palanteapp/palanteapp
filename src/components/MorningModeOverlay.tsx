@@ -41,7 +41,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
                 {/* Close Button */}
                 <button
                     onClick={handleClose}
-                    className={`absolute top-6 right-6 p-2 rounded-full transition-all z-20 ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white/40' : 'bg-sage/5 hover:bg-sage/10 text-sage/40'}`}
+                    className={`absolute top-6 right-6 p-2 rounded-full transition-all z-20 ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-sage/5 hover:bg-sage/10 text-sage/40'}`}
                 >
                     <X size={20} />
                 </button>
@@ -59,7 +59,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
                         Good Morning, {userName}
                     </h1>
 
-                    <p className={`text-sm mb-8 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/70'}`}>
+                    <p className={`text-sm mb-8 ${isDarkMode ? 'text-white' : 'text-sage-dark/70'}`}>
                         Start your day with intention
                     </p>
 
@@ -69,7 +69,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
                             <p className={`text-lg font-display leading-relaxed mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                 "{quote.text}"
                             </p>
-                            <p className={`text-xs italic ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                            <p className={`text-xs italic ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                                 — {quote.author}
                             </p>
                         </div>
@@ -87,7 +87,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
                     {/* Skip Link */}
                     <button
                         onClick={handleClose}
-                        className={`mt-6 text-xs font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'text-white/30 hover:text-white' : 'text-sage-dark/40 hover:text-sage'}`}
+                        className={`mt-6 text-xs font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'text-white hover:text-white' : 'text-sage-dark/40 hover:text-sage'}`}
                     >
                         Skip for now
                     </button>

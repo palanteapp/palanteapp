@@ -5,18 +5,22 @@
       "name": "Vite Dev Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "cwd": "/Users/michaelvargas/Developer/Palante",
+      "port": 5200,
+      "autoPort": false
     },
     {
       "name": "Vite Preview",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
+      "cwd": "/Users/michaelvargas/Developer/Palante",
       "port": 4173
     },
     {
       "name": "Static Mockup Server",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-p", "3999", "."],
+      "cwd": "/Users/michaelvargas/Developer/Palante",
       "port": 3999
     }
   ]

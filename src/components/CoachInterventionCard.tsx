@@ -61,8 +61,8 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
             <div className="flex items-center gap-2 mb-4">
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-pale-gold/20 backdrop-blur-md`}>
                     <div className="w-1.5 h-1.5 rounded-full bg-pale-gold shadow-[0_0_8px_rgba(232,201,155,1)]" />
-                    <span className="tracking-[0.2em] uppercase text-[10px] font-bold text-pale-gold">
-                        Palante Coach Insight
+                    <span className="tracking-[0.2em] uppercase text-xs font-bold text-pale-gold">
+                        Palante Insight
                     </span>
                 </div>
             </div>
@@ -75,7 +75,7 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
                 }}
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors"
             >
-                <X size={16} className={isDarkMode ? 'text-white/60' : 'text-sage/60'} />
+                <X size={16} className={isDarkMode ? 'text-white' : 'text-sage/60'} />
             </button>
 
             {/* Content */}
@@ -88,7 +88,7 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
                 {/* Message */}
                 <div className="flex-1 pt-1">
                     <div className="flex items-center gap-2 mb-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
+                        <span className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
                             Intelligent Guide
                         </span>
                     </div>
@@ -113,7 +113,7 @@ export const CoachInterventionCard: React.FC<CoachInterventionCardProps> = ({
                                     haptics.light();
                                     onDismiss();
                                 }}
-                                className={`px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-sage/5 text-sage/60 hover:bg-sage/10'}`}
+                                className={`px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-colors ${isDarkMode ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-sage/5 text-sage/60 hover:bg-sage/10'}`}
                             >
                                 Later
                             </button>

@@ -55,6 +55,10 @@ export const useAppProcess = ({
         const currentUser = userRef.current;
         if (!currentUser) return;
 
+        // Never show Week in Review to first-time users (no completed practices yet)
+        const totalPractices = currentUser.practiceData?.totalPractices ?? 0;
+        if (totalPractices === 0) return;
+
         // Check if it's time to generate a report (Sunday evening)
         if (shouldGenerateWeeklyReport()) {
             // Check if we already have a report for this week

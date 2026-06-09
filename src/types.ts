@@ -114,7 +114,9 @@ export interface UserProfile {
     aiDisabled?: boolean; // Master switch to disable all AI features (default: false)
     focusAreas?: ('stress' | 'focus' | 'sleep' | 'confidence' | 'relationships' | 'productivity')[]; // What user is working on
     restDays?: string[]; // ISO date strings of intentional rest days (preserves streak)
+    practiceDays?: number[]; // 0=Sun, 1=Mon … 6=Sat — days user intends to practice each week
     futureLetters?: FutureLetter[]; // Letters written to future self for tough days
+    mandalaColorCycle?: number; // Which color palette the mandala is currently on (increments each 90-day completion)
     weightGoal?: number; // Target weight in lbs
     weightHistory?: { date: string; weight: number }[]; // History of weight logs
     userNarrative?: {
@@ -127,6 +129,7 @@ export interface UserProfile {
         generatedAt: string; // ISO timestamp — refreshed monthly
         dismissed: boolean;  // User has acknowledged it
     };
+    userVoiceProfile?: UserVoiceProfile; // How they want to be spoken to and what matters to them
 }
 
 export interface DailyEveningPractice {
@@ -136,7 +139,33 @@ export interface DailyEveningPractice {
     learning: string;
     accomplishment: string;
     delight: string;
+    commitmentReflection?: string; // User's response to "How did it go with this morning's commitment?"
     reflectionMessage?: string;
+    messageGeneratedAt?: string; // ISO timestamp when message was generated
+    messageRating?: 1 | 2 | 3 | 4 | 5; // How well the message resonated (1=missed, 5=perfect)
+}
+
+// User Voice Profile — how they want to be spoken to and what matters to them
+export interface UserVoiceProfile {
+    userId: string;
+    // How they want to be spoken to
+    voiceTone: 'nurturing' | 'direct' | 'accountability';
+
+    // What matters to them (extracted from their gratitudes/affirmations over time)
+    extractedValues: string[]; // e.g., ["courage", "presence", "growth"] - populated after 14 days
+    coreThemes: string[]; // recurring themes from their gratitudes
+
+    // User preferences
+    messageLength: 'concise' | 'balanced' | 'detailed';
+
+    // What resonates (for future learning)
+    resonantPhrases?: string[]; // phrases that appear in highly-rated messages
+    avoidPhrases?: string[]; // phrases that appear in low-rated messages
+
+    // Metadata
+    createdAt: string;
+    lastUpdated: string;
+    messagesSinceUpdate: number;
 }
 
 // Future Letter (Emotional Time Capsule)
@@ -152,7 +181,7 @@ export interface FutureLetter {
 }
 
 
-// Palante Coach Types
+// Palante Types
 export interface UserBehaviorPattern {
     userId: string;
     patterns: {
@@ -297,7 +326,10 @@ export interface DailyMorningPractice {
     gratitudes: string[]; // List of 5 gratitudes
     affirmations: string[]; // List of 5 affirmations
     dailyIntention?: string; // One word intention
+    commitment?: string; // One concrete thing the user committed to do today, captured after intention
     messageOfTheDay?: string; // Generated AI message
+    messageGeneratedAt?: string; // ISO timestamp when message was generated
+    messageRating?: 1 | 2 | 3 | 4 | 5; // How well the message resonated (1=missed, 5=perfect)
 }
 
 export type DailyPriming = DailyMorningPractice; // Legacy alias
@@ -335,6 +367,7 @@ export interface CoachSettings {
     nudgeFrequency: 'morning-only' | 'morning-evening' | 'off';
     nudgeEnabled: boolean;
     tipsEnabled?: boolean;
+    partnerTipsEnabled?: boolean; // Show time-management & habit tips in accountability section
     waterRemindersEnabled?: boolean;
     lastNudgeTime?: string;
     coachTone?: CoachTone; // How the coach shows up — defaults to 'nurturing'

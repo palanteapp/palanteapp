@@ -12,6 +12,7 @@ interface RingCeremonyProps {
     isDarkMode: boolean;
     onClose: () => void;
     onShare?: () => void;
+    onSave?: () => void;
 }
 
 const CEREMONIES: Record<RingCeremonyType, {
@@ -155,7 +156,7 @@ const MandalaRings: React.FC<{ ringsComplete: number; totalRings: number; accent
 };
 
 export const RingCeremony: React.FC<RingCeremonyProps> = ({
-    type, isOpen, userName, isDarkMode: _isDarkMode, onClose, onShare
+    type, isOpen, userName, isDarkMode: _isDarkMode, onClose, onShare, onSave
 }) => {
     const ceremony = CEREMONIES[type];
     const firstName = userName?.split(' ')[0] || 'you';
@@ -205,7 +206,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
 
                         {/* Phase label */}
                         <motion.p
-                            className="text-[9px] font-black uppercase tracking-[0.35em] text-white/30 mb-8"
+                            className="text-xs font-black uppercase tracking-[0.35em] text-white mb-8"
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3, duration: 0.6 }}
@@ -235,14 +236,14 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.7, duration: 0.6 }}
                         >
-                            <p className="text-[10px] font-black uppercase tracking-[0.28em] mb-2"
+                            <p className="text-xs font-black uppercase tracking-[0.28em] mb-2"
                                 style={{ color: ceremony.accentColor }}>
                                 {ceremony.phase}
                             </p>
                             <h1 className="text-4xl font-display font-medium text-white leading-tight">
                                 {ceremony.title}
                             </h1>
-                            <p className="text-sm font-medium text-white/40 mt-1 tracking-wide">
+                            <p className="text-sm font-medium text-white mt-1 tracking-wide">
                                 {ceremony.subtitle}
                             </p>
                         </motion.div>
@@ -260,7 +261,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                         {/* Koi unlock note */}
                         {ceremony.koi && (
                             <motion.p
-                                className="text-[11px] font-medium tracking-wide mt-4 px-4 py-2 rounded-full border"
+                                className="text-xs font-medium tracking-wide mt-4 px-5 py-2 rounded-full border"
                                 style={{
                                     color: ceremony.accentColor,
                                     borderColor: `${ceremony.accentColor}40`,
@@ -289,10 +290,20 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                                 Keep Growing
                             </button>
 
+                            {onSave && type === 'fullbloom' && (
+                                <button
+                                    onClick={onSave}
+                                    className="w-full py-3 text-xs font-black uppercase tracking-widest transition-colors active:scale-95"
+                                    style={{ color: `${ceremony.accentColor}` }}
+                                >
+                                    Save to Camera Roll
+                                </button>
+                            )}
+
                             {onShare && (
                                 <button
                                     onClick={onShare}
-                                    className="w-full py-3 text-[11px] font-black uppercase tracking-widest transition-colors active:scale-95"
+                                    className="w-full py-3 text-xs font-black uppercase tracking-widest transition-colors active:scale-95"
                                     style={{ color: `${ceremony.accentColor}90` }}
                                 >
                                     Share This Moment
@@ -323,7 +334,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                         </motion.div>
 
                         <motion.p
-                            className="text-[9px] text-white/20 tracking-widest uppercase mt-3"
+                            className="text-xs text-white tracking-widest uppercase mt-3"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 1.7 }}

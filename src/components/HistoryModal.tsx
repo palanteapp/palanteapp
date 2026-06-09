@@ -63,13 +63,13 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                             </p>
 
                             <div className="flex items-center justify-between">
-                                <p className={`text-sm font-body italic ${isDarkMode ? 'text-white/50' : 'text-sage/60'
+                                <p className={`text-sm font-body italic ${isDarkMode ? 'text-white' : 'text-sage/60'
                                     }`}>
                                     — {quote.author}
                                 </p>
 
                                 <div className="flex items-center gap-3">
-                                    <span className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-white/30' : 'text-sage/40'
+                                    <span className={`text-xs flex items-center gap-1 ${isDarkMode ? 'text-white' : 'text-sage/40'
                                         }`}>
                                         <Calendar size={10} />
                                         {new Date(quote.savedAt).toLocaleDateString()}
@@ -81,7 +81,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                                             onRemoveFavorite(quote.id);
                                         }}
                                         className={`p-1.5 rounded-full transition-colors ${isDarkMode
-                                            ? 'text-white/40 hover:text-rose-400 hover:bg-rose-400/10'
+                                            ? 'text-white hover:text-rose-400 hover:bg-rose-400/10'
                                             : 'text-sage/40 hover:text-rose-500 hover:bg-rose-500/10'
                                             }`}
                                         title="Remove from favorites"

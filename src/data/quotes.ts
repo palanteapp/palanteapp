@@ -335,12 +335,12 @@ export const QUOTES: Quote[] = [
     // ============================================
     // AI GENERATED EXAMPLES (for testing Source Preference)
     // ============================================
-    { id: 'ai_1', text: "Your potential is a fire waiting for a spark. Be the spark.", author: "Palante Coach", category: "Potential", intensity: 1, isAI: true },
-    { id: 'ai_2', text: "Efficiency is the currency of success. Spend it wisely.", author: "Palante Coach", category: "Efficiency", intensity: 2, isAI: true },
-    { id: 'ai_3', text: "Excuses are the obstacles that block the path to success. Move past them.", author: "Palante Coach", category: "Commitment", intensity: 3, isAI: true },
-    { id: 'ai_4', text: "Create the future you want to live in, one action at a time.", author: "Palante Coach", category: "Action", intensity: 1, isAI: true },
-    { id: 'ai_5', text: "Discipline is not a punishment, it's a bridge to your goals.", author: "Palante Coach", category: "Discipline", intensity: 2, isAI: true },
-    { id: 'ai_6', text: "Pain is temporary. Quitting lasts forever.", author: "Palante Coach", category: "Resilience", intensity: 3, isAI: true },
+    { id: 'ai_1', text: "Your potential is a fire waiting for a spark. Be the spark.", author: "Palante", category: "Potential", intensity: 1, isAI: true },
+    { id: 'ai_2', text: "Efficiency is the currency of success. Spend it wisely.", author: "Palante", category: "Efficiency", intensity: 2, isAI: true },
+    { id: 'ai_3', text: "Excuses are the obstacles that block the path to success. Move past them.", author: "Palante", category: "Commitment", intensity: 3, isAI: true },
+    { id: 'ai_4', text: "Create the future you want to live in, one action at a time.", author: "Palante", category: "Action", intensity: 1, isAI: true },
+    { id: 'ai_5', text: "Discipline is not a punishment, it's a bridge to your goals.", author: "Palante", category: "Discipline", intensity: 2, isAI: true },
+    { id: 'ai_6', text: "Pain is temporary. Quitting lasts forever.", author: "Palante", category: "Resilience", intensity: 3, isAI: true },
     // ============================================
     // NEW USER REQUESTED AUTHORS (Diverse & Visionary)
     // ============================================

@@ -44,8 +44,8 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
   const shellBg  = isDarkMode ? 'bg-[#3A3D2E]' : 'bg-[#F0EBE3]';
   const border   = isDarkMode ? 'border-white/10' : 'border-[rgba(212,184,130,0.35)]';
   const text     = isDarkMode ? 'text-white'     : 'text-[#2D2016]';
-  const textMid  = isDarkMode ? 'text-white/55'  : 'text-[#6B4C3B]/70';
-  const textDim  = isDarkMode ? 'text-white/30'  : 'text-[#6B4C3B]/40';
+  const textMid  = isDarkMode ? 'text-white'  : 'text-[#6B4C3B]/70';
+  const textDim  = isDarkMode ? 'text-white'  : 'text-[#6B4C3B]/40';
 
   return (
     <AnimatePresence>
@@ -86,7 +86,7 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mt-1 ${isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-black/8 text-[#6B4C3B] hover:bg-black/14'}`}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all mt-1 ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-black/8 text-[#6B4C3B] hover:bg-black/14'}`}
               >
                 <X size={16} />
               </button>
@@ -102,7 +102,7 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
                     <Flame size={16} className="text-orange-400" />
                     <span className={`text-2xl font-display font-bold tabular-nums ${text}`}>{streak}</span>
                   </div>
-                  <span className={`text-[9px] uppercase tracking-widest font-bold ${textDim}`}>Day Streak</span>
+                  <span className={`text-xs uppercase tracking-widest font-bold ${textDim}`}>Day Streak</span>
                 </div>
                 <div className={`w-px h-10 ${isDarkMode ? 'bg-white/10' : 'bg-[#C96A3A]/15'}`} />
                 <div className="flex flex-col items-center gap-0.5">
@@ -110,15 +110,15 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
                     <Sparkles size={16} className="text-pale-gold" />
                     <span className={`text-2xl font-display font-bold tabular-nums ${text}`}>{points.toLocaleString()}</span>
                   </div>
-                  <span className={`text-[9px] uppercase tracking-widest font-bold ${textDim}`}>Total Points</span>
+                  <span className={`text-xs uppercase tracking-widest font-bold ${textDim}`}>Total Points</span>
                 </div>
                 <div className={`w-px h-10 ${isDarkMode ? 'bg-white/10' : 'bg-[#C96A3A]/15'}`} />
                 <div className="flex-1">
                   {nextStreak && (
                     <div className="mb-1">
                       <div className="flex justify-between mb-1">
-                        <span className={`text-[9px] uppercase tracking-widest font-bold ${textDim}`}>Next: {nextStreak.label}</span>
-                        <span className={`text-[9px] font-bold ${textDim}`}>{nextStreak.threshold - streak}d left</span>
+                        <span className={`text-xs uppercase tracking-widest font-bold ${textDim}`}>Next: {nextStreak.label}</span>
+                        <span className={`text-xs font-bold ${textDim}`}>{nextStreak.threshold - streak}d left</span>
                       </div>
                       <div className={`h-1 rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-[#C96A3A]/12'}`}>
                         <motion.div
@@ -133,8 +133,8 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
                   {nextPoints && (
                     <div>
                       <div className="flex justify-between mb-1">
-                        <span className={`text-[9px] uppercase tracking-widest font-bold ${textDim}`}>{nextPoints.label}</span>
-                        <span className={`text-[9px] font-bold ${textDim}`}>{(nextPoints.threshold - points).toLocaleString()} pts</span>
+                        <span className={`text-xs uppercase tracking-widest font-bold ${textDim}`}>{nextPoints.label}</span>
+                        <span className={`text-xs font-bold ${textDim}`}>{(nextPoints.threshold - points).toLocaleString()} pts</span>
                       </div>
                       <div className={`h-1 rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-[#E5D6A7]/30'}`}>
                         <motion.div
@@ -196,11 +196,11 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
                         {/* Text */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
-                            <p className={`text-sm font-bold ${unlocked ? text : textMid} ${!unlocked && 'opacity-50'}`}>
+                            <p className={`text-base font-bold ${unlocked ? text : textMid} ${!unlocked && 'opacity-50'}`}>
                               {m.label}
                             </p>
                             {isNext && !unlocked && (
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-[#C96A3A] bg-[#C96A3A]/12 px-2 py-0.5 rounded-full">
+                              <span className="text-xs font-bold uppercase tracking-wider text-[#C96A3A] bg-[#C96A3A]/12 px-2 py-0.5 rounded-full">
                                 Next
                               </span>
                             )}
@@ -271,11 +271,11 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
-                            <p className={`text-sm font-bold ${unlocked ? text : textMid} ${!unlocked && 'opacity-50'}`}>
+                            <p className={`text-base font-bold ${unlocked ? text : textMid} ${!unlocked && 'opacity-50'}`}>
                               {m.label}
                             </p>
                             {isNext && !unlocked && (
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-pale-gold bg-pale-gold/15 px-2 py-0.5 rounded-full">
+                              <span className="text-xs font-bold uppercase tracking-wider text-pale-gold bg-pale-gold/15 px-2 py-0.5 rounded-full">
                                 Next
                               </span>
                             )}

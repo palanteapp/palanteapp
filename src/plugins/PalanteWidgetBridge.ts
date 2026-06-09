@@ -5,6 +5,7 @@ export interface PalanteWidgetBridgePlugin {
     streak: number;
     practiceName: string;
     practiceComplete: boolean;
+    totalPractices?: number;
     quotes?: Array<{ text: string; author: string }>;
     quoteStartIndex?: number;
     goals?: Array<{ text: string; completed: boolean }>;

@@ -24,7 +24,7 @@ export const OfflineBanner: React.FC = () => {
                 }`}
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-            <div className="flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium">
+            <div className="flex items-center justify-center gap-2 px-5 py-2 text-white text-sm font-medium">
                 {!isOnline && <WifiOff size={16} />}
                 <span>
                     {isOnline ? '✓ Back online' : 'You\'re offline - some features unavailable'}

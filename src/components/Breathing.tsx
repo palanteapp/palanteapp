@@ -11,6 +11,7 @@ type Technique = 'Box' | '4-7-8' | 'Coherent';
 
 interface BreathworkProps {
     onComplete?: () => void;
+    onExit?: () => void;
     onShowTip?: () => void;
     isActive?: boolean;
     isDarkMode?: boolean;
@@ -23,17 +24,15 @@ const TECHNIQUES = {
         label: 'Energy',
         subLabel: 'Box Breathing',
         phases: [
-            { name: 'Exhale', duration: 4 },
-            { name: 'HoldOut', duration: 4 },
             { name: 'Inhale', duration: 4 },
             { name: 'HoldIn', duration: 4 },
+            { name: 'Exhale', duration: 4 },
         ] as const,
         intro: "A powerful technique used by professionals to instantly calm the nervous system and regain focus.",
         instructions: [
             { title: "Inhale (4s)", desc: "Build the charge." },
             { title: "Hold (4s)", desc: "Contain the energy." },
             { title: "Exhale (4s)", desc: "Release and expand." },
-            { title: "Hold (4s)", desc: "Center and reset." }
         ],
         benefits: [
             { title: "Reduces Stress", desc: "Calms the fight-or-flight response." },
@@ -72,8 +71,8 @@ const TECHNIQUES = {
         label: 'Balance',
         subLabel: 'Coherent Breathing',
         phases: [
-            { name: 'Exhale', duration: 6 },
             { name: 'Inhale', duration: 6 },
+            { name: 'Exhale', duration: 6 },
         ] as const,
         intro: "Coherent breathing balances the nervous system in a continuous flow.",
         instructions: [
@@ -136,352 +135,170 @@ const SakuraPetals = memo(({ isDarkMode }: { isDarkMode: boolean }) => {
     );
 });
 
-// --- VISUAL MASTERPIECES (REFINED ETHEREAL) ---
+// ── Breathwork Visuals — CSS transitions only, zero per-frame JS ─────────────
+// All animation runs on the GPU compositor via transform + opacity.
+// Each component receives the current phase name and its duration (seconds);
+// a CSS transition fires once per phase boundary — no rAF, no SVG math.
 
+/** Sacred geometry background layer — static, one per technique */
+const SacredGeo = memo(({ technique }: { technique: Technique }) => {
+    const cx = 100, cy = 100;
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const pt = (r: number, deg: number): [number, number] => [
+        cx + r * Math.cos(toRad(deg)),
+        cy + r * Math.sin(toRad(deg)),
+    ];
 
-
-// 1. Box Breathing: "Sacred Box Dynamics"
-// Concept: Nested squares that expand/contract and rotate in alternating directions
-// Dynamic, structural, and strictly aligned with breath phases
-const SacredBoxDynamics = memo(({ phase, progress }: { phase: string, progress: number }) => {
-    const cx = 170;
-    const cy = 170;
-
-    // Configuration
-    const numSquares = 4;
-    const baseSize = 55; // Increased from 50 to match visual weight
-
-    // Easing function for smooth motion
-    const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-    // Calculate generic factor based on phase
-    let factor = 0;
-
-    if (phase === 'Inhale') {
-        factor = easeInOutCubic(progress);
-    } else if (phase === 'HoldIn') {
-        factor = 1.0; // Stay fully expanded
-    } else if (phase === 'Exhale') {
-        factor = 1.0 - easeInOutCubic(progress);
-    } else if (phase === 'HoldOut') {
-        factor = 0.0; // Stay fully contracted
+    if (technique === 'Box') {
+        // Metatron's Cube — Fruit of Life (13 circles) + all 78 connecting lines
+        const d = 22;
+        const centers: [number, number][] = [
+            [cx, cy],
+            ...Array.from({ length: 6 }, (_, i) => pt(d,     -90 + i * 60)),
+            ...Array.from({ length: 6 }, (_, i) => pt(d * 2, -90 + i * 60)),
+        ];
+        const lines: React.ReactElement[] = [];
+        for (let i = 0; i < centers.length; i++)
+            for (let j = i + 1; j < centers.length; j++)
+                lines.push(
+                    <line key={`${i}-${j}`}
+                        x1={centers[i][0]} y1={centers[i][1]}
+                        x2={centers[j][0]} y2={centers[j][1]} />
+                );
+        return (
+            <g fill="none" stroke="rgba(229,214,167,0.13)" strokeWidth="0.6">
+                {centers.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={d} />)}
+                {lines}
+            </g>
+        );
     }
 
+    if (technique === '4-7-8') {
+        // Golden Spiral — logarithmic spiral, grows by φ per quarter turn, 1.5 revolutions
+        const phi = 1.6180339887;
+        const N = 300, tMax = 3 * Math.PI;
+        const pts = Array.from({ length: N }, (_, i) => {
+            const t = (i / (N - 1)) * tMax;
+            const r = 3.5 * Math.pow(phi, (2 * t) / Math.PI);
+            const a = -Math.PI / 2 + t; // starts at 12 o'clock, winds clockwise
+            return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
+        });
+        return (
+            <polyline points={pts.join(' ')} fill="none"
+                stroke="rgba(229,214,167,0.22)" strokeWidth="1.1" />
+        );
+    }
+
+    // Coherent → Merkaba (two interlocking tetrahedra, 2-D star-tetrahedron projection)
+    const R    = 56;
+    const rHex = R / Math.sqrt(3);
+    const upTri  = [-90,  30, 150].map(deg => pt(R, deg));
+    const dnTri  = [ 90, -30, 210].map(deg => pt(R, deg));
+    const hexPts = [-60,   0,  60, 120, 180, 240].map(deg => pt(rHex, deg));
+    const str    = ([x, y]: [number, number]) => `${x.toFixed(2)},${y.toFixed(2)}`;
+
     return (
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu">
-            <svg viewBox="0 0 340 340" className="w-full h-full overflow-visible">
-                <defs>
-                    <filter id="box-glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2.5" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                    <linearGradient id="box-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#E5D6A7" stopOpacity="0.9" />
-                        <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.7" />
-                    </linearGradient>
-                </defs>
+        <g fill="none" stroke="rgba(229,214,167,0.16)" strokeWidth="0.9">
+            <polygon points={upTri.map(str).join(' ')} />
+            <polygon points={dnTri.map(str).join(' ')} />
+            <polygon points={hexPts.map(str).join(' ')} strokeWidth="0.55" />
+            {hexPts.map((h, i) => (
+                <line key={i} x1={cx} y1={cy} x2={h[0]} y2={h[1]} strokeWidth="0.5" />
+            ))}
+        </g>
+    );
+});
 
-                {/* Render concentric squares */}
-                {Array.from({ length: numSquares }).map((_, i) => {
-                    // Each square expands further than the last
-                    // MODIFIED: Reduced expansionGap from 35 to 30 to prevent clipping at max rotation
-                    // Max width calc: 50 + (3*20) + (4*30*1) = 110 + 120 = 230px
-                    // Max Diagonal: 230 * 1.414 = 325px (Fits safely in 340px)
-                    const expansionGap = 30;
-                    const currentSize = baseSize + (i * 20) + ((i + 1) * expansionGap * factor);
-                    const half = currentSize / 2;
+/** Unified ring visual — one ring track for all three techniques.
+ *  Orb orbits the ring in one cycle. Tangential tick marks at phase transitions.
+ *  Inner circle breathes with the phase. */
+const RingVisual = memo(({ phase, duration, technique }: {
+    phase: string; duration: number; technique: Technique;
+}) => {
+    const R  = 82;
+    const cx = 100, cy = 100;
+    const config       = TECHNIQUES[technique];
+    const cycleDuration = config.phases.reduce((sum, p) => sum + p.duration, 0);
 
-                    // Rotation: Alternating directions, increasing with factor
-                    const direction = i % 2 === 0 ? 1 : -1;
-                    const rotation = (factor * 90 * direction) + (i * 22.5); // Increased rotation range
+    // Angle from top (−90°), clockwise — mark every phase transition
+    let acc = 0;
+    const markerAngles: number[] = [];
+    config.phases.forEach(p => {
+        const deg = -90 + (acc / cycleDuration) * 360;
+        markerAngles.push(deg);
+        acc += p.duration;
+    });
 
-                    // Opacity: Inner squares slightly more visible
-                    const opacity = 0.3 + (i * 0.15) + (factor * 0.2);
+    const isExpanded = phase === 'Inhale' || phase === 'HoldIn';
+    const ease = technique === 'Box'      ? 'linear'
+               : technique === 'Coherent' ? 'ease-in-out'
+               :                           'cubic-bezier(0.4, 0, 0.2, 1)';
 
+    return (
+        <div className="relative flex items-center justify-center" style={{ width: 200, height: 200 }}>
+            <svg width="200" height="200" style={{ position: 'absolute', overflow: 'visible' }}>
+                {/* Sacred geometry — bottom layer */}
+                <SacredGeo technique={technique} />
+                {/* Track ring */}
+                <circle cx={cx} cy={cy} r={R}
+                    fill="none" stroke="rgba(229,214,167,0.15)" strokeWidth="2" />
+                {/* Tangential phase-transition markers */}
+                {markerAngles.map((deg, i) => {
+                    const rad = (deg * Math.PI) / 180;
+                    const mx  = cx + R * Math.cos(rad);
+                    const my  = cy + R * Math.sin(rad);
+                    const tx  = -Math.sin(rad);
+                    const ty  =  Math.cos(rad);
+                    const len = 6;
                     return (
-                        <rect
-                            key={i}
-                            x={cx - half}
-                            y={cy - half}
-                            width={currentSize}
-                            height={currentSize}
-                            fill="none"
-                            stroke="url(#box-gradient)"
-                            strokeWidth={2}
-                            strokeOpacity={opacity}
-                            rx={4}
-                            transform={`rotate(${rotation}, ${cx}, ${cy})`}
-                            filter="url(#box-glow)"
-                            className="transform-gpu"
-                        />
+                        <line key={i}
+                            x1={mx - tx * len} y1={my - ty * len}
+                            x2={mx + tx * len} y2={my + ty * len}
+                            stroke="rgba(229,214,167,0.65)" strokeWidth="2.5" strokeLinecap="round" />
                     );
                 })}
-
-                {/* Central Anchor */}
-                <circle cx={cx} cy={cy} r={5} fill="#E5D6A7" opacity={0.6 + (factor * 0.4)} filter="url(#box-glow)" />
-
-                {/* Connecting diagonal lines for sacred geometry feel */}
-                {factor > 0.3 && (
-                    <g opacity={factor * 0.3} stroke="#E5D6A7" strokeWidth="0.5" filter="url(#box-glow)">
-                        <line x1={cx - 60} y1={cy - 60} x2={cx + 60} y2={cy + 60} />
-                        <line x1={cx + 60} y1={cy - 60} x2={cx - 60} y2={cy + 60} />
-                    </g>
-                )}
             </svg>
+            {/* Inner breathing circle */}
+            <div style={{
+                position: 'absolute',
+                width: 126, height: 126,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(229,214,167,0.10) 10%, rgba(229,214,167,0.03) 60%, transparent 100%)',
+                border: '1.5px solid rgba(229,214,167,0.32)',
+                transform: `scale(${isExpanded ? 1 : 0.55})`,
+                transition: `transform ${duration}s ${ease}`,
+                willChange: 'transform',
+            }} />
+            {/* Center dot */}
+            <div style={{
+                position: 'absolute',
+                width: 5, height: 5,
+                borderRadius: '50%',
+                background: 'rgba(229,214,167,0.45)',
+                boxShadow: '0 0 4px rgba(229,214,167,0.3)',
+            }} />
+            {/* Orbiting bead — starts at 12 o'clock, travels clockwise */}
+            <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                width: 11, height: 11,
+                marginTop: -5.5, marginLeft: -5.5,
+                borderRadius: '50%',
+                background: 'rgba(229,214,167,0.95)',
+                boxShadow: '0 0 10px rgba(229,214,167,0.85), 0 0 22px rgba(229,214,167,0.4)',
+                opacity: phase !== '' ? 1 : 0,
+                transition: 'opacity 0.6s ease',
+                animation: `orbit-ring ${cycleDuration}s linear infinite`,
+                animationPlayState: phase !== '' ? 'running' : 'paused',
+                willChange: 'transform',
+            }} />
         </div>
     );
 });
 
-// 2. Coherent Breathing: "The Flower of Life"
-// Concept: A sacred geometry mesh that gently expands and blooms
-const FlowerOfLife = memo(({ phase, progress }: { phase: string, progress: number }) => {
-    const cx = 170;
-    const cy = 170;
-    const baseRadius = 48; // Consistent sizing
+// --- Main Controller ---
 
-    // Easing and Logic
-    const rawProgress = phase === 'Inhale' || phase === 'HoldIn' ? progress : 1 - progress;
-    const breathProgress = (1 - Math.cos(rawProgress * Math.PI)) / 2;
-
-    // Radius & Spacing Expansion (The "Bloom")
-    // The pattern expands gently as a single cohesive unit
-    const expansionFactor = 1.4; // Increased to 40% expansion for better visibility
-    const currentR = baseRadius + (baseRadius * (expansionFactor - 1) * breathProgress);
-    const spacing = currentR; // Spacing equals radius for perfect geometry intersections
-
-    // Color Interpolation: Sage (#7E9F89) to Pale Gold (#E5D6A7)
-    const r = 126 + (229 - 126) * breathProgress;
-    const g = 159 + (214 - 159) * breathProgress;
-    const b = 137 + (167 - 137) * breathProgress;
-    const strokeColor = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
-
-    // Opacity: Pulses slightly with breath
-    const baseOpacity = 0.4 + (breathProgress * 0.4);
-
-    // Generate Circles (Center + 2 Rings - 19 total)
-    const circles = [];
-    circles.push({ x: 0, y: 0 }); // Center
-
-    // First Ring
-    for (let i = 0; i < 6; i++) {
-        const theta = (i * 60) * Math.PI / 180;
-        circles.push({ x: Math.cos(theta) * spacing, y: Math.sin(theta) * spacing });
-    }
-
-    // Second Ring
-    for (let i = 0; i < 6; i++) {
-        const theta = (i * 60) * Math.PI / 180;
-        circles.push({ x: Math.cos(theta) * 2 * spacing, y: Math.sin(theta) * 2 * spacing });
-        const thetaGap = (i * 60 + 30) * Math.PI / 180;
-        circles.push({ x: Math.cos(thetaGap) * spacing * Math.sqrt(3), y: Math.sin(thetaGap) * spacing * Math.sqrt(3) });
-    }
-
-    return (
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu">
-            <svg viewBox="0 0 340 340" className="w-full h-full overflow-visible">
-                <defs>
-                    <filter id="flower-glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="2" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                    <radialGradient id="flower-center-glow">
-                        <stop offset="0%" stopColor="#E5D6A7" stopOpacity={0.4 * breathProgress} />
-                        <stop offset="70%" stopColor="#7E9F89" stopOpacity="0" />
-                    </radialGradient>
-                </defs>
-
-                {/* Background Glow from center */}
-                <circle cx={cx} cy={cy} r={spacing * 2.5} fill="url(#flower-center-glow)" />
-
-                {/* The Flower Mesh */}
-                <g filter="url(#flower-glow)">
-                    {circles.map((pos, i) => (
-                        <circle
-                            key={i}
-                            cx={cx + pos.x}
-                            cy={cy + pos.y}
-                            r={currentR}
-                            fill="none"
-                            stroke={strokeColor}
-                            strokeWidth={1.5}
-                            opacity={baseOpacity}
-                            className="transition-colors duration-75"
-                        />
-                    ))}
-                </g>
-
-                {/* Golden Intersections Highlights */}
-                <g style={{ opacity: Math.max(0, (breathProgress - 0.5) * 2) }}>
-                    {circles.map((pos, i) => (
-                        <circle
-                            key={`dot-${i}`}
-                            cx={cx + pos.x}
-                            cy={cy + pos.y}
-                            r={1.5}
-                            fill="#E5D6A7"
-                            filter="url(#flower-glow)"
-                        />
-                    ))}
-                </g>
-            </svg>
-        </div>
-    );
-});
-
-// 3. 4-7-8 Breathing: "The Mandala Bloom"
-// Concept: Sacred flower-of-life pattern that blooms and contracts
-// Orbs travel from center to petals and back
-const MandalaBloom = memo(({ phase, progress }: { phase: string, progress: number }) => {
-    const cx = 170;
-    const cy = 170;
-    const petalCount = 8;
-    const maxRadius = 145; // Increased to 145 to match visual size
-    // Calculate expansion based on phase
-    let expansionRadius = 30; // Min radius
-    let rotation = 0;
-    const orbPositions: { x: number, y: number }[] = [];
-
-    if (phase === 'Inhale') {
-        // Expand from 30 to maxRadius
-        expansionRadius = 30 + (progress * (maxRadius - 30));
-    } else if (phase === 'HoldIn') {
-        // Hold at full expansion with gentle rotation
-        expansionRadius = maxRadius;
-        rotation = progress * 15; // Slow rotation during hold
-    } else if (phase === 'Exhale') {
-        // Contract from maxRadius to 30
-        expansionRadius = 30 + ((1 - progress) * (maxRadius - 30));
-    }
-
-    // Create petal positions (orbs at the tips)
-    for (let i = 0; i < petalCount; i++) {
-        const angle = (i / petalCount) * Math.PI * 2 + (rotation * Math.PI / 180);
-        orbPositions.push({
-            x: cx + Math.cos(angle) * expansionRadius,
-            y: cy + Math.sin(angle) * expansionRadius
-        });
-    }
-
-    // Create overlapping circles pattern (flower of life)
-    const createPetalPath = (angle: number, radius: number) => {
-        const petalX = cx + Math.cos(angle) * radius * 0.5;
-        const petalY = cy + Math.sin(angle) * radius * 0.5;
-        return { cx: petalX, cy: petalY, r: radius * 0.6 };
-    };
-
-    const petals = [];
-    for (let i = 0; i < petalCount; i++) {
-        const angle = (i / petalCount) * Math.PI * 2 + (rotation * Math.PI / 180);
-        petals.push(createPetalPath(angle, expansionRadius));
-    }
-
-    // Opacity based on phase
-    const petalOpacity = phase === 'HoldIn' ? 0.4 : 0.25;
-    const centerGlowOpacity = phase === 'HoldIn' ? 0.8 : 0.4 + (expansionRadius / maxRadius) * 0.2;
-
-    return (
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center transform-gpu">
-            <svg viewBox="0 0 340 340" className="w-full h-full overflow-visible">
-                <defs>
-                    <filter id="mandala-glow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                    <radialGradient id="mandala-center">
-                        <stop offset="0%" stopColor="#E5D6A7" stopOpacity="0.6" />
-                        <stop offset="50%" stopColor="#E5D6A7" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#E5D6A7" stopOpacity="0" />
-                    </radialGradient>
-                </defs>
-
-                {/* Central glow - pulses with breath */}
-                <circle
-                    cx={cx}
-                    cy={cy}
-                    r={20 + expansionRadius * 0.3}
-                    fill="url(#mandala-center)"
-                    opacity={centerGlowOpacity}
-                    className="transition-opacity duration-700 ease-in-out"
-                />
-
-                {/* Flower of Life petals */}
-                {petals.map((petal, i) => (
-                    <circle
-                        key={`petal-${i}`}
-                        cx={petal.cx}
-                        cy={petal.cy}
-                        r={petal.r}
-                        fill="none"
-                        stroke="#E5D6A7"
-                        strokeWidth="1.5"
-                        opacity={petalOpacity}
-                        filter="url(#mandala-glow)"
-                        className="transform-gpu"
-                    />
-                ))}
-
-                {/* Outer ring connecting the petals */}
-                {expansionRadius > 20 && (
-                    <circle
-                        cx={cx}
-                        cy={cy}
-                        r={expansionRadius}
-                        fill="none"
-                        stroke="#E5D6A7"
-                        strokeWidth="1"
-                        opacity="0.3"
-                        filter="url(#mandala-glow)"
-                        className="transform-gpu"
-                    />
-                )}
-
-                {/* Lines from center to orbs */}
-                {orbPositions.map((pos, i) => (
-                    expansionRadius > 10 && (
-                        <line
-                            key={`line-${i}`}
-                            x1={cx}
-                            y1={cy}
-                            x2={pos.x}
-                            y2={pos.y}
-                            stroke="#E5D6A7"
-                            strokeWidth="1"
-                            opacity="0.2"
-                            className="transition-all duration-600 ease-in-out"
-                        />
-                    )
-                ))}
-
-                {/* Central orb */}
-                <g filter="url(#mandala-glow)">
-                    <circle cx={cx} cy={cy} r="6" fill="#FFF" opacity="0.9" />
-                    <circle cx={cx} cy={cy} r="12" fill="#E5D6A7" fillOpacity="0.4" />
-                </g>
-
-                {/* Traveling orbs at petal tips */}
-                {orbPositions.map((pos, i) => (
-                    expansionRadius > 30 && (
-                        <g key={`orb-${i}`} filter="url(#mandala-glow)">
-                            <circle cx={pos.x} cy={pos.y} r="4" fill="#FFF" opacity="0.8" />
-                            <circle cx={pos.x} cy={pos.y} r="8" fill="#E5D6A7" fillOpacity="0.3" />
-                            {phase === 'HoldIn' && (
-                                <circle cx={pos.x} cy={pos.y} r="14" fill="none" stroke="#E5D6A7" strokeWidth="1" opacity="0.2">
-                                    <animate attributeName="r" values="10;18;10" dur="2s" repeatCount="indefinite" begin={`${i * 0.25}s`} />
-                                    <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite" begin={`${i * 0.25}s`} />
-                                </circle>
-                            )}
-                        </g>
-                    )
-                ))}
-            </svg>
-        </div>
-    );
-});
-
-
-// --- Main Controller (Engine Same, Scale Logic Added) ---
-
-export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkMode = false }) => {
+export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip, isDarkMode = false }) => {
     const { triggerHaptic } = useHaptics();
     const [activeTechnique, setActiveTechnique] = useState<Technique>('Box');
     const [status, setStatus] = useState<'idle' | 'countdown' | 'active'>('idle');
@@ -489,8 +306,8 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
 
 
 
-    // DOM ref for direct scale manipulation — bypasses React for 60fps smoothness
-    const visualScaleRef = useRef<HTMLDivElement>(null);
+    // Phase state drives CSS transitions — updates only at phase boundaries, not per-frame
+    const [phaseState, setPhaseState] = useState<{ phase: string; duration: number }>({ phase: '', duration: 4 });
 
     // Safety Refs
     const statusRef = useRef(status);
@@ -583,7 +400,6 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
         pausedTimeRef.current = 0;
         lastTickRef.current = 0;
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
-        if (visualScaleRef.current) visualScaleRef.current.style.transform = '';
         await releaseWakeLock();
     }, [releaseWakeLock]);
 
@@ -676,6 +492,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
         if (activePhaseIndex !== phaseIndexRef.current) {
             triggerHapticRef.current('heavy');
             phaseIndexRef.current = activePhaseIndex;
+            setPhaseState({ phase: activePhase.name, duration: activePhase.duration });
         } else if (!isPausedRef.current) {
             const phase = phases[activePhaseIndex];
             if (enhancements.hapticDarkMode) {
@@ -701,20 +518,6 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
 
 
         const progress = timeInCurrentPhase / (activePhase.duration * 1000);
-
-        // Direct DOM scale — same rAF frame, no React reconciliation, no dropped frames
-        if (visualScaleRef.current) {
-            const ease = (t: number) => (1 - Math.cos(t * Math.PI)) / 2;
-            const ph = activePhase.name;
-            const coh = currentTech === 'Coherent';
-            let sc: number;
-            if      (ph === 'Exhale')  { sc = 1.12 - (coh ? ease(progress) : progress) * 0.22; }
-            else if (ph === 'HoldOut') { sc = 0.90 + Math.sin(progress * Math.PI) * 0.01; }
-            else if (ph === 'Inhale')  { sc = 0.90 + (coh ? ease(progress) : progress) * 0.22; }
-            else if (ph === 'HoldIn')  { sc = 1.12 + Math.sin(progress * Math.PI) * 0.015; }
-            else                       { sc = 1.0; }
-            visualScaleRef.current.style.transform = `scale(${sc})`;
-        }
 
         setPhaseProgress(progress);
         setCurrentPhaseSimple(activePhase.name);
@@ -752,6 +555,16 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
         else { if (pauseStartRef.current > 0) { pausedTimeRef.current += performance.now() - pauseStartRef.current; pauseStartRef.current = 0; } }
     }, [isPaused]);
 
+    // Seed the visual with phase[0] the moment a session becomes active
+    useEffect(() => {
+        if (status === 'active') {
+            const cfg = TECHNIQUES[activeTechnique];
+            setPhaseState({ phase: cfg.phases[0].name, duration: cfg.phases[0].duration });
+        } else {
+            setPhaseState({ phase: '', duration: 4 });
+        }
+    }, [status, activeTechnique]);
+
 
 
     // Background hue that shifts with breath phase (for dynamicBackgrounds enhancement)
@@ -768,9 +581,8 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
     };
 
     const renderVisual = () => {
-        if (activeTechnique === 'Box') return <SacredBoxDynamics phase={currentPhaseSimple} progress={phaseProgress} />;
-        if (activeTechnique === 'Coherent') return <FlowerOfLife phase={currentPhaseSimple} progress={phaseProgress} />;
-        return <MandalaBloom phase={currentPhaseSimple} progress={phaseProgress} />;
+        const { phase, duration } = phaseState;
+        return <RingVisual key={activeTechnique} phase={phase} duration={duration} technique={activeTechnique} />;
     };
 
     return (
@@ -783,9 +595,13 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
             .animate-breathe-idle {
                 animation: breathe-idle 6s ease-in-out infinite;
             }
+            @keyframes orbit-ring {
+                from { transform: rotate(-90deg) translateX(82px); }
+                to   { transform: rotate(270deg) translateX(82px); }
+            }
         ` }} />
         <div
-            className="relative w-full flex flex-col items-center text-white overflow-hidden bg-transparent"
+            className="relative w-full h-full flex flex-col items-center text-white overflow-hidden bg-transparent"
             onMouseMove={() => { setShowControls(true); setTimeout(() => setShowControls(false), 3000); }}
             onTouchStart={() => setShowControls(true)}
         >
@@ -796,17 +612,17 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                     onDoubleClick={() => reset()}
                 >
                     <div className="text-center">
-                        <p className="text-white/20 text-[9px] uppercase tracking-[0.35em] mb-12">Dark Sensory Mode</p>
+                        <p className="text-white text-xs uppercase tracking-[0.35em] mb-12">Dark Sensory Mode</p>
                         <div className="text-white text-6xl font-display font-light tracking-[0.15em] mb-4">
                             {isPaused ? 'PAUSED' : phaseName}
                         </div>
-                        <div className="text-white/30 text-5xl font-mono font-light tabular-nums">{timeLeftInPhase}s</div>
-                        <div className="text-white/15 font-mono text-sm mt-10">
+                        <div className="text-white text-5xl font-mono font-light tabular-nums">{timeLeftInPhase}s</div>
+                        <div className="text-white font-mono text-sm mt-10">
                             {Math.floor(totalSecondsLeft / 60)}:{String(totalSecondsLeft % 60).padStart(2, '0')} remaining
                         </div>
                     </div>
                     <div className="absolute bottom-14 text-center">
-                        <p className="text-white/15 text-[9px] uppercase tracking-[0.3em]">Double-tap to exit</p>
+                        <p className="text-white text-xs uppercase tracking-[0.3em]">Double-tap to exit</p>
                     </div>
                 </div>
             )}
@@ -821,107 +637,106 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                 />
             )}
             {enhancements.natureParticles && (status === 'active' || status === 'countdown') && <SakuraPetals isDarkMode={isDarkMode} />}
-            <div className={`relative z-50 w-full px-6 flex items-center justify-center transition-opacity duration-700 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+            {/* Session controls — only rendered (and take layout space) when session is running */}
+            {status !== 'idle' && (
+                <div className="relative z-50 w-full px-6 flex items-center justify-between mb-2"
+                  style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+                >
+                    {/* Left: Exit */}
+                    <button
+                        onClick={() => { reset(); onExit ? onExit() : onComplete?.(); }}
+                        className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                    >
+                        <X size={16} />
+                    </button>
 
-                {/* Center: Tip & Timer (Active Only) - Now centered globally */}
-                <div className="flex items-center gap-4">
-                    {status !== 'idle' && (
-                        <>
-                            <button
-                                onClick={() => onShowTip?.()}
-                                className={`inline-flex items-center gap-2 transition-all ${isDarkMode
-                                    ? 'text-pale-gold hover:opacity-100'
-                                    : 'text-sage hover:opacity-100'
-                                    }`}
-                            >
-                                <div className="p-1 rounded-full bg-white/5">
-                                    <Target size={14} strokeWidth={2} />
-                                </div>
-                                <span className="text-sm font-bold uppercase tracking-wider opacity-90">Tip</span>
-                            </button>
-
-                            <div className="font-mono text-sm font-bold text-white/90 tracking-wider">
-                                {Math.floor(totalSecondsLeft / 60)}:{Math.floor(totalSecondsLeft % 60).toString().padStart(2, '0')}
+                    {/* Center: Tip + Timer */}
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => onShowTip?.()}
+                            className="inline-flex items-center gap-2 text-pale-gold"
+                        >
+                            <div className="p-1 rounded-full bg-white/5">
+                                <Target size={14} strokeWidth={2} />
                             </div>
-                        </>
-                    )}
+                            <span className="text-base font-bold uppercase tracking-wider opacity-90">Tip</span>
+                        </button>
+                        <div className="font-mono text-base font-bold text-white/90 tracking-wider">
+                            {Math.floor(totalSecondsLeft / 60)}:{Math.floor(totalSecondsLeft % 60).toString().padStart(2, '0')}
+                        </div>
+                    </div>
+
+                    {/* Right: balance spacer */}
+                    <div className="w-8" />
                 </div>
-            </div>
+            )}
 
             <div className="relative z-10 flex-1 w-full flex flex-col items-center">
 
                 {/* Description Text & Landing UI — collapses when session is running */}
-                <div className={`flex flex-col items-center text-center w-full max-w-sm px-6 transition-all duration-700 ease-in-out overflow-hidden ${
-                    status === 'idle' ? 'max-h-[400px] opacity-100 gap-6 mb-10' : 'max-h-0 opacity-0 gap-0 mb-0 pointer-events-none'
+                <div className={`w-full px-6 transition-all duration-700 ease-in-out overflow-hidden ${
+                    status === 'idle' ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
                 }`}>
-                    <h1 className="text-3xl md:text-4xl font-display font-medium text-white tracking-wider uppercase">Breathwork</h1>
-
-                    <div className="space-y-2">
-                        <h3 className="text-base text-white/80 font-medium tracking-wide">
-                            {activeConfig.label} <span className="text-white/40 mx-2">•</span> {activeConfig.subLabel}
-                        </h3>
-                        <p className="text-xs text-white/50 leading-relaxed max-w-[260px] mx-auto min-h-[3em]">
+                    {/* Header — same pattern as Meditation */}
+                    <div className="pt-6 mb-5">
+                        <h1 className="font-display font-medium text-3xl text-white">Breathwork</h1>
+                        <p className="text-xs uppercase tracking-[0.25em] font-black mt-1 text-white">Regulate your breath</p>
+                    </div>
+                    {/* Technique description */}
+                    <div className="mb-5">
+                        <p className="text-base text-white/80 font-medium tracking-wide mb-1">
+                            {activeConfig.label} <span className="text-white mx-2">•</span> {activeConfig.subLabel}
+                        </p>
+                        <p className="text-sm text-white leading-relaxed">
                             {activeConfig.intro}
                         </p>
                     </div>
-
-                    <div className="flex items-center gap-4 relative z-[100]">
+                    {/* Action buttons — two pills + exit, no overflow */}
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                haptics.light();
-                                setShowFeatureInfo(true);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all bg-white/10 text-white/80 hover:bg-white/20 active:scale-95"
+                            onClick={() => { haptics.light(); setShowFeatureInfo(true); }}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider bg-white/10 text-white/80 active:scale-95 transition-all"
                         >
-                            <HelpCircle size={14} strokeWidth={2.5} />
-                            <span>How to Use</span>
+                            <HelpCircle size={13} strokeWidth={2.5} />
+                            <span className="whitespace-nowrap">How to Use</span>
                         </button>
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                haptics.light();
-                                setShowSettings(true);
-                            }}
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 ${enhancements.groundingHeartbeat
-                                ? 'bg-pale-gold text-warm-gray-green shadow-[0_0_15px_rgba(229,214,167,0.4)]'
-                                : 'bg-white/10 text-white/80 hover:bg-white/20'
-                                }`}
+                            onClick={() => { haptics.light(); setShowSettings(true); }}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all active:scale-95 ${enhancements.groundingHeartbeat ? 'bg-pale-gold text-warm-gray-green shadow-[0_0_15px_rgba(229,214,167,0.4)]' : 'bg-white/10 text-white/80'}`}
                         >
-                            <Settings size={14} strokeWidth={2.5} className={enhancements.groundingHeartbeat && status === 'active' ? 'animate-spin-slow' : ''} />
-                            <span>Enhancements</span>
+                            <Settings size={13} strokeWidth={2.5} />
+                            <span className="whitespace-nowrap">Enhancements</span>
                         </button>
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onComplete?.();
-                            }}
-                            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 hover:border-white/30 transition-all active:scale-90"
-                            title="Exit Session"
+                            onClick={() => { haptics.light(); onExit ? onExit() : onComplete?.(); }}
+                            className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white active:scale-90 transition-all"
                         >
-                            <X size={18} />
+                            <X size={13} strokeWidth={2.5} />
                         </button>
                     </div>
                 </div>
 
-                {/* Visual Area — scale applied via DOM ref in rAF loop, opacity via inline style */}
+                {/* Visual Area — grows to fill available space, animation scales up when active */}
                 <div
-                    ref={visualScaleRef}
-                    className={`relative flex items-center justify-center min-h-[260px] mb-6 animate-breathe-idle ${
-                        isTransitioning ? 'blur-md' : 'blur-0'
-                    }`}
+                    className={`relative flex-1 flex items-center justify-center w-full ${
+                        status === 'idle' ? 'animate-breathe-idle' : ''
+                    } ${isTransitioning ? 'blur-md' : 'blur-0'}`}
                     style={{
                         opacity: isTransitioning ? 0 : status === 'countdown' ? 0.08 : 1,
                         transition: 'opacity 500ms ease, filter 600ms ease',
-                        willChange: 'transform',
-                        transformOrigin: 'center center',
                     }}
                 >
-                    {renderVisual()}
+                    <div style={{
+                        transform: `scale(${status === 'active' ? 1.65 : 1.2})`,
+                        transition: 'transform 900ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        transformOrigin: 'center center',
+                    }}>
+                        {renderVisual()}
+                    </div>
                 </div>
 
                 {/* Content Stack: Selector -> Play Button */}
-                <div className="flex flex-col items-center gap-6 w-full max-w-sm px-6">
+                <div className="flex flex-col items-center gap-3 w-full max-w-sm px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
 
                     {/* Technique Selector (Always Visible) */}
                     <div className="flex p-0.5 bg-black/20 backdrop-blur-xl rounded-full border border-white/5 relative z-50">
@@ -929,16 +744,16 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                             <button key={tech} onClick={() => {
                                 haptics.selection();
                                 changeTechnique(tech);
-                            }} className={`px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all ${activeTechnique === tech ? 'bg-pale-gold text-warm-gray-green shadow-lg' : 'text-white/40 hover:text-white/60'}`}>{TECHNIQUES[tech].label}</button>
+                            }} className={`px-5 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase transition-all ${activeTechnique === tech ? 'bg-pale-gold text-warm-gray-green shadow-lg' : 'text-white hover:text-white/60'}`}>{TECHNIQUES[tech].label}</button>
                         ))}
                     </div>
 
                     {/* Countdown / Stats */}
-                    <div className="relative min-h-[140px] flex flex-col items-center justify-center w-full gap-4">
+                    <div className="relative min-h-[90px] flex flex-col items-center justify-center w-full gap-4">
                         {status === 'countdown' && (
                             <div className="text-center animate-pulse">
                                 <span className="text-5xl font-display font-light text-white">{countdownVal}</span>
-                                <div className="text-[10px] uppercase tracking-[0.2em] text-white/60 mt-1">Get Ready</div>
+                                <div className="text-xs uppercase tracking-[0.2em] text-white mt-1">Get Ready</div>
                             </div>
                         )}
 
@@ -956,7 +771,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                                     {status === 'active' && !isPaused ? (<Pause size={24} className="text-white fill-current" />) : (<Play size={26} className={`fill-current ${status === 'idle' ? 'text-[#6F7B6D]' : 'text-white'}`} />)}
                                 </button>
                                 {status === 'idle' && (
-                                    <span className="text-pale-gold/40 text-[9px] font-bold tracking-[0.2em] uppercase">Start Session</span>
+                                    <span className="text-pale-gold/40 text-xs font-bold tracking-[0.2em] uppercase">Start Session</span>
                                 )}
                             </div>
                         )}
@@ -978,8 +793,8 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onShowTip, isDarkM
                             <h4 className={`text-xs font-bold uppercase tracking-[0.2em] mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Technique</h4>
                             {activeConfig.instructions.map((inst, i) => (
                                 <div key={i} className="flex gap-4">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold ${isDarkMode ? 'bg-white/20 text-white' : 'bg-sage/20 text-sage'}`}>{i + 1}</div>
-                                    <div className="flex-1"><div className={`font-medium text-lg mb-1 leading-tight ${isDarkMode ? 'text-white' : 'text-sage'}`}>{inst.title}</div><div className={`opacity-70 text-sm leading-relaxed ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>{inst.desc}</div></div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-base font-bold ${isDarkMode ? 'bg-white/20 text-white' : 'bg-sage/20 text-sage'}`}>{i + 1}</div>
+                                    <div className="flex-1"><div className={`font-medium text-lg mb-1 leading-tight ${isDarkMode ? 'text-white' : 'text-sage'}`}>{inst.title}</div><div className={`opacity-70 text-base leading-relaxed ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>{inst.desc}</div></div>
                                 </div>
                             ))}
                         </div>

@@ -16,7 +16,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, isDarkMode = true }) 
                 onMouseLeave={() => setIsVisible(false)}
                 onClick={() => setIsVisible(!isVisible)}
                 className={`p-1 rounded-full transition-colors ${isDarkMode
-                        ? 'text-white/40 hover:text-white/60 hover:bg-white/10'
+                        ? 'text-white hover:text-white/60 hover:bg-white/10'
                         : 'text-sage/40 hover:text-sage/60 hover:bg-sage/10'
                     }`}
                 aria-label="Help"
@@ -26,7 +26,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, isDarkMode = true }) 
 
             {isVisible && (
                 <div
-                    className={`absolute z-50 w-64 p-3 rounded-lg shadow-lg text-sm leading-relaxed -top-2 left-6 ${isDarkMode
+                    className={`absolute z-50 w-64 p-3 rounded-lg shadow-lg text-base leading-relaxed -top-2 left-6 ${isDarkMode
                             ? 'bg-sage-mid border border-white/20 text-white'
                             : 'bg-white border border-sage/20 text-sage'
                         }`}

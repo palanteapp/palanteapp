@@ -176,7 +176,8 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
         quote.author === 'Muse'          ||
         quote.author === 'Focus'         ||
         quote.author === 'Fire'          ||
-        quote.author === 'Palante Coach' ||
+        quote.author === 'Palante' ||
+        quote.author === 'Palante Coach' || // legacy attribution on data saved before the rename
         !!(quote as { isAI?: boolean }).isAI;
 
     const len      = quote.text.length;
@@ -731,6 +732,40 @@ export async function generateMilestoneShareImage(params: {
     ctx.fillText('PALANTE', W / 2 - 36, cursor + brandR);
 
     return canvas.toDataURL('image/jpeg', 0.92);
+}
+
+export async function saveMilestoneToPhotos(params: {
+    title: string;
+    label: string;
+    count: number;
+    message: string;
+    iconName: string;
+}): Promise<void> {
+    haptics.light();
+    try {
+        const dataUrl = await generateMilestoneShareImage({ ...params, shareText: '' });
+        const base64  = dataUrl.split(',')[1];
+        const fileName = `palante_milestone_${Date.now()}.jpg`;
+
+        const saved = await Filesystem.writeFile({
+            path: fileName,
+            data: base64,
+            directory: Directory.Cache,
+        });
+
+        // iOS: share sheet with file — user taps "Save Image" to send to Camera Roll
+        await Share.share({
+            title: params.title,
+            text: 'Save your Palante milestone',
+            files: [saved.uri],
+            dialogTitle: 'Save to Camera Roll',
+        });
+
+        haptics.success();
+    } catch (err) {
+        console.error('Milestone save failed:', err);
+        haptics.error();
+    }
 }
 
 export async function shareMilestoneAsImage(params: {

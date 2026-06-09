@@ -1,13 +1,12 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Mic, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish } from 'lucide-react';
+import { Plus, Mic, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
-import { ProgressDashboard } from './ProgressDashboard';
 import { CelebrationModal } from './CelebrationModal';
 import { CoachSettingsModal } from './CoachSettingsModal';
 import { WeeklyInsightsCard } from './WeeklyInsightsCard';
-import type { UserProfile, DailyFocus, CoachSettings, EnergyLog, JournalEntry, RoutineStack } from '../types';
+import type { UserProfile, DailyFocus, CoachSettings, EnergyLog } from '../types';
 import { triggerConfetti, triggerHaptic } from '../utils/CelebrationEffects';
 import {
     checkMilestones
@@ -17,17 +16,17 @@ import { MilestoneCelebration } from './MilestoneCelebration';
 
 import { SlideUpModal } from './SlideUpModal';
 import { CoachGuidanceModal } from './CoachGuidanceModal';
-import { ContributionHeatmap } from './ContributionHeatmap';
-import { AchievementGallery } from './AchievementGallery';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface MomentumProps {
     user: UserProfile;
     onUpdateUser: (user: UserProfile) => void;
     onShowTip?: () => void;
-    onLaunchRoutine?: (routine: RoutineStack) => void;
-    onCreateRoutine: () => void;
     onToggleTheme?: () => void;
+    onOpenKoiPond?: () => void;
+    onWriteLetter?: () => void;
+    onOpenHighlights?: () => void;
+    highlightsBadge?: boolean;
 }
 
 const BELL_URL = "https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73467.mp3?filename=tibetan-singing-bowl-reverberation-1-14782.mp3";
@@ -36,9 +35,11 @@ export const Momentum: React.FC<MomentumProps> = ({
     user,
     onUpdateUser,
     onShowTip,
-    onLaunchRoutine: _onLaunchRoutine,
-    onCreateRoutine,
-    onToggleTheme
+    onToggleTheme,
+    onOpenKoiPond,
+    onWriteLetter,
+    onOpenHighlights,
+    highlightsBadge,
 }) => {
     const { isDarkMode } = useTheme();
     const bellRef = useRef<HTMLAudioElement | null>(null);
@@ -98,10 +99,7 @@ export const Momentum: React.FC<MomentumProps> = ({
 
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-        if (!SpeechRecognition) {
-            alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
-            return;
-        }
+        if (!SpeechRecognition) return;
 
         try {
             const recognition = new SpeechRecognition();
@@ -230,31 +228,31 @@ export const Momentum: React.FC<MomentumProps> = ({
 
     // handleSaveStack moved to App.tsx - routines managed    // Styles
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage';
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
     const accentColor = isDarkMode ? 'text-pale-gold' : 'text-sage';
     const cardBg = isDarkMode ? 'glass-surface' : 'bg-white/60 border-sage/20 shadow-spa';
     const roundedClass = 'rounded-card-premium';
 
     return (
         <div className="w-full flex flex-col px-6 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
-            {/* 0. Header Area - Matching Fasting Vibe */}
-            <div className="w-full flex items-center justify-between mb-8">
-                <div className="flex flex-col gap-1">
-                    <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Journey</h2>
-                    <p className={`text-[10px] uppercase tracking-[0.3em] font-black ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>Progress & Growth</p>
-                </div>
+            {/* 0. Header Area */}
+            <div className="w-full mb-8">
+                <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Journey</h2>
+                <p className={`text-xs uppercase tracking-[0.18em] font-black mt-0.5 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>Progress & Growth</p>
                 <div className="flex gap-2">
                     <button
                         onClick={() => { haptics.light(); setShowCoachGuidance(true); }}
-                        className={`p-3 rounded-2xl transition-all ${isDarkMode ? 'glass-surface text-white/80 hover:bg-white/10' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+                        className={`p-2.5 rounded-2xl transition-all ${isDarkMode ? 'glass-surface text-white/80 hover:bg-white/10' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
                     >
-                        <Lightbulb size={20} />
+                        <Lightbulb size={17} />
                     </button>
                     <button
                         onClick={() => { haptics.light(); setShowSettings(true); }}
-                        className={`p-3 rounded-2xl transition-all ${isDarkMode ? 'glass-surface text-white/80 hover:bg-white/10' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
+                        className={`flex items-center gap-1.5 px-4 py-3 rounded-2xl transition-all active:scale-95 ${isDarkMode ? 'text-white hover:brightness-110' : 'text-white hover:brightness-110'}`}
+                        style={{ background: isDarkMode ? '#C96A3A' : '#C96A3A' }}
                     >
-                        <Settings size={20} />
+                        <Settings size={14} />
+                        <span className="text-xs font-bold uppercase tracking-wider">Partner Settings</span>
                     </button>
                 </div>
             </div>
@@ -262,33 +260,33 @@ export const Momentum: React.FC<MomentumProps> = ({
             {/* ── Streak & Points Hero ── */}
             <div className="grid grid-cols-2 gap-3 mb-6">
                 {/* Streak */}
-                <div className={`relative rounded-2xl p-4 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
-                    <div className="flex items-start justify-between mb-2">
+                <div className={`relative rounded-2xl p-5 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                    <div className="flex flex-col items-start mb-3 gap-1.5">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
                             <Flame size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>Streak</span>
+                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Streak</span>
                     </div>
                     <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
                         {user.streak || 0}
                     </p>
-                    <p className={`text-[10px] font-medium ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                    <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         {(user.streak || 0) === 1 ? 'day' : 'days in a row'}
                     </p>
                 </div>
 
                 {/* Points */}
-                <div className={`relative rounded-2xl p-4 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
-                    <div className="flex items-start justify-between mb-2">
+                <div className={`relative rounded-2xl p-5 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                    <div className="flex flex-col items-start mb-3 gap-1.5">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
                             <Sparkles size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
-                        <span className={`text-[9px] font-black uppercase tracking-widest mt-1 ${isDarkMode ? 'text-white/30' : 'text-sage-dark/40'}`}>Points</span>
+                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Points</span>
                     </div>
                     <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
                         {(user.points || 0).toLocaleString()}
                     </p>
-                    <p className={`text-[10px] font-medium ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                    <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         total earned
                     </p>
                 </div>
@@ -296,16 +294,19 @@ export const Momentum: React.FC<MomentumProps> = ({
 
             {/* ── Koi Pond Progress Teaser ── */}
             {(user.streak || 0) < 30 && (
-                <div className={`rounded-2xl px-4 py-3 mb-6 flex items-center gap-3 ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}>
+                <button
+                    onClick={() => onOpenKoiPond?.()}
+                    className={`w-full rounded-2xl px-5 py-3 mb-6 flex items-center gap-3 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}
+                >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#4A7050]/40' : 'bg-[#4A7050]/15'}`}>
                         <Fish size={16} color={isDarkMode ? '#7AAD80' : '#4A7050'} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1.5">
-                            <p className={`text-[11px] font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
+                            <p className={`text-xs font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
                                 First koi unlocks at 30 days
                             </p>
-                            <p className={`text-[10px] font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
+                            <p className={`text-xs font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
                                 {user.streak || 0}/30
                             </p>
                         </div>
@@ -320,7 +321,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                             />
                         </div>
                     </div>
-                </div>
+                </button>
             )}
 
             {/* Coach Card - Premium Glass */}
@@ -339,11 +340,11 @@ export const Momentum: React.FC<MomentumProps> = ({
             {/* 1. Active Goals Management */}
             <div className="mb-10">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white/40' : 'text-sage-dark/50'}`}>
+                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         Active Targets
                     </h3>
                     <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${isDarkMode ? 'text-pale-gold bg-white/5' : 'text-sage bg-sage/10'}`}>
+                        <span className={`text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${isDarkMode ? 'text-pale-gold bg-white/5' : 'text-sage bg-sage/10'}`}>
                             {completedCount}/{dailyFocuses.length} Done
                         </span>
                     </div>
@@ -361,7 +362,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                             />
                         ))
                     ) : (
-                        <div className={`text-center py-8 px-6 rounded-2xl border border-dashed ${isDarkMode ? 'border-white/20 text-white/60' : 'border-sage/20 text-sage/40'}`}>
+                        <div className={`text-center py-8 px-6 rounded-2xl border border-dashed ${isDarkMode ? 'border-white/20 text-white' : 'border-sage/20 text-sage/40'}`}>
                             <p className="text-sm">No active focus goals.</p>
                         </div>
                     )}
@@ -375,7 +376,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isDarkMode ? 'bg-white/5 group-hover:bg-white/10' : 'bg-sage/10 group-hover:bg-sage/20'}`}>
                             <Plus size={24} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-[0.4em] transition-colors ${isDarkMode ? 'text-white/70 group-hover:text-white' : 'text-sage/70 group-hover:text-sage'}`}>Add New Goal</span>
+                        <span className={`text-xs font-black uppercase tracking-[0.4em] transition-colors ${isDarkMode ? 'text-white/70 group-hover:text-white' : 'text-sage/70 group-hover:text-sage'}`}>Add New Goal</span>
                     </button>
                 ) : (
                     <div className={`p-6 rounded-[2rem] animate-slide-up-fade ${cardBg}`}>
@@ -389,7 +390,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                                     onChange={(e) => setNewFocusText(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddFocus()}
                                     placeholder="What's your primary focus today?"
-                                    className={`w-full px-4 py-3 rounded-xl border outline-none transition-all ${isDarkMode
+                                    className={`w-full px-5 py-3 rounded-xl border outline-none transition-all ${isDarkMode
                                         ? 'bg-white/5 border-white/10 text-white placeholder-white/20 focus:border-pale-gold/50'
                                         : 'bg-white border-sage/20 text-rich-black placeholder-sage/40 focus:border-sage'
                                         }`}
@@ -399,7 +400,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                                 onClick={startFocusDictation}
                                 className={`p-3 rounded-xl transition-all ${isListeningFocus
                                     ? 'bg-red-500 text-white animate-pulse'
-                                    : isDarkMode ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'
+                                    : isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'
                                     }`}
                             >
                                 <Mic size={14} />
@@ -408,7 +409,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setIsAdding(false)}
-                                className={`flex-1 py-3 rounded-xl font-medium transition-all ${isDarkMode ? 'bg-white/5 text-white/40 hover:bg-white/10' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                className={`flex-1 py-3 rounded-xl font-medium transition-all ${isDarkMode ? 'bg-white/5 text-white hover:bg-white/10' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
                             >
                                 Cancel
                             </button>
@@ -425,32 +426,8 @@ export const Momentum: React.FC<MomentumProps> = ({
                 )}
             </div>
 
-            {/* 3. Progress Dashboard */}
-            <div className="mb-10">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h3 className={`text-xl font-display font-medium ${textPrimary}`}>
-                            Momentum Tracker
-                        </h3>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-pale-gold mt-1">Consistency Analysis</p>
-                    </div>
-                    <button
-                        onClick={onCreateRoutine}
-                        className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full transition-all ${isDarkMode ? 'glass-surface text-white/60 hover:text-white' : 'bg-sage/10 text-sage/70 hover:text-sage hover:bg-sage/20'}`}
-                    >
-                        + Create Routine
-                    </button>
-                </div>
-                <div className={`w-full p-8 rounded-[2rem] ${cardBg}`}>
-                    <ProgressDashboard
-                        user={user}
-                        isDarkMode={isDarkMode}
-                        onShowTip={onShowTip}
-                    />
-                </div>
-            </div>
 
-            {/* 4. Weekly Insights (Last - reflection) */}
+            {/* 4. Weekly Insights */}
             <div className="mb-10">
                 <h3 className={`text-lg font-display font-medium mb-4 ${textPrimary}`}>
                     Weekly Insights
@@ -462,23 +439,81 @@ export const Momentum: React.FC<MomentumProps> = ({
                 />
             </div>
 
-            {/* 5. Your Journey (Heatmap + Achievements) */}
-            <div className="mb-10">
-                <h3 className={`text-lg font-display font-medium mb-4 ${textPrimary}`}>
-                    Your Journey
-                </h3>
-                <div className="space-y-4">
-                    <ContributionHeatmap
-                        activityHistory={user.practiceData?.activityHistory || []}
-                        isDarkMode={isDarkMode}
-                    />
-                    <AchievementGallery
-                        unlockedBadges={user.unlockedBadges || []}
-                        totalPractices={user.practiceData?.totalPractices || 0}
-                        isDarkMode={isDarkMode}
-                    />
+            {/* 5. Weekly Highlights */}
+            {onOpenHighlights && (
+                <div className="mb-10">
+                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                        Weekly Wins
+                    </h3>
+                    <button
+                        onClick={() => { haptics.light(); onOpenHighlights(); }}
+                        className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
+                        style={{ background: isDarkMode ? undefined : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(201,106,58,0.03) 100%)' }}
+                    >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'rgba(201,106,58,0.15)' }}>
+                            <Award size={18} style={{ color: '#C96A3A' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <p className={`text-sm font-medium ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
+                                    This Week's Achievements
+                                </p>
+                                {highlightsBadge && (
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C96A3A' }} />
+                                )}
+                            </div>
+                            <p className={`text-xs ${isDarkMode ? 'text-white/45' : 'text-sage/45'}`}>
+                                Review your wins, your reflection, and what moved you forward.
+                            </p>
+                        </div>
+                        <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white/25' : 'text-sage/25'}`} />
+                    </button>
                 </div>
-            </div>
+            )}
+
+            {/* 6. Letters to Your Future Self */}
+            {onWriteLetter && (() => {
+                const letters = user.futureLetters ?? [];
+                const letterCount = letters.length;
+                const lastLetter = letters[letters.length - 1];
+                const lastWrittenLabel = lastLetter
+                    ? new Date(lastLetter.writtenDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+                    : null;
+                return (
+                    <div className="mb-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                                Letters to Your Future Self
+                            </h3>
+                            {letterCount > 0 && (
+                                <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
+                                    {letterCount} {letterCount === 1 ? 'letter' : 'letters'}
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => { haptics.light(); onWriteLetter(); }}
+                            className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
+                        >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/12' : 'bg-[#E5D6A7]/20'}`}>
+                                <Mail size={18} color="#E5D6A7" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium mb-0.5 ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
+                                    {letterCount === 0 ? 'Write your first letter' : 'Write another letter'}
+                                </p>
+                                <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
+                                    {letterCount === 0
+                                        ? 'A message from who you are now to who you\'ll become.'
+                                        : `Last written ${lastWrittenLabel}`}
+                                </p>
+                            </div>
+                            <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/25'}`} />
+                        </button>
+                    </div>
+                );
+            })()}
 
             {/* ... other modals ... */}
 
@@ -493,9 +528,9 @@ export const Momentum: React.FC<MomentumProps> = ({
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/20 text-sage'}`}>
                             <TrendingUp size={24} />
                         </div>
-                        <h2 className="text-2xl font-display font-medium mb-2">Unlock Your Insights</h2>
-                        <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                            Once you track your focus for a few days, your Coach will start spotting patterns to help you optimize your flow.
+                        <h2 className="text-3xl font-display font-medium mb-2">Unlock Your Insights</h2>
+                        <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
+                            Once you track your focus for a few days, your partner will start spotting patterns to help you optimize your flow.
                         </p>
                     </div>
 
@@ -509,7 +544,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                                 <item.icon size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                                 <div>
                                     <h3 className="font-medium text-sm mb-0.5">{item.title}</h3>
-                                    <div className={`text-xs ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>{item.desc}</div>
+                                    <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>{item.desc}</div>
                                 </div>
                             </div>
                         ))}
@@ -521,7 +556,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                             ? 'bg-pale-gold text-sage-dark hover:bg-white'
                             : 'bg-[#1B4332] text-white hover:bg-sage-600'}`}
                     >
-                        Got it, thanks Coach
+                        Got it
                     </button>
                 </div>
             </SlideUpModal>

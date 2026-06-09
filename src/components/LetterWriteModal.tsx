@@ -89,10 +89,10 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
 
                 {/* Title */}
                 <div className="text-center mb-8">
-                    <h3 className="text-3xl font-display font-medium text-white mb-2">
+                    <h3 className="text-4xl font-display font-medium text-white mb-2">
                         Letter to Future You
                     </h3>
-                    <p className="text-white/60 font-black text-[12px] uppercase tracking-widest">
+                    <p className="text-white font-black text-[12px] uppercase tracking-widest">
                         A legacy of intention
                     </p>
                 </div>
@@ -113,7 +113,7 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
                         className="w-full h-48 p-6 rounded-[2.5rem] font-display text-lg resize-none focus:outline-none transition-all shadow-inner bg-white/[0.08] border-2 border-white/10 focus:border-[#E5D6A7] text-white placeholder-white/40"
                         autoFocus
                     />
-                    <div className="absolute bottom-6 right-6 px-3 py-1 rounded-full bg-white/[0.08] border border-white/10 text-[10px] font-black uppercase tracking-widest text-white">
+                    <div className="absolute bottom-6 right-6 px-3 py-1 rounded-full bg-white/[0.08] border border-white/10 text-xs font-black uppercase tracking-widest text-white">
                         {content.length} characters
                     </div>
                 </div>
@@ -121,18 +121,18 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
                 {/* Seal Until */}
                 <div className="mt-8">
                     <div className="flex items-center gap-2 mb-3">
-                        <Lock size={13} className="text-white/50" />
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">Seal until</p>
+                        <Lock size={13} className="text-white" />
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-white">Seal until</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
                         {SEAL_PRESETS.map((p) => (
                             <button
                                 key={p.days}
                                 onClick={() => { setSelectedPreset(p.days); setUseCustom(false); haptics.selection(); }}
-                                className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                                className={`px-5 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
                                     !useCustom && selectedPreset === p.days
                                         ? 'bg-white/20 text-white border border-white/30'
-                                        : 'bg-white/[0.08] text-white/50 border border-white/10 hover:bg-white/[0.12]'
+                                        : 'bg-white/[0.08] text-white border border-white/10 hover:bg-white/[0.12]'
                                 }`}
                             >
                                 {p.label}
@@ -140,10 +140,10 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
                         ))}
                         <button
                             onClick={() => { setUseCustom(true); haptics.selection(); }}
-                            className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
+                            className={`px-5 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
                                 useCustom
                                     ? 'bg-white/20 text-white border border-white/30'
-                                    : 'bg-white/[0.08] text-white/50 border border-white/10 hover:bg-white/[0.12]'
+                                    : 'bg-white/[0.08] text-white border border-white/10 hover:bg-white/[0.12]'
                             }`}
                         >
                             Custom
@@ -159,7 +159,7 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
                         />
                     )}
                     {(!useCustom || customDate) && (
-                        <p className="mt-3 text-center text-[11px] text-white/40">
+                        <p className="mt-3 text-center text-xs text-white">
                             This letter unlocks on <span className="text-white/70 font-semibold">{formatUnlockDate()}</span>
                         </p>
                     )}
@@ -172,7 +172,7 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
                         disabled={content.trim().length === 0 || (useCustom && !customDate)}
                         className={`w-full py-5 rounded-[2.5rem] font-display font-medium text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl ${
                             content.trim().length === 0 || (useCustom && !customDate)
-                                ? 'bg-white/[0.08] text-white/30 cursor-not-allowed shadow-none'
+                                ? 'bg-white/[0.08] text-white cursor-not-allowed shadow-none'
                                 : 'bg-white/[0.15] text-white hover:scale-[1.02] active:scale-[0.98]'
                         }`}
                     >
@@ -189,8 +189,8 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
 
                 {/* Reassurance */}
                 <div className="mt-10 flex items-center justify-center gap-2">
-                    <Heart size={14} className="text-white/60" fill="currentColor" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/60">
+                    <Heart size={14} className="text-white" fill="currentColor" />
+                    <p className="text-xs font-black uppercase tracking-widest text-white">
                         Sealed. Private. Yours alone.
                     </p>
                 </div>

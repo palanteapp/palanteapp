@@ -31,6 +31,9 @@ public class PalanteWidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         if let done = call.getBool("practiceComplete") {
             defaults.set(done, forKey: "palante_practice_complete")
         }
+        if let total = call.getInt("totalPractices") {
+            defaults.set(total, forKey: "palante_total_practices")
+        }
 
         // Capacitor deserializes JS objects as [String: Any], not [String: String]
         if let rawQuotes = call.getArray("quotes") as? [[String: Any]] {

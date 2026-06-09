@@ -59,10 +59,10 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
                             <Calendar size={24} className="text-pale-gold" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-display font-bold text-white">
+                            <h2 className="text-3xl font-display font-bold text-white">
                                 Your Week in Review
                             </h2>
-                            <p className="text-white/60 text-sm">{formatDateRange()}</p>
+                            <p className="text-white text-sm">{formatDateRange()}</p>
                         </div>
                     </div>
                 </div>
@@ -127,7 +127,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
                                 <div className="text-3xl font-bold text-white">
                                     {report.goals.completionRate}%
                                 </div>
-                                <div className="text-white/60 text-sm">
+                                <div className="text-white text-sm">
                                     {report.goals.completed} of {report.goals.set} completed
                                 </div>
                             </div>
@@ -193,7 +193,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
                                 {report.insights.map((insight, index) => (
                                     <div
                                         key={index}
-                                        className="bg-white/5 rounded-xl p-3 text-white/90 text-sm leading-relaxed"
+                                        className="bg-white/5 rounded-xl p-3 text-white/90 text-base leading-relaxed"
                                     >
                                         {insight}
                                     </div>
@@ -215,7 +215,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
                                         <p className="text-white/90 text-sm italic leading-relaxed mb-2">
                                             "{quote.text}"
                                         </p>
-                                        <p className="text-white/60 text-xs">— {quote.author}</p>
+                                        <p className="text-white text-xs">— {quote.author}</p>
                                     </div>
                                 ))}
                             </div>
@@ -245,8 +245,8 @@ const StatCard: React.FC<{ label: string; value: number; subtitle: string; icon:
     <div className="bg-white/5 rounded-xl p-3">
         <div className="mb-2">{icon}</div>
         <div className="text-2xl font-bold text-white">{value}</div>
-        <div className="text-white/60 text-xs">{label}</div>
-        <div className="text-white/40 text-xs">{subtitle}</div>
+        <div className="text-white text-xs">{label}</div>
+        <div className="text-white text-xs">{subtitle}</div>
     </div>
 );
 
@@ -254,8 +254,8 @@ const ComparisonBadge: React.FC<{ change: number }> = ({ change }) => {
     if (change === 0) {
         return (
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/10">
-                <Minus size={12} className="text-white/60" />
-                <span className="text-xs text-white/60">Same</span>
+                <Minus size={12} className="text-white" />
+                <span className="text-sm text-white">Same</span>
             </div>
         );
     }

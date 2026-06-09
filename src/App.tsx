@@ -3,127 +3,96 @@ import { STORAGE_KEYS, SESSION_KEYS } from './constants/storageKeys';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import { InAppReview } from '@capacitor-community/in-app-review';
 
 import { PageTransition } from './components/PageTransition';
 import { UserProvider, useUser } from './contexts/UserContext';
 
 
-// Initial essential UI
-import { CelebrationModal } from './components/CelebrationModal';
-import { DisclaimerModal } from './components/DisclaimerModal';
-import { getRelevantQuotes, getAIQuote, pickAndMarkQuote, markQuoteSeen } from './utils/quoteMatcher';
-import { generateUserNarrative, generateWeeklyReflection } from './utils/aiService';
+import { getAIQuote, pickAndMarkQuote } from './utils/quoteMatcher';
+import { generateUserNarrative, generateWeeklyReflection, generatePalanteQuote } from './utils/aiService';
 import { analytics, identifyUser } from './utils/analytics';
-import { QUOTES } from './data/quotes';
 import { AFFIRMATIONS } from './data/affirmations';
-import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, RoutineStack, ContentType, QuoteSource, SoundMix } from './types';
-import { HistoryModal } from './components/HistoryModal';
-import { SkeletonQuoteCard } from './components/SkeletonQuoteCard';
-
+import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, ContentType, QuoteSource, SoundMix } from './types';
 import { haptics } from './utils/haptics';
-
-import SoundMixer from './components/SoundMixer';
-import { EveningPractice } from './components/EveningPractice';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
 import { SubscriptionProvider, useSubscription } from './contexts/SubscriptionContext';
-import { PaywallScreen } from './components/PaywallScreen';
 import { useNotifications } from './hooks/useNotifications';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
-
 import { useAppProcess } from './hooks/useAppProcess';
 import { triggerConfetti } from './utils/CelebrationEffects';
 import { WidgetDataSync } from './utils/widgetDataSync';
-
-import { ReorderModal } from './components/ReorderModal';
-import { QuoteToneModal } from './components/QuoteToneModal';
-
 import { DebugErrorBoundary } from './components/DebugErrorBoundary';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Settings2 } from 'lucide-react';
-
-// Lazy load heavy components for performance
-const Reflections = lazy(() => import('./components/Reflections').then(module => ({ default: module.Reflections })));
-const Library = lazy(() => import('./components/Library').then(module => ({ default: module.Library })));
-const Momentum = lazy(() => import('./components/Momentum').then(module => ({ default: module.Momentum })));
-const Breathing = lazy(() => import('./components/Breathing').then(module => ({ default: module.Breathing })));
-const Meditation = lazy(() => import('./components/Meditation').then(module => ({ default: module.Meditation })));
-const Fasting = lazy(() => import('./components/Fasting').then(module => ({ default: module.Fasting })));
-const SafeStackRunner = lazy(() => import('./components/SafeStackRunner').then(module => ({ default: module.SafeStackRunner })));
-const Profile = lazy(() => import('./components/Profile').then(module => ({ default: module.Profile })));
-const WeeklyReportModal = lazy(() => import('./components/WeeklyReportModal').then(module => ({ default: module.WeeklyReportModal })));
-const WelcomeOrientationModal = lazy(() => import('./components/WelcomeOrientationModal').then(module => ({ default: module.WelcomeOrientationModal })));
-
-const ClearTheNoise = lazy(() => import('./components/ClearTheNoise').then(module => ({ default: module.ClearTheNoise })));
-const StackWizardModal = lazy(() => import('./components/StackWizardModal').then(module => ({ default: module.StackWizardModal })));
-const StackEditorModal = lazy(() => import('./components/StackEditorModal').then(module => ({ default: module.StackEditorModal })));
-const MorningPractice = lazy(() => import('./components/MorningPractice').then(module => ({ default: module.MorningPractice })));
-const VibeCheck = lazy(() => import('./components/VibeCheck').then(module => ({ default: module.VibeCheck })));
-const DashboardQuoteCard = lazy(() => import('./components/DashboardQuoteCard').then(module => ({ default: module.DashboardQuoteCard })));
-const KoiPond = lazy(() => import('./components/KoiPond').then(module => ({ default: module.KoiPond })));
-const DidYouKnowModal = lazy(() => import('./components/DidYouKnowModal').then(module => ({ default: module.DidYouKnowModal })));
-const CinematicIntro = lazy(() => import('./components/CinematicIntro').then(module => ({ default: module.CinematicIntro })));
-const MorningMessageCard = lazy(() => import('./components/MorningMessageCard').then(module => ({ default: module.MorningMessageCard })));
-const EveningMessageCard = lazy(() => import('./components/EveningMessageCard').then(module => ({ default: module.EveningMessageCard })));
-const JapaneseWisdomView = lazy(() => import('./components/JapaneseWisdomView').then(m => ({ default: m.JapaneseWisdomView })));
-import { GardenDemoFinal as GardenMandala } from './components/GardenDemoFinal';
-const GardenLegendModal = lazy(() => import('./components/GardenLegendModal').then(m => ({ default: m.GardenLegendModal })));
-const PostPracticeSetupModal = lazy(() => import('./components/PostPracticeSetupModal').then(m => ({ default: m.PostPracticeSetupModal })));
-import { FocusTimer } from './components/FocusTimer';
-import { HomeEssentialTools } from './components/HomeEssentialTools';
+import { Settings2, RotateCcw } from 'lucide-react';
+import { computeWeeklyHighlights } from './utils/weeklyHighlights';
 import type { EssentialToolId } from './components/HomeEssentialTools';
-/// const FocusTimer = lazy(() => import('./components/FocusTimer').then(m => ({ default: m.FocusTimer })));
-
-import { CoachView } from './components/CoachView';
-import { WeeklyHighlightsModal, computeWeeklyHighlights } from './components/WeeklyHighlightsModal';
-import { CheckInModal } from './components/CheckInModal';
-import type { CheckInDestination } from './components/CheckInModal';
-
-
-
-
-import { PrivacyPolicy } from './components/PrivacyPolicy';
+import type { RingCeremonyType } from './components/RingCeremony';
+import type { GrowthStoryData } from './utils/aiService';
 import { Logo } from './components/Logo';
 import {
   Home, TrendingUp, User as UserIcon, Moon, Sun,
-  BookMarked, Music, MessageCircle, Bell, ChevronDown, Check,
-  Target, Sparkles, ChevronRight, ChevronLeft, Fish, Mic, Layers, Heart,
+  Music, MessageCircle, Bell, ChevronDown, Check,
+  Target, Sparkles, ChevronRight, Fish, Mic, Layers, Heart,
   CheckCircle2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ExploreView } from './components/ExploreView';
-import { PracticeView } from './components/PracticeView';
-
-
-import type { CoachSettings, WeeklyReport, CoachIntervention, DailyPriming } from './types';
+import type { CoachSettings, WeeklyReport, CoachIntervention, DailyPriming, CoachSession, CoachPillar } from './types';
 import { SCIENCE_FACTS, type ScienceFact } from './data/scienceFacts';
-
-// Shared core components (non-lazy or strictly required for initial render)
-import { FocusItem } from './components/FocusItem';
-import { DailyMorningPracticeWidget } from './components/DailyMorningPracticeWidget';
-import { CoachSettingsModal } from './components/CoachSettingsModal';
-
-import { MilestoneCelebration } from './components/MilestoneCelebration';
-import { RingCeremony, type RingCeremonyType } from './components/RingCeremony';
-import { GrowthStoryModal } from './components/GrowthStoryModal';
-import type { GrowthStoryData } from './utils/aiService';
 import { generateDailyDispatch, generateRecoveryDispatch } from './utils/dailyDispatch';
 import { isReviewerEmail, REVIEWER_DISPATCH_OFFSETS_MIN } from './constants/reviewer';
 import { getMomentumState } from './utils/aiService';
-import { CoachInterventionCard } from './components/CoachInterventionCard';
-import { SlideUpModal } from './components/SlideUpModal';
 import { api } from './lib/api';
 import { logPractice, checkMilestone, migrateStreakToPractice } from './utils/practiceUtils';
-import { QuickRoutines } from './components/QuickRoutines';
-import { useSmartSuggestions } from './hooks/useSmartSuggestions';
 import { useModalState } from './hooks/useModalState';
-import { ProfileCompletionCard } from './components/ProfileCompletionCard';
-import { RestDayModal } from './components/RestDayModal';
 import { getTodayDate, getDaysDifference } from './utils/practiceUtils';
 import { useTimeOfDay } from './hooks/useTimeOfDay';
-import { MorningModeOverlay } from './components/MorningModeOverlay';
-import { LetterWriteModal } from './components/LetterWriteModal';
-import { LetterReadModal } from './components/LetterReadModal';
+
+// All non-startup components lazy-loaded to reduce initial memory footprint
+const Momentum = lazy(() => import('./components/Momentum').then(m => ({ default: m.Momentum })));
+const Breathing = lazy(() => import('./components/Breathing').then(m => ({ default: m.Breathing })));
+const Meditation = lazy(() => import('./components/Meditation').then(m => ({ default: m.Meditation })));
+const Profile = lazy(() => import('./components/Profile').then(m => ({ default: m.Profile })));
+const WeeklyReportModal = lazy(() => import('./components/WeeklyReportModal').then(m => ({ default: m.WeeklyReportModal })));
+const WelcomeOrientationModal = lazy(() => import('./components/WelcomeOrientationModal').then(m => ({ default: m.WelcomeOrientationModal })));
+const MorningPractice = lazy(() => import('./components/MorningPractice').then(m => ({ default: m.MorningPractice })));
+const KoiPond = lazy(() => import('./components/KoiPond').then(m => ({ default: m.KoiPond })));
+const DidYouKnowModal = lazy(() => import('./components/DidYouKnowModal').then(m => ({ default: m.DidYouKnowModal })));
+const CinematicIntro = lazy(() => import('./components/CinematicIntro').then(m => ({ default: m.CinematicIntro })));
+const MorningMessageCard = lazy(() => import('./components/MorningMessageCard').then(m => ({ default: m.MorningMessageCard })));
+const EveningMessageCard = lazy(() => import('./components/EveningMessageCard').then(m => ({ default: m.EveningMessageCard })));
+const GardenLegendModal = lazy(() => import('./components/GardenLegendModal').then(m => ({ default: m.GardenLegendModal })));
+const DashboardQuoteCard = lazy(() => import('./components/DashboardQuoteCard').then(m => ({ default: m.DashboardQuoteCard })));
+const PostPracticeSetupModal = lazy(() => import('./components/PostPracticeSetupModal').then(m => ({ default: m.PostPracticeSetupModal })));
+const NotificationAskModal = lazy(() => import('./components/NotificationAskModal').then(m => ({ default: m.NotificationAskModal })));
+const CelebrationModal = lazy(() => import('./components/CelebrationModal').then(m => ({ default: m.CelebrationModal })));
+const DisclaimerModal = lazy(() => import('./components/DisclaimerModal').then(m => ({ default: m.DisclaimerModal })));
+const HistoryModal = lazy(() => import('./components/HistoryModal').then(m => ({ default: m.HistoryModal })));
+const SoundMixer = lazy(() => import('./components/SoundMixer'));
+const EveningPractice = lazy(() => import('./components/EveningPractice').then(m => ({ default: m.EveningPractice })));
+const PaywallScreen = lazy(() => import('./components/PaywallScreen').then(m => ({ default: m.PaywallScreen })));
+const GardenMandala = lazy(() => import('./components/GardenDemoFinal').then(m => ({ default: m.GardenDemoFinal })));
+const FocusTimer = lazy(() => import('./components/FocusTimer').then(m => ({ default: m.FocusTimer })));
+const HomeEssentialTools = lazy(() => import('./components/HomeEssentialTools').then(m => ({ default: m.HomeEssentialTools })));
+const CoachView = lazy(() => import('./components/CoachView').then(m => ({ default: m.CoachView })));
+const WeeklyHighlightsModal = lazy(() => import('./components/WeeklyHighlightsModal').then(m => ({ default: m.WeeklyHighlightsModal })));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const PracticeView = lazy(() => import('./components/PracticeView').then(m => ({ default: m.PracticeView })));
+const FocusItem = lazy(() => import('./components/FocusItem').then(m => ({ default: m.FocusItem })));
+const DailyMorningPracticeWidget = lazy(() => import('./components/DailyMorningPracticeWidget').then(m => ({ default: m.DailyMorningPracticeWidget })));
+const CoachSettingsModal = lazy(() => import('./components/CoachSettingsModal').then(m => ({ default: m.CoachSettingsModal })));
+const MilestoneCelebration = lazy(() => import('./components/MilestoneCelebration').then(m => ({ default: m.MilestoneCelebration })));
+const RingCeremony = lazy(() => import('./components/RingCeremony').then(m => ({ default: m.RingCeremony })));
+const GrowthStoryModal = lazy(() => import('./components/GrowthStoryModal').then(m => ({ default: m.GrowthStoryModal })));
+const CoachInterventionCard = lazy(() => import('./components/CoachInterventionCard').then(m => ({ default: m.CoachInterventionCard })));
+const SlideUpModal = lazy(() => import('./components/SlideUpModal').then(m => ({ default: m.SlideUpModal })));
+const ProfileCompletionCard = lazy(() => import('./components/ProfileCompletionCard').then(m => ({ default: m.ProfileCompletionCard })));
+const RestDayModal = lazy(() => import('./components/RestDayModal').then(m => ({ default: m.RestDayModal })));
+const MorningModeOverlay = lazy(() => import('./components/MorningModeOverlay').then(m => ({ default: m.MorningModeOverlay })));
+const CoachGuidanceModal = lazy(() => import('./components/CoachGuidanceModal').then(m => ({ default: m.CoachGuidanceModal })));
+const LetterWriteModal = lazy(() => import('./components/LetterWriteModal').then(m => ({ default: m.LetterWriteModal })));
+const LetterReadModal = lazy(() => import('./components/LetterReadModal').then(m => ({ default: m.LetterReadModal })));
 import type { FutureLetter } from './types';
 import { useTheme } from './contexts/ThemeContext';
 
@@ -135,10 +104,9 @@ function AppContent() {
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
 
-  const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
-  const [isQuoteLoading, setIsQuoteLoading] = useState(true);
-  const [allQuotes, setAllQuotes] = useState<Quote[]>(() => [...QUOTES, ...AFFIRMATIONS]);
-  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'fasting' | 'reflect' | 'breath' | 'meditate' | 'wisdom' | 'coach' | 'focus' | 'soundscapes' | 'routines'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'breath' | 'meditate' | 'coach' | 'focus' | 'soundscapes'>('home');
+  // Tracks where the user was before entering a full-screen practice overlay, so onExit returns them there
+  const practiceOriginRef = useRef<typeof activeTab>('home');
 
 
   const { isDarkMode } = useTheme();
@@ -151,17 +119,15 @@ function AppContent() {
     }
   });
   const [newFocusText, setNewFocusText] = useState('');
+  const [goalsExpanded, setGoalsExpanded] = useState(false);
   const {
     showProfile, setShowProfile, showKoiPond, setShowKoiPond,
-    showLibrary, setShowLibrary, showHistory, setShowHistory,
-    showWelcome, setShowWelcome, showClearNoise, setShowClearNoise,
+    showHistory, setShowHistory,
+    showWelcome, setShowWelcome,
     showSoundMixer, setShowSoundMixer, mixerSource, setMixerSource,
     showMorningPractice, setShowMorningPractice,
     showStackWizard, setShowStackWizard,
-    showRestDayModal, setShowRestDayModal,
     showMorningMode, setShowMorningMode,
-    showReorderModal, setShowReorderModal,
-    showQuoteToneModal, setShowQuoteToneModal,
     showLetterWrite, setShowLetterWrite,
     showLetterRead, setShowLetterRead,
     showHomeCoachSettings, setShowHomeCoachSettings,
@@ -173,25 +139,15 @@ function AppContent() {
   const lastScrollY = useRef(0);
   const [isNavVisible, setIsNavVisible] = useState(true);
 
-  // Smart Suggestions Logic
-  useSmartSuggestions(user, isDarkMode);
-  const [initialReflectionText, setInitialReflectionText] = useState('');
-  const [showReturnToWisdom, setShowReturnToWisdom] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
 
-  const [showVibeCheck, setShowVibeCheck] = useState(() => !localStorage.getItem(STORAGE_KEYS.VIBE_CHECKED));
-  const [showCheckIn, setShowCheckIn] = useState(false);
-  const [editingRoutine, setEditingRoutine] = useState<import('./types').RoutineStack | null>(null);
-
-  // Weekly Highlights modal
-  const [showWeeklyHighlights, setShowWeeklyHighlights] = useState(false);
+  // Weekly Highlights: badge signal vs. modal open are separate
+  const [showWeeklyHighlights, setShowWeeklyHighlights] = useState(false); // Journey tab badge
+  const [showWeeklyHighlightsModal, setShowWeeklyHighlightsModal] = useState(false); // modal (user-triggered via Journey tab)
   const [weeklyAccomplishments, setWeeklyAccomplishments] = useState<{ text: string; date: string }[]>([]);
   const [weeklyReflectionMessage, setWeeklyReflectionMessage] = useState('');
-
-  // Rest Day Modal State
-  const [missedDate, setMissedDate] = useState<string>('');
 
   // Time-based UI modes
   const { shouldShowMorningMode, shouldShowEveningMode, hour, timeOfDay } = useTimeOfDay();
@@ -199,12 +155,48 @@ function AppContent() {
   // Transient Success States for Practices
   const [showMorningSuccess, setShowMorningSuccess] = useState(false);
   const [showEveningSuccess, setShowEveningSuccess] = useState(false);
+  const [showFirstTimeWelcome, setShowFirstTimeWelcome] = useState(false);
+  const dismissFirstTimeWelcome = () => {
+    localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
+    setShowFirstTimeWelcome(false);
+    // After the welcome letter is dismissed, surface the interests picker (first-practice only).
+    // This keeps the two modals sequential — never overlapping.
+    if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
+      setTimeout(() => setShowPostPracticeSetup(true), 850);
+    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+      setTimeout(() => setShowProfileNudge(true), 800);
+    }
+  };
   const [eveningSkipped, setEveningSkipped] = useState(false);
   const [showEveningPracticeInline, setShowEveningPracticeInline] = useState(false);
+
+  // Dev unlock: triple-tap the greeting on the home screen to force evening mode any hour.
+  // Resets on app launch so there's nothing to clean up before shipping.
+  const [forcedEvening, setForcedEvening] = useState(false);
+  const greetingTapsRef = useRef<{ count: number; firstTapAt: number }>({ count: 0, firstTapAt: 0 });
+  const handleGreetingTap = useCallback(() => {
+    const now = Date.now();
+    const TRIPLE_TAP_WINDOW_MS = 700;
+    if (now - greetingTapsRef.current.firstTapAt > TRIPLE_TAP_WINDOW_MS) {
+      greetingTapsRef.current = { count: 1, firstTapAt: now };
+    } else {
+      greetingTapsRef.current.count += 1;
+    }
+    if (greetingTapsRef.current.count >= 3) {
+      greetingTapsRef.current = { count: 0, firstTapAt: 0 };
+      haptics.heavy();
+      setForcedEvening(prev => !prev);
+    }
+  }, []);
   const [dailyQuote, setDailyQuote] = useState<Quote | null>(null);
+  const [gardenAffirmation, setGardenAffirmation] = useState<string | null>(null);
+  const [gardenAffirmationLoading, setGardenAffirmationLoading] = useState(false);
+  const [gardenAffirmationRefreshCount, setGardenAffirmationRefreshCount] = useState(0);
   const [showTodayStory, setShowTodayStory] = useState(false);
   const [showGardenLegend, setShowGardenLegend] = useState(false);
   const [showPostPracticeSetup, setShowPostPracticeSetup] = useState(false);
+  const [showNotifAsk, setShowNotifAsk] = useState(false);
+  const [restDayMissedDate, setRestDayMissedDate] = useState<string | null>(null);
 
   // Synchronize browser overscroll color with Palante theme
   useEffect(() => {
@@ -223,18 +215,33 @@ function AppContent() {
   }, [isDarkMode]);
 
   // Refresh Daily Quote logic
-  const refreshDailyQuote = useCallback((force = false) => {
-    if (!user) return;
-    // pickAndMarkQuote selects + records the quote in one atomic step,
-    // preventing the phantom-marking bug in getRelevantQuotes.
+  const refreshDailyQuote = useCallback((force = false, userOverride?: typeof user) => {
+    const activeUser = userOverride ?? user;
+    if (!activeUser) return;
     const excludeId = force && dailyQuote ? dailyQuote.id : undefined;
-    const selected = pickAndMarkQuote(user, excludeId);
-    if (selected) {
-      setDailyQuote(selected);
-      localStorage.setItem(STORAGE_KEYS.DAILY_QUOTE, JSON.stringify(selected));
+
+    const saveQuote = (q: ReturnType<typeof pickAndMarkQuote>) => {
+      if (!q) return;
+      setDailyQuote(q);
+      localStorage.setItem(STORAGE_KEYS.DAILY_QUOTE, JSON.stringify(q));
       localStorage.setItem(STORAGE_KEYS.QUOTE_DATE, new Date().toISOString().split('T')[0]);
       if (force) haptics.light();
+    };
+
+    // When the user has an active daily intention and prefers AI or mix, generate a
+    // personalized affirmation instead of pulling from the static pool.
+    const hasDailyIntention = (activeUser.dailyPriming || [])
+      .some(p => p.date === new Date().toISOString().split('T')[0] && p.dailyIntention?.trim());
+    const wantsAI = activeUser.sourcePreference === 'ai' || activeUser.sourcePreference === 'mix';
+
+    if (force && hasDailyIntention && wantsAI) {
+      getAIQuote(activeUser)
+        .then(saveQuote)
+        .catch(() => saveQuote(pickAndMarkQuote(activeUser, excludeId)));
+      return;
     }
+
+    saveQuote(pickAndMarkQuote(activeUser, excludeId));
   }, [user, dailyQuote]);
 
   // Load daily quote on mount — restore cached quote from today or pick a fresh one
@@ -250,6 +257,60 @@ function AppContent() {
       } catch { /* fall through to fresh pick */ }
     }
     refreshDailyQuote();
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Garden affirmation — generate once per day, anchored in today's actual morning practice content
+  const generateGardenAffirmation = useCallback((force = false, practiceOverride?: {
+    gratitudes: string[];
+    affirmations: string[];
+    intention: string;
+    commitment?: string;
+  }) => {
+    if (!user) return;
+    const _d = new Date();
+    const today = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
+    if (!force) {
+      const cachedDate = localStorage.getItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
+      const cached = localStorage.getItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
+      if (cachedDate === today && cached) {
+        setGardenAffirmation(cached);
+        return;
+      }
+    }
+    const todayPriming = ([...(user.dailyMorningPractice || []), ...(user.dailyPriming || [])])
+      .find(p => p.date === today);
+    const gratitudes = practiceOverride?.gratitudes ?? (todayPriming?.gratitudes || []).filter(Boolean);
+    const affirmations = practiceOverride?.affirmations ?? (todayPriming?.affirmations || []).filter(Boolean);
+    const intention = practiceOverride?.intention ?? (todayPriming?.dailyIntention?.trim() || '');
+    const commitment = practiceOverride?.commitment ?? (todayPriming?.commitment?.trim() || '');
+
+    // Only generate if there's real practice content to anchor to
+    if (!gratitudes.length && !affirmations.length && !intention) {
+      setGardenAffirmation(null);
+      return;
+    }
+
+    setGardenAffirmationLoading(true);
+    generatePalanteQuote({
+      gratitudes,
+      affirmations,
+      intention,
+      commitment: commitment || undefined,
+      coachTone: user.coachSettings?.coachTone,
+      streak: user.streak || 0,
+    })
+      .then(text => {
+        if (!text) { setGardenAffirmation(null); return; }
+        setGardenAffirmation(text);
+        localStorage.setItem(STORAGE_KEYS.GARDEN_AFFIRMATION, text);
+        localStorage.setItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE, today);
+      })
+      .catch(() => setGardenAffirmation(null))
+      .finally(() => setGardenAffirmationLoading(false));
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    generateGardenAffirmation();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep screen awake globally per user request
@@ -276,7 +337,7 @@ function AppContent() {
   const [letterContextDetails, setLetterContextDetails] = useState<string>('');
   const [currentLetter, setCurrentLetter] = useState<FutureLetter | null>(null);
 
-  // Weekly Highlights — trigger on Sunday evenings once per week
+  // Weekly Highlights — badge on Journey tab, modal shown when user navigates there
   useEffect(() => {
     if (!user) return;
     const trigger = computeWeeklyHighlights(
@@ -285,18 +346,22 @@ function AppContent() {
     );
     if (trigger.shouldShow) {
       setWeeklyAccomplishments(trigger.accomplishments);
-      // Generate AI reflection in background
+      trigger.markShown();
+      setShowWeeklyHighlights(true); // lights up the Journey tab badge
       const firstName = user.name?.split(' ')[0] || 'Friend';
       generateWeeklyReflection(
         trigger.accomplishments.map(a => a.text),
         firstName
       ).then(msg => setWeeklyReflectionMessage(msg)).catch(() => {});
-      setTimeout(() => {
-        setShowWeeklyHighlights(true);
-        trigger.markShown();
-      }, 1800);
     }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When user taps Journey tab and highlights are waiting, open the modal there
+  useEffect(() => {
+    if (activeTab !== 'momentum' || !showWeeklyHighlights) return;
+    const t = setTimeout(() => setShowWeeklyHighlightsModal(true), 600);
+    return () => clearTimeout(t);
+  }, [activeTab, showWeeklyHighlights]);
 
   useEffect(() => {
     if (user?.id) identifyUser(user.id, { name: user.name, profession: user.profession });
@@ -347,7 +412,6 @@ function AppContent() {
 
     // 4. Ensure legacy modals don't show
     setShowDisclaimer(false);
-    setShowVibeCheck(false);
 
     // 5. Provide immediate feedback
     haptics.success();
@@ -375,9 +439,17 @@ function AppContent() {
       };
 
       await updateProfile(updatedUser);
+    }
 
-      // 7. Load initial quote with new preferences (after profile is updated)
-      await loadNewQuote(updatedUser);
+    // Drop the user directly into their first morning practice.
+    // This is the first real value moment — they get a personalized AI send-off
+    // and the "it knows me" feeling lands on Day 1 instead of Day 3.
+    setShowMorningPractice(true);
+  };
+
+  const maybeShowNotifAsk = () => {
+    if (!localStorage.getItem(STORAGE_KEYS.NOTIF_ASK_SEEN) && notifications.permission !== 'granted') {
+      setTimeout(() => setShowNotifAsk(true), 500);
     }
   };
 
@@ -386,7 +458,7 @@ function AppContent() {
     contentType: ContentType;
     sourcePreference: QuoteSource;
   }) => {
-    localStorage.setItem('postPracticeSetupSeen', 'true');
+    localStorage.setItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN, 'true');
     setShowPostPracticeSetup(false);
     if (user) {
       const updatedUser = {
@@ -396,19 +468,46 @@ function AppContent() {
         sourcePreference: prefs.sourcePreference,
       };
       await updateProfile(updatedUser);
-      await loadNewQuote(updatedUser);
     }
+    maybeShowNotifAsk();
   };
 
   const handlePostPracticeSetupSkip = () => {
-    localStorage.setItem('postPracticeSetupSeen', 'true');
+    localStorage.setItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN, 'true');
     setShowPostPracticeSetup(false);
+    maybeShowNotifAsk();
+  };
+
+  const handleNotifAskAllow = async () => {
+    localStorage.setItem(STORAGE_KEYS.NOTIF_ASK_SEEN, 'true');
+    setShowNotifAsk(false);
+    try {
+      await notifications.updateNudgeConfig({ enabled: true, nudgeFrequency: 'morning-evening' });
+    } catch (e) {
+      console.error('Notification permission request failed:', e);
+    }
+  };
+
+  const handleNotifAskSkip = () => {
+    localStorage.setItem(STORAGE_KEYS.NOTIF_ASK_SEEN, 'true');
+    setShowNotifAsk(false);
+  };
+
+  const handleRestDayMarkAsRest = async () => {
+    if (!user || !restDayMissedDate) return;
+    const updatedRestDays = [...(user.restDays ?? []), restDayMissedDate];
+    await updateProfile({ ...user, restDays: updatedRestDays });
+    setRestDayMissedDate(null);
+  };
+
+  const handleRestDayAcknowledge = () => {
+    setRestDayMissedDate(null);
   };
 
   // Legal Disclaimer Modal - First Launch (Legacy fallback, suppressed by Intro Logic)
   const [showDisclaimer, setShowDisclaimer] = useState(() => {
     if (!localStorage.getItem(STORAGE_KEYS.INTRO_SEEN)) return false; // Don't show if Intro is showing
-    const acceptance = localStorage.getItem('disclaimerAccepted');
+    const acceptance = localStorage.getItem(STORAGE_KEYS.DISCLAIMER_ACCEPTED);
     if (!acceptance) return true;
     try {
       const parsed = JSON.parse(acceptance);
@@ -448,31 +547,10 @@ function AppContent() {
   });
 
   // Routine Stack Runner
-  const [activeRoutine, setActiveRoutine] = useState<RoutineStack | null>(null);
 
   // Weekly Report
   const [currentWeeklyReport, setCurrentWeeklyReport] = useState<WeeklyReport | null>(null);
 
-  // Routine Stack Handlers
-  const handleLaunchRoutine = (routine: import('./types').RoutineStack) => {
-    setActiveRoutine(routine);
-    setShowStackRunner(true);
-  };
-
-  const handleDeleteRoutine = async (routineId: string) => {
-    if (!user) return;
-    const updatedRoutines = (user.routines || []).filter(r => r.id !== routineId);
-    await updateProfile({ ...user, routines: updatedRoutines });
-  };
-
-  const handleUpdateRoutine = async (updatedRoutine: import('./types').RoutineStack) => {
-    if (!user) return;
-    const updatedRoutines = (user.routines || []).map(r =>
-      r.id === updatedRoutine.id ? updatedRoutine : r
-    );
-    await updateProfile({ ...user, routines: updatedRoutines });
-    setEditingRoutine(null);
-  };
 
 
 
@@ -483,46 +561,6 @@ function AppContent() {
     return 'Good Evening';
   };
 
-  const handleRoutineComplete = () => {
-    setShowStackRunner(false);
-    setActiveRoutine(null);
-  };
-
-  // Rest Day Handlers
-  const handleMarkAsRestDay = () => {
-    if (!user || !missedDate) return;
-
-    // Add missed date to restDays array
-    const updatedRestDays = [...(user.restDays || []), missedDate];
-
-    const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
-    updateProfile({
-      ...user,
-      restDays: updatedRestDays,
-      practiceData: {
-        ...currentPracticeData,
-        lastActivityDate: missedDate
-      }
-    });
-
-    haptics.success();
-    setShowRestDayModal(false);
-  };
-
-  const handleAcknowledgeMissedDay = () => {
-    if (!user || !missedDate) return;
-    const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
-    // User acknowledges they forgot - update last activity to the missed date so we don't nag again
-    updateProfile({
-      ...user,
-      practiceData: {
-        ...currentPracticeData,
-        lastActivityDate: missedDate
-      }
-    });
-    haptics.light();
-    setShowRestDayModal(false);
-  };
 
   // Future Letters Handlers
   const handleSaveLetter = (content: string, sealedUntil: string) => {
@@ -588,47 +626,24 @@ function AppContent() {
       setCurrentLetter(scheduledDue[0]);
       setShowLetterRead(true);
       sessionStorage.setItem(SESSION_KEYS.LETTER_SHOWN_TODAY, 'true');
-      return;
-    }
-
-    // Priority 2: Low-energy delivery for non-scheduled letters
-    const hasLowEnergy = user.currentEnergy && user.currentEnergy <= 2;
-    if (hasLowEnergy) {
-      const undelivered = user.futureLetters.filter(l => !l.hasBeenDelivered && !l.scheduledDeliveryDate);
-      if (undelivered.length > 0) {
-        const oldestLetter = undelivered.sort((a, b) =>
-          new Date(a.writtenDate).getTime() - new Date(b.writtenDate).getTime()
-        )[0];
-        setCurrentLetter(oldestLetter);
-        setShowLetterRead(true);
-        sessionStorage.setItem(SESSION_KEYS.LETTER_SHOWN_TODAY, 'true');
-      }
     }
   }, [user, showLetterRead, setShowLetterRead]);
 
-  // Day-3 letter prompt — show once after user completes their 3rd practice and has no letters yet
-  useEffect(() => {
-    if (!user) return;
-    const totalPractices = user.practiceData?.totalPractices ?? 0;
-    if (totalPractices < 3) return;
-    if ((user.futureLetters ?? []).length > 0) return;
-    if (localStorage.getItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN)) return;
-    if (showLetterWrite || showLetterRead) return;
 
-    const timer = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
-      setLetterContext('manual');
-      setLetterContextDetails('3 practices in — you\'ve earned this moment');
-      setShowLetterWrite(true);
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [user, showLetterWrite, showLetterRead]);
+  // Request an App Store review at emotionally high moments (ring ceremony, streak milestones).
+  // iOS throttles this to ~3 prompts per year, so calling it more often is harmless.
+  const requestAppReview = useCallback(() => {
+    if (Capacitor.isNativePlatform()) {
+      InAppReview.requestReview().catch(() => {});
+    }
+  }, []);
 
   // Ring ceremony — fires once per ring threshold crossing
   useEffect(() => {
     if (!user || ringCeremony.isOpen) return;
     const total = user.practiceData?.totalPractices ?? 0;
+    // Use cycle-relative count so ring ceremonies re-fire each 90-day cycle
+    const cycleTotal = total > 0 && total % 90 === 0 ? 90 : total % 90;
 
     const rings: Array<{ threshold: number; type: RingCeremonyType; key: keyof typeof STORAGE_KEYS }> = [
       { threshold: 90, type: 'fullbloom',  key: 'FULLBLOOM_CEREMONY_SHOWN' },
@@ -638,7 +653,7 @@ function AppContent() {
     ];
 
     for (const ring of rings) {
-      if (total >= ring.threshold && !localStorage.getItem(STORAGE_KEYS[ring.key])) {
+      if (cycleTotal >= ring.threshold && !localStorage.getItem(STORAGE_KEYS[ring.key])) {
         // Slight delay so the practice completion animation finishes first
         const timer = setTimeout(() => {
           localStorage.setItem(STORAGE_KEYS[ring.key], 'true');
@@ -669,74 +684,15 @@ function AppContent() {
     setGlobalTip(prev => ({ ...prev, isOpen: false }));
   };
 
-  const lastQuoteLoadTimeRef = useRef<number>(0);
-
-  const loadNewQuote = useCallback(async (userProfile: UserProfile, sourceOverride?: QuoteSource) => {
-    // Guard: Don't load if user is null or undefined
-    if (!userProfile) {
-      console.warn('loadNewQuote called with null user, skipping');
-      return;
-    }
-
-    // Safety Throttle: Prevent rapid reloading (loop protection)
-    const now = Date.now();
-    if (now - lastQuoteLoadTimeRef.current < 2000) {
-      console.warn('loadNewQuote throttled - preventing loop');
-      setIsQuoteLoading(false);
-      return;
-    }
-    lastQuoteLoadTimeRef.current = now;
-
-    setIsQuoteLoading(true);
-    // Determine source to use: override -> state -> profile -> default
-
-    // Determine source to use: override -> profile -> default
-    const effectiveSource = sourceOverride || userProfile.sourcePreference || 'human';
-
-
-    // If AI is requested, generate a fresh personalized quote
-    if (effectiveSource === 'ai') {
-      try {
-        const aiQuote = await getAIQuote(userProfile);
-        setCurrentQuote(aiQuote);
-        setAllQuotes(prev => {
-          if (prev.some(q => q.id === aiQuote.id)) return prev;
-          return [aiQuote, ...prev];
-        });
-        setIsQuoteLoading(false);
-        return;
-      } catch (error) {
-        console.error('Error generating AI quote:', error);
-        // Fall through to regular quotes
-      }
-    }
-
-    // For 'human' or 'both', get human quotes
-    const profileToUse = effectiveSource === 'human'
-      ? { ...userProfile, sourcePreference: 'human' as const }
-      : userProfile;
-    // pickAndMarkQuote scores, selects, AND marks the quote seen in one step —
-    // this is the single source of truth that prevents stuck/repeating quotes.
-    const selectedQuote = pickAndMarkQuote(profileToUse) ?? {
-      id: 'emergency_fallback',
-      text: "Keep moving forward.",
-      author: "Palante Coach",
-      category: "Motivation",
-      intensity: 2,
-      isAI: false
-    };
-
-    setCurrentQuote(selectedQuote);
-    analytics.quoteViewed({ quoteId: String(selectedQuote.id), isAI: !!selectedQuote.isAI, author: selectedQuote.author });
-    localStorage.setItem(STORAGE_KEYS.LAST_QUOTE, JSON.stringify(selectedQuote));
-    localStorage.setItem('palante_last_quote_ts', Date.now().toString());
-
-    setIsQuoteLoading(false);
-  }, []); // No dependencies - loadNewQuote only uses its parameters
+  // loadNewQuote stub — kept for useAppProcess compatibility (daily quote uses refreshDailyQuote instead)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const loadNewQuote = useCallback(async (_userProfile: UserProfile) => {
+    // no-op: daily quote refresh handled by refreshDailyQuote
+  }, []);
 
   // Notifications Integration
   const notifications = useNotifications();
-  const { updateNudgeConfig } = notifications;
+  const { updateNudgeConfig, cancelEveningLastCall } = notifications;
 
   // Background Processes & Logic Hook
   useAppProcess({
@@ -751,43 +707,7 @@ function AppContent() {
   });
 
 
-  // Midday check-in trigger — once per day, 9am–9pm, 3s delay (TEST MODE — change to 90_000 for production)
-  useEffect(() => {
-    if (!user || userLoading || showIntroSequence || showVibeCheck) return;
-    const hour = new Date().getHours();
-    if (hour < 9 || hour >= 21) return;
-    const today = new Date().toISOString().slice(0, 10);
-    if (localStorage.getItem(STORAGE_KEYS.CHECKIN_LAST_SHOWN) === today) return;
-    const timer = setTimeout(() => {
-      setShowCheckIn(true);
-      localStorage.setItem(STORAGE_KEYS.CHECKIN_LAST_SHOWN, today);
-    }, 3_000);
-    return () => clearTimeout(timer);
-  }, [user, userLoading, showIntroSequence, showVibeCheck]);
 
-  // AUTOMATIC REFRESH throughout the day
-  // Triggers when hour changes significantly (e.g. morning -> afternoon -> evening)
-  useEffect(() => {
-    if (user && !userLoading) {
-      // Load a new quote on significant time changes if app is open
-      const lastHour = parseInt(sessionStorage.getItem(SESSION_KEYS.LAST_HOUR) || '-1');
-      const currentHour = new Date().getHours();
-
-      // Define boundaries: 5am, 12pm, 6pm, 9pm
-      const isTimeBoundary =
-        (lastHour < 5 && currentHour >= 5) ||
-        (lastHour < 12 && currentHour >= 12) ||
-        (lastHour < 18 && currentHour >= 18) ||
-        (lastHour < 21 && currentHour >= 21);
-
-      if (isTimeBoundary) {
-        loadNewQuote(user);
-        sessionStorage.setItem(SESSION_KEYS.LAST_HOUR, currentHour.toString());
-      } else if (lastHour === -1) {
-        sessionStorage.setItem(SESSION_KEYS.LAST_HOUR, currentHour.toString());
-      }
-    }
-  }, [hour, user, userLoading, loadNewQuote]);
 
 
   // PRO-ACTIVE COACH SESSION INITIALIZATION Logic Moved to Line 1082 Area to ensure initialization order
@@ -800,52 +720,26 @@ function AppContent() {
     // requestPermissions();
   }, []);
 
-  // Initial Quote Load
-  useEffect(() => {
-    // Don't load quotes during intro sequence
-    if (showIntroSequence) return;
 
-    // Don't load if user context is still loading
-    if (userLoading) return;
-
-    // Only load if we have a user and no current quote
-    if (user && !currentQuote) {
-      loadNewQuote(user);
-    }
-  }, [user, currentQuote, loadNewQuote, showIntroSequence, userLoading]);
-
-  // Rest Day Detection - Check if user missed yesterday
+  // Recovery check — grace day modal (1 missed day) or background nudge (3+ days)
   useEffect(() => {
     if (!user || !user.practiceData?.lastActivityDate) return;
-
-    // Only check once per session for high-level gate
     const checkedToday = sessionStorage.getItem(SESSION_KEYS.REST_DAY_CHECKED);
     if (checkedToday) return;
+    sessionStorage.setItem(SESSION_KEYS.REST_DAY_CHECKED, 'true');
 
-    const today = getTodayDate();
     const lastActivity = user.practiceData.lastActivityDate;
-    const daysSince = getDaysDifference(lastActivity, today);
+    const daysSince = getDaysDifference(lastActivity, getTodayDate());
 
-    // If exactly 1 day missed (yesterday, meaning difference is 2 days), show rest day prompt
-    if (daysSince === 2) {
+    if (daysSince === 1 && (user.streak ?? 0) >= 2) {
+      // Missed exactly yesterday and has a real streak worth protecting — show grace day modal
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-      // PERSISTENT MITIGATION: Don't prompt for the same date twice
-      const lastPromptedDate = localStorage.getItem('palante_last_rest_prompt_date');
-      if (lastPromptedDate !== yesterdayStr) {
-        setMissedDate(yesterdayStr);
-        setShowRestDayModal(true);
-        localStorage.setItem('palante_last_rest_prompt_date', yesterdayStr);
-      }
-    }
-
-    // If 3+ days away, send a recovery nudge via notification (once per absence window)
-    if (daysSince >= 3 && user) {
+      setTimeout(() => setRestDayMissedDate(yesterdayStr), 1200);
+    } else if (daysSince >= 3) {
       const lastRecoveryKey = 'palante_last_recovery_nudge';
-      const lastRecovery = localStorage.getItem(lastRecoveryKey);
-      if (lastRecovery !== lastActivity) {
+      if (localStorage.getItem(lastRecoveryKey) !== lastActivity) {
         const firstName = user.name?.split(' ')[0] || 'friend';
         const coachTone = user.coachSettings?.coachTone ?? 'nurturing';
         const recoveryMsg = generateRecoveryDispatch({ firstName, daysMissed: daysSince, tone: coachTone });
@@ -853,20 +747,8 @@ function AppContent() {
         localStorage.setItem(lastRecoveryKey, lastActivity);
       }
     }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Mark as checked for this session
-    sessionStorage.setItem(SESSION_KEYS.REST_DAY_CHECKED, 'true');
-  }, [user, setShowRestDayModal]);
-
-  // Morning Mode Detection - Show on first open before noon
-  // Morning Mode Detection - Auto-trigger disabled per user request
-  useEffect(() => {
-    if (!user || !currentQuote) return;
-
-    // if (shouldShowMorningMode) {
-    //   setShowMorningMode(true);
-    // }
-  }, [user, currentQuote, shouldShowMorningMode]);
 
 
   // 5. Scroll-aware navigation: hide on scroll down, show on scroll up
@@ -895,7 +777,6 @@ function AppContent() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
 
@@ -922,13 +803,9 @@ function AppContent() {
       };
 
       updateProfile(updatedUser);
-
-      // Load a fresh quote with new preferences
-      loadNewQuote(updatedUser);
     }
 
     setShowWelcome(false);
-    setShowVibeCheck(false); // Ensure Vibe Check doesn't pop up immediately
     setShowWelcomeOrientation(true); // Show the new orientation modal
   };
 
@@ -951,13 +828,35 @@ function AppContent() {
         'practices_14': 'fortnight', 'practices_30': 'month', 'practices_50': 'fifty',
         'practices_100': 'century', 'practices_200': 'twohundred', 'practices_365': 'year'
       };
-      setShowMilestone({ isOpen: true, milestone: milestoneMap[milestone] || 'week' });
+      const name = milestoneMap[milestone] || 'week';
+      const earlyToasts: Partial<Record<typeof name, string>> = {
+        first: "First practice. Pa'lante.",
+        three: "3 practices — you're building something.",
+        week:  "7 practices. One week in.",
+      };
+      if (earlyToasts[name]) {
+        triggerConfetti();
+        setToastMessage(earlyToasts[name]!);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        setShowMilestone({ isOpen: true, milestone: name });
+      }
     }
 
-    // After the very first practice, show the personalization setup (interests + content style)
-    if (updatedCount === 1 && !localStorage.getItem('postPracticeSetupSeen')) {
-      setTimeout(() => setShowPostPracticeSetup(true), 1200);
+    // After the 3rd practice — invite to write a letter to your future self (earned, once-only)
+    if (updatedCount === 3 && (user.futureLetters ?? []).length === 0 && !localStorage.getItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN)) {
+      setTimeout(() => {
+        localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
+        setLetterContext('manual');
+        setLetterContextDetails('3 practices in — you\'ve earned this moment');
+        setShowLetterWrite(true);
+      }, 3500); // after the milestone toast fades
     }
+
+    // Note: PostPracticeSetupModal (interests picker) is now triggered inside
+    // dismissFirstTimeWelcome — keeping it sequential with the welcome letter.
+    // For users who already saw the welcome letter (returning users), it fires there too.
 
     // Also check for STREAK milestones (7, 30, 100 days)
     // Note: UserContext updates streak during logActivity
@@ -985,20 +884,20 @@ function AppContent() {
     updateProfile(updateInput);
   };
 
-  const handleToggleFavorite = async () => {
-    if (!user || !currentQuote) {
+  const handleToggleFavorite = async (quote?: Quote | null) => {
+    if (!user || !quote) {
       console.error('Cannot toggle favorite: missing user or quote');
       return;
     }
 
-    const quoteIdStr = String(currentQuote.id);
+    const quoteIdStr = String(quote.id);
 
     const isFavorited = user.favoriteQuotes?.some(fav => String(fav.quoteId) === quoteIdStr) || false;
 
     // Haptic feedback
     if (!isFavorited) {
       haptics.medium();
-      analytics.quoteFavorited({ quoteId: quoteIdStr, author: currentQuote.author });
+      analytics.quoteFavorited({ quoteId: quoteIdStr, author: quote.author });
     } else {
       haptics.light();
     }
@@ -1011,22 +910,16 @@ function AppContent() {
   };
 
   const handleQuickAction = (id: string) => {
-    console.log('Quick Action Triggered:', id);
     haptics.selection();
     switch (id) {
-      case 'fast':
-      case 'fasting':
-        setActiveTab('fasting');
-        setToastMessage('Fasting Tracker');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        break;
       case 'breathe':
       case 'breath':
+        practiceOriginRef.current = activeTab;
         setActiveTab('breath');
         break;
       case 'meditate':
       case 'meditation':
+        practiceOriginRef.current = activeTab;
         setActiveTab('meditate');
         setToastMessage('Mindfulness Space');
         setShowToast(true);
@@ -1034,28 +927,16 @@ function AppContent() {
         break;
       case 'coach':
         setActiveTab('coach');
-        setToastMessage('Palante Coach');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        break;
-      case 'wisdom':
-        setActiveTab('wisdom');
-        setToastMessage('Library of Wisdom');
+        setToastMessage('Palante');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
       case 'focus':
       case 'focus-timer':
       case 'timer':
+        practiceOriginRef.current = activeTab;
         setActiveTab('focus');
         setToastMessage('Focus Timer');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        break;
-      case 'reflect':
-      case 'journal':
-        setActiveTab('reflect');
-        setToastMessage('Daily Journal');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
@@ -1075,9 +956,6 @@ function AppContent() {
       case 'soundscapes':
         setMixerSource('dashboard');
         setShowSoundMixer(true);
-        break;
-      case 'routines':
-        setShowStackWizard(true);
         break;
       default:
         console.warn('Unknown quick action ID:', id);
@@ -1191,6 +1069,15 @@ function AppContent() {
     updateProfile(updatedUser);
     setNewFocusText(''); // Clear input
 
+    // After the very first goal, invite them to set practice partner tone + nudge cadence
+    const wasFirstGoal = (user.dailyFocuses || []).length === 0;
+    if (wasFirstGoal && !localStorage.getItem('firstGoalCoachSetupSeen')) {
+      setTimeout(() => {
+        localStorage.setItem('firstGoalCoachSetupSeen', 'true');
+        setShowHomeCoachSettings(true);
+      }, 1200);
+    }
+
     try {
       await api.createGoal(user.id, newFocus.text);
     } catch (error) {
@@ -1254,7 +1141,20 @@ function AppContent() {
           'practices_200': 'twohundred',
           'practices_365': 'year'
         };
-        setShowMilestone({ isOpen: true, milestone: milestoneMap[milestone] || 'week' });
+        const name = milestoneMap[milestone] || 'week';
+        const earlyToasts: Partial<Record<typeof name, string>> = {
+          first: "First practice. Pa'lante.",
+          three: "3 practices — you're building something.",
+          week:  "7 practices. One week in.",
+        };
+        if (earlyToasts[name]) {
+          triggerConfetti();
+          setToastMessage(earlyToasts[name]!);
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+        } else {
+          setShowMilestone({ isOpen: true, milestone: name });
+        }
       }
     }
 
@@ -1263,6 +1163,13 @@ function AppContent() {
 
   const handlePrimingComplete = (data: DailyPriming) => {
     if (!user) return;
+
+    // Mark that the user has genuinely completed a practice (gates the paywall on next open).
+    // Intentionally here — on completion — not on modal close, so abandoners don't get locked out.
+    localStorage.setItem(STORAGE_KEYS.APP_USED, 'true');
+    // Guard against the morning ritual re-appearing if the user context is momentarily stale
+    // (e.g. React re-render before updateProfile propagates). Cleared automatically each session.
+    sessionStorage.setItem(SESSION_KEYS.MORNING_DONE, 'true');
 
     const today = data.date;
     const existingEntryIndex = (user.dailyPriming || []).findIndex(p => p.date === today);
@@ -1286,7 +1193,20 @@ function AppContent() {
       practiceData: logPractice(user.practiceData || migrateStreakToPractice(user), 'morning_priming')
     };
     updateProfile(updatedUser);
+    setCompletionIntention(data.dailyIntention?.trim() || '');
     analytics.morningRitualCompleted({ hasIntention: !!data.dailyIntention, mood: data.mood });
+
+    // Queue welcome screen to appear once the success overlay auto-dismisses.
+    // Using a ref avoids racing against the auto-dismiss useEffect.
+    if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
+      // dismissFirstTimeWelcome will chain into PostPracticeSetupModal if needed.
+      pendingWelcome.current = true;
+    } else if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
+      // Returning user who missed the interests picker — show it now.
+      setTimeout(() => setShowPostPracticeSetup(true), 3200);
+    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+      setTimeout(() => setShowProfileNudge(true), 3200);
+    }
 
     // Fire personalized daily dispatch after morning practice completes.
     // App Store reviewers (matched by auth email) get compressed 1/2/3 minute
@@ -1308,6 +1228,17 @@ function AppContent() {
         }))
       : dispatchMessages;
     notifications.scheduleDailyDispatch(finalDispatch, user.coachName);
+
+    // Regenerate garden affirmation with fresh practice content — don't use stale cache
+    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
+    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
+    setGardenAffirmation(null);
+    generateGardenAffirmation(true, {
+      gratitudes: (data.gratitudes || []).filter(Boolean),
+      affirmations: (data.affirmations || []).filter(Boolean),
+      intention: data.dailyIntention?.trim() || '',
+      commitment: data.commitment?.trim(),
+    });
   };
 
   // Removed handleSmartRollover - goals now persist until manually deleted
@@ -1318,6 +1249,74 @@ function AppContent() {
   const today = new Date();
   const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const todaysPriming = user?.dailyPriming?.find(p => p.date === todayDate);
+  // Intention may land in either dailyPriming OR dailyMorningPractice depending on code path
+  const todaysIntention =
+    todaysPriming?.dailyIntention ||
+    (user?.dailyMorningPractice || []).find(p => p.date === todayDate)?.dailyIntention;
+
+  // Morning practice flow: hide header + nav during the full morning ritual
+  const [beat1Step, setBeat1Step] = useState<string>('intro');
+  const ritualDoneToday = !!todaysIntention || !!sessionStorage.getItem(SESSION_KEYS.MORNING_DONE);
+  const isInMorningFlow = !ritualDoneToday && !shouldShowEveningMode && !forcedEvening && !!user && activeTab === 'home';
+
+  // Evening practice flow: hide nav once the user leaves the intro step
+  const [eveningStep, setEveningStep] = useState<string>('intro');
+  const isInEveningInputFlow = (shouldShowEveningMode || forcedEvening)
+    && !!user && activeTab === 'home'
+    && eveningStep !== 'intro';
+
+  // Completion moment: captures the intention word right as practice finishes
+  const [completionIntention, setCompletionIntention] = useState<string>('');
+
+  // Profile nudge — shown once after first practice completes
+  const [showProfileNudge, setShowProfileNudge] = useState(false);
+  const dismissProfileNudge = () => {
+    setShowProfileNudge(false);
+    localStorage.setItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED, 'true');
+  };
+
+  // Sign-in nudge — shown to guest users after 2+ practices so they know their data isn't backed up
+  const [showSignInNudge, setShowSignInNudge] = useState(false);
+  const dismissSignInNudge = () => {
+    setShowSignInNudge(false);
+    localStorage.setItem(STORAGE_KEYS.SIGNIN_NUDGE_DISMISSED, 'true');
+  };
+
+  // pendingWelcome: set to true in handlePrimingComplete when the welcome screen
+  // should appear after the morning success overlay auto-dismisses.
+  const pendingWelcome = useRef(false);
+
+  // Auto-dismiss the morning completion overlay after 2.5 s.
+  // When it goes away, fire the welcome screen if one is pending.
+  useEffect(() => {
+    if (showMorningSuccess) {
+      const t = setTimeout(() => setShowMorningSuccess(false), 2500);
+      return () => clearTimeout(t);
+    } else {
+      // Overlay just closed — show welcome if queued
+      if (pendingWelcome.current) {
+        pendingWelcome.current = false;
+        setShowFirstTimeWelcome(true);
+      }
+    }
+  }, [showMorningSuccess]);
+
+  // Welcome screen is triggered only from practice completion handlers
+  // (handlePrimingComplete / evening onComplete) — never on app open,
+  // which caused the welcome overlay to block the morning practice flow.
+
+  // Sign-in nudge: fires once the guest user has 2+ practices and hasn't dismissed it
+  useEffect(() => {
+    if (authUser) return; // Already signed in — never show
+    if (localStorage.getItem(STORAGE_KEYS.SIGNIN_NUDGE_DISMISSED)) return;
+    const totalPractices = user?.practiceData?.totalPractices ?? 0;
+    const streak = user?.streak ?? 0;
+    if (totalPractices >= 2 || streak >= 2) {
+      // Delay slightly so it doesn't fight with other nudges on the same render
+      const t = setTimeout(() => setShowSignInNudge(true), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [authUser, user?.practiceData?.totalPractices, user?.streak]);
 
   // PRO-ACTIVE COACH SESSION INITIALIZATION
   const sessionInitialized = useRef(false);
@@ -1405,16 +1404,9 @@ function AppContent() {
       if (!isActive) return;
       // Refresh widget quotes
       if (user) WidgetDataSync.refreshQuotes(user);
-      // Force new quote if last load was more than 6 hours ago
-      const lastLoad = parseInt(localStorage.getItem('palante_last_quote_ts') || '0', 10);
-      const SIX_HOURS = 6 * 60 * 60 * 1000;
-      if (user && Date.now() - lastLoad > SIX_HOURS) {
-        localStorage.setItem('palante_last_quote_ts', Date.now().toString());
-        loadNewQuote(user);
-      }
     });
     return () => { listener.then(h => h.remove()); };
-  }, [user, loadNewQuote]);
+  }, [user]);
 
 
 
@@ -1446,16 +1438,19 @@ function AppContent() {
     );
   }
 
-  // PAYWALL — show when user has no active subscription
-  if (!isPro) {
+  // PAYWALL — show when user has no active subscription AND has already experienced the app.
+  // New users get through to their first morning practice before we ask for money.
+  if (!isPro && localStorage.getItem(STORAGE_KEYS.APP_USED)) {
     const gratitudeCount = (user?.dailyMorningPractice || user?.dailyPriming || [])
       .reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
     return (
-      <PaywallScreen
-        firstName={user?.name?.split(' ')[0]}
-        practiceCount={user?.practiceData?.totalPractices ?? 0}
-        gratitudeCount={gratitudeCount}
-      />
+      <Suspense fallback={null}>
+        <PaywallScreen
+          firstName={user?.name?.split(' ')[0]}
+          practiceCount={user?.practiceData?.totalPractices ?? 0}
+          gratitudeCount={gratitudeCount}
+        />
+      </Suspense>
     );
   }
 
@@ -1465,7 +1460,7 @@ function AppContent() {
     ? 'bg-white/5 border-white/20 hover:bg-white/10 text-white backdrop-blur-md'
     : 'bg-white/30 border-sage/10 hover:bg-sage/5 text-sage backdrop-blur-md';
   const navClass = isDarkMode
-    ? 'bg-[#2D6A4F]/20 border-[#52B788]/30 shadow-[0_0_30px_rgba(45,106,79,0.2)] backdrop-blur-2xl'
+    ? 'bg-[#415D43]/95 border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.30)] backdrop-blur-md'
     : 'bg-white/40 border-sage/5 shadow-spa-lg backdrop-blur-2xl';
 
   const appJsx = (
@@ -1496,7 +1491,7 @@ function AppContent() {
 
       {/* ── Background depth system ── */}
       {(() => {
-        const isToolTab = ['fasting', 'focus', 'toolkit'].includes(activeTab);
+        const isToolTab = ['focus', 'toolkit', 'meditate'].includes(activeTab);
         if (isToolTab) {
           return (
             <>
@@ -1525,7 +1520,7 @@ function AppContent() {
             {/* Bottom terracotta warmth */}
             <div className="fixed bottom-0 inset-x-0 pointer-events-none z-0" style={{
               height: '40%',
-              background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.16) 0%, transparent 70%)',
+              background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.12) 0%, transparent 70%)',
             }} />
             {/* Seed of Life — sacred geometry background */}
             <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
@@ -1566,7 +1561,7 @@ function AppContent() {
 {/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
-        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
+        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && activeTab !== 'breath' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
       >
 
         {/* Top: Tagline & Logo */}
@@ -1584,24 +1579,24 @@ function AppContent() {
         {/* Bottom: Action Buttons Row (Profile, Theme, Noise, Sounds, Chat, Momentum) */}
         <div className="flex items-center gap-3">
           {/* 1. Settings (Profile) */}
-          <button
-            onClick={() => setShowProfile(true)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${headerBtnClass} `}
-            title="Settings"
-          >
-            <UserIcon size={16} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowProfile(true)}
+              className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${headerBtnClass} `}
+              title="Settings"
+            >
+              <UserIcon size={16} />
+            </button>
+            {user && (
+              !user.profession ||
+              (!user.name || user.name === 'Friend') ||
+              (!user.interests?.length && !user.goals?.length && !user.dailyFocuses?.length)
+            ) && !showProfile && (
+              <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-[#C96A3A] border-2 border-white pointer-events-none" />
+            )}
+          </div>
 
-          {/* 2. Library */}
-          <button
-            onClick={() => setShowLibrary(true)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${headerBtnClass} `}
-            title="Library"
-          >
-            <BookMarked size={16} />
-          </button>
-
-          {/* 3. Koi Pond (Was Theme) */}
+          {/* 2. Koi Pond (Was Theme) */}
           <button
             onClick={() => {
               setShowKoiPond(true);
@@ -1636,7 +1631,7 @@ function AppContent() {
               ? 'bg-[#40916C] text-white border-2 border-[#D4E09B]'
               : 'bg-[#40916C]/60 text-white border border-white/20 hover:bg-[#40916C] hover:scale-105'
               } `}
-            title="Palante Coach Chat"
+            title="Palante Chat"
           >
             <MessageCircle size={16} />
           </button>
@@ -1648,7 +1643,10 @@ function AppContent() {
 
 
       {/* Main Content - Full Screen Sections */}
-      <main className="relative z-20 pt-44 pb-40">
+      <main
+        className={`relative z-20 ${isInMorningFlow ? '' : 'pb-40'}`}
+        style={{ paddingTop: isInMorningFlow ? 0 : 'calc(env(safe-area-inset-top) + 8.5rem)' }}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1662,23 +1660,56 @@ function AppContent() {
           <ErrorBoundary name="Home" onReset={() => window.location.reload()}>
           <PageTransition>
           {(() => {
-            const ritualDoneToday = !!todaysPriming?.dailyIntention;
             const eveningDoneToday = !!(user?.dailyEveningPractice || []).find(p => p.date === todayDate);
             const rawFirst = (user?.name || 'Friend').split(' ')[0];
             const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1);
 
             // ── BEAT 1 · MORNING ARRIVAL ────────────────────────────────────────
-            if (!ritualDoneToday && !shouldShowEveningMode && user) {
+            if (!ritualDoneToday && !shouldShowEveningMode && !forcedEvening && user) {
               const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
-              const timeSub = hour < 12 ? "Let's set the tone." : 'Take a moment.';
+              const timeSub = hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
+              const isIntroStep = beat1Step === 'intro';
+              const isMessageStep = beat1Step === 'message';
+
+              // ── Single container — widget never unmounts ──────────────────────────
+              // Two-branch layouts caused React to unmount/remount the widget on every
+              // step transition, resetting local state and snapping back to 'intro'.
+              // One container with changing CSS properties avoids that entirely.
+              // isCentered = intro or message step.
+              // overflow:hidden on those steps lets justifyContent:center work
+              // without the overflow-y:auto conflict that plagued earlier builds.
+              const isCentered = isIntroStep || isMessageStep;
               return (
-                <div className="flex flex-col px-8 pb-8 max-w-md mx-auto overflow-y-auto" style={{ height: '100dvh' }}>
-                  <div className="w-full mt-16 mb-10 text-center animate-fade-in-slow">
-                    <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                      {timeGreeting}
-                    </h1>
-                    <p className={`text-base font-sans font-medium ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>{timeSub}</p>
-                  </div>
+                <div
+                  className="flex flex-col px-6 max-w-md mx-auto"
+                  style={{
+                    height: '100dvh',
+                    overflowY: isCentered ? 'hidden' : 'auto',
+                    // Center ALL children as a group on intro/message steps.
+                    // flex-start for scroll steps — content stacks from top.
+                    justifyContent: isCentered ? 'center' : 'flex-start',
+                    paddingTop: isCentered
+                      ? 'calc(env(safe-area-inset-top) + 1.5rem)'
+                      : 'calc(env(safe-area-inset-top) + 3.5rem)',
+                    paddingBottom: isCentered
+                      ? 'calc(4.5rem + env(safe-area-inset-bottom))'
+                      : 'calc(6rem + env(safe-area-inset-bottom))',
+                  }}
+                >
+                  {/* Greeting — false-renders when not intro, keeping widget at stable DOM position */}
+                  {isIntroStep && (
+                    <div className="w-full mb-5 text-center animate-fade-in-slow">
+                      <h1
+                        onClick={handleGreetingTap}
+                        className={`text-3xl font-display font-medium tracking-tight mb-1.5 cursor-default select-none ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}
+                      >
+                        {timeGreeting}
+                      </h1>
+                      <p className={`text-base font-sans ${isDarkMode ? 'text-white' : 'text-sage/55'}`}>{timeSub}</p>
+                    </div>
+                  )}
+
+                  {/* Widget — always position 1. React never unmounts it across step transitions. */}
                   <div className="w-full">
                     <DailyMorningPracticeWidget
                       userName={user.name || "Friend"}
@@ -1693,41 +1724,68 @@ function AppContent() {
                       existingPriming={todaysPriming || null}
                       hideEnergyCheckIn={true}
                       user={user}
+                      onStepChange={setBeat1Step}
                     />
                   </div>
+
+                  {/* Evening shortcut — false-renders when not applicable */}
+                  {hour >= 18 && !eveningDoneToday && isIntroStep && (
+                    <button
+                      onClick={() => { haptics.light(); setForcedEvening(true); }}
+                      className={`mt-6 w-full py-3 text-center text-sm font-medium transition-colors ${isDarkMode ? 'text-white hover:text-white/50' : 'text-sage/35 hover:text-sage/60'}`}
+                    >
+                      Close the day instead →
+                    </button>
+                  )}
                 </div>
               );
             }
 
             // ── BEAT 1 · EVENING ARRIVAL ────────────────────────────────────────
-            if (shouldShowEveningMode && !eveningDoneToday && !eveningSkipped && user) {
+            if ((shouldShowEveningMode || forcedEvening) && !eveningDoneToday && !eveningSkipped && user) {
               return (
-                <div className="flex flex-col px-8 pb-8 max-w-md mx-auto overflow-y-auto" style={{ height: '100dvh' }}>
-                  <div className="w-full mt-16 mb-10 text-center animate-fade-in-slow">
-                    <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                      Good evening, {firstName}.
-                    </h1>
-                    <p className={`text-base font-sans font-medium ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>Let's close the day right.</p>
-                  </div>
+                <div
+                  className="flex flex-col px-6 max-w-md mx-auto overflow-y-auto"
+                  style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+                >
                   <div className="w-full">
                     <EveningPractice
                       userName={user.name}
                       isDarkMode={isDarkMode}
                       existingPractice={null}
+                      userVoiceProfile={user.userVoiceProfile}
+                      todayMorningCommitment={
+                        (user.dailyMorningPractice || []).find(p => p.date === todayDate)?.commitment
+                      }
+                      todayMorningIntention={
+                        (user.dailyMorningPractice || []).find(p => p.date === todayDate)?.dailyIntention
+                      }
+                      onStepChange={setEveningStep}
                       onComplete={(data) => {
                         const existingEntries = user.dailyEveningPractice || [];
                         const otherEntries = existingEntries.filter(p => p.date !== todayDate);
                         updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data] });
                         analytics.eveningPracticeCompleted({ gratitudeCount: data.gratitude?.length ?? 0 });
+                        // Cancel tonight's last-call notification — they finished the practice
+                        cancelEveningLastCall();
                         triggerConfetti();
                         setShowEveningSuccess(true);
                         setTimeout(() => setShowEveningSuccess(false), 3000);
+                        // Queue welcome to fire after the evening success overlay fades.
+                        if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
+                          setTimeout(() => {
+                            setShowEveningSuccess(false);
+                            setShowFirstTimeWelcome(true);
+                          }, 2500);
+                        } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+                          setTimeout(() => setShowProfileNudge(true), 3500);
+                        }
                       }}
                     />
                   </div>
                   <button
                     onClick={() => setEveningSkipped(true)}
-                    className={`w-full py-4 text-center text-sm font-medium transition-colors mt-4 ${isDarkMode ? 'text-white/30 hover:text-white/50' : 'text-sage/30 hover:text-sage/60'}`}
+                    className={`w-full py-4 text-center text-sm font-medium transition-colors mt-4 ${isDarkMode ? 'text-white hover:text-white/50' : 'text-sage/30 hover:text-sage/60'}`}
                   >
                     Skip for tonight
                   </button>
@@ -1739,25 +1797,46 @@ function AppContent() {
             {/* Derived helpers for Beat 3 */}
             const hasPendingGoals = (user?.dailyFocuses || []).some(f => !f.isCompleted);
             const hasAnyGoals = (user?.dailyFocuses || []).length > 0;
+            const lastCoachData = (() => {
+              try {
+                const raw = localStorage.getItem(STORAGE_KEYS.COACH_SESSIONS);
+                const sessions: CoachSession[] = raw ? JSON.parse(raw) : [];
+                if (!sessions.length) return null;
+                const latest = sessions.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
+                const lastMsg = [...latest.messages].reverse().find(m => m.role === 'assistant');
+                if (!lastMsg) return null;
+                const sentence = lastMsg.text.match(/^[^.!?\n]+[.!?]?/)?.[0]?.trim() ?? lastMsg.text.slice(0, 90);
+                const diff = Date.now() - latest.updatedAt;
+                const hours = Math.floor(diff / 3600000);
+                const days = Math.floor(diff / 86400000);
+                const recency = hours < 1 ? 'Just now' : hours < 24 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days} days ago` : `${Math.floor(days / 7)}w ago`;
+                const pillarLabelMap: Record<CoachPillar, string> = { anxiety: 'Anxiety', focus: 'Focus', motivation: 'Motivation', setbacks: 'Setbacks', open: 'General' };
+                const pillarLabel = pillarLabelMap[latest.pillar] ?? '';
+                return { sentence, recency, pillarLabel };
+              } catch {
+                return null;
+              }
+            })();
             const coachLine = activeInterventions[0]?.message
-              ?? (todaysPriming?.dailyIntention ? `Your intention: "${todaysPriming.dailyIntention}"` : null)
-              ?? (ritualDoneToday ? 'Your coach is here when you need them.' : 'Your coach is ready when you are.');
+              ?? lastCoachData?.sentence
+              ?? (todaysPriming?.commitment?.trim() ? `"${todaysPriming.commitment.trim()}"` : null)
+              ?? 'Ask me anything — I\'m here.';
 
             return (
               <div className="min-h-screen px-6 pb-12 max-w-md mx-auto">
 
                 {/* ── Greeting ─────────────────────────────── */}
                 <motion.div
-                  className="w-full mt-10 mb-7 text-center"
+                  className="w-full mt-6 mb-5 text-center"
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <h1 className={`text-3xl font-display font-medium tracking-tight mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                  <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                     {getGreeting()}, {firstName}.
                   </h1>
-                  <p className={`text-sm font-sans ${isDarkMode ? 'text-white/45' : 'text-sage/50'}`}>
-                    {ritualDoneToday && todaysPriming?.dailyIntention
+                  <p className={`text-base font-sans ${isDarkMode ? 'text-white' : 'text-sage/50'}`}>
+                    {ritualDoneToday && todaysIntention
                       ? hour < 17 ? 'Your intention is set. Go live it.' : 'Day almost done. How did your intention hold?'
                       : ritualDoneToday
                         ? 'Practice complete. The day is yours.'
@@ -1768,36 +1847,196 @@ function AppContent() {
                 </motion.div>
 
                 {/* ── Today's Intention ────────────────────── */}
-                {ritualDoneToday && todaysPriming?.dailyIntention && (
+                {ritualDoneToday && todaysIntention && (
                   <motion.div
                     className="mb-5"
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.08 }}
                   >
-                    <div
-                      className={`rounded-2xl px-5 py-4 border-l-[3px] ${isDarkMode ? 'bg-white/[0.04]' : 'bg-white/70 shadow-sm'}`}
-                      style={{ borderLeftColor: '#C96A3A', borderTop: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(201,106,58,0.15)', borderRight: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(201,106,58,0.12)', borderBottom: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(201,106,58,0.12)' }}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/30' : 'text-[#C96A3A]/60'}`}>
-                          Today's Intention
-                        </p>
-                        <p className={`text-[10px] font-medium tabular-nums ${isDarkMode ? 'text-white/20' : 'text-sage/30'}`}>
-                          Practice {user?.practiceData?.totalPractices ?? 0} of 90
-                        </p>
-                      </div>
-                      <p className={`font-serif italic text-lg leading-snug mb-2 ${isDarkMode ? 'text-white/90' : 'text-sage-dark'}`}>
-                        "{todaysPriming.dailyIntention}"
+                    {/* Intention pill — wraps to 2 lines for longer phrases */}
+                    <div className={`rounded-2xl px-5 py-3 flex flex-col gap-1 ${isDarkMode ? 'bg-white/[0.07] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/15 shadow-sm'}`}>
+                      <p className={`text-xs font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/60' : 'text-[#C96A3A]'}`}>
+                        Today's Intention
                       </p>
-                      {todaysPriming.gratitudes?.filter(g => g.trim()).slice(0, 2).length > 0 && (
-                        <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-white/35' : 'text-sage/45'}`}>
-                          Grateful for: {todaysPriming.gratitudes.filter(g => g.trim()).slice(0, 2).join(' · ')}
-                        </p>
-                      )}
+                      <p className={`text-sm font-bold leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                        {todaysIntention}
+                      </p>
                     </div>
                   </motion.div>
                 )}
+
+                {/* ── Day 1 warm state — only for brand new users ── */}
+                {(user?.practiceData?.totalPractices ?? 0) === 0 && !ritualDoneToday && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.12 }}
+                  >
+                    <div
+                      className="rounded-2xl px-5 py-5"
+                      style={{
+                        background: isDarkMode
+                          ? 'linear-gradient(135deg, rgba(201,106,58,0.22) 0%, rgba(65,93,67,0.55) 100%)'
+                          : 'linear-gradient(135deg, #FAF7F3 0%, rgba(201,106,58,0.12) 100%)',
+                        border: isDarkMode ? '1px solid rgba(201,106,58,0.35)' : '1px solid rgba(201,106,58,0.28)',
+                        boxShadow: isDarkMode ? 'none' : '0 2px 12px rgba(201,106,58,0.08)',
+                      }}
+                    >
+                      <p className="text-xs font-black uppercase tracking-[0.18em] mb-1" style={{ color: '#C96A3A' }}>
+                        Day 1
+                      </p>
+                      <p className={`text-base font-bold mb-1 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                        Your garden is ready to grow.
+                      </p>
+                      <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                        Start your first morning practice — everything begins there.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ── Share Day 1 card — shown once after first practice ── */}
+                <AnimatePresence>
+                  {(user?.practiceData?.totalPractices ?? 0) === 1
+                    && !localStorage.getItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED) && (
+                    <motion.div
+                      key="share-day1"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/12 shadow-sm'}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            Day 1 done.
+                          </p>
+                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                            Someone you know might need this too.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={async () => {
+                              try {
+                                const { Share } = await import('@capacitor/share');
+                                await Share.share({
+                                  title: 'Day 1 with Palante',
+                                  text: `Just completed my first morning practice with Palante — an app for intention, gratitude, and forward motion. If you're looking to build a daily practice, check it out. 🌱 #PalanteApp`,
+                                  dialogTitle: 'Share Palante',
+                                });
+                              } catch { /* user cancelled or no share support */ }
+                              localStorage.setItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED, 'true');
+                            }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#C96A3A' }}
+                          >
+                            Share →
+                          </button>
+                          <button
+                            onClick={() => {
+                              localStorage.setItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED, 'true');
+                              haptics.light();
+                            }}
+                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
+                            aria-label="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Profile completion nudge (after first practice) ── */}
+                <AnimatePresence>
+                  {showProfileNudge && (
+                    <motion.div
+                      key="profile-nudge"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            Make it yours
+                          </p>
+                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                            Tell Palante about yourself so every message fits exactly where you are.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => { dismissProfileNudge(); setShowProfile(true); }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#C96A3A' }}
+                          >
+                            Set up →
+                          </button>
+                          <button
+                            onClick={dismissProfileNudge}
+                            className={`text-xs p-1 ${isDarkMode ? 'text-white' : 'text-sage'}`}
+                            aria-label="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Sign-in nudge — shown after 2+ sessions with no account ── */}
+                <AnimatePresence>
+                  {showSignInNudge && user && (
+                    <motion.div
+                      key="signin-nudge"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div className={`rounded-2xl px-5 py-4 border ${isDarkMode ? 'bg-terracotta-500/15 border-terracotta-500/30' : 'bg-[#C96A3A]/8 border-[#C96A3A]/20 shadow-sm'}`}>
+                        <div className="flex items-start gap-3">
+                          <div className="text-[#C96A3A] mt-0.5 shrink-0">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                              Your progress isn't backed up yet
+                            </p>
+                            <p className={`text-xs leading-snug mb-3 ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>
+                              You've built {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}{user.streak > 0 ? ` and a ${user.streak}-day streak` : ''}. Create a free account to keep it safe across devices — your settings and history come with you.
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => { dismissSignInNudge(); setShowProfile(true); }}
+                                className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                                style={{ background: '#C96A3A' }}
+                              >
+                                Protect my progress →
+                              </button>
+                              <button
+                                onClick={dismissSignInNudge}
+                                className={`text-xs px-3 py-2 rounded-xl ${isDarkMode ? 'text-white/50 hover:text-white/80' : 'text-sage/50 hover:text-sage/80'}`}
+                              >
+                                Maybe later
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* ── Mandala of Growth ─────────────────────── */}
                 {user && (
@@ -1808,108 +2047,111 @@ function AppContent() {
                     transition={{ duration: 0.6, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
                     <div className="flex flex-col items-center px-1 mb-2 gap-0.5">
-                      <p className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
+                      <p className={`text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage/50'}`}>
                         Mandala of Growth
                       </p>
-                      <p className={`text-xs ${isDarkMode ? 'text-white/30' : 'text-sage/40'}`}>
-                        {user.practiceData?.totalPractices ?? 0} of 90 practices
+                      <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
+                        {(() => { const t = user.practiceData?.totalPractices || 0; return t > 0 && t % 90 === 0 ? 90 : t % 90; })()} of 90 practices completed
                       </p>
                     </div>
                     <GardenMandala
                       isDarkMode={isDarkMode}
-                      completedDays={Math.min(user.practiceData?.totalPractices || 0, 90)}
+                      completedDays={(() => { const t = user.practiceData?.totalPractices || 0; return t > 0 && t % 90 === 0 ? 90 : t % 90; })()}
+                      colorCycle={user.mandalaColorCycle ?? 0}
                     />
+                    {/* First-time tooltip — shown until 3rd practice */}
+                    {(user.practiceData?.totalPractices ?? 0) < 3 && (
+                      <p className={`text-sm text-center mt-3 leading-relaxed px-4 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                        Each practice blooms a petal.<br />90 practices to full bloom.
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
-                {/* ── Quote ────────────────────────────────── */}
-                {dailyQuote && (
+                {/* ── Message of the Day ────────────────────── */}
+                {(() => {
+                  const todayMessage =
+                    (user?.dailyMorningPractice || []).find(p => p.date === todayDate)?.messageOfTheDay ||
+                    (user?.dailyPriming || []).find(p => p.date === todayDate)?.messageOfTheDay;
+                  return todayMessage ? (
                   <motion.div
-                    className="mb-5"
+                    className="mb-5 relative"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
+                    transition={{ duration: 0.55, delay: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
                   >
-                    {ritualDoneToday && todaysPriming?.dailyIntention && (
-                      <p className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-2 px-1 ${isDarkMode ? 'text-white/25' : 'text-sage/35'}`}>
-                        Tuned to your intention
-                      </p>
-                    )}
-                    <Suspense fallback={null}>
+                    <Suspense fallback={<div className={`rounded-[2rem] h-20 animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/8'}`} />}>
                       <DashboardQuoteCard
-                        quote={dailyQuote}
-                        onToggleFavorite={handleToggleFavorite}
-                        isFavorited={dailyQuote ? (user?.favoriteQuotes || []).some(q => q.quoteId === dailyQuote.id) : false}
+                        quote={{
+                          id: `message-of-day-${todayDate}`,
+                          text: todayMessage,
+                          author: 'Palante',
+                          intensity: (user?.quoteIntensity as 1 | 2 | 3) || 2,
+                          category: 'morning-practice',
+                          isAI: true,
+                          isAffirmation: true,
+                        }}
                         isDarkMode={isDarkMode}
-                        onRefresh={() => refreshDailyQuote(true)}
-                        onOpenSettings={() => setShowQuoteToneModal(true)}
                       />
                     </Suspense>
                   </motion.div>
-                )}
-
-                {/* ── Essential Tools ──────────────────────── */}
-                {user && (
-                  <HomeEssentialTools
-                    isDarkMode={isDarkMode}
-                    selectedTools={user.homeEssentialTools}
-                    fastingActive={(() => {
-                      try { return localStorage.getItem(STORAGE_KEYS.FASTING_STATUS) === 'active'; }
-                      catch { return false; }
-                    })()}
-                    fastingTime={(() => {
-                      try {
-                        const startTime = localStorage.getItem(STORAGE_KEYS.FASTING_START_TIME);
-                        if (!startTime) return '';
-                        const elapsed = Date.now() - new Date(startTime).getTime();
-                        if (isNaN(elapsed) || elapsed < 0) return '';
-                        return `${Math.floor(elapsed / 3_600_000)}h ${Math.floor((elapsed % 3_600_000) / 60_000)}m`;
-                      } catch { return ''; }
-                    })()}
-                    onNavigate={(id: EssentialToolId) => handleQuickAction(id)}
-                    onSave={(tools: EssentialToolId[]) => {
-                      if (user) updateProfile({ ...user, homeEssentialTools: tools });
-                    }}
-                  />
-                )}
-
-                {/* ── Coach strip ──────────────────────────── */}
-                <motion.button
-                  onClick={() => setActiveTab('coach')}
-                  className={`w-full mb-5 px-5 py-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.01] active:scale-[0.99] ${
-                    isDarkMode
-                      ? 'bg-white/5 border border-white/10 hover:bg-white/8'
-                      : 'bg-white/70 border border-sage/15 hover:bg-white/90 shadow-sm'
-                  }`}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45, delay: 0.28 }}
-                >
-                  <div className="w-9 h-9 rounded-full bg-[#40916C] flex items-center justify-center flex-shrink-0 shadow-md">
-                    <MessageCircle size={16} className="text-white" fill="white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isDarkMode ? 'text-white/35' : 'text-sage/45'}`}>
-                      Palante Coach
-                    </p>
-                    <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>
-                      {coachLine}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className={isDarkMode ? 'text-white/25 flex-shrink-0' : 'text-sage/30 flex-shrink-0'} />
-                </motion.button>
+                  ) : null;
+                })()}
 
                 {/* ── Today's Goals ────────────────────────── */}
+                {user && !hasAnyGoals && (
+                  <motion.div
+                    className={`mb-5 rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/70 border-sage/15 shadow-sm'}`}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45, delay: 0.25 }}
+                  >
+                    <div className="px-5 pt-5 pb-2">
+                      <h3 className={`text-sm font-bold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>
+                        Today's Goals
+                      </h3>
+                      <p className={`text-xs mb-4 ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
+                        What's one thing you want to accomplish today?
+                      </p>
+                    </div>
+                    <div className={`flex gap-2 px-5 pb-5 ${isDarkMode ? '' : ''}`}>
+                      <input
+                        type="text"
+                        value={newFocusText}
+                        onChange={(e) => setNewFocusText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleQuickAddFocus()}
+                        placeholder="Add your first goal…"
+                        style={{ fontSize: '16px' }}
+                        className={`flex-1 py-2.5 px-3 rounded-xl outline-none transition-all ${
+                          isDarkMode
+                            ? 'bg-white/5 text-white placeholder-white/25 focus:bg-white/10'
+                            : 'bg-sage/5 text-sage-dark placeholder-sage/30 focus:bg-sage/10'
+                        }`}
+                      />
+                      <button
+                        onClick={handleQuickAddFocus}
+                        disabled={!newFocusText.trim()}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg font-medium transition-all ${
+                          !newFocusText.trim()
+                            ? 'opacity-30 cursor-not-allowed ' + (isDarkMode ? 'bg-white/5 text-white' : 'bg-sage/5 text-sage')
+                            : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
                 {user && hasAnyGoals && (
                   <motion.div
                     className={`mb-5 rounded-2xl border overflow-hidden ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/70 border-sage/15 shadow-sm'}`}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, delay: 0.35 }}
+                    transition={{ duration: 0.45, delay: 0.25 }}
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                      <h3 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                      <h3 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>
                         Today's Goals
                       </h3>
                       <span className={`text-xs font-semibold tabular-nums ${
@@ -1921,9 +2163,9 @@ function AppContent() {
                       </span>
                     </div>
 
-                    {/* Goal list */}
+                    {/* Goal list — capped at 3 */}
                     <div className="px-5 pb-3 space-y-2">
-                      {(user.dailyFocuses || []).map((focus) => (
+                      {(user.dailyFocuses || []).slice(0, goalsExpanded ? undefined : 3).map((focus) => (
                         <FocusItem
                           key={focus.id}
                           focus={focus}
@@ -1931,6 +2173,14 @@ function AppContent() {
                           onDelete={handleDeleteGoal}
                         />
                       ))}
+                      {(user.dailyFocuses || []).length > 3 && !goalsExpanded && (
+                        <button
+                          onClick={() => setGoalsExpanded(true)}
+                          className={`w-full py-1.5 text-xs font-medium transition-colors ${isDarkMode ? 'text-white hover:text-white/50' : 'text-sage/40 hover:text-sage/60'}`}
+                        >
+                          {(user.dailyFocuses || []).length - 3} more…
+                        </button>
+                      )}
                     </div>
 
                     {/* Quick add */}
@@ -1941,7 +2191,8 @@ function AppContent() {
                         onChange={(e) => setNewFocusText(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleQuickAddFocus()}
                         placeholder="Add another goal…"
-                        className={`flex-1 py-2 px-3 rounded-xl text-sm outline-none transition-all ${
+                        style={{ fontSize: '16px' }}
+                        className={`flex-1 py-2 px-3 rounded-xl outline-none transition-all ${
                           isDarkMode
                             ? 'bg-white/5 text-white placeholder-white/25 focus:bg-white/10'
                             : 'bg-sage/5 text-sage-dark placeholder-sage/30 focus:bg-sage/10'
@@ -1962,109 +2213,87 @@ function AppContent() {
                   </motion.div>
                 )}
 
-                {/* If no goals yet — soft invite, not an empty state box */}
-                {user && !hasAnyGoals && (
-                  <motion.div
-                    className="mb-5"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.35 }}
-                  >
-                    <div className={`flex gap-2 px-5 py-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/8' : 'bg-white/70 border-sage/12 shadow-sm'}`}>
-                      <input
-                        type="text"
-                        value={newFocusText}
-                        onChange={(e) => setNewFocusText(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleQuickAddFocus()}
-                        placeholder="What's one thing you want to move forward today?"
-                        className={`flex-1 py-1 text-sm outline-none bg-transparent ${isDarkMode ? 'text-white placeholder-white/30' : 'text-sage-dark placeholder-sage/40'}`}
-                      />
-                      <button
-                        onClick={handleQuickAddFocus}
-                        disabled={!newFocusText.trim()}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg font-medium transition-all flex-shrink-0 ${
-                          !newFocusText.trim()
-                            ? 'opacity-30 cursor-not-allowed ' + (isDarkMode ? 'bg-white/5 text-white' : 'bg-sage/5 text-sage')
-                            : 'bg-[#C96A3A] text-white hover:bg-[#b55e32]'
-                        }`}
-                      >
-                        +
-                      </button>
+                {/* ── Palante Partner ─────────────────────────── */}
+                <motion.button
+                  onClick={() => setActiveTab('coach')}
+                  className={`w-full mb-5 px-5 py-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.01] active:scale-[0.99] ${
+                    isDarkMode
+                      ? 'bg-white/5 border border-white/10 hover:bg-white/8'
+                      : 'bg-white/70 border border-sage/15 hover:bg-white/90 shadow-sm'
+                  }`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, delay: 0.30 }}
+                >
+                  <div className="w-9 h-9 rounded-full bg-[#40916C] flex items-center justify-center flex-shrink-0 shadow-md">
+                    <MessageCircle size={16} className="text-white" fill="white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
+                        Palante Partner
+                      </p>
+                      {lastCoachData && (
+                        <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage/30'}`}>
+                          {lastCoachData.recency}{lastCoachData.pillarLabel ? ` · ${lastCoachData.pillarLabel}` : ''}
+                        </p>
+                      )}
                     </div>
-                  </motion.div>
+                    <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>
+                      {coachLine}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className={isDarkMode ? 'text-white flex-shrink-0' : 'text-sage/30 flex-shrink-0'} />
+                </motion.button>
+
+                {/* ── Essential Tools ───────────────────────── */}
+                {user && (
+                  <HomeEssentialTools
+                    isDarkMode={isDarkMode}
+                    selectedTools={user.homeEssentialTools}
+                    onNavigate={(id: EssentialToolId) => handleQuickAction(id)}
+                    onSave={(tools: EssentialToolId[]) => {
+                      if (user) updateProfile({ ...user, homeEssentialTools: tools });
+                    }}
+                  />
                 )}
 
-                {/* ── Today's Story accordion ───────────────── */}
-                {(ritualDoneToday || eveningDoneToday) && user && (
-                  <motion.div
-                    className="mb-8"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.42 }}
-                  >
-                    <button
-                      onClick={() => { setShowTodayStory(p => !p); haptics.light(); }}
-                      className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl border transition-all ${
-                        isDarkMode
-                          ? 'bg-white/5 border-white/8 hover:bg-white/8'
-                          : 'bg-white/60 border-sage/12 hover:bg-white/80 shadow-sm'
-                      }`}
-                    >
-                      <span className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white/50' : 'text-sage/55'}`}>
-                        Today's Message
-                      </span>
-                      <div className={`transition-transform duration-300 ${showTodayStory ? 'rotate-180' : 'rotate-0'} ${isDarkMode ? 'text-white/30' : 'text-sage/35'}`}>
-                        <ChevronDown size={16} />
-                      </div>
-                    </button>
+                {/* CUT (Path B): "What's one thing you want to move forward today?" empty-state input.
+                    Reason: the morning practice flow now captures this via the "Make it real" commitment
+                    beat. Duplicate input on home was redundant and diluted the focus. */}
 
-                    <AnimatePresence>
-                      {showTodayStory && (
-                        <motion.div
-                          key="today-story"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pt-3 space-y-4">
-                            {ritualDoneToday && (
-                              <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
-                                <MorningMessageCard
-                                  intention={todaysPriming?.dailyIntention || ''}
-                                  message={todaysPriming?.messageOfTheDay || ''}
-                                  isDarkMode={isDarkMode}
-                                  userName={user.name || ''}
-                                  coachTone={user.coachSettings?.coachTone ?? 'nurturing'}
-                                  onOpenToneSettings={() => setShowHomeCoachSettings(true)}
-                                  onRefresh={() => {
-                                    const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
-                                    updateProfile({ ...user, dailyPriming: updatedPriming });
-                                    haptics.light();
-                                  }}
-                                />
-                              </Suspense>
-                            )}
-                            {eveningDoneToday && (
-                              <Suspense fallback={<div className={`w-full h-24 rounded-3xl animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`} />}>
-                                <EveningMessageCard
-                                  practice={user.dailyEveningPractice?.find(p => p.date === todayDate) || {
-                                    id: 'temp', date: todayDate, gratitude: '', learning: '', accomplishment: '', delight: ''
-                                  }}
-                                  isDarkMode={isDarkMode}
-                                  onRefresh={() => {
-                                    updateProfile({ ...user, dailyEveningPractice: (user.dailyEveningPractice || []).filter(p => p.date !== todayDate) });
-                                    haptics.light();
-                                  }}
-                                />
-                              </Suspense>
-                            )}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
+                {/* CUT (Path B): "Today's Message" collapsible accordion that re-rendered MorningMessageCard
+                    and EveningMessageCard. The morning AI message is now elevated to the top affirmation
+                    card on the home screen, so re-rendering it inside an accordion is redundant. */}
+
+                {/* ── Redo practice row ─────────────────────── */}
+                {(ritualDoneToday || eveningDoneToday) && (
+                  <div className="flex gap-2 mb-5">
+                    {ritualDoneToday && (
+                      <button
+                        onClick={() => setShowMorningPractice(true)}
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/8 text-white hover:text-white/55' : 'bg-sage/5 hover:bg-sage/10 text-sage/40 hover:text-sage/60'}`}
+                      >
+                        <RotateCcw size={11} />
+                        Morning Practice
+                      </button>
+                    )}
+                    {eveningDoneToday && (
+                      <button
+                        onClick={() => {
+                          if (!user) return;
+                          const updated = (user.dailyEveningPractice || []).filter(p => p.date !== todayDate);
+                          updateProfile({ ...user, dailyEveningPractice: updated });
+                          setEveningSkipped(false);
+                          setForcedEvening(true);
+                        }}
+                        className={`flex-1 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-all ${isDarkMode ? 'bg-white/5 hover:bg-white/8 text-white hover:text-white/55' : 'bg-sage/5 hover:bg-sage/10 text-sage/40 hover:text-sage/60'}`}
+                      >
+                        <RotateCcw size={11} />
+                        Evening Practice
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {/* ── Settings access (quiet, bottom) ─────── */}
@@ -2077,38 +2306,6 @@ function AppContent() {
                   </button>
                 </div>
 
-                {user && (
-                  <QuoteToneModal
-                    isOpen={showQuoteToneModal}
-                    onClose={() => setShowQuoteToneModal(false)}
-                    isDarkMode={isDarkMode}
-                    quoteIntensity={user.quoteIntensity ?? 2}
-                    sourcePreference={user.sourcePreference ?? 'mix'}
-                    contentTypePreference={user.contentTypePreference ?? 'mix'}
-                    onSave={(prefs) => {
-                      updateProfile({ ...user, ...prefs });
-                      refreshDailyQuote(true);
-                    }}
-                  />
-                )}
-
-                <ReorderModal
-                  isOpen={showReorderModal}
-                  onClose={() => setShowReorderModal(false)}
-                  isDarkMode={isDarkMode}
-                  title="Arrange Dashboard"
-                  items={[
-                    { id: 'morning_practice', label: 'Morning Practice' },
-                    { id: 'daily_quote', label: 'Daily Inspiration' },
-                    { id: 'todays_goals', label: 'Goals' },
-                  ]}
-                  currentOrder={['morning_practice', 'daily_quote', 'todays_goals']}
-                  onSave={(newOrder) => {
-                    if (user) {
-                      updateProfile({ ...user, dashboardOrder: ['start_ritual', ...newOrder] });
-                    }
-                  }}
-                />
 
               </div>
             );
@@ -2133,8 +2330,14 @@ function AppContent() {
                     await updateProfile(updatedUser);
                   }}
                   onShowTip={() => handleShowTip('Productivity')}
-                  onLaunchRoutine={handleLaunchRoutine}
-                  onCreateRoutine={() => setShowStackWizard(true)}
+                  onOpenKoiPond={() => setShowKoiPond(true)}
+                  onWriteLetter={() => {
+                    setLetterContext('manual');
+                    setLetterContextDetails('');
+                    setShowLetterWrite(true);
+                  }}
+                  onOpenHighlights={() => setShowWeeklyHighlightsModal(true)}
+                  highlightsBadge={showWeeklyHighlights}
                 />
               </div>
             </PageTransition>
@@ -2144,7 +2347,7 @@ function AppContent() {
           {activeTab === 'focus' && (
             <ErrorBoundary name="Focus Timer">
             <PageTransition>
-              <div className="min-h-screen max-w-md mx-auto h-full pt-6">
+              <div className="min-h-screen max-w-md mx-auto h-full">
                 <Suspense fallback={
                   <div className="flex justify-center items-center min-h-[60vh]">
                     <div className={`animate-spin rounded-full h-12 w-12 border-4 border-t-transparent ${isDarkMode ? 'border-white' : 'border-sage'} `}></div>
@@ -2174,51 +2377,16 @@ function AppContent() {
               <div className="min-h-screen max-w-md mx-auto">
                 <PracticeView
                   isDarkMode={isDarkMode}
-                  user={user}
-                  updateProfile={updateProfile}
                   onNavigate={(section) => {
-                    if (section === 'routines') {
-                      setShowStackWizard(true);
-                    } else if (section === 'soundscapes') {
+                    if (section === 'soundscapes') {
                       setShowSoundMixer(true);
                     } else {
+                      practiceOriginRef.current = activeTab;
                       setActiveTab(section);
                     }
                   }}
                 />
               </div>
-            </PageTransition>
-            </ErrorBoundary>
-          )}
-
-          {activeTab === 'fasting' && user && (
-            <ErrorBoundary name="Fasting">
-            <PageTransition>
-              <div className="min-h-screen max-w-md mx-auto">
-                <Fasting 
-                  user={user} 
-                  isDarkMode={isDarkMode} 
-                  onUpdateProfile={(updates) => handleProfileUpdate((prev) => prev ? ({ ...prev, ...updates }) : prev!)}
-                  onOpenCoach={(msg) => {
-                    handleQuickAction('coach');
-                    // We might need a small delay or a state to pass the initial message
-                    // but usually coach has a way to receive message
-                  }}
-                />
-              </div>
-            </PageTransition>
-            </ErrorBoundary>
-          )}
-
-          {activeTab === 'breath' && (
-            <ErrorBoundary name="Breathing">
-            <PageTransition>
-              <Breathing
-                isDarkMode={isDarkMode}
-                accentColor={isDarkMode ? 'text-pale-gold' : 'text-sage'}
-                onComplete={() => handleActivity('breath')}
-                onShowTip={() => handleShowTip('Breath')}
-              />
             </PageTransition>
             </ErrorBoundary>
           )}
@@ -2230,15 +2398,7 @@ function AppContent() {
                 isDarkMode={isDarkMode}
                 onComplete={() => {
                   handleActivity('meditate');
-
-                  // Prompt letter writing after meditation (25% chance)
-                  if (Math.random() < 0.25) {
-                    setTimeout(() => {
-                      setLetterContext('meditation');
-                      setLetterContextDetails('meditation session');
-                      setShowLetterWrite(true);
-                    }, 1000);
-                  }
+                  setActiveTab(practiceOriginRef.current);
                 }}
                 onSaveReflection={handleSaveMeditationReflection}
                 onShowTip={() => handleShowTip('Meditation')}
@@ -2271,139 +2431,16 @@ function AppContent() {
                     };
                   });
                 }}
+                onWriteLetter={() => {
+                  setLetterContext('meditation');
+                  setLetterContextDetails('meditation session');
+                  setShowLetterWrite(true);
+                }}
               />
             </PageTransition>
             </ErrorBoundary>
           )}
 
-          {activeTab === 'reflect' && (
-            <ErrorBoundary name="Reflections">
-            <PageTransition>
-              <Reflections
-                onSave={async (entry: JournalEntry) => {
-
-                  if (!user) return;
-
-                  // 1. API Call
-                  await api.saveJournalEntry(user.id, entry);
-
-                  // 2. Prepare Local Update
-                  const existingEntries = user.journalEntries || [];
-                  const filteredEntries = existingEntries.filter(e => e.date !== entry.date);
-                  const newJournalEntries = [...filteredEntries, entry];
-
-                  // 3. Chain to Activity Log
-                  handleProfileUpdate(prev => {
-                    if (!prev) return prev!;
-                    return {
-                      ...prev,
-                      journalEntries: newJournalEntries,
-                      points: (prev.points || 0) + 10
-                    };
-                  });
-
-                  setTimeout(() => handleActivity('reflect'), 100);
-
-                  // Trigger Tip
-                  handleShowTip('Reflect');
-                }}
-                isDarkMode={isDarkMode}
-                user={user || undefined}
-                onShowTip={() => handleShowTip('Reflect')}
-                onStrategize={() => {
-                  setActiveTab('coach');
-                }}
-                initialText={initialReflectionText}
-              />
-            </PageTransition>
-            </ErrorBoundary>
-          )}
-
-          {activeTab === 'wisdom' && (
-            <ErrorBoundary name="Wisdom">
-            <PageTransition>
-              <div className="min-h-screen max-w-md mx-auto h-full">
-                <JapaneseWisdomView
-                  isDarkMode={isDarkMode}
-                  onNavigate={(tab: string) => {
-                    setActiveTab(tab as typeof activeTab);
-                    haptics.selection();
-                    setShowReturnToWisdom(true);
-                  }}
-                  onAddGoal={(text: string) => {
-                    if (!user) return;
-                    haptics.medium();
-                    const newFocus: DailyFocus = {
-                      id: Date.now().toString(),
-                      text: text.trim(),
-                      isCompleted: false,
-                      createdAt: new Date().toISOString()
-                    };
-                    const updatedUser: UserProfile = {
-                      ...user,
-                      dailyFocuses: [newFocus, ...(user.dailyFocuses || [])]
-                    };
-                    updateProfile(updatedUser);
-                    api.createGoal(user.id, newFocus.text).catch(console.error);
-
-                    setShowReturnToWisdom(true);
-                    setToastMessage('Added to Focus Goals');
-                    setShowToast(true);
-                    setTimeout(() => setShowToast(false), 3000);
-                  }}
-                  onStartFocus={(minutes: number, objective?: string) => {
-                    haptics.medium();
-                    setShowReturnToWisdom(true);
-                    // Create a one-off focus routine
-                    const objLower = objective?.toLowerCase() || '';
-                    const requiresInput = objLower.includes('sentence') ||
-                      objLower.includes('answer') ||
-                      objLower.includes('?') ||
-                      objLower.includes('who') ||
-                      objLower.includes('why') ||
-                      objLower.includes('what');
-
-                    const focusRoutine: RoutineStack = {
-                      id: `focus-${Date.now()}`,
-                      name: objective || (minutes === 1 ? 'Kaizen Focus' : 'Anchored Focus'),
-                      description: objective || 'Stay Focused',
-                      icon: 'Target',
-                      steps: [
-                        {
-                          id: `step-${Date.now()}`,
-                          type: 'focus',
-                          label: objective || 'Stay Focused',
-                          duration: minutes * 60,
-                          title: objective || 'Stay Focused',
-                          text: minutes === 1 ? 'One minute of absolute focus beats hours of procrastination.' : 'Deep focus works best when anchored to a single ritual.',
-                          requiresInput: !!requiresInput
-                        }
-                      ]
-                    };
-                    handleLaunchRoutine(focusRoutine);
-                  }}
-                  onStartReflection={(theme: string, initialText?: string) => {
-                    haptics.medium();
-                    setInitialReflectionText(initialText || '');
-                    setActiveTab('reflect');
-                    setShowReturnToWisdom(true);
-
-                    // Simple "scroll to prompt" flag hack
-                    setTimeout(() => {
-                      const journalArea = document.querySelector('.journal-input-area');
-                      if (journalArea) {
-                        journalArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      } else {
-                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                      }
-                    }, 500);
-                  }}
-
-                />
-              </div>
-            </PageTransition>
-            </ErrorBoundary>
-          )}
 
 
 
@@ -2414,7 +2451,199 @@ function AppContent() {
 
       </main >
 
+      {/* ── Morning Practice Completion Moment ──────────────────────── */}
+      <AnimatePresence>
+        {showMorningSuccess && (
+          <motion.div
+            key="morning-complete"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 z-[70] flex flex-col items-center justify-center"
+            style={{ background: '#415D43' }}
+            onClick={() => setShowMorningSuccess(false)}
+          >
+            {/* Sacred geometry background */}
+            <svg aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+              <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.10">
+                <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
+                <circle cx="343" cy="413" r="148" />
+                <circle cx="269" cy="541" r="148" />
+                <circle cx="121" cy="541" r="148" />
+                <circle cx="47"  cy="413" r="148" />
+                <circle cx="121" cy="285" r="148" />
+                <circle cx="269" cy="285" r="148" />
+              </g>
+            </svg>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="text-center px-8 relative z-10"
+            >
+              <p
+                className="text-xs font-black uppercase tracking-[0.22em] mb-6"
+                style={{ color: 'rgba(229,214,167,0.90)' }}
+              >
+                Practice complete
+              </p>
+              {completionIntention && (
+                <p
+                  className="text-5xl font-display font-bold text-white mb-4 tracking-tight"
+                  style={{ textShadow: '0 2px 24px rgba(0,0,0,0.30)' }}
+                >
+                  {completionIntention}
+                </p>
+              )}
+              <p
+                className="text-xl font-display"
+                style={{ color: 'rgba(229,214,167,0.80)' }}
+              >
+                Pa'lante.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── First-Time Welcome Screen ───────────────────────────────────── */}
+      <AnimatePresence>
+        {showFirstTimeWelcome && (
+          <motion.div
+            key="first-time-welcome"
+            initial={{ opacity: 0, y: '100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '100%' }}
+            transition={{ duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="fixed inset-0 z-[80]"
+            style={{ background: '#415D43', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+          >
+            {/* Ornate Flower of Life mandala — pale gold, low opacity, fixed behind content */}
+            <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice" style={{ zIndex: 0 }}>
+              <g transform="translate(195, 438)" fill="none" stroke="#E5D6A7">
+                <g strokeWidth="0.7" opacity="0.10">
+                  <circle cx="0"      cy="0"    r="130"/>
+                  <circle cx="0"      cy="-130" r="130"/>
+                  <circle cx="112.6"  cy="-65"  r="130"/>
+                  <circle cx="112.6"  cy="65"   r="130"/>
+                  <circle cx="0"      cy="130"  r="130"/>
+                  <circle cx="-112.6" cy="65"   r="130"/>
+                  <circle cx="-112.6" cy="-65"  r="130"/>
+                </g>
+                <g strokeWidth="0.5" opacity="0.07">
+                  <circle cx="0"      cy="-260" r="130"/>
+                  <circle cx="225.2"  cy="-130" r="130"/>
+                  <circle cx="225.2"  cy="130"  r="130"/>
+                  <circle cx="0"      cy="260"  r="130"/>
+                  <circle cx="-225.2" cy="130"  r="130"/>
+                  <circle cx="-225.2" cy="-130" r="130"/>
+                </g>
+                <circle cx="0" cy="0" r="226" strokeWidth="0.5" opacity="0.08"/>
+                <circle cx="0" cy="0" r="285" strokeWidth="0.35" strokeDasharray="4 8" opacity="0.06"/>
+                <circle cx="0" cy="0" r="345" strokeWidth="0.25" strokeDasharray="2 10" opacity="0.04"/>
+                <circle cx="0" cy="0" r="9"  strokeWidth="0.5" opacity="0.12"/>
+                <circle cx="0" cy="0" r="4"  fill="#E5D6A7" stroke="none" opacity="0.20"/>
+              </g>
+            </svg>
+
+            {/* Scrollable content — min-h ensures the screen feels full even with short copy */}
+            <div
+              className="relative px-8 flex flex-col"
+              style={{
+                minHeight: '100vh',
+                paddingTop: 'calc(env(safe-area-inset-top) + 3rem)',
+                paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)',
+                zIndex: 1,
+              }}
+            >
+              <motion.div
+                className="flex-1 flex flex-col justify-center"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+              >
+                {/* Headline */}
+                <h1
+                  className="font-display font-bold text-white leading-tight mb-8"
+                  style={{ fontSize: '2.5rem', letterSpacing: '-0.02em' }}
+                >
+                  Welcome to Palante.
+                </h1>
+
+                {/* Body — 3 tight paragraphs */}
+                <div className="space-y-5" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
+                  <p>
+                    You just did something quietly powerful. Most people never show up for themselves like this. You did.
+                  </p>
+
+                  <p>
+                    This is how it begins. Not with a breakthrough, but with one honest practice and the choice to show up for another.
+                  </p>
+
+                  <p>
+                    You also have a personal partner here. One that learns who you are, remembers what matters to you, and grows with you over time. Introduce yourself when you're ready, set a goal or two, and let them help you stay accountable.
+                  </p>
+                </div>
+
+                {/* Closing */}
+                <p className="mt-7" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
+                  We're glad you're here.
+                </p>
+
+                {/* Signature */}
+                <div className="mt-5 mb-8">
+                  <p style={{ color: 'rgba(229,214,167,0.50)', fontSize: '13px', fontStyle: 'italic' }}>With care,</p>
+                  <p style={{ color: 'rgba(229,214,167,0.80)', fontSize: '14px', fontWeight: 600, letterSpacing: '0.03em' }}>
+                    The Palante Team
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* CTA — always at the bottom of the content flow */}
+              <motion.button
+                onClick={dismissFirstTimeWelcome}
+                whileTap={{ scale: 0.97 }}
+                className="w-full py-4 rounded-2xl font-semibold text-base"
+                style={{
+                  background: '#E5D6A7',
+                  color: '#415D43',
+                  boxShadow: '0 8px 32px rgba(229,214,167,0.18)',
+                  letterSpacing: '0.01em',
+                }}
+              >
+                Begin exploring
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Full-screen Overlays */}
+      {activeTab === 'breath' && (
+        <ErrorBoundary name="Breathing">
+          <div className="fixed inset-0 z-[45] flex flex-col" style={{ background: '#415D43' }}>
+            {/* Rings — same pattern as all other practice pages */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              <Target className="absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 text-white opacity-[0.06]" />
+              <Target className="absolute bottom-0 left-0 w-[90vmin] h-[90vmin] -translate-x-1/2 translate-y-1/2 text-white opacity-[0.06]" />
+            </div>
+            {/* Safe-area spacer — pushes idle header below status bar */}
+            <div style={{ height: 'calc(env(safe-area-inset-top) + 1rem)' }} />
+            <Breathing
+              isDarkMode={isDarkMode}
+              accentColor={isDarkMode ? 'text-pale-gold' : 'text-sage'}
+              onComplete={() => {
+                handleActivity('breath');
+                setActiveTab(practiceOriginRef.current);
+              }}
+              onExit={() => setActiveTab(practiceOriginRef.current)}
+              onShowTip={() => handleShowTip('Breath')}
+            />
+          </div>
+        </ErrorBoundary>
+      )}
+
       <AnimatePresence mode="wait">
         {activeTab === 'coach' && user && (
           <ErrorBoundary name="Coach" onReset={() => setActiveTab('home')}>
@@ -2446,71 +2675,14 @@ function AppContent() {
 
 
 
-      {/* Return to Wisdom Floating Button */}
-      <AnimatePresence>
-        {showReturnToWisdom && activeTab !== 'wisdom' && activeTab !== 'coach' && (
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[60]"
-          >
-            <button
-              onClick={() => {
-                setActiveTab('wisdom');
-                setShowReturnToWisdom(false);
-                haptics.medium();
-              }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-full shadow-2xl font-display font-medium transition-all active:scale-95 ${'bg-[#1B4332] text-white hover:scale-105'}`}
-            >
-              <ChevronLeft size={18} />
-              Return to Wisdom
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Library Modal */}
-      {
-        showLibrary && user && (
-          <ErrorBoundary name="Library" onReset={() => setShowLibrary(false)}>
-          <SlideUpModal
-            isOpen={showLibrary}
-            onClose={() => setShowLibrary(false)}
-            isDarkMode={isDarkMode}
-          >
-            <div className="bg-transparent">
-              <Suspense fallback={
-                <div className="flex justify-center items-center min-h-[60vh]">
-                  <div className={`animate-spin rounded-full h-12 w-12 border-4 border-t-transparent ${isDarkMode ? 'border-white' : 'border-sage'} `}></div>
-                </div>
-              }>
-                <Library
-                  key={`library-${user.journalEntries?.length || 0}-${user.favoriteQuotes?.length || 0}`}
-                  favoriteQuotes={user.favoriteQuotes || []}
-                  allQuotes={allQuotes}
-                  journalEntries={user.journalEntries || []}
-                  meditationReflections={user.meditationReflections || []}
-                  onRemoveFavorite={handleRemoveFavorite}
-                  onRemoveJournalEntry={handleRemoveJournalEntry}
-                  isDarkMode={isDarkMode}
-
-                  onShowTip={() => handleShowTip('Coach')}
-                />
-              </Suspense>
-            </div>
-          </SlideUpModal>
-          </ErrorBoundary>
-        )
-      }
 
       {/* Premium Bottom Navigation - Scroll Aware */}
-      < nav className={`fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isNavVisible && activeTab !== 'coach' ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
+      < nav className={`fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isNavVisible && activeTab !== 'coach' && activeTab !== 'breath' && !isInMorningFlow && !isInEveningInputFlow ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
             { id: 'momentum', icon: TrendingUp, label: 'Journey' },
-            { id: 'toolkit', icon: Layers, label: 'Tool Kit' },
+            { id: 'toolkit', icon: Layers, label: 'Practice' },
           ].map((tab) => {
             const Icon = tab.icon;
 
@@ -2527,20 +2699,23 @@ function AppContent() {
                     ? 'bg-white/20 text-white border border-white/20'
                     : 'bg-sage/20 text-sage'
                   : isDarkMode
-                    ? 'text-white/60 hover:text-white hover:bg-white/5'
+                    ? 'text-white hover:text-white hover:bg-white/5'
                     : 'text-sage/60 hover:text-sage hover:bg-sage/10'
                   } `}
               >
                 <div className="relative">
                   <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
-                  {tab.id === 'momentum' && (user?.streak ?? 0) > 0 && (
+                  {tab.id === 'momentum' && showWeeklyHighlights && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
+                  )}
+                  {tab.id === 'momentum' && !showWeeklyHighlights && (user?.streak ?? 0) > 0 && (
                     <span
                       className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white animate-pulse"
                       style={{ boxShadow: '0 0 8px rgba(255, 255, 255, 0.4)' }}
                     />
                   )}
                 </div>
-                <span className="text-[10px] md:text-xs font-medium">{tab.label}</span>
+                <span className="text-xs md:text-xs font-medium">{tab.label}</span>
               </button>
             );
           })}
@@ -2550,29 +2725,6 @@ function AppContent() {
 
 
 
-      {/* Stack Runner - Fullscreen Routine Execution */}
-      {
-        showStackRunner && activeRoutine && user && (
-          <ErrorBoundary name="StackRunner" onReset={handleRoutineComplete}>
-          <Suspense fallback={null}>
-            <SafeStackRunner
-              routine={activeRoutine}
-              onComplete={handleRoutineComplete}
-              onClose={handleRoutineComplete}
-              isDarkMode={isDarkMode}
-              user={user}
-
-              onUpdateUser={(updates: Partial<UserProfile>) => {
-                handleProfileUpdate((prev: UserProfile | null) => {
-                  if (!prev) return prev!;
-                  return { ...prev, ...updates };
-                });
-              }}
-            />
-          </Suspense>
-          </ErrorBoundary>
-        )
-      }
 
 
       {/* Garden Legend */}
@@ -2588,14 +2740,14 @@ function AppContent() {
         </Suspense>
       )}
 
-      {/* Weekly Accomplishments Highlight — fires Sunday evenings */}
+      {/* Weekly Highlights modal — opened only when user taps the home card */}
       <WeeklyHighlightsModal
-        isOpen={showWeeklyHighlights}
+        isOpen={showWeeklyHighlightsModal}
         accomplishments={weeklyAccomplishments}
         reflectionMessage={weeklyReflectionMessage}
         userName={user?.name || 'Friend'}
         isDarkMode={isDarkMode}
-        onClose={() => setShowWeeklyHighlights(false)}
+        onClose={() => { setShowWeeklyHighlightsModal(false); setShowWeeklyHighlights(false); }}
       />
 
       {/* Legal Disclaimer Modal - First Launch (Blocks Everything) */}
@@ -2617,7 +2769,7 @@ function AppContent() {
             if (section === 'settings') setShowProfile(true);
             if (section === 'morning-ritual') { setActiveTab('home'); setShowMorningPractice(true); }
             if (section === 'momentum') setActiveTab('momentum');
-            if (section === 'reflections') setActiveTab('reflect');
+            if (section === 'reflections') setActiveTab('momentum');
             if (section === 'ai-coach') setActiveTab('coach');
           }}
 
@@ -2652,7 +2804,7 @@ function AppContent() {
             isOpen={showHistory}
             onClose={() => setShowHistory(false)}
             favorites={user.favoriteQuotes || []}
-            allQuotes={allQuotes}
+            allQuotes={[...AFFIRMATIONS]}
             isDarkMode={isDarkMode}
             onRemoveFavorite={handleRemoveFavorite}
           />
@@ -2687,7 +2839,10 @@ function AppContent() {
             milestone={showMilestone.milestone || undefined}
             streakDays={showMilestone.streakDays}
             isOpen={showMilestone.isOpen}
-            onClose={() => setShowMilestone({ isOpen: false, milestone: null, streakDays: undefined })}
+            onClose={() => {
+              setShowMilestone({ isOpen: false, milestone: null, streakDays: undefined });
+              setTimeout(requestAppReview, 800);
+            }}
           />
         )
       }
@@ -2700,8 +2855,17 @@ function AppContent() {
         isDarkMode={isDarkMode}
         onClose={() => {
           setRingCeremony(prev => ({ ...prev, isOpen: false }));
-          // After fullbloom ceremony closes, open the Growth Story
+          // High-emotion moment — ask for an App Store review after a short delay.
+          setTimeout(requestAppReview, 800);
+          // After fullbloom: advance color cycle so the mandala refreshes next round,
+          // and clear the shown flag so the ceremony can fire again at the next multiple of 90.
           if (ringCeremony.type === 'fullbloom' && user) {
+            const nextCycle = (user.mandalaColorCycle ?? 0) + 1;
+            updateProfile({ ...user, mandalaColorCycle: nextCycle });
+            localStorage.removeItem(STORAGE_KEYS.FULLBLOOM_CEREMONY_SHOWN);
+            localStorage.removeItem(STORAGE_KEYS.RING1_CEREMONY_SHOWN);
+            localStorage.removeItem(STORAGE_KEYS.RING2_CEREMONY_SHOWN);
+            localStorage.removeItem(STORAGE_KEYS.RING3_CEREMONY_SHOWN);
             const allMorning = (user.dailyMorningPractice || user.dailyPriming || []);
             const allEvening = (user.dailyEveningPractice || []);
             const futureLetter = (user.futureLetters || []).find(l => l.hasBeenDelivered || l.content);
@@ -2745,6 +2909,16 @@ function AppContent() {
             shareText: `${labels[ringCeremony.type]} on my Palante journey. Pa'lante! #PalanteApp`,
           });
         }}
+        onSave={async () => {
+          const { saveMilestoneToPhotos } = await import('./utils/shareUtils');
+          await saveMilestoneToPhotos({
+            title: '90 Days — Full Bloom',
+            label: 'Mandala of Growth',
+            count: user?.practiceData?.totalPractices ?? 90,
+            message: 'My garden is in full bloom. Pa\'lante. 🌸',
+            iconName: 'Trophy',
+          });
+        }}
       />
 
       {/* Day 90 Growth Story */}
@@ -2777,6 +2951,16 @@ function AppContent() {
         />
       </Suspense>
 
+      {/* Notification permission ask — shown once after first practice */}
+      <Suspense fallback={null}>
+        <NotificationAskModal
+          isOpen={showNotifAsk}
+          userName={user?.name || ''}
+          onAllow={handleNotifAskAllow}
+          onSkip={handleNotifAskSkip}
+        />
+      </Suspense>
+
       {/* Weekly Report */}
       <Suspense fallback={null}>
         {
@@ -2794,48 +2978,26 @@ function AppContent() {
 
 
 
-      {/* Clear the Noise Modal */}
-      <Suspense fallback={null}>
-        {
-          user && showClearNoise && (
-            <ClearTheNoise
-              user={user}
-              isDarkMode={isDarkMode}
-              onClose={() => setShowClearNoise(false)}
-              onComplete={(entries) => {
-                handleProfileUpdate(prev => {
-                  if (!prev) return prev!;
-                  return {
-                    ...prev,
-                    noiseEntries: [...(prev.noiseEntries || []), ...entries]
-                  };
-                });
-                setShowClearNoise(false);
-              }}
-            />
-          )
-        }
-      </Suspense>
 
-      {/* Rest Day Modal */}
-      {
-        showRestDayModal && missedDate && (
+      {/* Rest day grace modal — shown when user missed exactly yesterday with a real streak */}
+      <Suspense fallback={null}>
+        {restDayMissedDate && (
           <RestDayModal
             isDarkMode={isDarkMode}
-            missedDate={missedDate}
-            onMarkAsRest={handleMarkAsRestDay}
-            onAcknowledge={handleAcknowledgeMissedDay}
-            onClose={() => setShowRestDayModal(false)}
+            missedDate={restDayMissedDate}
+            onMarkAsRest={handleRestDayMarkAsRest}
+            onAcknowledge={handleRestDayAcknowledge}
+            onClose={handleRestDayAcknowledge}
           />
-        )
-      }
+        )}
+      </Suspense>
 
       {/* Morning Mode Overlay */}
       {
-        showMorningMode && user && currentQuote && (
+        showMorningMode && user && dailyQuote && (
           <MorningModeOverlay
             isDarkMode={isDarkMode}
-            quote={currentQuote}
+            quote={dailyQuote}
             userName={user.name}
             onStartMeditation={() => {
               setShowMorningMode(false);
@@ -2946,6 +3108,11 @@ function AppContent() {
                       });
                     }
                   }}
+                  onToast={(message) => {
+                    setToastMessage(message);
+                    setShowToast(true);
+                    setTimeout(() => setShowToast(false), 2500);
+                  }}
                 />
               </div>
             </SlideUpModal>
@@ -2962,77 +3129,43 @@ function AppContent() {
           user && (
             <MorningPractice
               isOpen={showMorningPractice}
-              onClose={() => setShowMorningPractice(false)}
+              onClose={() => { setShowMorningPractice(false); }}
               user={user}
 
-              onUpdateUser={(updates: Partial<UserProfile>) => handleProfileUpdate((prev: UserProfile | null) => {
-                if (!prev) return prev!;
-                return { ...prev, ...updates };
-              })}
-            />
-          )
-        }
-      </Suspense>
-
-      {/* Midday Check-in */}
-      {user && (
-        <CheckInModal
-          isOpen={showCheckIn}
-          userName={user.name}
-          onFeelingSaved={(mood, energy) => {
-            handleProfileUpdate(prev => {
-              if (!prev) return prev!;
-              return { ...prev, currentMood: mood as UserProfile['currentMood'], currentEnergy: energy as UserProfile['currentEnergy'] };
-            });
-          }}
-          onNavigate={(dest: CheckInDestination) => {
-            setShowCheckIn(false);
-            const tabMap: Record<CheckInDestination, typeof activeTab> = {
-              focus: 'focus',
-              reflect: 'reflect',
-              breath: 'breath',
-              soundscapes: 'soundscapes',
-            };
-            setActiveTab(tabMap[dest]);
-          }}
-          onDismiss={() => setShowCheckIn(false)}
-        />
-      )}
-
-      {/* Vibe Check Overlay */}
-      <Suspense fallback={null}>
-        {
-          user && (
-            <VibeCheck
-              isOpen={showVibeCheck}
-              onSelect={(tier, source, content) => {
-                handleProfileUpdate(prev => {
+              onUpdateUser={(updates: Partial<UserProfile>) => {
+                handleProfileUpdate((prev: UserProfile | null) => {
                   if (!prev) return prev!;
-                  const updatedUser = {
-                    ...prev,
-                    tier: tier,
-                    sourcePreference: source,
-                    contentTypePreference: content
-                  };
-                  // Trigger reload with new settings immediately
-                  loadNewQuote(updatedUser);
-                  return updatedUser;
+                  return { ...prev, ...updates };
                 });
-                localStorage.setItem(STORAGE_KEYS.VIBE_CHECKED, 'true');
-                setShowVibeCheck(false);
+                // When morning practice saves, immediately generate the garden affirmation
+                // with the fresh practice data — don't wait for the next user?.id re-mount
+                if (updates.dailyMorningPractice) {
+                  const _td = new Date();
+                  const today = `${_td.getFullYear()}-${String(_td.getMonth() + 1).padStart(2, '0')}-${String(_td.getDate()).padStart(2, '0')}`;
+                  const todayPractice = updates.dailyMorningPractice.find((p) => p.date === today);
+                  if (todayPractice && (
+                    (todayPractice.gratitudes || []).some(Boolean) ||
+                    (todayPractice.affirmations || []).some(Boolean) ||
+                    todayPractice.dailyIntention?.trim()
+                  )) {
+                    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
+                    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
+                    generateGardenAffirmation(true, {
+                      gratitudes: (todayPractice.gratitudes || []).filter(Boolean),
+                      affirmations: (todayPractice.affirmations || []).filter(Boolean),
+                      intention: todayPractice.dailyIntention?.trim() || '',
+                      commitment: todayPractice.commitment?.trim(),
+                    });
+                  }
+                }
               }}
-              onSkip={() => {
-                localStorage.setItem(STORAGE_KEYS.VIBE_CHECKED, 'true');
-                setShowVibeCheck(false);
-              }}
-              isDarkMode={isDarkMode}
-              userName={user.name}
-              currentSource={user.sourcePreference}
-              currentContent={user.contentTypePreference}
             />
           )
         }
       </Suspense>
+
+      {/* CheckIn is now a home card via HomeNudgeCards — no modal */}
+
 
       {/* Global Did You Know Modal */}
       <Suspense fallback={null}>
@@ -3044,33 +3177,6 @@ function AppContent() {
         />
       </Suspense>
 
-      {/* Stack Wizard - Create New Routine */}
-      <Suspense fallback={null}>
-        <StackWizardModal
-          isOpen={showStackWizard}
-          onClose={() => setShowStackWizard(false)}
-          onSave={(stack, shouldLaunch, shouldEdit) => {
-            handleProfileUpdate(prev => {
-              if (!prev) return prev!;
-              return {
-                ...prev,
-                routines: [...(prev.routines || []), stack],
-                activeRoutineId: stack.id
-              };
-            });
-            setShowStackWizard(false);
-
-            if (shouldEdit) {
-              // Open Editor immediately
-              setEditingRoutine(stack);
-            } else if (shouldLaunch) {
-              // Small delay to allow modal close animation
-              setTimeout(() => handleLaunchRoutine(stack), 300);
-            }
-          }}
-          isDarkMode={isDarkMode}
-        />
-      </Suspense>
 
       <ErrorBoundary name="KoiPond" onReset={() => setShowKoiPond(false)}>
         <Suspense fallback={null}>
@@ -3104,22 +3210,12 @@ function AppContent() {
         </Suspense>
       </ErrorBoundary>
 
-      {/* Stack Editor - Edit Existing Routine */}
-      <Suspense fallback={null}>
-        <StackEditorModal
-          isOpen={!!editingRoutine}
-          onClose={() => setEditingRoutine(null)}
-          routine={editingRoutine}
-          onSave={handleUpdateRoutine}
-          isDarkMode={isDarkMode}
-        />
-      </Suspense>
     </div >
   );
 
   // Render Logic
   if (currentPath === '/privacy') {
-    return <PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} />;
+    return <Suspense fallback={null}><PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} /></Suspense>;
   }
 
   if (showIntroSequence) {
@@ -3139,7 +3235,7 @@ function AppContent() {
   }
 
   // Go directly to app (marketing landing page removed)
-  return appJsx;
+  return <Suspense fallback={null}>{appJsx}</Suspense>;
 }
 
 function SubscriptionBridge({ children }: { children: React.ReactNode }) {

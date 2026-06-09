@@ -32,7 +32,7 @@ export const EnergyCheckIn: React.FC<EnergyCheckInProps> = ({
     currentVibe
 }) => {
     const [showVibeCheck, setShowVibeCheck] = useState(false);
-    const textSecondary = isDarkMode ? 'text-white/60' : 'text-sage-dark/60';
+    const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     return (
         <div className={`w-full p-6 rounded-2xl border transition-all ${isDarkMode
@@ -62,13 +62,13 @@ export const EnergyCheckIn: React.FC<EnergyCheckInProps> = ({
                                     ? 'bg-pale-gold text-warm-gray-green shadow-[0_0_15px_rgba(212,175,55,0.3)] scale-105'
                                     : 'bg-sage text-white shadow-spa scale-105'
                                 : isDarkMode
-                                    ? 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                                    ? 'bg-white/5 text-white hover:bg-white/10 hover:text-white'
                                     : 'bg-white/40 text-sage hover:bg-white/60'
                                 }`}
                             title={energy.description}
                         >
                             <Icon size={20} strokeWidth={isSelected ? 2.5 : 2} />
-                            <span className="text-[10px] font-medium leading-tight text-center">{energy.label}</span>
+                            <span className="text-xs font-medium leading-tight text-center">{energy.label}</span>
                         </button>
                     );
                 })}</div>
@@ -120,7 +120,7 @@ export const EnergyCheckIn: React.FC<EnergyCheckInProps> = ({
                                         }`}
                                 >
                                     <div className="font-medium text-sm">{vibe.label}</div>
-                                    <div className="text-xs opacity-70">{vibe.description}</div>
+                                    <div className="text-sm opacity-70">{vibe.description}</div>
                                 </button>
                             ))}
                         </div>

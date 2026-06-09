@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { haptics } from '../utils/haptics';
 import type { UserProfile, AccountabilityPartner } from '../types';
-import { Save, Bell, User, X, Crown, Download, ChevronDown, ChevronUp, Sparkles, Target, Flame, Sun, Moon, Clock, Info, BellOff, BookOpen, Quote as QuoteIcon, Blend, Fish, Users, Cloud, ShieldCheck, MessageCircle, Trash2, Compass, AlertTriangle, Droplets, RefreshCw, Lock } from 'lucide-react';
+import { Save, Bell, User, X, Crown, Download, ChevronDown, ChevronUp, Sparkles, Target, Flame, Sun, Moon, Clock, Info, BellOff, BookOpen, Fish, Users, Cloud, ShieldCheck, MessageCircle, Trash2, Compass, AlertTriangle, Droplets, RefreshCw, Lock } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import { AccountabilityPartners } from './AccountabilityPartners';
 import { PartnerInviteModal } from './PartnerInviteModal';
@@ -28,6 +28,7 @@ interface ProfileProps {
     onViewPrivacy?: () => void;
     onWriteLetter?: () => void;
     onRefreshNarrative?: () => void;
+    onToast?: (message: string) => void;
 }
 
 // Collapsible Section Component
@@ -44,37 +45,37 @@ const CollapsibleSection: React.FC<{
             onClick={onToggle}
             className={`w-full px-6 py-5 flex items-center justify-between transition-colors ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`}
         >
-            <div className="flex items-center gap-3">
-                <span className={isDarkMode ? 'text-white' : 'text-sage-dark'}>{icon}</span>
-                <h3 className={`text-lg font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>{title}</h3>
+            <div className="flex items-center gap-3 min-w-0">
+                <span className={`shrink-0 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>{icon}</span>
+                <h3 className={`text-base font-display font-semibold whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>{title}</h3>
             </div>
-            {isOpen ? <ChevronUp size={20} className={isDarkMode ? 'text-white/40' : 'text-sage/40'} /> : <ChevronDown size={20} className={isDarkMode ? 'text-white/40' : 'text-sage/40'} />}
+            {isOpen ? <ChevronUp size={20} className={`shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} /> : <ChevronDown size={20} className={`shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} />}
         </button>
         <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-            <div className={`pb-6 pt-2 ${title === "Community & Accountability" ? 'px-3' : 'px-6'}`}>
+            <div className="pb-6 pt-2 px-6">
                 {children}
             </div>
         </div>
     </section>
 );
 
-export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, onClose, onOpenKoiPond, onToggleTheme, onShowWelcome, onViewPrivacy, onWriteLetter, onRefreshNarrative }) => {
+export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, onClose, onOpenKoiPond, onToggleTheme, onShowWelcome, onViewPrivacy, onWriteLetter, onRefreshNarrative, onToast }) => {
     const [name, setName] = useState(user.name);
     const [age, setAge] = useState<number | ''>(user.age || '');
     const [coachName, setCoachName] = useState(user.coachName || '');
     const [career, setCareer] = useState(user.career);
     const [profession, setProfession] = useState(user.profession);
     const [interests, setInterests] = useState(user.interests.join(', '));
-    const [frequency, setFrequency] = useState(user.notificationFrequency || 3);
-    const [sourcePreference, setSourcePreference] = useState<'human' | 'ai' | 'mix'>(user.sourcePreference);
-    const [contentTypePreference, setContentTypePreference] = useState<'quotes' | 'affirmations' | 'mix'>(user.contentTypePreference);
+    const [frequency, setFrequency] = useState(user.notificationFrequency || 2);
     const [hapticsEnabled, setHapticsEnabled] = useState(user.hapticsEnabled ?? true);
     const [journalPromptsEnabled, setJournalPromptsEnabled] = useState(user.journalPromptsEnabled ?? true);
     const [aiDisabled, setAiDisabled] = useState(user.aiDisabled ?? false);
     const [weightGoal, setWeightGoal] = useState<number | ''>(user.weightGoal || '');
+    // Default to all 7 days if not set
+    const [practiceDays, setPracticeDays] = useState<number[]>(user.practiceDays ?? [0, 1, 2, 3, 4, 5, 6]);
 
     // Notifications Hook
-    const { settings, toggleEnabled, updateQuietHours, testNotification, permission, updateMorningReminderConfig, updateEveningReminderConfig, updateNudgeConfig, updateFrequency, updateWaterRemindersConfig } = useNotifications();
+    const { settings, toggleEnabled, updateQuietHours, testNotification, permission, updateMorningReminderConfig, updateEveningReminderConfig, updateLastCallConfig, updateNudgeConfig, updateFrequency, updateWaterRemindersConfig } = useNotifications();
     const [quietStart, setQuietStart] = useState(settings.quietStart);
     const [quietEnd, setQuietEnd] = useState(settings.quietEnd);
     const [showAbout, setShowAbout] = useState(false);
@@ -82,6 +83,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showUpdatePassword, setShowUpdatePassword] = useState(false);
     const { user: authUser, signOut, deleteAccount } = useAuth();
+    const [confirmAction, setConfirmAction] = useState<{ label: string; message: string; onConfirm: () => void } | null>(null);
 
     // Sync quiet hours state with hook if needed when saving
     const handleQuietHoursChange = (start: string, end: string) => {
@@ -92,13 +94,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
     // Section internal open state
     const [openSections, setOpenSections] = useState({
+        account: true,
         profile: true,
         experience: true,
         notifications: false,
         data: false,
         visuals: false,
         community: false,
-        account: false,
         disclaimer: false,
     });
 
@@ -123,14 +125,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                 profession,
                 interests: interests.split(',').map(i => i.trim()).filter(i => i),
                 notificationFrequency: frequency,
-                sourcePreference: aiDisabled ? 'human' : sourcePreference,
-                contentTypePreference,
                 hapticsEnabled,
                 journalPromptsEnabled,
                 aiDisabled,
                 quietHoursStart: quietStart,
                 quietHoursEnd: quietEnd,
                 weightGoal: weightGoal === '' ? undefined : weightGoal,
+                practiceDays,
                 coachSettings: {
                     ...prevUser.coachSettings,
                     nudgeEnabled: settings.nudgeEnabled,
@@ -141,7 +142,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         });
         setTimeout(() => setSaveStatus('saved'), 600);
         setTimeout(() => setSaveStatus('idle'), 3000);
-    }, [name, age, coachName, career, profession, interests, frequency, sourcePreference, contentTypePreference, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled, onUpdate]); // Removed 'user' dependency
+    }, [name, age, coachName, career, profession, interests, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled, onUpdate]); // Removed 'user' dependency
 
     // Auto-save effect
     useEffect(() => {
@@ -155,7 +156,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         }, 1500); // Increased debounce to 1.5s for stability
 
         return () => clearTimeout(timer);
-    }, [name, age, coachName, career, profession, interests, frequency, sourcePreference, contentTypePreference, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, weightGoal, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled]); // Removed performSave from deps
+    }, [name, age, coachName, career, profession, interests, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, weightGoal, practiceDays, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled]); // Removed performSave from deps
 
     const handleSave = () => {
         performSave();
@@ -211,22 +212,28 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
     const handleReportPartner = (id: string, name: string) => {
         haptics.selection();
-        if (window.confirm(`Report ${name} for inappropriate content or behavior? Palante reviews all reports within 24 hours. They will also be removed from your partners.`)) {
-            haptics.medium();
-            // In a real app, this would call an API like api.reportUser(id)
-            handleRemovePartner(id);
-            alert("Thank you. This user has been reported and removed.");
-        }
+        setConfirmAction({
+            label: 'Report',
+            message: `Report ${name} for inappropriate content or behavior? They will be removed from your partners.`,
+            onConfirm: () => {
+                haptics.medium();
+                handleRemovePartner(id);
+                onToast?.('User reported and removed.');
+            },
+        });
     };
 
     const handleBlockPartner = (id: string, name: string) => {
         haptics.selection();
-        if (window.confirm(`Block ${name}? You will no longer see each other's progress, and they will not be able to invite you again.`)) {
-            haptics.medium();
-            // In a real app, this would update a blocked_ids list in Supabase
-            handleRemovePartner(id);
-            alert(`${name} has been blocked.`);
-        }
+        setConfirmAction({
+            label: 'Block',
+            message: `Block ${name}? You will no longer see each other's progress.`,
+            onConfirm: () => {
+                haptics.medium();
+                handleRemovePartner(id);
+                onToast?.(`${name} has been blocked.`);
+            },
+        });
     };
 
     const handleAddPartnerByCode = async (partnerName: string, code: string) => {
@@ -248,7 +255,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
             // 2. FALLBACK: If not found, create a provisional profile to ensure 100% success for the user.
             // This allows them to "add" the partner locally even if the cloud lookup fails or RLS blocks it.
             if (!partnerProfile) {
-                console.log("Partner lookup failed, creating provisional profile -> 100% success mode");
                 partnerProfile = {
                     id: `provisional-${Date.now()}`,
                     name: partnerName,
@@ -327,7 +333,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         : 'bg-white/60 border-sage/20 focus:border-sage text-sage-dark placeholder-sage-dark/30'
         }`;
 
-    const labelClasses = `text-xs font-medium uppercase tracking-widest mb-2 block ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`;
+    const labelClasses = `text-xs font-medium uppercase tracking-widest mb-2 block ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`;
 
 
 
@@ -380,7 +386,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                     <h2 className={`text-2xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Settings</h2>
                     <div className="flex items-center gap-2 mt-1">
                         <div className={`w-2 h-2 rounded-full transition-all duration-300 ${saveStatus === 'saving' ? 'bg-amber animate-pulse scale-125' : saveStatus === 'saved' ? 'bg-[#98B07D]' : 'bg-white/10'}`} />
-                        <span className={`text-[10px] uppercase tracking-widest font-black transition-colors ${saveStatus === 'saving' ? 'text-amber' : saveStatus === 'saved' ? 'text-[#98B07D]' : (isDarkMode ? 'text-white/30' : 'text-sage-dark/30')}`}>
+                        <span className={`text-xs uppercase tracking-widest font-black transition-colors ${saveStatus === 'saving' ? 'text-amber' : saveStatus === 'saved' ? 'text-[#98B07D]' : (isDarkMode ? 'text-white' : 'text-sage-dark/30')}`}>
                             {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Synced to Cloud' : 'Settings Up to Date'}
                         </span>
                     </div>
@@ -395,6 +401,87 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
             <div className="flex-1 overflow-y-auto px-8 pb-48">
                 <div className="max-w-md mx-auto space-y-4 pt-6">
+
+                    {/* Account Section — first so users sign in before filling settings */}
+                    <CollapsibleSection
+                        title="Account"
+                        icon={<ShieldCheck size={20} />}
+                        isOpen={openSections.account}
+                        onToggle={() => toggleSection('account')}
+                        isDarkMode={isDarkMode}
+                    >
+                        <div className="space-y-4">
+                            <div className={`p-4 rounded-xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
+                                            <Cloud size={20} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className={`font-medium truncate break-all ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                                                {authUser ? authUser.email : 'Not Syncing'}
+                                            </div>
+                                            <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
+                                                {authUser ? 'Cloud Sync Active' : 'Sign in to sync data'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {authUser ? (
+                                        <div className="flex flex-col gap-2 mt-1">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    onClick={() => setShowUpdatePassword(true)}
+                                                    className={`px-5 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-sm ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-sage/10 hover:bg-sage/20 text-sage'}`}
+                                                >
+                                                    Change Password
+                                                </button>
+                                                <button
+                                                    onClick={signOut}
+                                                    className={`px-5 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-sm ${isDarkMode ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' : 'bg-red-50 hover:bg-red-100 text-red-600'}`}
+                                                >
+                                                    Sign Out
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setConfirmAction({
+                                                        label: 'Delete Account',
+                                                        message: 'Permanently delete your Palante account? All cloud data, journals, and progress will be removed. This cannot be undone.',
+                                                        onConfirm: async () => {
+                                                            const { error } = await deleteAccount();
+                                                            if (error) {
+                                                                onToast?.('Deletion failed. Please try again.');
+                                                            } else {
+                                                                onClose();
+                                                            }
+                                                        },
+                                                    });
+                                                }}
+                                                className={`w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${isDarkMode ? 'text-red-500/50 hover:text-red-500 hover:bg-red-500/10' : 'text-red-400 hover:text-red-600 hover:bg-red-50'}`}
+                                            >
+                                                Delete My Account
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setShowAuthModal(true)}
+                                            className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-sm ${'bg-terracotta-500 text-white hover:scale-105'}`}
+                                        >
+                                            Sign In / Create Account
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 px-2">
+                                <Info size={14} className={isDarkMode ? 'text-white' : 'text-sage/30'} />
+                                <p className={`text-xs leading-tight ${isDarkMode ? 'text-white' : 'text-sage-dark/30'}`}>
+                                    Your data is encrypted and securely stored in our cloud infrastructure.
+                                </p>
+                            </div>
+                        </div>
+                    </CollapsibleSection>
 
                     {/* Welcome Guide */}
                     <button
@@ -412,7 +499,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                     <div className="mb-6">
                         <div className="text-center mb-4 mt-8">
                             <h3 className={`font-display font-medium text-xl ${isDarkMode ? 'text-white' : 'text-sage'}`}>Mandala of Growth</h3>
-                            <p className={`text-sm mt-1 px-4 ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                            <p className={`text-sm mt-1 px-4 ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>
                                 Your consistency fills this mandala. Watch it bloom as you keep showing up.
                             </p>
                         </div>
@@ -437,7 +524,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         </div>
                                         <div>
                                             <h3 className="text-sm font-display font-medium text-white">A Note From Palante</h3>
-                                            <p className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">Reflecting on your journey</p>
+                                            <p className="text-xs text-white uppercase tracking-widest mt-0.5">Reflecting on your journey</p>
                                         </div>
                                     </div>
                                     <button
@@ -447,7 +534,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                             await onRefreshNarrative();
                                             setIsRefreshingNarrative(false);
                                         }}
-                                        className="p-2 rounded-full text-white/30 hover:text-pale-gold transition-colors"
+                                        className="p-2 rounded-full text-white hover:text-pale-gold transition-colors"
                                         title="Refresh your story"
                                     >
                                         <RefreshCw size={14} className={isRefreshingNarrative ? 'animate-spin' : ''} />
@@ -464,11 +551,11 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     {[
                                         { label: 'Day Streak', value: user.streak || 0 },
                                         { label: 'Practices', value: user.practiceData?.totalPractices ?? 0 },
-                                        { label: 'Saved Quotes', value: user.favoriteQuotes?.length ?? 0 },
+                                        { label: 'Letters', value: user.letters?.length ?? 0 },
                                     ].map(stat => (
                                         <div key={stat.label} className="text-center p-3 rounded-2xl bg-white/5">
                                             <div className="text-xl font-display font-medium text-pale-gold">{stat.value}</div>
-                                            <div className="text-[9px] text-white/40 uppercase tracking-widest mt-0.5">{stat.label}</div>
+                                            <div className="text-[10px] text-white uppercase tracking-wide mt-0.5 leading-tight">{stat.label}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -477,7 +564,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 {user.focusAreas && user.focusAreas.length > 0 && (
                                     <div className="flex flex-wrap gap-2 relative z-10 mb-4">
                                         {user.focusAreas.map(area => (
-                                            <span key={area} className="px-3 py-1 rounded-full bg-pale-gold/10 border border-pale-gold/20 text-[10px] font-bold text-pale-gold uppercase tracking-wider">
+                                            <span key={area} className="px-3 py-1 rounded-full bg-pale-gold/10 border border-pale-gold/20 text-xs font-bold text-pale-gold uppercase tracking-wider">
                                                 {area}
                                             </span>
                                         ))}
@@ -486,8 +573,8 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
                                 {/* Privacy note */}
                                 <div className="flex items-center gap-2 relative z-10">
-                                    <Lock size={11} className="text-white/20" />
-                                    <p className="text-[10px] text-white/20">Only you see this. Updated weekly from your practice.</p>
+                                    <Lock size={11} className="text-white" />
+                                    <p className="text-xs text-white">Only you see this. Updated weekly from your practice.</p>
                                 </div>
                             </div>
                         </div>
@@ -534,26 +621,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClasses}>Coach Name</label>
+                                    <label className={labelClasses}>Partner Name</label>
                                     <input
                                         value={coachName}
                                         onChange={e => setCoachName(e.target.value)}
                                         className={inputClasses}
-                                        placeholder="Name your AI Coach"
+                                        placeholder="Name me"
                                     />
-                                </div>
-                            </div>
-                            <div>
-                                <label className={labelClasses}>Weight Goal</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        value={weightGoal}
-                                        onChange={e => setWeightGoal(e.target.value ? parseFloat(e.target.value) : '')}
-                                        className={inputClasses}
-                                        placeholder="Target lbs"
-                                    />
-                                    <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold ${isDarkMode ? 'text-white/20' : 'text-sage/20'}`}>LBS</span>
                                 </div>
                             </div>
                             <div>
@@ -636,95 +710,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
                     {/* Experience Section (Tier + Source) */}
                     <CollapsibleSection
-                        title="Motivation Style"
+                        title="Practice Settings"
                         icon={<Sparkles size={20} />}
                         isOpen={openSections.experience}
                         onToggle={() => toggleSection('experience')}
                         isDarkMode={isDarkMode}
                     >
                         <div className="space-y-6">
-                            {/* Tier Selector */}
-                            {/* Tier Selector REMOVED */}
-
-                            {/* Content Type Preference */}
-                            <div>
-                                <label className={labelClasses}>Content Style</label>
-                                <p className={`text-sm mb-3 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
-                                    Choose your preferred format
-                                </p>
-                                <div className="space-y-2">
-                                    {/* First Row: Affirmations and Quotes */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {[
-                                            { id: 'affirmations' as const, name: 'Affirmations', icon: <Sparkles size={18} />, desc: 'Power statements' },
-                                            { id: 'quotes' as const, name: 'Quotes', icon: <QuoteIcon size={18} />, desc: 'Wisdom & insight' },
-                                        ].map(type => (
-                                            <button
-                                                key={type.id}
-                                                onClick={() => {
-                                                    haptics.selection();
-                                                    setContentTypePreference(type.id);
-                                                }}
-                                                className={`p-4 rounded-xl border-2 transition-all text-center ${contentTypePreference === type.id
-                                                    ? 'bg-pale-gold/20 border-pale-gold text-white'
-                                                    : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                                                    }`}
-                                            >
-                                                <div className={`mb-2 flex justify-center ${contentTypePreference === type.id ? 'text-pale-gold' : ''}`}>{type.icon}</div>
-                                                <div className="font-display font-medium text-sm">{type.name}</div>
-                                                <div className="text-xs opacity-70 mt-1">{type.desc}</div>
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Second Row: Both (Full Width) */}
-                                    <button
-                                        onClick={() => {
-                                            haptics.selection();
-                                            setContentTypePreference('mix');
-                                        }}
-                                        className={`w-full p-4 rounded-xl border-2 transition-all text-center ${contentTypePreference === 'mix'
-                                            ? 'bg-pale-gold/20 border-pale-gold text-white'
-                                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                                            }`}
-                                    >
-                                        <div className={`mb-2 flex justify-center ${contentTypePreference === 'mix' ? 'text-pale-gold' : ''}`}><Blend size={18} /></div>
-                                        <div className="font-display font-medium text-sm">Both</div>
-                                        <div className="text-xs opacity-70 mt-1">Balanced mix</div>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Source Preference */}
-                            <div>
-                                <label className={labelClasses}>Quote Source</label>
-                                <p className={`text-sm mb-3 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
-                                    Choose where your quotes come from
-                                </p>
-                                <div className="grid grid-cols-3 gap-3">
-                                    {[
-                                        { id: 'human' as const, name: 'Human', desc: 'Classic wisdom' },
-                                        { id: 'ai' as const, name: 'Palante Coach', desc: 'Personalized' },
-                                        { id: 'mix' as const, name: 'Both', desc: 'Best of both' },
-                                    ].map(source => (
-                                        <button
-                                            key={source.id}
-                                            onClick={() => {
-                                                haptics.selection();
-                                                setSourcePreference(source.id);
-                                            }}
-                                            className={`p-4 rounded-xl border-2 transition-all text-center flex flex-col items-center justify-center ${sourcePreference === source.id
-                                                ? 'bg-pale-gold/20 border-pale-gold text-white'
-                                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            <div className="font-display font-medium text-sm">{source.name}</div>
-                                            <div className="text-xs opacity-70 mt-1">{source.desc}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
                             {/* Journal Prompts Toggle */}
                             <div>
                                 <label className={labelClasses}>Journal Prompts</label>
@@ -732,7 +724,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div className="flex items-center gap-3">
                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${journalPromptsEnabled
                                             ? 'bg-terracotta-500 text-white hover:scale-105'
-                                            : isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                            : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                             }`}>
                                             <BookOpen size={20} />
                                         </div>
@@ -740,7 +732,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                             <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                                 Show Journal Prompts
                                             </div>
-                                            <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                            <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                                 {journalPromptsEnabled ? 'Prompts enabled' : 'Prompts disabled'}
                                             </div>
                                         </div>
@@ -761,6 +753,50 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 </div>
                             </div>
 
+                            {/* Weekly Practice Cycle */}
+                            <div>
+                                <label className={labelClasses}>Weekly Practice Cycle</label>
+                                <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                                    <p className={`text-xs mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/55'}`}>
+                                        Choose the days you plan to practice each week. Rest days are just as important.
+                                    </p>
+                                    <div className="flex gap-1.5 justify-between">
+                                        {(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const).map((label, idx) => {
+                                            const isActive = practiceDays.includes(idx);
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => {
+                                                        haptics.selection();
+                                                        setPracticeDays(prev =>
+                                                            isActive
+                                                                ? prev.filter(d => d !== idx)
+                                                                : [...prev, idx].sort((a, b) => a - b)
+                                                        );
+                                                    }}
+                                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                                                        isActive
+                                                            ? 'bg-[#C96A3A] text-white'
+                                                            : isDarkMode
+                                                                ? 'bg-white/8 text-white hover:bg-white/14'
+                                                                : 'bg-sage/8 text-sage/40 hover:bg-sage/15'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className={`text-xs mt-2.5 text-center ${isDarkMode ? 'text-white' : 'text-sage/35'}`}>
+                                        {practiceDays.length === 7
+                                            ? 'Every day — full cycle'
+                                            : practiceDays.length === 0
+                                                ? 'No days selected — pick at least one'
+                                                : `${practiceDays.length} day${practiceDays.length > 1 ? 's' : ''} per week`}
+                                    </p>
+                                </div>
+                            </div>
+
                             {/* AI Features Toggle */}
                             <div>
                                 <label className={labelClasses}>AI Features</label>
@@ -768,7 +804,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${aiDisabled
-                                                ? isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                                ? isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                                 : 'bg-terracotta-500 text-white hover:scale-105'
                                                 }`}>
                                                 <Sparkles size={20} />
@@ -777,7 +813,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                                 <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                                     Enable AI Features
                                                 </div>
-                                                <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                                <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                                     {aiDisabled ? 'AI disabled' : 'AI enabled'}
                                                 </div>
                                             </div>
@@ -793,8 +829,8 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                                 }`} />
                                         </button>
                                     </div>
-                                    <div className={`text-xs leading-relaxed ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
-                                        When disabled, all AI features (AI Coach, AI-generated quotes) will be turned off. Quote source will be set to Human only.
+                                    <div className={`text-xs leading-relaxed ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                                        When disabled, all AI features including your partner and personalised morning messages will be turned off.
                                     </div>
                                 </div>
                             </div>
@@ -816,7 +852,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.enabled
                                         ? 'bg-terracotta-500 text-white hover:scale-105'
-                                        : isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                        : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                         }`}>
                                         {settings.enabled ? <Bell size={20} /> : <BellOff size={20} />}
                                     </div>
@@ -824,7 +860,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                             Daily Reminders
                                         </div>
-                                        <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                        <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                             {settings.enabled ? 'On' : 'Off'} • {permission === 'granted' ? 'Permitted' : 'Permission Required'}
                                         </div>
                                     </div>
@@ -847,7 +883,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div className="flex items-center gap-3">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${settings.morningReminderEnabled
                                             ? 'bg-terracotta-500 text-white hover:scale-105'
-                                            : isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                            : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                             }`}>
                                             <Sun size={16} />
                                         </div>
@@ -855,7 +891,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                             <div className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                                 Morning Practice
                                             </div>
-                                            <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                            <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                                 Set goals & meditate
                                             </div>
                                         </div>
@@ -874,9 +910,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
                                 {settings.morningReminderEnabled && (
                                     <div className="flex items-center justify-between animate-fade-in pl-11">
-                                        <label className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>Reminder Time</label>
+                                        <label className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Reminder Time</label>
                                         <div className="relative">
-                                            <Clock size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`} />
+                                            <Clock size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} />
                                             <input
                                                 type="time"
                                                 value={settings.morningReminderTime}
@@ -897,7 +933,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div className="flex items-center gap-3">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${settings.eveningReminderEnabled
                                             ? 'bg-terracotta-500 text-white hover:scale-105'
-                                            : isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                            : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                             }`}>
                                             <Moon size={16} />
                                         </div>
@@ -905,7 +941,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                             <div className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                                 Evening Reflection
                                             </div>
-                                            <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                            <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                                 GLAD nightly recap
                                             </div>
                                         </div>
@@ -924,9 +960,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
                                 {settings.eveningReminderEnabled && (
                                     <div className="flex items-center justify-between animate-fade-in pl-11">
-                                        <label className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>Reminder Time</label>
+                                        <label className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Reminder Time</label>
                                         <div className="relative">
-                                            <Clock size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`} />
+                                            <Clock size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} />
                                             <input
                                                 type="time"
                                                 value={settings.eveningReminderTime}
@@ -941,17 +977,66 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 )}
                             </div>
 
+                            {/* Last Call Reminder */}
+                            <div className={`p-4 rounded-xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${settings.lastCallEnabled
+                                            ? 'bg-terracotta-500 text-white'
+                                            : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
+                                            }`}>
+                                            <Moon size={16} />
+                                        </div>
+                                        <div>
+                                            <div className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                                                Last Call Reminder
+                                            </div>
+                                            <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
+                                                Gentle nudge if evening practice isn't done
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => updateLastCallConfig(!settings.lastCallEnabled, settings.lastCallTime)}
+                                        className={`relative w-10 h-5 rounded-full transition-colors ${settings.lastCallEnabled
+                                            ? 'bg-pale-gold'
+                                            : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
+                                            }`}
+                                    >
+                                        <div className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform ${settings.lastCallEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+
+                                {settings.lastCallEnabled && (
+                                    <div className="flex items-center justify-between animate-fade-in pl-11 mt-3">
+                                        <label className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Last Call Time</label>
+                                        <div className="relative">
+                                            <Clock size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} />
+                                            <input
+                                                type="time"
+                                                value={settings.lastCallTime}
+                                                onChange={e => updateLastCallConfig(true, e.target.value)}
+                                                className={`pl-9 pr-3 py-1.5 rounded-lg text-sm outline-none transition-all border font-body w-32 ${isDarkMode
+                                                    ? 'bg-white/5 border-white/10 focus:border-sage text-white'
+                                                    : 'bg-white/60 border-sage/20 focus:border-sage text-sage-dark'
+                                                    }`}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Quiet Hours */}
                             <div className={!settings.enabled ? 'opacity-50 pointer-events-none' : ''}>
                                 <label className={labelClasses}>Quiet Hours</label>
-                                <p className={`text-sm mb-3 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
+                                <p className={`text-sm mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                                     No notifications during these hours
                                 </p>
                                 <div className="flex items-center gap-3">
                                     <div className="flex-1">
-                                        <div className={`text-xs mb-1 ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>From</div>
+                                        <div className={`text-xs mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>From</div>
                                         <div className="relative">
-                                            <Clock size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`} />
+                                            <Clock size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} />
                                             <input
                                                 type="time"
                                                 value={quietStart}
@@ -960,11 +1045,11 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                             />
                                         </div>
                                     </div>
-                                    <div className={`mt-4 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>→</div>
+                                    <div className={`mt-4 ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>→</div>
                                     <div className="flex-1">
-                                        <div className={`text-xs mb-1 ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>To</div>
+                                        <div className={`text-xs mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>To</div>
                                         <div className="relative">
-                                            <Clock size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`} />
+                                            <Clock size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-white' : 'text-sage/40'}`} />
                                             <input
                                                 type="time"
                                                 value={quietEnd}
@@ -985,7 +1070,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         {frequency}x / day
                                     </span>
                                 </div>
-                                <p className={`text-sm mb-4 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
+                                <p className={`text-sm mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                                     How many times you want to be reminded
                                 </p>
                                 <input
@@ -1023,10 +1108,10 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <span>Send Test Notification</span>
                             </button>
 
-                            {/* Coach Nudges */}
+                            {/* Partner Nudges */}
                             <div className="pt-4 border-t border-opacity-10" style={{ borderColor: isDarkMode ? 'white' : '#B5C2A3' }}>
-                                <label className={labelClasses}>Coach Nudges</label>
-                                <p className={`text-sm mb-4 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
+                                <label className={labelClasses}>Partner Nudges</label>
+                                <p className={`text-sm mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                                     Get personalized check-ins and motivation throughout the day
                                 </p>
 
@@ -1035,7 +1120,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <div className="flex items-center gap-3">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.nudgeEnabled
                                                 ? 'bg-terracotta-500 text-white hover:scale-105'
-                                                : isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                                : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                                 }`}>
                                                 <MessageCircle size={20} />
                                             </div>
@@ -1043,7 +1128,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                                 <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                                     Enable Nudges
                                                 </div>
-                                                <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                                <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                                     {settings.nudgeEnabled ? 'Active' : 'Muted'}
                                                 </div>
                                             </div>
@@ -1075,7 +1160,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                                     onClick={() => updateNudgeConfig(true, opt.id as any)}
                                                     className={`p-3 rounded-xl border text-sm font-medium transition-all ${settings.nudgeFrequency === opt.id
                                                         ? isDarkMode ? 'bg-pale-gold border-pale-gold text-warm-gray-green' : 'bg-sage border-sage text-white'
-                                                        : isDarkMode ? 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10' : 'bg-white border-sage/20 text-sage-dark/70 hover:bg-sage/5'
+                                                        : isDarkMode ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-white border-sage/20 text-sage-dark/70 hover:bg-sage/5'
                                                         }`}
                                                 >
                                                     {opt.label}
@@ -1107,7 +1192,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                             Haptic Feedback
                                         </span>
-                                        <span className="text-xs opacity-60">
+                                        <span className="text-sm opacity-60">
                                             Vibrate on interaction
                                         </span>
                                     </div>
@@ -1137,7 +1222,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.waterRemindersEnabled
                                         ? 'bg-sky-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)]'
-                                        : isDarkMode ? 'bg-white/10 text-white/40' : 'bg-sage/10 text-sage/40'
+                                        : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
                                         }`}>
                                         <Droplets size={20} />
                                     </div>
@@ -1145,7 +1230,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                             Water Reminders
                                         </div>
-                                        <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                        <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                             Accountability Partner
                                         </div>
                                     </div>
@@ -1161,17 +1246,27 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         }`} />
                                 </button>
                             </div>
-                            <p className={`text-xs mt-2 ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
-                                Get firm reminders to hydrate. Your Coach will act as your accountability partner to ensure you're flushing toxins and staying sharp.
+                            <p className={`text-xs mt-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
+                                Get firm reminders to hydrate. Your Palante Partner will act as your accountability partner to ensure you're flushing toxins and staying sharp.
                             </p>
                         </div>
 
                         <AccountabilityPartners
                             partners={user.accountabilityPartners || []}
+                            coachSettings={user.coachSettings}
                             onAddPartner={handleAddPartner}
                             onRemovePartner={handleRemovePartner}
                             onReportPartner={handleReportPartner}
                             onBlockPartner={handleBlockPartner}
+                            onTogglePartnerTips={(enabled) => {
+                                onUpdate((prev: UserProfile | null) => {
+                                    if (!prev) return user;
+                                    return {
+                                        ...prev,
+                                        coachSettings: { ...prev.coachSettings, nudgeEnabled: prev.coachSettings?.nudgeEnabled ?? true, nudgeFrequency: prev.coachSettings?.nudgeFrequency ?? 'morning-evening', partnerTipsEnabled: enabled },
+                                    };
+                                });
+                            }}
                             isDarkMode={isDarkMode}
                         />
                         <PartnerInviteModal
@@ -1195,7 +1290,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         isDarkMode={isDarkMode}
                     >
                         <button
-                            onClick={() => {
+                            onClick={async () => {
                                 const allData: any = {
                                     profile: user,
                                     journalEntries: [],
@@ -1213,14 +1308,26 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     }
                                 }
                                 const dataStr = JSON.stringify(allData, null, 2);
-                                const blob = new Blob([dataStr], { type: 'application/json' });
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `palante_data_${new Date().toISOString().split('T')[0]}.json`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
+                                const fileName = `palante_data_${new Date().toISOString().split('T')[0]}.json`;
+
+                                const { Capacitor } = await import('@capacitor/core');
+                                if (Capacitor.isNativePlatform()) {
+                                    const { Directory, Filesystem } = await import('@capacitor/filesystem');
+                                    const base64 = btoa(unescape(encodeURIComponent(dataStr)));
+                                    const saved = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Documents });
+                                    const { Share } = await import('@capacitor/share');
+                                    await Share.share({ title: 'Palante Data Export', files: [saved.uri] });
+                                } else {
+                                    const blob = new Blob([dataStr], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = fileName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(url);
+                                }
                             }}
                             className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 ${isDarkMode
                                 ? 'bg-white/5 border-white/10 text-white hover:bg-white/10'
@@ -1262,103 +1369,30 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             <span>Export Journal (PDF)</span>
                         </button>
 
-                        <p className={`text-xs text-center mt-3 ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
+                        <p className={`text-xs text-center mt-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                             Export your data for backup or printing.
                         </p>
 
                         <div className="mt-12 pt-6 border-t border-red-500/10">
                             <button
                                 onClick={() => {
-                                    if (window.confirm("Are you sure? This will permanently delete all your local progress, goals, and settings. This cannot be undone.")) {
-                                        localStorage.clear();
-                                        window.location.reload();
-                                    }
+                                    setConfirmAction({
+                                        label: 'Reset Data',
+                                        message: 'Permanently delete all local progress, goals, and settings? This cannot be undone.',
+                                        onConfirm: () => {
+                                            localStorage.clear();
+                                            window.location.reload();
+                                        },
+                                    });
                                 }}
                                 className="w-full p-4 rounded-xl border border-pale-gold/30 bg-pale-gold text-sage-dark hover:bg-pale-gold/90 transition-all flex items-center justify-center gap-3 font-medium shadow-sm"
                             >
                                 <Trash2 size={18} />
                                 <span className="font-medium">Reset All Settings & Data</span>
                             </button>
-                            <p className="text-[10px] text-center mt-2 opacity-40 uppercase tracking-tighter text-sage-dark">
+                            <p className="text-xs text-center mt-2 opacity-40 uppercase tracking-tighter text-sage-dark">
                                 Danger Zone: Permanent Deletion
                             </p>
-                        </div>
-                    </CollapsibleSection>
-
-                    {/* Account Section */}
-                    <CollapsibleSection
-                        title="Account"
-                        icon={<ShieldCheck size={20} />}
-                        isOpen={openSections.account}
-                        onToggle={() => toggleSection('account')}
-                        isDarkMode={isDarkMode}
-                    >
-                        <div className="space-y-4">
-                            <div className={`p-4 rounded-xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
-                                <div className="flex flex-col gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 min-w-[40px] rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10 text-pale-gold' : 'bg-sage/10 text-sage'}`}>
-                                            <Cloud size={20} />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className={`font-medium truncate break-all ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                                {authUser ? authUser.email : 'Not Syncing'}
-                                            </div>
-                                            <div className={`text-xs ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
-                                                {authUser ? 'Cloud Sync Active' : 'Sign in to sync data'}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {authUser ? (
-                                        <div className="flex flex-col gap-2 mt-1">
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <button
-                                                    onClick={() => setShowUpdatePassword(true)}
-                                                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-sm ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-sage/10 hover:bg-sage/20 text-sage'}`}
-                                                >
-                                                    Change Password
-                                                </button>
-                                                <button
-                                                    onClick={signOut}
-                                                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-sm ${isDarkMode ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' : 'bg-red-50 hover:bg-red-100 text-red-600'}`}
-                                                >
-                                                    Sign Out
-                                                </button>
-                                            </div>
-                                            <button
-                                                onClick={async () => {
-                                                    if (window.confirm("⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to delete your Palante account? This will permanently remove all your cloud data, journals, and progress. This action CANNOT be undone.")) {
-                                                        const { error } = await deleteAccount();
-                                                        if (error) {
-                                                            alert(`Error deleting account: ${error.message || 'Unknown error'}`);
-                                                        } else {
-                                                            onClose(); // Close profile on success
-                                                        }
-                                                    }
-                                                }}
-                                                className={`w-full py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${isDarkMode ? 'text-red-500/50 hover:text-red-500 hover:bg-red-500/10' : 'text-red-400 hover:text-red-600 hover:bg-red-50'}`}
-                                            >
-                                                Delete My Account
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={() => setShowAuthModal(true)}
-                                            className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-sm ${'bg-terracotta-500 text-white hover:scale-105'}`}
-                                        >
-                                            Sign In / Create Account
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 px-2">
-                                <Info size={14} className={isDarkMode ? 'text-white/30' : 'text-sage/30'} />
-                                <p className={`text-[10px] leading-tight ${isDarkMode ? 'text-white/30' : 'text-sage-dark/30'}`}>
-                                    Your data is encrypted and securely stored in our cloud infrastructure.
-                                </p>
-                            </div>
                         </div>
                     </CollapsibleSection>
 
@@ -1369,10 +1403,10 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             className="w-full p-6 flex flex-col items-center justify-center gap-2 outline-none"
                         >
                             <div className="flex items-center justify-center gap-2">
-                                <Info size={16} className={isDarkMode ? 'text-white/40' : 'text-sage/40'} />
-                                <span className={`text-xs uppercase tracking-widest font-medium ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>About Palante</span>
+                                <Info size={16} className={isDarkMode ? 'text-white' : 'text-sage/40'} />
+                                <span className={`text-xs uppercase tracking-widest font-medium ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>About Palante</span>
                             </div>
-                            <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                            <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                                 Personalized Motivation, Delivered Daily
                             </p>
                         </button>
@@ -1383,27 +1417,27 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div className={`text-left space-y-4 ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
                                         <div>
                                             <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Our Mission</h4>
-                                            <p className="text-sm leading-relaxed">
+                                            <p className="text-base leading-relaxed">
                                                 To empower you to move <span className="italic">pa'lante</span> (forward) every single day. We believe that sustainable growth comes from a balance of focused work and spiritual well-being.
                                             </p>
                                         </div>
 
                                         <div>
                                             <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Why Palante?</h4>
-                                            <p className="text-sm leading-relaxed">
+                                            <p className="text-base leading-relaxed">
                                                 In a noisy world, it's easy to lose sight of your north star. Palante acts as your digital space—a place to align your energy, set clear intentions, and receive the personalized wisdom you need to keep going.
                                             </p>
                                         </div>
 
                                         <div>
                                             <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>The Philosophy</h4>
-                                            <p className="text-sm leading-relaxed">
+                                            <p className="text-base leading-relaxed">
                                                 We don't believe in hustle culture. We believe in flow. By tracking your energy alongside your goals, we help you optimize not just what you do, but how you feel doing it.
                                             </p>
                                         </div>
                                     </div>
 
-                                    <p className={`text-xs mt-6 text-center ${isDarkMode ? 'text-white/30' : 'text-sage-dark/30'}`}>
+                                    <p className={`text-xs mt-6 text-center ${isDarkMode ? 'text-white' : 'text-sage-dark/30'}`}>
                                         Version 1.0.1 • Made with purpose
                                     </p>
                                 </div>
@@ -1437,7 +1471,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 scrollbarColor: isDarkMode ? '#D4AF37 #2C2C2C' : '#6F7B6D #E5E5E5'
                             }}
                         >
-                            <div className="font-body text-sm leading-relaxed space-y-5">
+                            <div className="font-body text-base leading-relaxed space-y-5">
                                 {LEGAL_DISCLAIMER.sections.map((section, index) => (
                                     <div key={index}>
                                         <h4 className={`font-bold text-sm mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'
@@ -1468,7 +1502,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 >
                                     View Full Privacy Policy
                                 </button>
-                                <p className={`text-xs text-center ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
+                                <p className={`text-xs text-center ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                                     Last Updated: {LEGAL_DISCLAIMER.lastUpdated}
                                 </p>
                             </div>
@@ -1519,6 +1553,29 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                 onClose={() => setShowUpdatePassword(false)}
                 isDarkMode={isDarkMode}
             />
+
+            {/* Inline confirmation dialog — replaces window.confirm() */}
+            {confirmAction && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center px-6" style={{ background: 'rgba(0,0,0,0.55)' }}>
+                    <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl ${isDarkMode ? 'bg-[#1E2B1F] border border-white/10' : 'bg-white border border-sage/10'}`}>
+                        <p className={`text-sm leading-relaxed mb-6 ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>{confirmAction.message}</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmAction(null)}
+                                className={`flex-1 py-3 rounded-2xl text-sm font-semibold transition-all ${isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage-dark hover:bg-sage/20'}`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => { confirmAction.onConfirm(); setConfirmAction(null); }}
+                                className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-all"
+                            >
+                                {confirmAction.label}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

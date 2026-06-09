@@ -378,24 +378,24 @@ export const GardenOfGrowth: React.FC<GardenOfGrowthProps> = ({
       {/* HUD — streak + points */}
       <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-4 px-4">
         <motion.div
-          className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/25 backdrop-blur-md border border-white/10"
+          className="flex items-center gap-3 px-5 py-1.5 rounded-full bg-black/25 backdrop-blur-md border border-white/10"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
         >
           <div className="flex items-center gap-1.5">
             <Flame size={13} className="text-orange-400" />
-            <span className="text-xs font-bold text-white tabular-nums">{streak}</span>
-            <span className="text-[9px] text-white/40 uppercase tracking-widest">days</span>
+            <span className="text-sm font-bold text-white tabular-nums">{streak}</span>
+            <span className="text-xs text-white uppercase tracking-widest">days</span>
           </div>
           <div className="w-px h-3 bg-white/20" />
           <div className="flex items-center gap-1.5">
             <Sparkles size={13} className="text-pale-gold" />
-            <span className="text-xs font-bold text-white tabular-nums">{points.toLocaleString()}</span>
-            <span className="text-[9px] text-white/40 uppercase tracking-widest">pts</span>
+            <span className="text-sm font-bold text-white tabular-nums">{points.toLocaleString()}</span>
+            <span className="text-xs text-white uppercase tracking-widest">pts</span>
           </div>
           <div className="w-px h-3 bg-white/20" />
-          <span className="text-[9px] font-bold text-pale-gold/70 uppercase tracking-widest">{name.split(' ')[0]}</span>
+          <span className="text-xs font-bold text-pale-gold/70 uppercase tracking-widest">{name.split(' ')[0]}</span>
         </motion.div>
       </div>
 
