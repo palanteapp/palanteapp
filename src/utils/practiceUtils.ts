@@ -5,14 +5,16 @@
  * No pressure, no guilt - just celebration of progress.
  */
 
-/** Get today's date in YYYY-MM-DD format */
-export const getTodayDate = (): string => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
+/** Format a date as YYYY-MM-DD using local time (not UTC — activity dates must match the user's calendar day) */
+export const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+
+/** Get today's date in YYYY-MM-DD format */
+export const getTodayDate = (): string => formatLocalDate(new Date());
 
 /** Calculate the difference in days between two YYYY-MM-DD date strings */
 export const getDaysDifference = (date1: string, date2: string): number => {
@@ -99,7 +101,7 @@ export const logPractice = (
     currentData: PracticeData,
     practiceType: string
 ): PracticeData => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
 
     // Find or create today's activity
     const existingActivityIndex = currentData.activityHistory.findIndex(
@@ -267,7 +269,7 @@ export const getWeeklyPracticeCount = (practiceData: PracticeData): number => {
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+    const weekAgoStr = formatLocalDate(weekAgo);
 
     return practiceData.activityHistory
         .filter(activity => activity.date >= weekAgoStr)
@@ -282,7 +284,7 @@ export const getMonthlyPracticeCount = (practiceData: PracticeData): number => {
     const monthAgo = new Date(today);
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-    const monthAgoStr = monthAgo.toISOString().split('T')[0];
+    const monthAgoStr = formatLocalDate(monthAgo);
 
     return practiceData.activityHistory
         .filter(activity => activity.date >= monthAgoStr)

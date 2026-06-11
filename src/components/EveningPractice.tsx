@@ -26,9 +26,10 @@ interface EveningPracticeProps {
     todayMorningIntention?: string;
     userVoiceProfile?: import('../types').UserVoiceProfile;
     onStepChange?: (step: string) => void;
+    coachName?: string;
 }
 
-export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, isDarkMode, existingPractice, userName, todayMorningCommitment, todayMorningIntention, userVoiceProfile, onStepChange }) => {
+export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, isDarkMode, existingPractice, userName, todayMorningCommitment, todayMorningIntention, userVoiceProfile, onStepChange, coachName }) => {
     const contentRef = useAutoScroll();
 
     const commitmentText = todayMorningCommitment?.trim() || '';
@@ -280,7 +281,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
         const messageQuote: Quote = {
             id: 'evening-message',
             text: generatedMessage || '...',
-            author: 'Palante',
+            author: coachName || 'Palante',
             intensity: 2,
             category: 'evening-reflection',
             isAI: true,

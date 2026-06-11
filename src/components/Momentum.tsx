@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Mic, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
+import { Plus, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
 import { CelebrationModal } from './CelebrationModal';
@@ -53,7 +53,6 @@ export const Momentum: React.FC<MomentumProps> = ({
 
     const [newFocusText, setNewFocusText] = useState('');
     const [isAdding, setIsAdding] = useState(false);
-    const [isListeningFocus, setIsListeningFocus] = useState(false);
     const [showCelebration, setShowCelebration] = useState(false);
     const [hasShownCelebration, setHasShownCelebration] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -88,51 +87,6 @@ export const Momentum: React.FC<MomentumProps> = ({
         setIsAdding(false);
     };
 
-    const recognitionRef = useRef<any>(null);
-
-    const startFocusDictation = () => {
-        if (isListeningFocus) {
-            if (recognitionRef.current) recognitionRef.current.stop();
-            setIsListeningFocus(false);
-            return;
-        }
-
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-        if (!SpeechRecognition) return;
-
-        try {
-            const recognition = new SpeechRecognition();
-            recognitionRef.current = recognition;
-            recognition.continuous = true; // Enable long dictation
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            recognition.onstart = () => setIsListeningFocus(true);
-
-            recognition.onresult = (event: any) => {
-                let finalTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + ' ';
-                    }
-                }
-                if (finalTranscript) {
-                    setNewFocusText(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript);
-                }
-            };
-
-            recognition.onerror = (event: any) => {
-                console.error('Speech recognition error:', event.error);
-                setIsListeningFocus(false);
-            };
-            recognition.onend = () => setIsListeningFocus(false);
-            recognition.start();
-        } catch (error) {
-            console.error('Failed to start speech recognition:', error);
-            setIsListeningFocus(false);
-        }
-    };
 
     const handleToggleFocus = (id: string) => {
         const focusToToggle = dailyFocuses.find(f => f.id === id);
@@ -396,15 +350,6 @@ export const Momentum: React.FC<MomentumProps> = ({
                                         }`}
                                 />
                             </div>
-                            <button
-                                onClick={startFocusDictation}
-                                className={`p-3 rounded-xl transition-all ${isListeningFocus
-                                    ? 'bg-red-500 text-white animate-pulse'
-                                    : isDarkMode ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-sage/10 text-sage hover:bg-sage/20'
-                                    }`}
-                            >
-                                <Mic size={14} />
-                            </button>
                         </div>
                         <div className="flex gap-3">
                             <button

@@ -1,8 +1,25 @@
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
+const ALLOWED_MODEL = 'claude-haiku-4-5-20251001'
+const MAX_TOKENS_CAP = 500
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// In-memory sliding window: 20 requests per minute per IP.
+// Resets on cold start but stops burst abuse within an active instance.
+const rateLimitMap = new Map<string, number[]>()
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const timestamps = (rateLimitMap.get(ip) ?? []).filter(t => now - t < RATE_LIMIT_WINDOW_MS)
+  if (timestamps.length >= RATE_LIMIT_MAX) return true
+  timestamps.push(now)
+  rateLimitMap.set(ip, timestamps)
+  return false
 }
 
 Deno.serve(async (req) => {
@@ -10,48 +27,29 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: cors })
   }
 
-  // ── Diagnostic endpoint (GET) ─────────────────────────────────────────────
-  // No auth required. Confirms the API key and model are valid.
-  if (req.method === 'GET') {
-    const apiKey = Deno.env.get('ANTHROPIC_API_KEY') ?? ''
-    if (!apiKey) {
-      return new Response(JSON.stringify({ ok: false, error: 'ANTHROPIC_API_KEY not set' }), {
-        status: 500,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-      })
-    }
-    const upstream = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 20,
-        messages: [{ role: 'user', content: 'Reply with exactly: ok' }],
-      }),
-    })
-    const data = await upstream.json()
-    return new Response(
-      JSON.stringify({ ok: upstream.ok, httpStatus: upstream.status, anthropic: data }),
-      { headers: { ...cors, 'Content-Type': 'application/json' } }
-    )
-  }
-
-  // ── Authenticated proxy ───────────────────────────────────────────────────
-  // Validate via the Supabase project anon key sent in the `apikey` header.
-  // This is the correct security boundary for a Capacitor app: any request
-  // carrying the project's anon key is a valid Palante client request.
-  // We no longer try to validate the user JWT because the Capacitor WKWebView
-  // session can be null or expired during background/foreground cycles.
+  // ── Auth — all methods require the project anon key ───────────────────────
   const requestApiKey = req.headers.get('apikey') ?? ''
   const projectAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
   if (!requestApiKey || requestApiKey !== projectAnonKey) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
+
+  // ── Rate limiting ─────────────────────────────────────────────────────────
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
       headers: { ...cors, 'Content-Type': 'application/json' },
     })
   }
@@ -66,6 +64,13 @@ Deno.serve(async (req) => {
 
   const body = await req.json()
 
+  // ── Enforce model and cap max_tokens — never trust client values ──────────
+  const safeBody = {
+    ...body,
+    model: ALLOWED_MODEL,
+    max_tokens: Math.min(body.max_tokens ?? MAX_TOKENS_CAP, MAX_TOKENS_CAP),
+  }
+
   const upstream = await fetch(ANTHROPIC_API_URL, {
     method: 'POST',
     headers: {
@@ -73,7 +78,7 @@ Deno.serve(async (req) => {
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(safeBody),
   })
 
   const data = await upstream.json()

@@ -301,7 +301,7 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
     ctx.fillStyle    = 'rgba(253,251,247,0.5)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('PERSONALIZED MOTIVATION, DELIVERED DAILY', W / 2, brandingY);
+    ctx.fillText('FORWARD, TOGETHER — EVERY SINGLE DAY', W / 2, brandingY);
 
     ctx.font      = '800 34px Inter, sans-serif';
     ctx.fillStyle = 'rgba(253,251,247,0.88)';
@@ -491,7 +491,7 @@ export async function generateWeeklyReflectionShareImage(
     ctx.fillStyle    = 'rgba(253,251,247,0.5)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('PERSONALIZED MOTIVATION, DELIVERED DAILY', W / 2, brandingY);
+    ctx.fillText('FORWARD, TOGETHER — EVERY SINGLE DAY', W / 2, brandingY);
 
     ctx.font      = '800 34px Inter, sans-serif';
     ctx.fillStyle = 'rgba(253,251,247,0.88)';
@@ -802,5 +802,88 @@ export async function shareMilestoneAsImage(params: {
         try {
             await Share.share({ title: params.title, text: params.shareText });
         } catch { /* silence */ }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Streak share card — captures #streak-share-card via html2canvas at 5.4×
+// scale to produce a ~1080×1922 image from the 200×356 SharedStreakCard div.
+// This preserves the real mandala with the user's actual earned petals.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function captureStreakCardAsBase64(): Promise<{ base64: string; fileName: string }> {
+    const element = document.getElementById('streak-share-card');
+    if (!element) throw new Error('streak-share-card element not found');
+
+    const html2canvas = (await import('html2canvas')).default;
+    const canvas = await html2canvas(element, {
+        useCORS: true,
+        scale: 5.4,
+        backgroundColor: null,
+        logging: false,
+    });
+
+    const base64 = canvas.toDataURL('image/jpeg', 0.93).split(',')[1];
+    const fileName = `palante_streak_${Date.now()}.jpg`;
+    return { base64, fileName };
+}
+
+export async function shareStreakCard(params: { streak: number }): Promise<void> {
+    haptics.light();
+    try {
+        const { base64, fileName } = await captureStreakCardAsBase64();
+
+        const saved = await Filesystem.writeFile({
+            path: fileName,
+            data: base64,
+            directory: Directory.Cache,
+        });
+
+        const { streak } = params;
+        const shareText = `${streak} day${streak !== 1 ? 's' : ''} and counting. Growing with Palante.\npalante.app`;
+
+        await Share.share({
+            title:       'My Palante Streak',
+            text:        shareText,
+            files:       [saved.uri],
+            dialogTitle: 'Share your streak',
+        });
+
+        haptics.success();
+    } catch (err) {
+        console.error('Streak share failed:', err);
+        haptics.error();
+        try {
+            const { streak } = params;
+            await Share.share({
+                title: 'My Palante Streak',
+                text:  `${streak} day${streak !== 1 ? 's' : ''} and counting. Growing with Palante.`,
+            });
+        } catch { /* silence */ }
+    }
+}
+
+export async function downloadStreakCard(): Promise<void> {
+    haptics.light();
+    try {
+        const { base64, fileName } = await captureStreakCardAsBase64();
+
+        const saved = await Filesystem.writeFile({
+            path: fileName,
+            data: base64,
+            directory: Directory.Cache,
+        });
+
+        await Share.share({
+            title:       'My Palante Streak',
+            text:        'Save your streak card',
+            files:       [saved.uri],
+            dialogTitle: 'Save to Camera Roll',
+        });
+
+        haptics.success();
+    } catch (err) {
+        console.error('Streak download failed:', err);
+        haptics.error();
     }
 }

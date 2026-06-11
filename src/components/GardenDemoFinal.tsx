@@ -11,6 +11,7 @@ interface Props {
   isDarkMode: boolean;
   completedDays?: number; // 0–90; defaults to 90 for full-bloom demo
   colorCycle?: number;    // 0=terracotta (default), 1=indigo, 2=gold, 3=rose
+  onShare?: () => void;
 }
 
 // ─── Color palettes — one per 90-day cycle ────────────────────
@@ -268,7 +269,7 @@ function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; de
 }
 
 // ─── Main component ───────────────────────────────────────────
-export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 90, colorCycle = 0 }) => {
+export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 90, colorCycle = 0, onShare }) => {
   // Pick palette from cycle — wraps around every 4 completions
   const pal = PALETTES[colorCycle % PALETTES.length];
   // Rebuild positions only when palette changes
@@ -478,9 +479,138 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
         }}>
           {ringLabel}
         </span>
+        {onShare && (
+          <>
+            <div style={{
+              width: 1, height: 12,
+              background: isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(65,93,67,0.20)',
+            }} />
+            <button
+              onClick={onShare}
+              style={{
+                pointerEvents: 'auto',
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '2px 2px 0',
+                display: 'flex', alignItems: 'center',
+                color: isDarkMode ? 'rgba(229,214,167,0.45)' : 'rgba(65,93,67,0.40)',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+            </button>
+          </>
+        )}
         </div>
       </motion.div>
 
     </div>
+  );
+};
+
+// ─── Standalone mandala SVG — for share cards ─────────────────────────────
+// Renders only the SVG content with no card chrome, background, or HUD.
+// Caller provides the wrapping div and layout.
+export interface MandalaOnlySVGProps {
+  isDarkMode: boolean;
+  completedDays?: number;
+  colorCycle?: number;
+}
+
+export const MandalaOnlySVG: React.FC<MandalaOnlySVGProps> = ({
+  isDarkMode,
+  completedDays = 0,
+  colorCycle = 0,
+}) => {
+  const pal = PALETTES[colorCycle % PALETTES.length];
+  const positions = useMemo(
+    () => colorCycle === 0 ? POSITIONS : buildPositions(pal),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [colorCycle]
+  );
+
+  const centerEarned = completedDays >= 1;
+  const earnedPetals = Math.min(completedDays - 1, 89);
+
+  const FOL_R = 29;
+  const FOL_BOUND = 90;
+  const folA2y = FOL_R * (Math.sqrt(3) / 2);
+  const folCircles: { x: number; y: number }[] = [];
+  for (let i = -4; i <= 4; i++) {
+    for (let j = -4; j <= 4; j++) {
+      const x = CX + i * FOL_R + j * FOL_R * 0.5;
+      const y = CY + j * folA2y;
+      if (Math.sqrt((x - CX) ** 2 + (y - CY) ** 2) <= FOL_BOUND) {
+        folCircles.push({ x, y });
+      }
+    }
+  }
+  const folStroke = isDarkMode ? pal.G : pal.S;
+  const folOp = isDarkMode ? 0.06 : 0.05;
+
+  return (
+    <svg
+      width="100%" height="100%"
+      viewBox="10 10 196 196"
+      preserveAspectRatio="xMidYMid meet"
+      overflow="visible"
+    >
+      <defs>
+        <radialGradient id="cgShareCard" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="white"  stopOpacity="1" />
+          <stop offset="38%"  stopColor={pal.G}  stopOpacity="0.94" />
+          <stop offset="100%" stopColor={pal.T}  stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Flower of Life */}
+      <g stroke={folStroke} fill="none" opacity={folOp}>
+        <circle cx={CX} cy={CY} r={FOL_BOUND} strokeWidth="0.7" />
+        {folCircles.map((c, i) => (
+          <circle key={i} cx={c.x} cy={c.y} r={FOL_R} strokeWidth="0.4" />
+        ))}
+      </g>
+
+      {/* Ghost petals */}
+      {positions.map((p, idx) => {
+        if (idx < earnedPetals) return null;
+        return (
+          <g key={`gs-${idx}`} transform={`translate(${p.x},${p.y}) rotate(${p.angle})`}>
+            <GhostPetal h={p.h} w={p.w} isDarkMode={isDarkMode} />
+          </g>
+        );
+      })}
+
+      {/* Earned petals */}
+      {positions.map((p, idx) => {
+        if (idx >= earnedPetals) return null;
+        return (
+          <g key={`ep-${idx}`} transform={`translate(${p.x},${p.y}) rotate(${p.angle})`}>
+            <FilledPetal h={p.h} w={p.w} fill={p.fill} accent={p.accent} delay={p.delay} />
+          </g>
+        );
+      })}
+
+      {/* Center */}
+      <g transform={`translate(${CX},${CY})`}>
+        <motion.circle
+          cx={0} cy={0} r={16}
+          fill="url(#cgShareCard)" fillOpacity={0.35}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.05 }}
+        />
+        {centerEarned
+          ? <CenterPiece fill={pal.T} accent={pal.G} delay={0.1} />
+          : <GhostCenter isDarkMode={isDarkMode} />
+        }
+      </g>
+
+      {/* Subtle breathing pulse */}
+      <motion.circle cx={CX} cy={CY} r={6}
+        fill="none" stroke={pal.G} strokeWidth="1" strokeOpacity={0.45}
+        animate={{ r: [6, 20, 6], opacity: [0.45, 0, 0.45] }}
+        transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </svg>
   );
 };

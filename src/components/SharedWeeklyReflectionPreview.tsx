@@ -175,7 +175,7 @@ export const SharedWeeklyReflectionPreview: React.FC<SharedWeeklyReflectionPrevi
                         color: '#FDFBF7',
                         whiteSpace: 'nowrap',
                     }}>
-                        PERSONALIZED MOTIVATION, DELIVERED DAILY
+                        FORWARD, TOGETHER — EVERY SINGLE DAY
                     </p>
                     <p style={{
                         fontSize: '7px',

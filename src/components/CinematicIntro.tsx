@@ -184,7 +184,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.52 }}
                         >
-                            The art of moving forward.
+                            The partner who knows you.
                         </motion.p>
 
                         {/* CTA */}

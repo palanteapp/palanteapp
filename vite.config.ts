@@ -7,11 +7,16 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/test/setup.ts',
+        // Only run the app's own tests — the repo root contains duplicate
+        // node_modules copies ("node_modules 2", node_modules.nosync) and
+        // .claude worktrees whose stray test files otherwise get picked up.
+        include: ['src/**/*.test.{ts,tsx}'],
+        exclude: ['node_modules', '.claude', 'dist'],
     },
     base: '/',
     server: {
         host: '0.0.0.0',
-        port: 5173,
+        port: 5200,
     },
     plugins: [
         react(),

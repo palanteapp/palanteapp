@@ -27,6 +27,7 @@ import { DebugErrorBoundary } from './components/DebugErrorBoundary';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Settings2, RotateCcw } from 'lucide-react';
 import { computeWeeklyHighlights } from './utils/weeklyHighlights';
+import { generateWeeklyLetter, isSunday, letterIsStale, getISOWeekNumber } from './utils/weeklyLetter';
 import type { EssentialToolId } from './components/HomeEssentialTools';
 import type { RingCeremonyType } from './components/RingCeremony';
 import type { GrowthStoryData } from './utils/aiService';
@@ -66,6 +67,7 @@ const GardenLegendModal = lazy(() => import('./components/GardenLegendModal').th
 const DashboardQuoteCard = lazy(() => import('./components/DashboardQuoteCard').then(m => ({ default: m.DashboardQuoteCard })));
 const PostPracticeSetupModal = lazy(() => import('./components/PostPracticeSetupModal').then(m => ({ default: m.PostPracticeSetupModal })));
 const NotificationAskModal = lazy(() => import('./components/NotificationAskModal').then(m => ({ default: m.NotificationAskModal })));
+const AgeVerificationModal = lazy(() => import('./components/AgeVerificationModal').then(m => ({ default: m.AgeVerificationModal })));
 const CelebrationModal = lazy(() => import('./components/CelebrationModal').then(m => ({ default: m.CelebrationModal })));
 const DisclaimerModal = lazy(() => import('./components/DisclaimerModal').then(m => ({ default: m.DisclaimerModal })));
 const HistoryModal = lazy(() => import('./components/HistoryModal').then(m => ({ default: m.HistoryModal })));
@@ -93,6 +95,7 @@ const MorningModeOverlay = lazy(() => import('./components/MorningModeOverlay').
 const CoachGuidanceModal = lazy(() => import('./components/CoachGuidanceModal').then(m => ({ default: m.CoachGuidanceModal })));
 const LetterWriteModal = lazy(() => import('./components/LetterWriteModal').then(m => ({ default: m.LetterWriteModal })));
 const LetterReadModal = lazy(() => import('./components/LetterReadModal').then(m => ({ default: m.LetterReadModal })));
+const ShareModal = lazy(() => import('./components/ShareModal').then(m => ({ default: m.ShareModal })));
 import type { FutureLetter } from './types';
 import { useTheme } from './contexts/ThemeContext';
 
@@ -146,6 +149,7 @@ function AppContent() {
   // Weekly Highlights: badge signal vs. modal open are separate
   const [showWeeklyHighlights, setShowWeeklyHighlights] = useState(false); // Journey tab badge
   const [showWeeklyHighlightsModal, setShowWeeklyHighlightsModal] = useState(false); // modal (user-triggered via Journey tab)
+  const [weeklyLetterText, setWeeklyLetterText] = useState<string>('');
   const [weeklyAccomplishments, setWeeklyAccomplishments] = useState<{ text: string; date: string }[]>([]);
   const [weeklyReflectionMessage, setWeeklyReflectionMessage] = useState('');
 
@@ -354,6 +358,16 @@ function AppContent() {
         firstName
       ).then(msg => setWeeklyReflectionMessage(msg)).catch(() => {});
     }
+
+    // Weekly partner letter — generate once per week on Sunday (or first open if stale)
+    if (isSunday() && letterIsStale(user)) {
+      generateWeeklyLetter(user).then(letter => {
+        setWeeklyLetterText(letter);
+        updateProfile({ weeklyPartnerLetter: { text: letter, generatedAt: new Date().toISOString(), weekNumber: getISOWeekNumber() } });
+      }).catch(() => {});
+    } else if (user.weeklyPartnerLetter?.text) {
+      setWeeklyLetterText(user.weeklyPartnerLetter.text);
+    }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When user taps Journey tab and highlights are waiting, open the modal there
@@ -388,6 +402,14 @@ function AppContent() {
 
   // CINEMATIC INTRO STATE (New Onboarding Flow)
   // Defaults to true if 'palante_intro_seen' is missing
+  // Age gate — must pass before intro sequence. Shown once; stored permanently.
+  const [showAgeGate, setShowAgeGate] = useState(() => !localStorage.getItem(STORAGE_KEYS.AGE_GATE_PASSED));
+
+  const handleAgeVerified = (dateOfBirth: string) => {
+    localStorage.setItem(STORAGE_KEYS.AGE_GATE_PASSED, dateOfBirth);
+    setShowAgeGate(false);
+  };
+
   const [showIntroSequence, setShowIntroSequence] = useState(() => !localStorage.getItem(STORAGE_KEYS.INTRO_SEEN));
 
   const handleIntroComplete = async (userData: {
@@ -545,6 +567,10 @@ function AppContent() {
     isOpen: false,
     data: null,
   });
+
+  // Garden streak share modal
+  const [gardenShareOpen, setGardenShareOpen] = useState(false);
+  const [isGeneratingStreakCard, setIsGeneratingStreakCard] = useState(false);
 
   // Routine Stack Runner
 
@@ -1624,17 +1650,6 @@ function AppContent() {
           </button>
 
 
-          {/* 5. Coach Chat (Lush Green Anchor) */}
-          <button
-            onClick={() => { setActiveTab('coach'); analytics.coachChatOpened(); }}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all duration-300 hover:scale-110 shadow-[0_0_20px_rgba(64,145,108,0.3)] ${activeTab === 'coach'
-              ? 'bg-[#40916C] text-white border-2 border-[#D4E09B]'
-              : 'bg-[#40916C]/60 text-white border border-white/20 hover:bg-[#40916C] hover:scale-105'
-              } `}
-            title="Palante Chat"
-          >
-            <MessageCircle size={16} />
-          </button>
 
 
 
@@ -1751,6 +1766,7 @@ function AppContent() {
                   <div className="w-full">
                     <EveningPractice
                       userName={user.name}
+                      coachName={user.coachName}
                       isDarkMode={isDarkMode}
                       existingPractice={null}
                       userVoiceProfile={user.userVoiceProfile}
@@ -2054,11 +2070,16 @@ function AppContent() {
                         {(() => { const t = user.practiceData?.totalPractices || 0; return t > 0 && t % 90 === 0 ? 90 : t % 90; })()} of 90 practices completed
                       </p>
                     </div>
-                    <GardenMandala
-                      isDarkMode={isDarkMode}
-                      completedDays={(() => { const t = user.practiceData?.totalPractices || 0; return t > 0 && t % 90 === 0 ? 90 : t % 90; })()}
-                      colorCycle={user.mandalaColorCycle ?? 0}
-                    />
+                    <div id="garden-share-capture">
+                      <GardenMandala
+                        isDarkMode={isDarkMode}
+                        completedDays={(() => { const t = user.practiceData?.totalPractices || 0; return t > 0 && t % 90 === 0 ? 90 : t % 90; })()}
+                        colorCycle={user.mandalaColorCycle ?? 0}
+                        onShare={(user.practiceData?.totalPractices ?? 0) >= 1
+                          ? () => { haptics.light(); setGardenShareOpen(true); }
+                          : undefined}
+                      />
+                    </div>
                     {/* First-time tooltip — shown until 3rd practice */}
                     {(user.practiceData?.totalPractices ?? 0) < 3 && (
                       <p className={`text-sm text-center mt-3 leading-relaxed px-4 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
@@ -2085,7 +2106,7 @@ function AppContent() {
                         quote={{
                           id: `message-of-day-${todayDate}`,
                           text: todayMessage,
-                          author: 'Palante',
+                          author: user?.coachName || 'Palante',
                           intensity: (user?.quoteIntensity as 1 | 2 | 3) || 2,
                           category: 'morning-practice',
                           isAI: true,
@@ -2213,38 +2234,6 @@ function AppContent() {
                   </motion.div>
                 )}
 
-                {/* ── Palante Partner ─────────────────────────── */}
-                <motion.button
-                  onClick={() => setActiveTab('coach')}
-                  className={`w-full mb-5 px-5 py-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.01] active:scale-[0.99] ${
-                    isDarkMode
-                      ? 'bg-white/5 border border-white/10 hover:bg-white/8'
-                      : 'bg-white/70 border border-sage/15 hover:bg-white/90 shadow-sm'
-                  }`}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45, delay: 0.30 }}
-                >
-                  <div className="w-9 h-9 rounded-full bg-[#40916C] flex items-center justify-center flex-shrink-0 shadow-md">
-                    <MessageCircle size={16} className="text-white" fill="white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <p className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
-                        Palante Partner
-                      </p>
-                      {lastCoachData && (
-                        <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage/30'}`}>
-                          {lastCoachData.recency}{lastCoachData.pillarLabel ? ` · ${lastCoachData.pillarLabel}` : ''}
-                        </p>
-                      )}
-                    </div>
-                    <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>
-                      {coachLine}
-                    </p>
-                  </div>
-                  <ChevronRight size={16} className={isDarkMode ? 'text-white flex-shrink-0' : 'text-sage/30 flex-shrink-0'} />
-                </motion.button>
 
                 {/* ── Essential Tools ───────────────────────── */}
                 {user && (
@@ -2677,10 +2666,11 @@ function AppContent() {
 
 
       {/* Premium Bottom Navigation - Scroll Aware */}
-      < nav className={`fixed left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${isNavVisible && activeTab !== 'coach' && activeTab !== 'breath' && !isInMorningFlow && !isInEveningInputFlow ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
+      < nav className={`fixed left-1/2 -translate-x-1/2 z-[210] transition-all duration-300 ${isNavVisible && activeTab !== 'breath' && !isInMorningFlow && !isInEveningInputFlow ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
+            { id: 'coach', icon: MessageCircle, label: 'Partner' },
             { id: 'momentum', icon: TrendingUp, label: 'Journey' },
             { id: 'toolkit', icon: Layers, label: 'Practice' },
           ].map((tab) => {
@@ -2748,6 +2738,8 @@ function AppContent() {
         userName={user?.name || 'Friend'}
         isDarkMode={isDarkMode}
         onClose={() => { setShowWeeklyHighlightsModal(false); setShowWeeklyHighlights(false); }}
+        weeklyLetter={weeklyLetterText || undefined}
+        partnerName={user?.coachName || 'Palante'}
       />
 
       {/* Legal Disclaimer Modal - First Launch (Blocks Everything) */}
@@ -3032,6 +3024,42 @@ function AppContent() {
         )
       }
 
+      {/* Garden streak share modal */}
+      {gardenShareOpen && user && (
+        <ShareModal
+          isOpen={gardenShareOpen}
+          onClose={() => setGardenShareOpen(false)}
+          isDarkMode={isDarkMode}
+          streakData={{
+            streak: user.practiceData?.currentStreak ?? user.streak ?? 0,
+            totalPractices: user.practiceData?.totalPractices ?? 0,
+            colorCycle: user.mandalaColorCycle ?? 0,
+            firstName: user.name?.split(' ')[0] || undefined,
+          }}
+          onGenerateImage={async () => {
+            setIsGeneratingStreakCard(true);
+            try {
+              const { shareStreakCard } = await import('./utils/shareUtils');
+              await shareStreakCard({
+                streak: user.practiceData?.currentStreak ?? user.streak ?? 0,
+              });
+            } finally {
+              setIsGeneratingStreakCard(false);
+            }
+          }}
+          onDownloadImage={async () => {
+            setIsGeneratingStreakCard(true);
+            try {
+              const { downloadStreakCard } = await import('./utils/shareUtils');
+              await downloadStreakCard();
+            } finally {
+              setIsGeneratingStreakCard(false);
+            }
+          }}
+          isGeneratingImage={isGeneratingStreakCard}
+        />
+      )}
+
       {/* Universal Toast Notification */}
       <AnimatePresence>
         {showToast && (
@@ -3216,6 +3244,20 @@ function AppContent() {
   // Render Logic
   if (currentPath === '/privacy') {
     return <Suspense fallback={null}><PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} /></Suspense>;
+  }
+
+  if (showAgeGate) {
+    return (
+      <Suspense fallback={null}>
+        <AgeVerificationModal
+          isOpen={true}
+          onClose={() => {}}
+          onVerify={handleAgeVerified}
+          isDarkMode={isDarkMode}
+          required={true}
+        />
+      </Suspense>
+    );
   }
 
   if (showIntroSequence) {

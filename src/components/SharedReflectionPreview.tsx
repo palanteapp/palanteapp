@@ -162,7 +162,7 @@ export const SharedReflectionPreview: React.FC<SharedReflectionPreviewProps> = (
                         color: '#556054',
                         whiteSpace: 'nowrap'
                     }}>
-                        PERSONALIZED MOTIVATION, DELIVERED DAILY
+                        FORWARD, TOGETHER — EVERY SINGLE DAY
                     </p>
                     <p style={{
                         fontSize: '5px',

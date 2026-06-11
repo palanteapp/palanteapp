@@ -130,6 +130,11 @@ export interface UserProfile {
         dismissed: boolean;  // User has acknowledged it
     };
     userVoiceProfile?: UserVoiceProfile; // How they want to be spoken to and what matters to them
+    weeklyPartnerLetter?: {
+        text: string;        // The full letter text
+        generatedAt: string; // ISO timestamp
+        weekNumber: number;  // ISO week number — prevents re-generating the same week
+    };
 }
 
 export interface DailyEveningPractice {

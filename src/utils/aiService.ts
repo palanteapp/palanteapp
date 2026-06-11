@@ -55,6 +55,7 @@ export interface UserContext {
     focusAreas?: string[];
     coachTone?: 'nurturing' | 'direct' | 'accountability';
     persistedMemories?: string[];
+    healthContext?: { sleepHours?: number; restingHR?: number; sleepTrend?: 'below_average' | 'above_average' | 'typical' };
 }
 
 export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
@@ -904,6 +905,9 @@ export const chatWithCoach = async (
         ? `MEMORIES FROM PAST CONVERSATIONS (reference naturally, not robotically):\n${context.persistedMemories.slice(0, 12).map(m => `- ${m}`).join('\n')}\n`
         : '';
 
+    const { buildHealthPromptBlock } = await import('./healthService');
+    const healthBlock = context.healthContext ? buildHealthPromptBlock(context.healthContext) : '';
+
     // Construct System Prompt — sent as Anthropic's top-level `system` field, not as a user message.
     const systemPrompt = `You are Palante, a warm, nurturing, and deeply supportive friend and mentor.
 
@@ -920,6 +924,7 @@ ${memoriesBlock}
 ${narrativeBlock}
 ${momentumBlock}
 ${energyMemory}
+${healthBlock}
 ${journalMemory}
 ${reflectionMemory}
 ${toneBlock}
@@ -942,7 +947,8 @@ FORMATTING:
 MEDICAL SAFETY GUIDE:
 - You are a wellness coach, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
-- If asked for medical advice, clearly state you are an AI coach and they should consult a professional.`;
+- If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
+- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
 
     // Build threaded history for Anthropic.
     // - Filter out init-greeting messages.
@@ -1147,7 +1153,8 @@ FORMATTING:
 MEDICAL SAFETY GUIDE:
 - You are a wellness coach, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
-- If asked for medical advice, clearly state you are an AI coach and they should consult a professional.`;
+- If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
+- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
 
     // Build threaded history for Anthropic — same shape as chatWithCoach.
     const cleanHistoryPillar = history

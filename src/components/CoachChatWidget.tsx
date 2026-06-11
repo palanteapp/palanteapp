@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, Mic, Lock, Sparkles } from 'lucide-react';
+import { X, Send, Lock, Sparkles } from 'lucide-react';
 import { chatWithCoach } from '../utils/aiService';
 import { loadConversationMemories, extractAndSaveMemories } from '../utils/memoryService';
+import { getHealthAuthStatus, requestHealthPermissions, getHealthContext } from '../utils/healthService';
+import type { HealthContext } from '../utils/healthService';
 import type { UserProfile, ChatMessage } from '../types';
 import { canUseAI } from '../types';
 import { SlideUpModal } from './SlideUpModal';
-import { Capacitor } from '@capacitor/core';
 
 interface CoachChatWidgetProps {
     user: UserProfile;
@@ -18,10 +19,11 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [isListening, setIsListening] = useState(false);
     const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
+    const [healthContext, setHealthContext] = useState<HealthContext | null>(null);
+    const [showHealthOffer, setShowHealthOffer] = useState(false);
+    const [healthConnecting, setHealthConnecting] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<{ stop: () => void; start: () => void; onresult: unknown; onerror: unknown; onend: unknown } | null>(null);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     // Visual Viewport Handling for Mobile Keyboard
@@ -29,7 +31,6 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
         const handleVisualViewportResize = () => {
             if (window.visualViewport) {
                 const vv = window.visualViewport;
-                // Total height minus the visible height, plus offset from top
                 const diff = (window.innerHeight - vv.height);
                 setKeyboardHeight(diff > 50 ? diff : 0);
             }
@@ -38,7 +39,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', handleVisualViewportResize);
             window.visualViewport.addEventListener('scroll', handleVisualViewportResize);
-            handleVisualViewportResize(); // Call immediately
+            handleVisualViewportResize();
 
             return () => {
                 window.visualViewport?.removeEventListener('resize', handleVisualViewportResize);
@@ -48,78 +49,58 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
     }, []);
 
     useEffect(() => {
-        if (isOpen) {
-            // Load memories from previous sessions
-            loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
-
-            const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
-            let greetingText = `Hey ${firstName}! `;
-            const hour = new Date().getHours();
-
-            if (hour < 11) greetingText += "I'm so glad you're starting your morning with me. ";
-            else if (hour < 17) greetingText += "I'm here for you, no matter how your afternoon is flowing. ";
-            else greetingText += "I'm right here as you unwind and prepare to rest. ";
-
-            setMessages(prev => {
-                if (prev.length === 0) {
-                    return [{
-                        id: 'init-1',
-                        text: `${greetingText} I'm here for you every step of the way. What's on your mind right now?`,
-                        timestamp: Date.now(),
-                        role: 'assistant'
-                    }];
-                }
-                return prev;
-            });
-        } else {
-            // Chat closed — extract and save memories from this session
+        if (!isOpen) {
             extractAndSaveMemories(messages, user.id, user.name || 'Friend').catch(() => {});
-        }
-    }, [isOpen, user]);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, isTyping]);
-
-    const startDictation = () => {
-        if (isListening) {
-            if (recognitionRef.current) recognitionRef.current.stop();
-            setIsListening(false);
             return;
         }
 
-        const SpeechRecognition = (window as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition
-            || (window as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
-        if (!SpeechRecognition) return;
+        loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
 
-        const recognition = new SpeechRecognition();
-        recognitionRef.current = recognition;
-        recognition.continuous = true; // Allow long dictation
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
+        let greetingText = `Hey ${firstName}! `;
+        const hour = new Date().getHours();
 
-        recognition.onstart = () => setIsListening(true);
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-            let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + ' ';
-                }
+        if (hour < 11) greetingText += "I'm so glad you're starting your morning with me. ";
+        else if (hour < 17) greetingText += "I'm here for you, no matter how your afternoon is flowing. ";
+        else greetingText += "I'm right here as you unwind and prepare to rest. ";
+
+        setMessages(prev => {
+            if (prev.length === 0) {
+                return [{
+                    id: 'init-1',
+                    text: `${greetingText} I'm here for you every step of the way. What's on your mind right now?`,
+                    timestamp: Date.now(),
+                    role: 'assistant'
+                }];
             }
-            if (finalTranscript) {
-                setInputText(prev => prev + finalTranscript);
+            return prev;
+        });
+
+        // Check health auth and either load context or surface the offer
+        getHealthAuthStatus().then(async ({ status }) => {
+            if (status === 'authorized') {
+                const ctx = await getHealthContext();
+                setHealthContext(Object.keys(ctx).length > 0 ? ctx : null);
+            } else if (status === 'notDetermined') {
+                // Surface the offer after a brief delay so the greeting settles first
+                setTimeout(() => setShowHealthOffer(true), 1800);
             }
-        };
-        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-            console.error('Speech recognition error:', event.error);
-            setIsListening(false);
-        };
-        recognition.onend = () => setIsListening(false);
-        recognition.start();
+        });
+    }, [isOpen, user]);
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isTyping, showHealthOffer]);
+
+    const handleConnectHealth = async () => {
+        setHealthConnecting(true);
+        const { status } = await requestHealthPermissions();
+        setShowHealthOffer(false);
+        setHealthConnecting(false);
+        if (status === 'authorized') {
+            const ctx = await getHealthContext();
+            setHealthContext(Object.keys(ctx).length > 0 ? ctx : null);
+        }
     };
 
     const MESSAGE_LIMIT = 50;
@@ -150,6 +131,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
             totalGoals: user.dailyFocuses?.length || 0,
             profession: user.profession,
             persistedMemories,
+            healthContext: healthContext ?? undefined,
         };
 
         try {
@@ -174,7 +156,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
             onClose={onToggle}
             isDarkMode={isDarkMode}
             showCloseButton={false}
-            fullScreen={true} // Full screen on mobile is safer for keyboard
+            fullScreen={true}
         >
             <div
                 className={`w-full h-full flex flex-col font-sans transition-all duration-300 ${isDarkMode ? 'bg-sage-mid' : 'bg-white'}`}
@@ -199,7 +181,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                     </div>
                 ) : (
                     <>
-                        {/* Header - Ethereal & Minimal */}
+                        {/* Header */}
                         <div className={`px-5 py-4 flex items-center justify-between border-b ${isDarkMode ? 'border-white/5' : 'border-sage/5'}`}>
                             <div className="flex items-center gap-3">
                                 <div className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/5'}`}>
@@ -207,7 +189,7 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                                 </div>
                                 <div className="flex flex-col">
                                     <h3 className={`text-base font-display font-medium leading-none mb-1 ${isDarkMode ? 'text-white' : 'text-rich-black'}`}>
-                                        {user.coachName ? (user.coachName.startsWith('Coach') ? user.coachName : 'Coach ' + user.coachName) : 'Palante'}
+                                        {user.coachName || 'Palante'}
                                     </h3>
                                     <div className="flex items-center gap-1.5 opacity-40">
                                         <div className={`w-1 h-1 rounded-full animate-pulse ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
@@ -242,6 +224,32 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                                 </div>
                             ))}
 
+                            {/* Health connect offer — surfaced naturally after greeting */}
+                            {showHealthOffer && (
+                                <div className="flex justify-start">
+                                    <div className={`max-w-[88%] px-5 py-4 rounded-[1.5rem] rounded-tl-none space-y-4 ${isDarkMode ? 'bg-white/[0.03] text-white/90 border border-white/10' : 'bg-sage/[0.03] text-sage-dark border border-sage/10'}`}>
+                                        <p className="text-base leading-relaxed font-body tracking-wide">
+                                            One thing that helps me support you better is knowing how you're resting. Would you like to connect your Apple Health so I can see your sleep and energy patterns?
+                                        </p>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={handleConnectHealth}
+                                                disabled={healthConnecting}
+                                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold hover:bg-pale-gold/30' : 'bg-sage/10 text-sage-dark hover:bg-sage/20'} disabled:opacity-50`}
+                                            >
+                                                {healthConnecting ? 'Connecting...' : 'Connect Health'}
+                                            </button>
+                                            <button
+                                                onClick={() => setShowHealthOffer(false)}
+                                                className="px-4 py-2 rounded-xl text-sm opacity-40 hover:opacity-60 transition-opacity"
+                                            >
+                                                Maybe later
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {isTyping && (
                                 <div className="flex justify-start">
                                     <div className={`px-5 py-4 rounded-[1.5rem] rounded-tl-none border ${isDarkMode ? 'bg-white/[0.03] border-white/5' : 'bg-sage/[0.03] border-sage/5'}`}>
@@ -256,22 +264,9 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
                             <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input Area - Floats elegantly */}
+                        {/* Input Area */}
                         <div className={`p-6 border-t ${isDarkMode ? 'border-white/5' : 'border-sage/5'}`}>
                             <form onSubmit={handleSend} className="relative flex items-center gap-3">
-                                {!Capacitor.isNativePlatform() && (
-                                    <button
-                                        type="button"
-                                        onClick={startDictation}
-                                        className={`p-3.5 rounded-2xl transition-all ${isListening
-                                            ? 'bg-red-500 text-white animate-pulse'
-                                            : isDarkMode ? 'bg-white/5 text-white hover:text-white/60' : 'bg-sage/5 text-sage/40 hover:text-sage/60'
-                                            }`}
-                                    >
-                                        <Mic size={14} />
-                                    </button>
-                                )}
-
                                 <div className="relative flex-1">
                                     <input
                                         type="text"
@@ -315,4 +310,3 @@ export const CoachChatWidget: React.FC<CoachChatWidgetProps> = ({ user, isDarkMo
         </SlideUpModal>
     );
 };
-

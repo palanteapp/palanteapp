@@ -15,6 +15,8 @@ interface WeeklyHighlightsModalProps {
     userName: string;
     isDarkMode: boolean;
     onClose: () => void;
+    weeklyLetter?: string;
+    partnerName?: string;
 }
 
 // Formats "YYYY-MM-DD" → "Mon Apr 7"
@@ -66,6 +68,8 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
     userName,
     isDarkMode,
     onClose,
+    weeklyLetter,
+    partnerName,
 }) => {
     const [visibleIndex, setVisibleIndex] = useState(-1);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -232,6 +236,36 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                 {accomplishments.length} win{accomplishments.length !== 1 ? 's' : ''} this week. Every one matters.
                             </p>
                         </motion.div>
+
+                        {/* Weekly partner letter */}
+                        {weeklyLetter && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1, duration: 0.5, ease: 'easeOut' }}
+                                className="mb-6 p-5 rounded-3xl"
+                                style={{
+                                    background: 'rgba(255,255,255,0.07)',
+                                    border: '1px solid rgba(226,207,159,0.18)',
+                                }}
+                            >
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Moon size={11} style={{ color: 'rgba(226,207,159,0.7)' }} />
+                                    <span
+                                        className="text-xs font-bold uppercase tracking-[0.2em]"
+                                        style={{ color: 'rgba(226,207,159,0.7)' }}
+                                    >
+                                        A note from {partnerName || 'your partner'}
+                                    </span>
+                                </div>
+                                <p
+                                    className="text-base font-body leading-relaxed whitespace-pre-line"
+                                    style={{ color: 'rgba(255,255,255,0.88)' }}
+                                >
+                                    {weeklyLetter}
+                                </p>
+                            </motion.div>
+                        )}
 
                         {/* THE SCIENCE pill */}
                         <motion.div

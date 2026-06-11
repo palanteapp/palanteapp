@@ -99,6 +99,9 @@ export const STORAGE_KEYS = {
   // Sign-in nudge — shown after user accumulates real data but hasn't created an account
   SIGNIN_NUDGE_DISMISSED: 'palante_signin_nudge_dismissed',
 
+  // Age gate — COPPA compliance (must pass before intro sequence)
+  AGE_GATE_PASSED: 'palante_age_gate_passed',
+
   // Ring ceremony flags (shown once per ring completion)
   RING1_CEREMONY_SHOWN: 'palante_ring1_ceremony_shown',
   RING2_CEREMONY_SHOWN: 'palante_ring2_ceremony_shown',

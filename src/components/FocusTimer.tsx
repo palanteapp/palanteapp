@@ -24,6 +24,9 @@ import {
     Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { SlideUpModal } from './SlideUpModal';
 import { haptics } from '../utils/haptics';
 import { triggerConfetti } from '../utils/CelebrationEffects';
@@ -74,6 +77,16 @@ const getOrCreateAudioCtx = (): AudioContext | null => {
 
 const playBell = (isMuted: boolean) => {
     if (isMuted) return;
+    if (Capacitor.isNativePlatform()) {
+        // Native AVAudioPlayer under the .playback session — sounds even when
+        // the hardware mute switch is on, which WKWebView Web Audio does not.
+        PalanteAudioBridge.playBell().catch(() => playWebBell());
+        return;
+    }
+    playWebBell();
+};
+
+const playWebBell = () => {
     try {
         const ctx = getOrCreateAudioCtx();
         if (!ctx) return;
@@ -105,6 +118,42 @@ const playBell = (isMuted: boolean) => {
     } catch (e) {
         console.warn('Bell audio failed', e);
     }
+};
+
+// When the app is backgrounded or the screen is locked, the webview is frozen
+// and the in-app bell can't fire. A local notification scheduled at the end
+// time covers that case. It's offset 1.5s past endTime so that when the app is
+// foregrounded, the in-app completion (which ticks within 1s) cancels it first
+// and the user hears a single bell instead of two.
+const TIMER_NOTIFICATION_ID = 8000;
+
+const scheduleCompletionNotification = async (forMode: FocusMode, endTime: number) => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        let perm = await LocalNotifications.checkPermissions();
+        if (perm.display !== 'granted' && perm.display !== 'denied') {
+            perm = await LocalNotifications.requestPermissions();
+        }
+        if (perm.display !== 'granted') return;
+        await LocalNotifications.schedule({
+            notifications: [{
+                id: TIMER_NOTIFICATION_ID,
+                title: forMode === 'focus' ? 'Session complete.' : 'Break over.',
+                body: forMode === 'focus'
+                    ? 'Time to rest before the next round.'
+                    : 'Ready for the next focus round?',
+                schedule: { at: new Date(endTime + 1500), allowWhileIdle: true },
+                sound: 'bell.caf',
+            }]
+        });
+    } catch (e) {
+        console.warn('Focus timer notification scheduling failed', e);
+    }
+};
+
+const cancelCompletionNotification = () => {
+    if (!Capacitor.isNativePlatform()) return;
+    LocalNotifications.cancel({ notifications: [{ id: TIMER_NOTIFICATION_ID }] }).catch(() => {});
 };
 
 export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
@@ -224,6 +273,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
         setTimeLeft(duration * 60);
         setIsActive(false);
         bellFiredRef.current = false;
+        cancelCompletionNotification();
         saveSession({ mode: newMode, timeLeft: duration * 60, isActive: false, endTime: null });
     };
 
@@ -238,6 +288,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
 
     const handleFocusComplete = () => {
         setIsActive(false);
+        cancelCompletionNotification();
         haptics.success();
         triggerConfetti();
         playBell(isMuted);
@@ -256,6 +307,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
 
     const handleBreakComplete = () => {
         setIsActive(false);
+        cancelCompletionNotification();
         haptics.success();
         playBell(isMuted);
         setMode('focus');
@@ -276,9 +328,11 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
             // Starting: Set endTime
             const end = Date.now() + (timeLeft * 1000);
             saveSession({ isActive: true, endTime: end });
+            scheduleCompletionNotification(mode, end);
         } else {
             // Pausing: clear endTime, keep timeLeft
             saveSession({ isActive: false, endTime: null });
+            cancelCompletionNotification();
         }
     };
 
@@ -466,6 +520,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                 <button
                     onClick={() => {
                         setIsActive(false);
+                        cancelCompletionNotification();
                         bellFiredRef.current = true; // prevent double-fire
                         if (mode === 'focus') {
                             const newCycles = cyclesCompleted + 1;
@@ -532,7 +587,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[200] flex items-end justify-center pb-12 px-6"
+                        className="fixed inset-0 z-[200] flex items-center justify-center px-6"
                         style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}
                     >
                         <motion.div

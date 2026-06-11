@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
     initializePracticeData,
     logPractice,
@@ -71,9 +71,17 @@ describe('logPractice', () => {
     });
 
     it('updates lastActivityDate', () => {
-        const initial = initializePracticeData();
-        const result = logPractice(initial, 'meditation');
-        expect(result.lastActivityDate).toBe(getTodayDate());
+        // Late evening in US Pacific: UTC has already rolled to the next day,
+        // which exposes any local-vs-UTC mismatch between logPractice and getTodayDate
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-01-15T23:30:00-08:00'));
+        try {
+            const initial = initializePracticeData();
+            const result = logPractice(initial, 'meditation');
+            expect(result.lastActivityDate).toBe(getTodayDate());
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
 
@@ -81,7 +89,7 @@ describe('checkMilestone', () => {
     const freshMilestones = initializePracticeData().milestones;
 
     it('returns no milestone when under threshold', () => {
-        const result = checkMilestone(5, freshMilestones);
+        const result = checkMilestone(0, freshMilestones);
         expect(result.milestone).toBeNull();
         expect(result.isNew).toBe(false);
     });
@@ -99,7 +107,7 @@ describe('checkMilestone', () => {
     });
 
     it('does not re-trigger an already-reached milestone', () => {
-        const result = checkMilestone(7, { ...freshMilestones, practices_7: true });
+        const result = checkMilestone(7, { ...freshMilestones, practices_1: true, practices_3: true, practices_7: true });
         expect(result.milestone).toBeNull();
     });
 
@@ -111,10 +119,10 @@ describe('checkMilestone', () => {
 });
 
 describe('getNextMilestone', () => {
-    it('returns 7 as first milestone for a new user', () => {
+    it('returns 1 as first milestone for a new user', () => {
         const result = getNextMilestone(0);
-        expect(result?.target).toBe(7);
-        expect(result?.remaining).toBe(7);
+        expect(result?.target).toBe(1);
+        expect(result?.remaining).toBe(1);
     });
 
     it('returns null when all milestones are completed', () => {

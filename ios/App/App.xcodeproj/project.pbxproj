@@ -20,6 +20,9 @@
 		FF3C67152F929AA5002A3778 /* PalanteWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FF3C67062F929AA3002A3778 /* PalanteWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FF70E5AE2FCF1671009F6F4D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FF70E5AD2FCF1671009F6F4D /* PrivacyInfo.xcprivacy */; };
 		FFCAC31D2FAFAEE50004F113 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */; };
+		FFAB10022F0000000000A002 /* PalanteAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */; };
+		FFAB10042F0000000000A004 /* PalanteWidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */; };
+		FFAB10062F0000000000A006 /* bell.caf in Resources */ = {isa = PBXBuildFile; fileRef = FFAB10052F0000000000A005 /* bell.caf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +69,9 @@
 		FF3C671C2F934782002A3778 /* PalanteWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PalanteWidgetExtension.entitlements; sourceTree = "<group>"; };
 		FF70E5AD2FCF1671009F6F4D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteAudioBridge.swift; sourceTree = "<group>"; };
+		FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteWidgetBridge.swift; sourceTree = "<group>"; };
+		FFAB10052F0000000000A005 /* bell.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = bell.caf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -139,6 +145,9 @@
 			children = (
 				FF70E5AD2FCF1671009F6F4D /* PrivacyInfo.xcprivacy */,
 				FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */,
+				FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */,
+				FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */,
+				FFAB10052F0000000000A005 /* bell.caf */,
 				FF3C671B2F929C05002A3778 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -256,6 +265,7 @@
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
 				FF70E5AE2FCF1671009F6F4D /* PrivacyInfo.xcprivacy in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
+				FFAB10062F0000000000A006 /* bell.caf in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
@@ -315,6 +325,8 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				FFCAC31D2FAFAEE50004F113 /* SceneDelegate.swift in Sources */,
+				FFAB10022F0000000000A002 /* PalanteAudioBridge.swift in Sources */,
+				FFAB10042F0000000000A004 /* PalanteWidgetBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -407,7 +419,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -463,7 +475,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -482,7 +494,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -506,7 +518,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

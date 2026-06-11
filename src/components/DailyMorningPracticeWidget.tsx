@@ -6,6 +6,7 @@ import type { UserProfile } from '../types';
 import { DashboardQuoteCard } from './DashboardQuoteCard';
 import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
 import { supabase } from '../lib/supabase';
+import { logMindfulSession } from '../utils/healthService';
 
 interface DailyMorningPracticeProps {
     onComplete: (data: DailyMorningPractice) => void;
@@ -22,6 +23,7 @@ interface DailyMorningPracticeProps {
 
 export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver }) => {
     const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
+    const practiceStartTime = useRef(Date.now());
     const [gratitudes, setGratitudes] = useState<string[]>(['', '', '', '', '']);
     const [affirmations, setAffirmations] = useState<string[]>(['', '', '', '', '']);
     const [intention, setIntention] = useState<string>('');
@@ -159,6 +161,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
             dailyIntention: intention.trim(),
             messageOfTheDay: generatedMessage
         };
+        logMindfulSession(practiceStartTime.current, Date.now());
         onComplete(primingData);
     };
 
@@ -479,7 +482,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         const messageQuote: Quote = {
             id: 'morning-message',
             text: generatedMessage || '...',
-            author: 'Palante',
+            author: user?.coachName || 'Palante',
             intensity: 2,
             category: 'morning-practice',
             isAI: true,

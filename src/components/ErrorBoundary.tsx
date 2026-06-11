@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import * as Sentry from '@sentry/capacitor';
 
 interface Props {
     children?: ReactNode;
@@ -25,6 +26,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error(`Uncaught error in ${this.props.name || 'component'}:`, error, errorInfo);
+        Sentry.withScope(scope => {
+            scope.setTag('boundary', this.props.name ?? 'unknown');
+            scope.setContext('react', { componentStack: errorInfo.componentStack });
+            Sentry.captureException(error);
+        });
     }
 
     public render() {

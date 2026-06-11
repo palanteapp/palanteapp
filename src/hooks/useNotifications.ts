@@ -209,7 +209,7 @@ export const useNotifications = () => {
                         body,
                         id,
                         schedule: { at: new Date(Date.now() + 1000) }, // Schedule 1s later
-                        sound: 'beep.caf',
+                        sound: 'bell.caf',
                         smallIcon: 'ic_stat_icon_config_sample',
                     }]
                 });
@@ -243,7 +243,7 @@ export const useNotifications = () => {
                     title: coachName || "Rise & Shine",
                     body,
                     schedule: { on: { hour, minute }, allowWhileIdle: true },
-                    sound: 'beep.caf',
+                    sound: 'bell.caf',
                     smallIcon: 'ic_stat_icon_config_sample',
                 }]
             });
@@ -304,7 +304,7 @@ export const useNotifications = () => {
                 title: `${coach} • Evening Reflection`,
                 body: mainBody,
                 schedule: { on: { hour, minute }, allowWhileIdle: true },
-                sound: 'beep.caf',
+                sound: 'bell.caf',
                 smallIcon: 'ic_stat_icon_config_sample',
             }
         ];
@@ -315,7 +315,7 @@ export const useNotifications = () => {
                 title: `${coach} • Last call 🌙`,
                 body: lastCallBody,
                 schedule: { on: { hour: lcHour, minute: lcMinute }, allowWhileIdle: true },
-                sound: 'beep.caf',
+                sound: 'bell.caf',
                 smallIcon: 'ic_stat_icon_config_sample',
             });
         }
@@ -483,7 +483,7 @@ export const useNotifications = () => {
                 title: coachName || "Palante",
                 body: bodyText,
                 schedule: { on: { hour: Math.floor(scheduleMinutes / 60), minute: scheduleMinutes % 60 }, allowWhileIdle: true },
-                sound: 'beep.caf',
+                sound: 'bell.caf',
                 smallIcon: 'ic_stat_icon_config_sample',
             });
         }
@@ -534,7 +534,7 @@ export const useNotifications = () => {
                 title: coachName ? `${coachName} • Hydration` : "Water Accountability",
                 body: waterNudges[i],
                 schedule: { on: { hour: Math.floor(scheduleMin / 60), minute: scheduleMin % 60 }, allowWhileIdle: true },
-                sound: 'beep.caf',
+                sound: 'bell.caf',
                 smallIcon: 'ic_stat_icon_config_sample'
             });
         }
@@ -598,7 +598,7 @@ export const useNotifications = () => {
                         id: 9999,
                         extra: { quote: "Notifications are working! We'll keep quiet during your set hours." },
                         schedule: { at: new Date(Date.now() + 1000) }, // 1 second delay
-                        sound: 'beep.caf',
+                        sound: 'bell.caf',
                         smallIcon: 'ic_stat_icon_config_sample',
                         actionTypeId: 'QUOTE_ACTIONS'
                     }]
@@ -760,7 +760,7 @@ export const useNotifications = () => {
                         at: fireAt,
                         allowWhileIdle: true,
                     },
-                    sound: 'beep.caf',
+                    sound: 'bell.caf',
                     smallIcon: 'ic_stat_palante',
                 }));
 
@@ -783,7 +783,7 @@ export const useNotifications = () => {
                         title: coachName || 'Palante',
                         body,
                         schedule: { at: new Date(Date.now() + 2000), allowWhileIdle: true },
-                        sound: 'beep.caf',
+                        sound: 'bell.caf',
                         smallIcon: 'ic_stat_palante',
                     }]
                 });

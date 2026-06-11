@@ -2,12 +2,12 @@
 // Comprehensive legal protection covering all liability areas
 
 export const LEGAL_DISCLAIMER = {
-    title: "DISCLAIMER & TERMS OF USE",
+    title: "TERMS OF USE, DISCLAIMER & PRIVACY POLICY",
 
     sections: [
         {
             heading: "1. NOT PROFESSIONAL ADVICE",
-            content: `Palante is a personal development and wellness application designed for informational and motivational purposes only. The application, including but not limited to the AI Coach feature, all content, quotes, affirmations, science facts, and any other information provided, is NOT a substitute for professional medical, mental health, psychological, psychiatric, nutritional, dietary, fitness, or any other form of professional advice, diagnosis, or treatment.
+            content: `Palante is a personal development and wellness application designed for informational and motivational purposes only. The application, including but not limited to the AI Partner feature, all content, quotes, affirmations, science facts, and any other information provided, is NOT a substitute for professional medical, mental health, psychological, psychiatric, nutritional, dietary, fitness, or any other form of professional advice, diagnosis, or treatment.
 
 You should always consult with qualified healthcare professionals, licensed therapists, registered dietitians, certified fitness trainers, or other appropriate specialists before making any decisions regarding your health, wellness, lifestyle changes, or before beginning any new health-related program or activity.
 
@@ -129,14 +129,51 @@ The application is not a medical device and has not been evaluated or approved b
             content: `If any provision of this disclaimer is found to be invalid, illegal, or unenforceable, the remaining provisions shall continue in full force and effect to the maximum extent permitted by law.`
         },
         {
-            heading: "12. ACKNOWLEDGMENT & ACCEPTANCE",
+            heading: "12. PRIVACY POLICY & DATA COLLECTION",
+            content: `This section constitutes the Privacy Policy for the Palante application and supplements the terms above.
+
+INFORMATION WE COLLECT
+- Account information: name, email address, and password when you create an account.
+- Profile data: profession, interests, goals, and age range you provide during onboarding.
+- Age verification: birth month and year, collected to comply with COPPA and to provide age-appropriate content. We store only month and year, not your full date of birth.
+- Usage data: app activity, daily check-ins, journal entries, focus goals, practice completions, and streaks.
+- Device data: device type, operating system version, and crash/error logs.
+
+HOW WE USE YOUR INFORMATION
+We use your information solely to operate and improve Palante — to personalize your experience, generate AI-powered guidance, and maintain your progress history. We do not sell your personal data to third parties. We do not use your data for advertising.
+
+THIRD-PARTY SERVICES
+Palante uses the following third-party services, each of which may process data on our behalf:
+
+• Supabase (database and authentication): Your account credentials, profile data, journal entries, and app progress are stored in Supabase's secure cloud database. Supabase's privacy policy: https://supabase.com/privacy
+
+• RevenueCat (subscription management): If you subscribe to Palante Premium, RevenueCat processes your subscription status and transaction history. RevenueCat does not receive your journal content or personal wellness data. RevenueCat's privacy policy: https://www.revenuecat.com/privacy
+
+• Sentry (crash and error monitoring): Sentry automatically collects crash reports and error logs to help us identify and fix bugs. Reports may include device information and app state at the time of the error, but do not include your journal entries or personal wellness data. Sentry's privacy policy: https://sentry.io/privacy/
+
+• Anthropic / AI services: The Palante Partner feature sends your messages and, where you've granted permission, relevant context from your profile to an AI provider to generate responses. This data is used solely to generate your response and is not used to train AI models. See our full AI disclosure in Section 2.
+
+CHILDREN'S PRIVACY (COPPA)
+Palante is not directed to children under the age of 13. We do not knowingly collect personal information from children under 13. Users who indicate they are under 13 during age verification are not permitted to use the application. If you believe a child under 13 has provided us with personal information, please contact us at legal@palante.app and we will delete it promptly.
+
+DATA RETENTION & DELETION
+You may delete your account at any time from the Profile screen. Account deletion permanently removes your data from our systems. Residual copies in backups are purged within 30 days.
+
+YOUR RIGHTS
+Depending on your jurisdiction, you may have rights to access, correct, or delete your personal data. To exercise these rights, contact legal@palante.app.
+
+CONTACT
+For privacy questions or concerns: legal@palante.app`
+        },
+        {
+            heading: "13. ACKNOWLEDGMENT & ACCEPTANCE",
             content: `BY CLICKING "I ACKNOWLEDGE & ACCEPT" OR BY CONTINUING TO USE THIS APPLICATION, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THIS DISCLAIMER AND ALL TERMS CONTAINED HEREIN. YOU FURTHER ACKNOWLEDGE THAT YOU HAVE HAD THE OPPORTUNITY TO SEEK INDEPENDENT LEGAL ADVICE REGARDING THESE TERMS AND THAT YOU ARE ENTERING INTO THIS AGREEMENT VOLUNTARILY AND OF YOUR OWN FREE WILL.
 
 IF YOU DO NOT AGREE TO THESE TERMS, DO NOT USE THIS APPLICATION.`
         }
     ],
 
-    lastUpdated: "January 14, 2026"
+    lastUpdated: "June 10, 2026"
 };
 
 // Formatted text for display

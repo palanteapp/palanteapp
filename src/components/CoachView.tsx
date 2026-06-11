@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Send, Bot, Mic, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
-    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2
+    Send, Bot, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
+    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2, Brain
 } from 'lucide-react';
+import { PartnerMemoryPanel } from './PartnerMemoryPanel';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
 import type { CoachPillarKey } from '../utils/aiService';
 import type { UserProfile, ChatMessage, CoachSession, CoachPillar } from '../types';
@@ -145,12 +146,12 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const { isDarkMode } = useTheme();
     type ViewMode = 'home' | 'chat' | 'history';
     const [view, setView] = useState<ViewMode>('home');
+    const [showMemoryPanel, setShowMemoryPanel] = useState(false);
     const [sessions, setSessions] = useState<CoachSession[]>(() => loadSessions());
     const [activeSession, setActiveSession] = useState<CoachSession | null>(null);
     const [historySearch, setHistorySearch] = useState('');
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [isListening, setIsListening] = useState(false);
     const [showCompletionMoment, setShowCompletionMoment] = useState(false);
     const completionShownRef = useRef(false);
     const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
@@ -158,7 +159,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [viewportTop, setViewportTop] = useState(0);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<{ stop: () => void } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Load cross-session memories so Palante remembers the user across conversations
@@ -406,33 +406,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         }
     };
 
-    const startDictation = () => {
-        if (isListening) {
-            recognitionRef.current?.stop();
-            setIsListening(false);
-            return;
-        }
-        const SpeechRecognitionCtor =
-            (window as Record<string, unknown>).SpeechRecognition ||
-            (window as Record<string, unknown>).webkitSpeechRecognition;
-        if (!SpeechRecognitionCtor) return;
-        const recognition = new (SpeechRecognitionCtor as new () => SpeechRecognitionInstance)();
-        recognitionRef.current = recognition as { stop: () => void };
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-        recognition.onstart = () => { setIsListening(true); haptics.light(); };
-        recognition.onresult = (event: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => {
-            let final = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) final += event.results[i][0].transcript + ' ';
-            }
-            if (final) setInputText(prev => prev + final);
-        };
-        recognition.onerror = (event: { error: string }) => { console.error(event.error); setIsListening(false); };
-        recognition.onend = () => setIsListening(false);
-        recognition.start();
-    };
 
     const filteredSessions = sessions.filter(s => {
         if (!historySearch.trim()) return true;
@@ -465,18 +438,19 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                     <Bot size={48} className="opacity-20 text-[#E5D6A7]" />
                 </div>
                 <h2 className="text-3xl font-display font-medium text-[#E5D6A7]">
-                    {isDisabledInSettings ? 'AI Coach Disabled' : 'Coming Soon'}
+                    {isDisabledInSettings ? 'Partner Disabled' : 'Coming Soon'}
                 </h2>
                 <p className="text-sm opacity-60 max-w-xs text-[#E5D6A7]/60">
                     {isDisabledInSettings
-                        ? 'AI features are turned off in your settings. Go to Settings → toggle AI on to access your coach.'
-                        : 'Your AI Coach is currently calibrating for your journey.'}
+                        ? 'AI features are turned off in your settings. Go to Settings → toggle AI on to access your partner.'
+                        : 'Your partner is getting ready for your journey.'}
                 </p>
             </div>
         );
     }
 
     return (
+        <>
         <div
             className="fixed inset-0 z-[200] flex flex-col font-sans overflow-hidden"
             style={{
@@ -552,13 +526,21 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 <ChevronLeft size={20} />
                             </button>
                             <div className="flex items-center gap-2">
-                                {/* Archive icon — moved from the (now-deleted) pillar-picker home into the chat header. */}
+                                {/* Archive icon */}
                                 <button
                                     onClick={() => { haptics.light(); setView('history'); }}
                                     className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
                                     aria-label="Archive"
                                 >
                                     <Clock size={17} />
+                                </button>
+                                {/* Memory panel */}
+                                <button
+                                    onClick={() => { haptics.light(); setShowMemoryPanel(true); }}
+                                    className="w-10 h-10 flex items-center justify-center rounded-full transition-all bg-white/5 hover:bg-white/10 text-[#E5D6A7]"
+                                    aria-label="What your partner knows"
+                                >
+                                    <Brain size={17} />
                                 </button>
                                 <div className="px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 text-[#E5D6A7] border border-[#E5D6A7]/20">
                                     <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -705,18 +687,9 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         <div ref={messagesEndRef} className="h-36" />
                     </div>
 
-                    <div className="fixed bottom-0 left-0 right-0 z-30 px-6 pb-12 pt-4">
+                    <div className="fixed bottom-0 left-0 right-0 z-[220] px-6 pb-20 pt-4">
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">
                             <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
-                                {!Capacitor.isNativePlatform() && (
-                                    <button
-                                        type="button"
-                                        onClick={startDictation}
-                                        className={`p-2 rounded-full transition-all ${isListening ? 'text-red-400 scale-125' : 'text-[#E5D6A7] opacity-60 hover:opacity-100'}`}
-                                    >
-                                        <Mic size={20} />
-                                    </button>
-                                )}
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -857,5 +830,12 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 </>
             )}
         </div>
+
+        <PartnerMemoryPanel
+            isOpen={showMemoryPanel}
+            onClose={() => setShowMemoryPanel(false)}
+            user={user}
+        />
+        </>
     );
 };

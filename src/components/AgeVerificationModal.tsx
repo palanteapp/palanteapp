@@ -9,13 +9,16 @@ interface AgeVerificationModalProps {
     onClose: () => void;
     onVerify: (dateOfBirth: string) => void;
     isDarkMode: boolean;
+    /** When true, the close/cancel buttons are hidden — used as a hard COPPA gate on first launch. */
+    required?: boolean;
 }
 
 export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     isOpen,
     onClose,
     onVerify,
-    isDarkMode
+    isDarkMode,
+    required = false,
 }) => {
     const [birthYear, setBirthYear] = useState('');
     const [birthMonth, setBirthMonth] = useState('');
@@ -24,7 +27,6 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     const handleVerify = () => {
         setError('');
 
-        // Validation
         if (!birthYear || !birthMonth) {
             setError('Please enter your birth month and year');
             haptics.error();
@@ -46,10 +48,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
             return;
         }
 
-        // Create date string (use 1st of month for privacy)
         const dateOfBirth = `${year}-${month.toString().padStart(2, '0')}-01`;
-
-        // Check age
         const age = calculateAge(dateOfBirth);
 
         if (age < 13) {
@@ -58,7 +57,6 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
             return;
         }
 
-        // Success
         haptics.success();
         onVerify(dateOfBirth);
         onClose();
@@ -82,7 +80,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     ];
 
     return (
-        <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
+        <SlideUpModal isOpen={isOpen} onClose={required ? () => {} : onClose} isDarkMode={isDarkMode} showCloseButton={!required}>
             <div className="p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
@@ -94,30 +92,31 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                             <h2 className={`text-2xl font-display font-bold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                                 Age Verification
                             </h2>
-                            <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                Required for AI features
+                            <p className={`text-sm ${isDarkMode ? 'text-white/60' : 'text-sage-dark/60'}`}>
+                                Required before you continue
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
-                    >
-                        <X size={20} className={isDarkMode ? 'text-white' : 'text-sage-dark/60'} />
-                    </button>
+                    {!required && (
+                        <button
+                            onClick={onClose}
+                            className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
+                        >
+                            <X size={20} className={isDarkMode ? 'text-white' : 'text-sage-dark/60'} />
+                        </button>
+                    )}
                 </div>
 
                 {/* Info */}
                 <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-sage/5 border border-sage/10'}`}>
                     <p className={`text-sm ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
                         To comply with privacy laws and ensure age-appropriate content, we need to verify your age.
-                        We only collect your birth month and year for privacy.
+                        We only store your birth month and year.
                     </p>
                 </div>
 
                 {/* Form */}
                 <div className="space-y-4 mb-6">
-                    {/* Month */}
                     <div>
                         <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                             Birth Month
@@ -137,7 +136,6 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                         </select>
                     </div>
 
-                    {/* Year */}
                     <div>
                         <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                             Birth Year
@@ -168,23 +166,24 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
 
                 {/* Privacy Note */}
                 <div className={`p-3 rounded-lg mb-6 ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`}>
-                    <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                        🔒 Your age information is stored securely and never shared with third parties.
-                        We only use it to ensure age-appropriate features.
+                    <p className={`text-xs ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
+                        Your age information is stored securely and never shared with third parties.
                     </p>
                 </div>
 
                 {/* Actions */}
                 <div className="flex gap-3">
-                    <button
-                        onClick={onClose}
-                        className={`flex-1 py-3 rounded-xl font-medium transition-colors ${isDarkMode
-                                ? 'bg-white/5 hover:bg-white/10 text-white/80'
-                                : 'bg-sage/5 hover:bg-sage/10 text-sage'
-                            }`}
-                    >
-                        Cancel
-                    </button>
+                    {!required && (
+                        <button
+                            onClick={onClose}
+                            className={`flex-1 py-3 rounded-xl font-medium transition-colors ${isDarkMode
+                                    ? 'bg-white/5 hover:bg-white/10 text-white/80'
+                                    : 'bg-sage/5 hover:bg-sage/10 text-sage'
+                                }`}
+                        >
+                            Cancel
+                        </button>
+                    )}
                     <button
                         onClick={handleVerify}
                         className={`flex-1 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] active:scale-95 ${isDarkMode

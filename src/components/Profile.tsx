@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { AuthModal } from './AuthModal';
 import { UpdatePasswordModal } from './UpdatePasswordModal';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
+import { getHealthAuthStatus, requestHealthPermissions } from '../utils/healthService';
 import { WidgetDataSync } from '../utils/widgetDataSync';
 import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
@@ -107,6 +108,12 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [isRefreshingNarrative, setIsRefreshingNarrative] = useState(false);
     const isFirstRender = useRef(true);
+
+    const [healthStatus, setHealthStatus] = useState<'authorized' | 'denied' | 'notDetermined' | 'unavailable'>('notDetermined');
+
+    useEffect(() => {
+        getHealthAuthStatus().then(({ status }) => setHealthStatus(status));
+    }, []);
 
     const toggleSection = (section: keyof typeof openSections) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -402,7 +409,110 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
             <div className="flex-1 overflow-y-auto px-8 pb-48">
                 <div className="max-w-md mx-auto space-y-4 pt-6">
 
-                    {/* Account Section — first so users sign in before filling settings */}
+                    {/* About Palante */}
+                    <div className={`rounded-2xl border text-center overflow-hidden transition-all duration-300 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/40 border-sage/10'}`}>
+                        <button
+                            onClick={() => setShowAbout(!showAbout)}
+                            className="w-full p-6 flex flex-col items-center justify-center gap-2 outline-none"
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <Info size={16} className={isDarkMode ? 'text-white' : 'text-sage/40'} />
+                                <span className={`text-xs uppercase tracking-widest font-medium ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>About Palante</span>
+                            </div>
+                            <p className={`text-base font-semibold mt-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                                Forward, together — every single day.
+                            </p>
+                        </button>
+                        <div className={`grid transition-all duration-300 ease-in-out ${showAbout ? 'grid-rows-[1fr] opacity-100 pb-6' : 'grid-rows-[0fr] opacity-0'}`}>
+                            <div className="overflow-hidden px-6">
+                                <div className={`pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>
+                                    <div className={`text-left space-y-4 ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
+                                        <div>
+                                            <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Our Mission</h4>
+                                            <p className="text-base leading-relaxed">
+                                                To help you show up for the things that matter to you. Not perfectly, but consistently. Because when you're doing more of what brings you joy, everything else gets easier.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Why Palante?</h4>
+                                            <p className="text-base leading-relaxed">
+                                                Most tools track what you do. Palante learns who you are. Your partner grows alongside you, remembering your wins, noticing your patterns, and checking in when life gets heavy. It's not accountability in the traditional sense. It's more like a friend who genuinely wants you to thrive.
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>The Philosophy</h4>
+                                            <p className="text-base leading-relaxed">
+                                                We're not here to optimize you. We're here so you feel better doing the things you love. That's the whole thing. If the practices work, you'll know. Not because of a score, but because the things you care about are getting easier to return to.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className={`text-xs mt-6 text-center ${isDarkMode ? 'text-white' : 'text-sage-dark/30'}`}>
+                                        Version 1.0.1 • Made with purpose
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* A Note From Palante */}
+                    {user.userNarrative?.text && (
+                        <div className={`relative p-6 rounded-3xl border overflow-hidden ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                                <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-10 bg-pale-gold pointer-events-none -translate-y-1/2 translate-x-1/3" />
+                                <div className="flex items-center justify-between mb-4 relative z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-2xl bg-pale-gold/15 flex items-center justify-center">
+                                            <Sparkles size={16} className="text-pale-gold" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-display font-medium text-white">A Note From Palante</h3>
+                                            <p className="text-xs text-white uppercase tracking-widest mt-0.5">Reflecting on your journey</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (!onRefreshNarrative || isRefreshingNarrative) return;
+                                            setIsRefreshingNarrative(true);
+                                            await onRefreshNarrative();
+                                            setIsRefreshingNarrative(false);
+                                        }}
+                                        className="p-2 rounded-full text-white hover:text-pale-gold transition-colors"
+                                        title="Refresh your story"
+                                    >
+                                        <RefreshCw size={14} className={isRefreshingNarrative ? 'animate-spin' : ''} />
+                                    </button>
+                                </div>
+                                <p className="text-sm text-white/70 leading-relaxed italic relative z-10 mb-5">
+                                    "{user.userNarrative.text}"
+                                </p>
+                                <div className="grid grid-cols-3 gap-3 relative z-10 mb-4">
+                                    {[
+                                        { label: 'Day Streak', value: user.streak || 0 },
+                                        { label: 'Practices', value: user.practiceData?.totalPractices ?? 0 },
+                                        { label: 'Letters', value: user.letters?.length ?? 0 },
+                                    ].map(stat => (
+                                        <div key={stat.label} className="text-center p-3 rounded-2xl bg-white/5">
+                                            <div className="text-xl font-display font-medium text-pale-gold">{stat.value}</div>
+                                            <div className="text-[10px] text-white uppercase tracking-wide mt-0.5 leading-tight">{stat.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {user.focusAreas && user.focusAreas.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 relative z-10 mb-4">
+                                        {user.focusAreas.map(area => (
+                                            <span key={area} className="px-3 py-1 rounded-full bg-pale-gold/10 border border-pale-gold/20 text-xs font-bold text-pale-gold uppercase tracking-wider">
+                                                {area}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 relative z-10">
+                                    <Lock size={11} className="text-white" />
+                                    <p className="text-xs text-white">Only you see this. Updated weekly from your practice.</p>
+                                </div>
+                            </div>
+                    )}
+
+                    {/* Account */}
                     <CollapsibleSection
                         title="Account"
                         icon={<ShieldCheck size={20} />}
@@ -483,118 +593,35 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
-                    {/* Welcome Guide */}
-                    <button
-                        onClick={() => { onClose(); onShowWelcome?.(); }}
-                        className={`w-full py-4 mb-2 rounded-full font-body font-medium text-lg shadow-spa hover:shadow-spa-lg hover:scale-105 transition-all flex items-center justify-center gap-3 ${isDarkMode
-                            ? 'bg-pale-gold/20 text-pale-gold border-2 border-pale-gold/40'
-                            : 'bg-sage/20 text-sage border-2 border-sage/40'
-                            }`}
-                    >
-                        <Compass size={20} />
-                        <span>Welcome Guide</span>
-                    </button>
-
-                    {/* Journey Status Card - TRANSFORMED INTO GARDEN OF GROWTH */}
-                    <div className="mb-6">
-                        <div className="text-center mb-4 mt-8">
-                            <h3 className={`font-display font-medium text-xl ${isDarkMode ? 'text-white' : 'text-sage'}`}>Mandala of Growth</h3>
-                            <p className={`text-sm mt-1 px-4 ${isDarkMode ? 'text-white' : 'text-sage/60'}`}>
-                                Your consistency fills this mandala. Watch it bloom as you keep showing up.
-                            </p>
-                        </div>
-                        <GardenMandala
-                            isDarkMode={isDarkMode}
-                            completedDays={Math.min(user.practiceData?.totalPractices || 0, 90)}
-                        />
-                    </div>
-
-                    {/* Your Growth Story */}
-                    {user.userNarrative?.text && (
-                        <div className="mb-6">
-                            <div className={`relative p-6 rounded-3xl border overflow-hidden ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
-                                {/* Background glow */}
-                                <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl opacity-10 bg-pale-gold pointer-events-none -translate-y-1/2 translate-x-1/3" />
-
-                                {/* Header */}
-                                <div className="flex items-center justify-between mb-4 relative z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-2xl bg-pale-gold/15 flex items-center justify-center">
-                                            <Sparkles size={16} className="text-pale-gold" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-sm font-display font-medium text-white">A Note From Palante</h3>
-                                            <p className="text-xs text-white uppercase tracking-widest mt-0.5">Reflecting on your journey</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={async () => {
-                                            if (!onRefreshNarrative || isRefreshingNarrative) return;
-                                            setIsRefreshingNarrative(true);
-                                            await onRefreshNarrative();
-                                            setIsRefreshingNarrative(false);
-                                        }}
-                                        className="p-2 rounded-full text-white hover:text-pale-gold transition-colors"
-                                        title="Refresh your story"
-                                    >
-                                        <RefreshCw size={14} className={isRefreshingNarrative ? 'animate-spin' : ''} />
-                                    </button>
+                    {/* Enable AI Features */}
+                    <div className={`p-4 rounded-2xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${aiDisabled
+                                    ? isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
+                                    : 'bg-terracotta-500 text-white'
+                                }`}>
+                                    <Sparkles size={20} />
                                 </div>
-
-                                {/* Narrative text */}
-                                <p className="text-sm text-white/70 leading-relaxed italic relative z-10 mb-5">
-                                    "{user.userNarrative.text}"
-                                </p>
-
-                                {/* Stats row */}
-                                <div className="grid grid-cols-3 gap-3 relative z-10 mb-4">
-                                    {[
-                                        { label: 'Day Streak', value: user.streak || 0 },
-                                        { label: 'Practices', value: user.practiceData?.totalPractices ?? 0 },
-                                        { label: 'Letters', value: user.letters?.length ?? 0 },
-                                    ].map(stat => (
-                                        <div key={stat.label} className="text-center p-3 rounded-2xl bg-white/5">
-                                            <div className="text-xl font-display font-medium text-pale-gold">{stat.value}</div>
-                                            <div className="text-[10px] text-white uppercase tracking-wide mt-0.5 leading-tight">{stat.label}</div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Focus areas */}
-                                {user.focusAreas && user.focusAreas.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 relative z-10 mb-4">
-                                        {user.focusAreas.map(area => (
-                                            <span key={area} className="px-3 py-1 rounded-full bg-pale-gold/10 border border-pale-gold/20 text-xs font-bold text-pale-gold uppercase tracking-wider">
-                                                {area}
-                                            </span>
-                                        ))}
+                                <div>
+                                    <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Enable AI Features</div>
+                                    <div className={`text-xs ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
+                                        {aiDisabled ? 'AI disabled' : 'Partner, messages & insights on'}
                                     </div>
-                                )}
-
-                                {/* Privacy note */}
-                                <div className="flex items-center gap-2 relative z-10">
-                                    <Lock size={11} className="text-white" />
-                                    <p className="text-xs text-white">Only you see this. Updated weekly from your practice.</p>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => setAiDisabled(!aiDisabled)}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${!aiDisabled
+                                    ? 'bg-pale-gold'
+                                    : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
+                                }`}
+                            >
+                                <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${!aiDisabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                            </button>
                         </div>
-                    )}
+                    </div>
 
-                    {/* Monthly Pattern Insight */}
-                    {user.monthlyPattern && !user.monthlyPattern.dismissed && (
-                        <MonthlyPatternCard
-                            insight={user.monthlyPattern.insight}
-                            dataPoint={user.monthlyPattern.dataPoint}
-                            generatedAt={user.monthlyPattern.generatedAt}
-                            isDarkMode={isDarkMode}
-                            onDismiss={() => {
-                                onUpdate({
-                                    ...user,
-                                    monthlyPattern: { ...user.monthlyPattern!, dismissed: true }
-                                });
-                            }}
-                        />
-                    )}
 
                     {/* Personal Profile Section */}
                     <CollapsibleSection
@@ -708,7 +735,78 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
-                    {/* Experience Section (Tier + Source) */}
+                    {/* Community & Accountability */}
+                    <CollapsibleSection
+                        title="Community & Accountability"
+                        icon={<Users size={20} />}
+                        isOpen={openSections.community}
+                        onToggle={() => toggleSection('community')}
+                        isDarkMode={isDarkMode}
+                    >
+                        <div className={`p-4 rounded-xl border transition-all mb-6 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20 shadow-spa'}`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.waterRemindersEnabled
+                                        ? 'bg-sky-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)]'
+                                        : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
+                                        }`}>
+                                        <Droplets size={20} />
+                                    </div>
+                                    <div>
+                                        <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                                            Water Reminders
+                                        </div>
+                                        <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
+                                            Accountability Partner
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => updateWaterRemindersConfig(!settings.waterRemindersEnabled)}
+                                    className={`relative w-12 h-6 rounded-full transition-colors ${settings.waterRemindersEnabled
+                                        ? 'bg-pale-gold'
+                                        : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
+                                        }`}
+                                >
+                                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${settings.waterRemindersEnabled ? 'translate-x-6' : 'translate-x-0'
+                                        }`} />
+                                </button>
+                            </div>
+                            <p className={`text-xs mt-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
+                                Get firm reminders to hydrate. Your Palante Partner will act as your accountability partner to ensure you're flushing toxins and staying sharp.
+                            </p>
+                        </div>
+                        <AccountabilityPartners
+                            partners={user.accountabilityPartners || []}
+                            coachSettings={user.coachSettings}
+                            onAddPartner={handleAddPartner}
+                            onRemovePartner={handleRemovePartner}
+                            onReportPartner={handleReportPartner}
+                            onBlockPartner={handleBlockPartner}
+                            onTogglePartnerTips={(enabled) => {
+                                onUpdate((prev: UserProfile | null) => {
+                                    if (!prev) return user;
+                                    return {
+                                        ...prev,
+                                        coachSettings: { ...prev.coachSettings, nudgeEnabled: prev.coachSettings?.nudgeEnabled ?? true, nudgeFrequency: prev.coachSettings?.nudgeFrequency ?? 'morning-evening', partnerTipsEnabled: enabled },
+                                    };
+                                });
+                            }}
+                            isDarkMode={isDarkMode}
+                        />
+                        <PartnerInviteModal
+                            isOpen={showPartnerInvite}
+                            onClose={() => setShowPartnerInvite(false)}
+                            inviteCode={user.partnerInviteCode || ''}
+                            onGenerateCode={handleGenerateCode}
+                            onAddPartner={handleAddPartnerByCode}
+                            isDarkMode={isDarkMode}
+                            isLoading={isAddingPartner}
+                            error={partnerError}
+                        />
+                    </CollapsibleSection>
+
+                    {/* Practice Settings */}
                     <CollapsibleSection
                         title="Practice Settings"
                         icon={<Sparkles size={20} />}
@@ -717,42 +815,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         isDarkMode={isDarkMode}
                     >
                         <div className="space-y-6">
-                            {/* Journal Prompts Toggle */}
-                            <div>
-                                <label className={labelClasses}>Journal Prompts</label>
-                                <div className={`p-4 rounded-xl border transition-all flex items-center justify-between ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${journalPromptsEnabled
-                                            ? 'bg-terracotta-500 text-white hover:scale-105'
-                                            : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
-                                            }`}>
-                                            <BookOpen size={20} />
-                                        </div>
-                                        <div>
-                                            <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                                Show Journal Prompts
-                                            </div>
-                                            <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                                {journalPromptsEnabled ? 'Prompts enabled' : 'Prompts disabled'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            haptics.selection();
-                                            setJournalPromptsEnabled(!journalPromptsEnabled);
-                                        }}
-                                        className={`relative w-12 h-6 rounded-full transition-colors ${journalPromptsEnabled
-                                            ? 'bg-pale-gold'
-                                            : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
-                                            }`}
-                                    >
-                                        <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${journalPromptsEnabled ? 'translate-x-6' : 'translate-x-0'
-                                            }`} />
-                                    </button>
-                                </div>
-                            </div>
-
                             {/* Weekly Practice Cycle */}
                             <div>
                                 <label className={labelClasses}>Weekly Practice Cycle</label>
@@ -797,43 +859,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 </div>
                             </div>
 
-                            {/* AI Features Toggle */}
-                            <div>
-                                <label className={labelClasses}>AI Features</label>
-                                <div className={`p-4 rounded-xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${aiDisabled
-                                                ? isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
-                                                : 'bg-terracotta-500 text-white hover:scale-105'
-                                                }`}>
-                                                <Sparkles size={20} />
-                                            </div>
-                                            <div>
-                                                <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                                    Enable AI Features
-                                                </div>
-                                                <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                                    {aiDisabled ? 'AI disabled' : 'AI enabled'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => setAiDisabled(!aiDisabled)}
-                                            className={`relative w-12 h-6 rounded-full transition-colors ${!aiDisabled
-                                                ? 'bg-pale-gold'
-                                                : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
-                                                }`}
-                                        >
-                                            <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${!aiDisabled ? 'translate-x-6' : 'translate-x-0'
-                                                }`} />
-                                        </button>
-                                    </div>
-                                    <div className={`text-xs leading-relaxed ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                                        When disabled, all AI features including your partner and personalised morning messages will be turned off.
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </CollapsibleSection>
 
@@ -1208,79 +1233,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
-                    {/* Community & Accountability Section */}
-                    <CollapsibleSection
-                        title="Community & Accountability"
-                        icon={<Users size={20} />}
-                        isOpen={openSections.community}
-                        onToggle={() => toggleSection('community')}
-                        isDarkMode={isDarkMode}
-                    >
-                        {/* Water Reminders Accountability */}
-                        <div className={`p-4 rounded-xl border transition-all mb-6 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20 shadow-spa'}`}>
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.waterRemindersEnabled
-                                        ? 'bg-sky-500 text-white shadow-[0_0_15px_rgba(14,165,233,0.4)]'
-                                        : isDarkMode ? 'bg-white/10 text-white' : 'bg-sage/10 text-sage/40'
-                                        }`}>
-                                        <Droplets size={20} />
-                                    </div>
-                                    <div>
-                                        <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                            Water Reminders
-                                        </div>
-                                        <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                            Accountability Partner
-                                        </div>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => updateWaterRemindersConfig(!settings.waterRemindersEnabled)}
-                                    className={`relative w-12 h-6 rounded-full transition-colors ${settings.waterRemindersEnabled
-                                        ? 'bg-pale-gold'
-                                        : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
-                                        }`}
-                                >
-                                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${settings.waterRemindersEnabled ? 'translate-x-6' : 'translate-x-0'
-                                        }`} />
-                                </button>
-                            </div>
-                            <p className={`text-xs mt-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
-                                Get firm reminders to hydrate. Your Palante Partner will act as your accountability partner to ensure you're flushing toxins and staying sharp.
-                            </p>
-                        </div>
-
-                        <AccountabilityPartners
-                            partners={user.accountabilityPartners || []}
-                            coachSettings={user.coachSettings}
-                            onAddPartner={handleAddPartner}
-                            onRemovePartner={handleRemovePartner}
-                            onReportPartner={handleReportPartner}
-                            onBlockPartner={handleBlockPartner}
-                            onTogglePartnerTips={(enabled) => {
-                                onUpdate((prev: UserProfile | null) => {
-                                    if (!prev) return user;
-                                    return {
-                                        ...prev,
-                                        coachSettings: { ...prev.coachSettings, nudgeEnabled: prev.coachSettings?.nudgeEnabled ?? true, nudgeFrequency: prev.coachSettings?.nudgeFrequency ?? 'morning-evening', partnerTipsEnabled: enabled },
-                                    };
-                                });
-                            }}
-                            isDarkMode={isDarkMode}
-                        />
-                        <PartnerInviteModal
-                            isOpen={showPartnerInvite}
-                            onClose={() => setShowPartnerInvite(false)}
-                            inviteCode={user.partnerInviteCode || ''}
-                            onGenerateCode={handleGenerateCode}
-                            onAddPartner={handleAddPartnerByCode}
-                            isDarkMode={isDarkMode}
-                            isLoading={isAddingPartner}
-                            error={partnerError}
-                        />
-                    </CollapsibleSection>
-
                     {/* Data & Privacy Section */}
                     <CollapsibleSection
                         title="Data & Privacy"
@@ -1289,6 +1241,52 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         onToggle={() => toggleSection('data')}
                         isDarkMode={isDarkMode}
                     >
+                        {healthStatus !== 'unavailable' && (
+                            <div className={`w-full p-4 rounded-xl border-2 flex items-center justify-between gap-3 mb-3 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`}>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 21C12 21 3 13.5 3 8.5C3 5.46 5.46 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.54 3 23 5.46 23 8.5C23 13.5 12 21 12 21Z" fill={healthStatus === 'authorized' ? '#C96A3A' : 'currentColor'} opacity={healthStatus === 'authorized' ? 1 : 0.3} />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Apple Health</p>
+                                        <p className={`text-xs ${healthStatus === 'authorized' ? 'text-[#C96A3A]' : isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
+                                            {healthStatus === 'authorized' ? 'Connected' : healthStatus === 'denied' ? 'Access denied in Settings' : 'Not connected'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {healthStatus !== 'denied' && (
+                                    <button
+                                        onClick={async () => {
+                                            const { status } = await requestHealthPermissions();
+                                            setHealthStatus(status);
+                                        }}
+                                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${healthStatus === 'authorized'
+                                            ? isDarkMode ? 'bg-white/10 text-white/60' : 'bg-sage/10 text-sage-dark/60'
+                                            : 'bg-[#C96A3A] text-white'
+                                        }`}
+                                    >
+                                        {healthStatus === 'authorized' ? 'Connected' : 'Connect'}
+                                    </button>
+                                )}
+                                {healthStatus === 'denied' && (
+                                    <button
+                                        onClick={async () => {
+                                            const { Capacitor } = await import('@capacitor/core');
+                                            if (Capacitor.isNativePlatform()) {
+                                                const { App } = await import('@capacitor/app');
+                                                await App.openUrl({ url: 'app-settings:' });
+                                            }
+                                        }}
+                                        className="text-xs px-3 py-1.5 rounded-lg font-medium bg-white/10 text-white/60 transition-all"
+                                    >
+                                        Open Settings
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         <button
                             onClick={async () => {
                                 const allData: any = {
@@ -1396,55 +1394,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
-                    {/* About Section */}
-                    <div className={`rounded-2xl border text-center overflow-hidden transition-all duration-300 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/40 border-sage/10'}`}>
-                        <button
-                            onClick={() => setShowAbout(!showAbout)}
-                            className="w-full p-6 flex flex-col items-center justify-center gap-2 outline-none"
-                        >
-                            <div className="flex items-center justify-center gap-2">
-                                <Info size={16} className={isDarkMode ? 'text-white' : 'text-sage/40'} />
-                                <span className={`text-xs uppercase tracking-widest font-medium ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>About Palante</span>
-                            </div>
-                            <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                Personalized Motivation, Delivered Daily
-                            </p>
-                        </button>
-
-                        <div className={`grid transition-all duration-300 ease-in-out ${showAbout ? 'grid-rows-[1fr] opacity-100 pb-6' : 'grid-rows-[0fr] opacity-0'}`}>
-                            <div className="overflow-hidden px-6">
-                                <div className={`pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>
-                                    <div className={`text-left space-y-4 ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
-                                        <div>
-                                            <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Our Mission</h4>
-                                            <p className="text-base leading-relaxed">
-                                                To empower you to move <span className="italic">pa'lante</span> (forward) every single day. We believe that sustainable growth comes from a balance of focused work and spiritual well-being.
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Why Palante?</h4>
-                                            <p className="text-base leading-relaxed">
-                                                In a noisy world, it's easy to lose sight of your north star. Palante acts as your digital space—a place to align your energy, set clear intentions, and receive the personalized wisdom you need to keep going.
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>The Philosophy</h4>
-                                            <p className="text-base leading-relaxed">
-                                                We don't believe in hustle culture. We believe in flow. By tracking your energy alongside your goals, we help you optimize not just what you do, but how you feel doing it.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <p className={`text-xs mt-6 text-center ${isDarkMode ? 'text-white' : 'text-sage-dark/30'}`}>
-                                        Version 1.0.1 • Made with purpose
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Legal Disclaimer Section */}
                     <CollapsibleSection
                         title="Legal Disclaimer & Terms"
@@ -1519,16 +1468,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 }`}
                         >
                             {saveStatus === 'saved' ? 'Done & Close' : 'Save & Exit'}
-                        </button>
-                        <button
-                            onClick={onOpenKoiPond}
-                            className={`w-full max-w-md mx-auto py-4 rounded-full font-body font-medium text-lg shadow-spa hover:shadow-spa-lg hover:scale-105 transition-all flex items-center justify-center gap-3 ${isDarkMode
-                                ? 'bg-pale-gold/20 text-pale-gold border-2 border-pale-gold/40'
-                                : 'bg-sage/20 text-sage border-2 border-sage/40'
-                                }`}
-                        >
-                            <Fish size={20} />
-                            <span>Koi Pond</span>
                         </button>
                     </div>
 

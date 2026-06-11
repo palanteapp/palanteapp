@@ -6,5 +6,7 @@
 	<array>
 		<string>group.com.move.palante.dev</string>
 	</array>
+	<key>com.apple.developer.healthkit</key>
+	<true/>
 </dict>
 </plist>

@@ -6,6 +6,7 @@ import { WidgetDataSync } from '../utils/widgetDataSync';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { logPractice, migrateStreakToPractice, getTodayDate } from '../utils/practiceUtils';
 import { generateUserNarrative, generateMonthlyPatternInsight } from '../utils/aiService';
+import { persistProfile, loadProfileWithFallback } from '../utils/nativeStorage';
 
 const getLocalYesterdayDate = (): string => {
     const d = new Date();
@@ -40,7 +41,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             try {
                 // 1. Check local storage for immediate data
                 let localUser: UserProfile | null = null;
-                const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+                const storedUser = await loadProfileWithFallback();
                 if (storedUser) {
                     try {
                         localUser = JSON.parse(storedUser);
@@ -90,7 +91,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                             // Cloud takes precedence — returning user with cloud data, no local guest content to preserve
                             setUser(cloudProfile);
                             userRef.current = cloudProfile;
-                            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(cloudProfile));
+                            persistProfile(cloudProfile);
                             // Sync Widgets
                             WidgetDataSync.syncAll(cloudProfile).catch(e => console.error('Initial cloud widget sync failed', e));
                         } else if (localUser) {
@@ -103,7 +104,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                             await api.updateProfile(authUser.id, migratedUser);
                             setUser(migratedUser);
                             userRef.current = migratedUser;
-                            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(migratedUser));
+                            persistProfile(migratedUser);
                             // Sync Widgets
                             WidgetDataSync.syncAll(migratedUser).catch(e => console.error('Initial guest-migration widget sync failed', e));
                         } else {
@@ -129,7 +130,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                             };
                             setUser(guestUser);
                             userRef.current = guestUser;
-                            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(guestUser));
+                            persistProfile(guestUser);
                             // Sync Widgets
                             WidgetDataSync.syncAll(guestUser).catch(e => console.error('Initial new-user widget sync failed', e));
                         }
@@ -170,7 +171,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         };
                         setUser(guestUser);
                         userRef.current = guestUser;
-                        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(guestUser));
+                        persistProfile(guestUser);
                         WidgetDataSync.syncAll(guestUser).catch(e => console.error('Initial new guest widget sync failed', e));
                     }
                 }
@@ -203,7 +204,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             };
             setUser(updated);
             userRef.current = updated;
-            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+            persistProfile(updated);
             if (authUser) {
                 api.updateProfile(authUser.id, updated).catch(() => {});
             }
@@ -239,7 +240,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             };
             setUser(updated);
             userRef.current = updated;
-            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+            persistProfile(updated);
             if (authUser) {
                 api.updateProfile(authUser.id, updated).catch(() => {});
             }
@@ -264,8 +265,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setUser(newUser);
         userRef.current = newUser;
 
-        // Sync Local immediately
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
+        // Sync Local immediately (also mirrors to native filesystem as eviction protection)
+        persistProfile(newUser);
 
         // Sync Cloud (async, fire-and-forget from here context)
         if (authUser) {
@@ -397,7 +398,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const profile = await api.getProfile(authUser.id);
         if (profile) {
             setUser(profile);
-            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(profile));
+            persistProfile(profile);
         }
     }, [authUser]);
 

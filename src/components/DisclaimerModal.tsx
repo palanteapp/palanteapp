@@ -60,7 +60,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                         <div>
                             <h3 className="font-display font-medium text-lg mb-1">Mindful Disclaimer</h3>
                             <p className={`text-base leading-relaxed ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
-                                Palante is a tool for coaching and wellness. It is <strong>not</strong> a substitute for professional medical or mental health advice.
+                                Palante is a personal growth partner, not a healthcare provider. It is <strong>not</strong> a substitute for professional medical or mental health advice.
                             </p>
                         </div>
                     </div>

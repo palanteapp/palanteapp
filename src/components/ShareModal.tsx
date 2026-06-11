@@ -3,6 +3,7 @@ import { Share2, Instagram, Facebook, Music, Download } from 'lucide-react';
 import { SharedQuotePreview } from './SharedQuotePreview';
 import { SharedReflectionPreview } from './SharedReflectionPreview';
 import { SharedWeeklyReflectionPreview } from './SharedWeeklyReflectionPreview';
+import { SharedStreakCard } from './SharedStreakCard';
 import type { Quote } from '../types';
 import { SlideUpModal } from './SlideUpModal';
 
@@ -22,6 +23,12 @@ interface ShareModalProps {
         dateRange: string;
         seed?: string;
     };
+    streakData?: {
+        streak: number;
+        totalPractices: number;
+        colorCycle?: number;
+        firstName?: string;
+    };
     text?: string;
     title?: string;
     isDarkMode: boolean;
@@ -37,6 +44,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     quote,
     reflection,
     weeklyReflection,
+    streakData,
     text,
     isDarkMode,
     onGenerateImage,
@@ -46,7 +54,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 }) => {
     if (!isOpen) return null;
 
-    const hasContent = !!(quote || reflection || weeklyReflection);
+    const hasContent = !!(quote || reflection || weeklyReflection || streakData);
 
     return (
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
@@ -55,7 +63,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 <div id="share-preview-container"
                      className="mb-8 flex justify-center rounded-3xl overflow-hidden animate-slide-up shadow-2xl"
                 >
-                    {quote ? (
+                    {streakData ? (
+                        <SharedStreakCard
+                            streak={streakData.streak}
+                            totalPractices={streakData.totalPractices}
+                            colorCycle={streakData.colorCycle}
+                            firstName={streakData.firstName}
+                        />
+                    ) : quote ? (
                         <SharedQuotePreview quote={quote} seed={seed} />
                     ) : weeklyReflection ? (
                         <SharedWeeklyReflectionPreview

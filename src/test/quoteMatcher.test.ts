@@ -23,6 +23,7 @@ vi.mock('../data/affirmations', () => ({ AFFIRMATIONS: MOCK_AFFIRMATIONS }));
 vi.mock('../utils/aiService',   () => ({
     generateAffirmation: vi.fn(),
     isAIAvailable:       vi.fn(() => false),
+    getMomentumState:    vi.fn(() => 'steady'),
 }));
 
 import { getRelevantQuotes, getAIQuote, resetSeenQuotes } from '../utils/quoteMatcher';
