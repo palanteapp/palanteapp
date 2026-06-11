@@ -69,7 +69,7 @@ export function isDualMono(channels: Float32Array[], stride = 997): boolean {
 export function bakeSeamlessLoop(
     channels: Float32Array[],
     sampleRate: number,
-    fadeSeconds = 1.5,
+    fadeSeconds = 2.0,
     silenceThreshold = 0.001,
 ): Float32Array[] {
     const { start, end } = findLoudRange(channels, silenceThreshold);

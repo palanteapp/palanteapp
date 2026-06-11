@@ -158,9 +158,11 @@ class CrossfadingSound {
         const ctx = getAudioContext();
         if (!ctx) return;
 
-        // Initialize first buffer
+        // Both elements loop forever; crossfading is purely gain-based, so no
+        // async play() call is ever needed inside the polling callback — seek
+        // the incoming element to 0 and adjust gains immediately.
         this.audio1 = new Audio(this.src);
-        this.audio1.loop = false; // Manual looping
+        this.audio1.loop = true;
         this.audio1.preload = 'auto';
         this.gainNode1 = ctx.createGain();
         this.gainNode1.gain.value = 0;
@@ -168,9 +170,8 @@ class CrossfadingSound {
         this.sourceNode1.connect(this.gainNode1);
         this.gainNode1.connect(ctx.destination);
 
-        // Initialize second buffer for seamless crossfade
         this.audio2 = new Audio(this.src);
-        this.audio2.loop = false;
+        this.audio2.loop = true;
         this.audio2.preload = 'auto';
         this.gainNode2 = ctx.createGain();
         this.gainNode2.gain.value = 0;
@@ -194,15 +195,20 @@ class CrossfadingSound {
             this.isCrossfading = false;
             this.activeIndex = 1;
 
+            // Start both elements now — audio2 plays silently so it is
+            // already running when a crossfade is needed. This eliminates
+            // the async play() latency gap that was audible at the loop point.
             this.audio1.currentTime = 0;
-            await this.audio1.play();
+            this.audio2.currentTime = 0;
+            await Promise.all([this.audio1.play(), this.audio2.play()]).catch(() => {});
 
             const now = ctx.currentTime;
             this.gainNode1.gain.cancelScheduledValues(now);
             this.gainNode1.gain.setValueAtTime(0, now);
             this.gainNode1.gain.linearRampToValueAtTime(this.volume, now + 1.5);
+            this.gainNode2.gain.cancelScheduledValues(now);
+            this.gainNode2.gain.setValueAtTime(0, now);
 
-            // Ultra-precision polling (50ms) for high-end cinematic cross-fading
             if (this.loopInterval) clearInterval(this.loopInterval);
             this.loopInterval = setInterval(() => {
                 const activeAudio = this.activeIndex === 1 ? this.audio1 : this.audio2;
@@ -212,53 +218,48 @@ class CrossfadingSound {
 
                 if (!activeAudio || !nextAudio || !activeGain || !nextGain || !ctx) return;
 
-                // Threshold Check: Start crossfade 3.5 seconds before the end to hide any latency
-                // Using 3.5s is safer for 10-15s clips to ensure zero gaps
                 if (!this.isCrossfading && activeAudio.duration > 0 &&
                     activeAudio.currentTime > activeAudio.duration - 3.5) {
 
                     this.isCrossfading = true;
+
+                    // Seek next to start — already playing silently, so this is
+                    // synchronous: no play() call, no async latency, no gap.
+                    nextAudio.currentTime = 0;
+
+                    const cNow = ctx.currentTime;
+                    const steps = 65;
+                    const fadeIn = new Float32Array(steps);
+                    const fadeOut = new Float32Array(steps);
+                    const outFrom = activeGain.gain.value;
+                    for (let i = 0; i < steps; i++) {
+                        const t = (i / (steps - 1)) * (Math.PI / 2);
+                        fadeIn[i] = Math.sin(t) * this.volume;
+                        fadeOut[i] = Math.cos(t) * outFrom;
+                    }
+                    try {
+                        nextGain.gain.cancelScheduledValues(cNow);
+                        nextGain.gain.setValueCurveAtTime(fadeIn, cNow, 2.5);
+                        activeGain.gain.cancelScheduledValues(cNow);
+                        activeGain.gain.setValueCurveAtTime(fadeOut, cNow, 2.5);
+                    } catch {
+                        nextGain.gain.setValueAtTime(0, cNow);
+                        nextGain.gain.linearRampToValueAtTime(this.volume, cNow + 2.5);
+                        activeGain.gain.linearRampToValueAtTime(0, cNow + 2.5);
+                    }
+
                     this.activeIndex = this.activeIndex === 1 ? 2 : 1;
 
-                    // Pre-warm and play next buffer
-                    nextAudio.currentTime = 0;
-                    nextAudio.play().then(() => {
-                        const cNow = ctx.currentTime;
-
-                        // Equal-power cross-fade: 2.5s. Linear ramps dip in
-                        // loudness mid-fade; sin/cos curves keep power constant.
-                        const steps = 65;
-                        const fadeIn = new Float32Array(steps);
-                        const fadeOut = new Float32Array(steps);
-                        const outFrom = activeGain.gain.value;
-                        for (let i = 0; i < steps; i++) {
-                            const t = (i / (steps - 1)) * (Math.PI / 2);
-                            fadeIn[i] = Math.sin(t) * this.volume;
-                            fadeOut[i] = Math.cos(t) * outFrom;
+                    setTimeout(() => {
+                        // Reset the outgoing element to start so it is in position
+                        // for the next crossfade cycle (gain is already at 0).
+                        if (activeAudio && this.isPlaying) {
+                            activeAudio.currentTime = 0;
                         }
-                        try {
-                            nextGain.gain.cancelScheduledValues(cNow);
-                            nextGain.gain.setValueCurveAtTime(fadeIn, cNow, 2.5);
-                            activeGain.gain.cancelScheduledValues(cNow);
-                            activeGain.gain.setValueCurveAtTime(fadeOut, cNow, 2.5);
-                        } catch {
-                            // Overlapping automation — fall back to plain ramps
-                            // rather than dropping the handover entirely.
-                            nextGain.gain.setValueAtTime(0, cNow);
-                            nextGain.gain.linearRampToValueAtTime(this.volume, cNow + 2.5);
-                            activeGain.gain.linearRampToValueAtTime(0, cNow + 2.5);
-                        }
-
-                        // Flag reset timed to overlap duration
-                        setTimeout(() => {
-                            this.isCrossfading = false;
-                        }, 3000);
-                    }).catch(e => {
-                        console.error('❌ Buffer crossfade play error:', e);
                         this.isCrossfading = false;
-                    });
+                    }, 3000);
                 }
-            }, 50); // 50ms for near-instant detection
+            }, 50);
 
         } catch (e) {
             console.error(`❌ Audio play failed for ${this.src}:`, e);

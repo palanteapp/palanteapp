@@ -719,7 +719,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
             body: JSON.stringify({
                 model: ANTHROPIC_MODEL,
                 max_tokens: 300,
-                temperature: 0.82,
+                temperature: 0.72,
                 messages: [{ role: 'user', content: prompt }],
             })
         });
@@ -734,6 +734,13 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
         if (!message) return getFallbackEveningMessage(userName, data);
 
         message = message.replace(/^["'']|["'']$/g, '').trim();
+
+        // Reject outputs that are too short, too long, or structurally broken
+        const sentences = message.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 3);
+        if (message.length < 60 || message.length > 480 || sentences.length < 2 || sentences.length > 6) {
+            console.warn('[Palante AI] evening message failed validation, using fallback', { len: message.length, sentences: sentences.length });
+            return getFallbackEveningMessage(userName, data);
+        }
 
         return message;
     } catch (error) {
@@ -763,42 +770,42 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     ] as const).filter(e => e.value).sort((x, y) => y.value!.length - x.value!.length);
 
     if (!ranked.length) {
-        return `You stopped at the end of your day to look at it. That is the whole practice. The life you are building runs on exactly this kind of attention. Keep reading it.`;
+        return `You stopped at the end of your day to look at it. That is the whole practice. The kind of attention it takes to do that is not nothing.`;
     }
 
     const { field, value } = ranked[0];
 
     if (field === 'delight') {
         const pool = [
-            `${q(value!)} — you noticed that. Not just that it happened, but that it was worth writing down. That is a specific kind of aliveness that a lot of people lose over time. You have not lost it. Carry that into tomorrow.`,
-            `You found delight in ${q(value!)} today. That moment, in a day full of things you could have rushed past, landed on you. The fact that you felt it and named it means you are still paying attention to the good parts of being alive. Protect that.`,
-            `${q(value!)} — that cracked you open a little today. Good. Let it. That is what a life worth living feels like from the inside. You recognized it. That recognition is the whole thing.`,
+            `You noticed ${q(value!)}. Not just that it happened, but that it was worth naming. That is a specific kind of aliveness that most people lose over time, and you have not lost it.`,
+            `${q(value!)} landed on you today, in a day full of things you could have rushed past. The fact that you felt it and named it means you are still paying attention to the good parts of being alive. That matters.`,
+            `${q(value!)} opened something up in you today. That is what a life worth living feels like from the inside. You recognized it, and that recognition is the whole thing.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (field === 'accomplishment') {
         const pool = [
-            `${q(value!)} — that moved from undone to done today, and you are the one who moved it. Not time. Not circumstance. You. Feel the full weight of that before you sleep. You earned the rest.`,
-            `You got ${q(value!)} done today. The gap between where that stood this morning and where it stands tonight — you are that gap. You closed it. Let that sit with you.`,
-            `${q(value!)} happened because you made it happen. That is the story of today. Tomorrow will ask something different of you. But today you delivered. Sleep knowing that.`,
+            `${q(value!)} moved from undone to done today, and you are the one who moved it. Not time. Not circumstance, but you.`,
+            `You got ${q(value!)} done today. The gap between where that stood this morning and where it stands now, you are that gap. You closed it.`,
+            `${q(value!)} happened because you made it happen. That is the story of today, and it is yours.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (field === 'learning') {
         const pool = [
-            `${q(value!)} — you walked away from today knowing that. You did not know it this morning. You know it now. That is a real thing you built today, and no one can take it from you.`,
-            `You figured out ${q(value!)} today. From being inside your own life and paying close enough attention to notice it. That kind of knowing does not expire. You will carry it into tomorrow without even trying.`,
-            `${q(value!)} — that is what the day taught you. You were open enough to receive it. Most people miss that lesson because they are moving too fast. You were not moving too fast today.`,
+            `You walked away from today knowing ${q(value!)}. You did not know it this morning. That is a real thing you built today, and no one can take it from you.`,
+            `You figured out ${q(value!)} today, from being inside your own life and paying close enough attention to notice it. That kind of knowing does not expire. You built something real.`,
+            `${q(value!)} is what the day taught you. You were open enough to receive it. Most people miss that lesson because they are moving too fast, and you were not.`,
         ];
         return pool[seed % pool.length];
     }
 
     // gratitude anchor
     const pool = [
-        `You ended this day grateful for ${q(value!)}. That specific thing was still with you at the close of a whole day. That means it mattered — not just in the morning, but all the way through. Let it carry you into sleep.`,
-        `${q(value!)} — that is what you are taking into tonight. There is something right about ending a day with your attention on the things worth holding. You did that. Rest well with it.`,
+        `You ended this day grateful for ${q(value!)}. That specific thing was still with you at the close of a whole day. That means it mattered, all the way through.`,
+        `${q(value!)} is what you are holding at the end of today. There is something right about closing a day with your attention on the things worth holding. You did that.`,
         `You found ${q(value!)} worth naming at the end of a full day. That kind of noticing is how people stay close to what their life is actually made of. You stayed close today.`,
     ];
     return pool[seed % pool.length];
