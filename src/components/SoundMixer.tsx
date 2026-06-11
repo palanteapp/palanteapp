@@ -3,6 +3,7 @@ import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Spea
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
+import { loadSeamlessBuffer } from '../utils/seamlessAudio';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SlideUpModal } from './SlideUpModal';
@@ -224,13 +225,29 @@ class CrossfadingSound {
                     nextAudio.play().then(() => {
                         const cNow = ctx.currentTime;
 
-                        // Precise Cross-fade: 2.5s duration for a lush handover
-                        nextGain.gain.cancelScheduledValues(cNow);
-                        nextGain.gain.setValueAtTime(0, cNow);
-                        nextGain.gain.linearRampToValueAtTime(this.volume, cNow + 2.5);
-
-                        activeGain.gain.cancelScheduledValues(cNow);
-                        activeGain.gain.linearRampToValueAtTime(0, cNow + 2.5);
+                        // Equal-power cross-fade: 2.5s. Linear ramps dip in
+                        // loudness mid-fade; sin/cos curves keep power constant.
+                        const steps = 65;
+                        const fadeIn = new Float32Array(steps);
+                        const fadeOut = new Float32Array(steps);
+                        const outFrom = activeGain.gain.value;
+                        for (let i = 0; i < steps; i++) {
+                            const t = (i / (steps - 1)) * (Math.PI / 2);
+                            fadeIn[i] = Math.sin(t) * this.volume;
+                            fadeOut[i] = Math.cos(t) * outFrom;
+                        }
+                        try {
+                            nextGain.gain.cancelScheduledValues(cNow);
+                            nextGain.gain.setValueCurveAtTime(fadeIn, cNow, 2.5);
+                            activeGain.gain.cancelScheduledValues(cNow);
+                            activeGain.gain.setValueCurveAtTime(fadeOut, cNow, 2.5);
+                        } catch {
+                            // Overlapping automation — fall back to plain ramps
+                            // rather than dropping the handover entirely.
+                            nextGain.gain.setValueAtTime(0, cNow);
+                            nextGain.gain.linearRampToValueAtTime(this.volume, cNow + 2.5);
+                            activeGain.gain.linearRampToValueAtTime(0, cNow + 2.5);
+                        }
 
                         // Flag reset timed to overlap duration
                         setTimeout(() => {
@@ -245,29 +262,6 @@ class CrossfadingSound {
 
         } catch (e) {
             console.error(`❌ Audio play failed for ${this.src}:`, e);
-        }
-    }
-
-    // ── Background-safe playback ─────────────────────────────────────────────
-    // Web Audio API is suspended by iOS when the app backgrounds, but plain
-    // HTMLAudioElement with loop=true continues when AVAudioSession is .playback.
-    private bgAudio: HTMLAudioElement | null = null;
-
-    enterBackground(vol: number) {
-        this.leaveBackground();
-        if (!this.isPlaying) return;
-        const a = new Audio(this.src);
-        a.loop = true;
-        a.volume = Math.min(1, Math.max(0, vol));
-        a.play().catch(() => {});
-        this.bgAudio = a;
-    }
-
-    leaveBackground() {
-        if (this.bgAudio) {
-            this.bgAudio.pause();
-            this.bgAudio.src = '';
-            this.bgAudio = null;
         }
     }
 
@@ -322,11 +316,154 @@ class CrossfadingSound {
     }
 }
 
+// Gapless looping for decoded sounds: the loop seam is baked into the buffer
+// (see seamlessLoop.ts) and AudioBufferSourceNode wraps sample-accurately on
+// the audio thread — no timers, no element handoff, nothing to hear.
+class BufferLoopSound {
+    private sourceNode: AudioBufferSourceNode | null = null;
+    private gainNode: GainNode | null = null;
+    private buffer: AudioBuffer;
+
+    constructor(buffer: AudioBuffer) {
+        this.buffer = buffer;
+    }
+
+    play(ctx: AudioContext, startVol: number) {
+        if (!this.gainNode) {
+            this.gainNode = ctx.createGain();
+            this.gainNode.gain.value = 0;
+            this.gainNode.connect(ctx.destination);
+        }
+        // Source nodes are single-use; silence any previous one and start fresh.
+        if (this.sourceNode) {
+            try { this.sourceNode.stop(); } catch { /* already stopped */ }
+            this.sourceNode.disconnect();
+        }
+        const source = ctx.createBufferSource();
+        source.buffer = this.buffer;
+        source.loop = true;
+        source.connect(this.gainNode);
+        source.start();
+        this.sourceNode = source;
+
+        const now = ctx.currentTime;
+        this.gainNode.gain.cancelScheduledValues(now);
+        this.gainNode.gain.setValueAtTime(0, now);
+        this.gainNode.gain.linearRampToValueAtTime(startVol, now + 1.5);
+    }
+
+    stop(ctx: AudioContext | null) {
+        const source = this.sourceNode;
+        if (!ctx || !source || !this.gainNode) return;
+        const now = ctx.currentTime;
+        this.gainNode.gain.cancelScheduledValues(now);
+        this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+        this.gainNode.gain.linearRampToValueAtTime(0, now + 1.0);
+        try { source.stop(now + 1.05); } catch { /* already stopped */ }
+    }
+
+    setVolume(ctx: AudioContext | null, vol: number, instant: boolean) {
+        if (!ctx || !this.gainNode) return;
+        const now = ctx.currentTime;
+        this.gainNode.gain.cancelScheduledValues(now);
+        if (instant) {
+            this.gainNode.gain.setValueAtTime(vol, now);
+        } else {
+            this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+            this.gainNode.gain.linearRampToValueAtTime(vol, now + 0.3);
+        }
+    }
+}
+
+// Facade choosing the playback strategy per sound: short files (the ones that
+// loop often) are decoded into a seamless-loop buffer; files over the size
+// gate in seamlessAudio.ts stream through the dual-element crossfader.
+class MixerSound {
+    private mode: 'undecided' | 'buffer' | 'stream' = 'undecided';
+    private bufferSound: BufferLoopSound | null = null;
+    private streamSound: CrossfadingSound | null = null;
+    private playToken = 0;
+    private src: string;
+    public volume = 0.5;
+    public isPlaying = false;
+
+    constructor(src: string) {
+        this.src = src;
+    }
+
+    async play(startVol = 0.5) {
+        this.volume = startVol;
+        this.isPlaying = true;
+        const token = ++this.playToken;
+        const ctx = getAudioContext();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+            await ctx.resume().catch(() => { });
+        }
+
+        if (this.mode === 'undecided') {
+            const buffer = await loadSeamlessBuffer(ctx, this.src);
+            if (buffer) {
+                this.mode = 'buffer';
+                this.bufferSound = new BufferLoopSound(buffer);
+            } else {
+                this.mode = 'stream';
+            }
+        }
+        // Toggled off (or re-played) while decoding — don't start a stale voice.
+        if (token !== this.playToken) return;
+
+        if (this.mode === 'buffer' && this.bufferSound) {
+            this.bufferSound.play(ctx, this.volume);
+        } else {
+            if (!this.streamSound) this.streamSound = new CrossfadingSound(this.src);
+            this.streamSound.play(this.volume);
+        }
+    }
+
+    stop() {
+        this.playToken++;
+        this.isPlaying = false;
+        this.bufferSound?.stop(getAudioContext());
+        this.streamSound?.stop();
+    }
+
+    setVolume(vol?: number, instant: boolean = false) {
+        if (typeof vol !== 'number' || Number.isNaN(vol)) return;
+        this.volume = vol;
+        this.bufferSound?.setVolume(getAudioContext(), vol, instant);
+        this.streamSound?.setVolume(vol, instant);
+    }
+
+    // ── Background-safe playback ─────────────────────────────────────────────
+    // Web Audio API is suspended by iOS when the app backgrounds, but plain
+    // HTMLAudioElement with loop=true continues when AVAudioSession is .playback.
+    private bgAudio: HTMLAudioElement | null = null;
+
+    enterBackground(vol: number) {
+        this.leaveBackground();
+        if (!this.isPlaying) return;
+        const a = new Audio(this.src);
+        a.loop = true;
+        a.volume = Math.min(1, Math.max(0, vol));
+        a.play().catch(() => {});
+        this.bgAudio = a;
+    }
+
+    leaveBackground() {
+        if (this.bgAudio) {
+            this.bgAudio.pause();
+            this.bgAudio.src = '';
+            this.bgAudio = null;
+        }
+    }
+}
+
 export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode, isVisible, onClose, user, onSaveMix, onDeleteMix, source }) => {
     const [activeSounds, setActiveSounds] = useState<Set<string>>(new Set());
     const [volumes, setVolumes] = useState<Record<string, number>>({});
     const lastHapticLevel = useRef<Record<string, number>>({});
-    const audioRefs = useRef<Record<string, CrossfadingSound>>({});
+    const audioRefs = useRef<Record<string, MixerSound>>({});
 
     const [isSavingMix, setIsSavingMix] = useState(false);
     const [newMixName, setNewMixName] = useState('');
@@ -392,7 +529,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
     // Initialize Audio Refs lazily
     const getAudioRef = (id: string, src: string) => {
         if (!audioRefs.current[id]) {
-            audioRefs.current[id] = new CrossfadingSound(src);
+            audioRefs.current[id] = new MixerSound(src);
         }
         return audioRefs.current[id];
     };
