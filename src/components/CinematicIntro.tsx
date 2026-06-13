@@ -2,7 +2,8 @@ import React, { useState, memo } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { Logo } from './Logo';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
-import type { ContentType, QuoteSource } from '../types';
+import { calculateAge } from '../types';
+import type { ContentType, QuoteSource, PrimaryIntent } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CinematicIntroProps {
@@ -15,6 +16,8 @@ interface CinematicIntroProps {
         contentType: ContentType;
         sourcePreference: QuoteSource;
         ageRange?: string;
+        dateOfBirth?: string;
+        primaryIntent?: PrimaryIntent;
     }) => void;
     onOpenSettings?: () => void;
 }
@@ -32,20 +35,46 @@ const breathe = {
     },
 };
 
-const ORIENTING_OPTIONS = [
+const ORIENTING_OPTIONS: { id: PrimaryIntent; label: string; sub: string }[] = [
     { id: 'consistency', label: 'Build consistency', sub: 'Show up every day, no matter what' },
     { id: 'clarity',     label: 'Find clarity & focus', sub: 'Cut through the noise' },
     { id: 'stress',      label: 'Manage stress', sub: 'Stay grounded when life gets heavy' },
     { id: 'purpose',     label: 'Connect to purpose', sub: 'Make my days mean something' },
 ];
 
+const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+// Steps: 0 splash · 1 age · 2 name · 3 orienting question
 export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const [step, setStep] = useState(0);
     const [name, setName] = useState('');
-    const [orientingChoice, setOrientingChoice] = useState('');
+    const [orientingChoice, setOrientingChoice] = useState<PrimaryIntent | ''>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     const [nameError, setNameError] = useState('');
+    const [birthMonth, setBirthMonth] = useState('');
+    const [birthYear, setBirthYear] = useState('');
+    const [ageError, setAgeError] = useState('');
+
+    const currentYear = new Date().getFullYear();
+    const YEARS = Array.from({ length: 100 }, (_, i) => currentYear - i);
+
+    const handleAgeNext = () => {
+        if (!birthMonth || !birthYear) {
+            setAgeError('Please choose your birth month and year.');
+            return;
+        }
+        const dateOfBirth = `${birthYear}-${birthMonth.padStart(2, '0')}-01`;
+        if (calculateAge(dateOfBirth) < 13) {
+            setAgeError("You need to be at least 13 to use Palante.");
+            return;
+        }
+        setAgeError('');
+        setStep(2);
+    };
 
     const handleComplete = async () => {
         setIsSubmitting(true);
@@ -55,15 +84,21 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 timestamp: new Date().toISOString(),
                 version: LEGAL_DISCLAIMER.lastUpdated,
             }));
+            const selected = ORIENTING_OPTIONS.find(o => o.id === orientingChoice);
+            const dateOfBirth = birthMonth && birthYear
+                ? `${birthYear}-${birthMonth.padStart(2, '0')}-01`
+                : undefined;
             await onComplete({
                 name: name.trim(),
                 profession: 'Other',
-                focusGoal: orientingChoice,
+                focusGoal: selected?.label ?? '',   // human label, not the raw id
                 interests: '',
                 quoteIntensity: 2,
                 contentType: 'mix',
                 sourcePreference: 'mix',
                 ageRange: undefined,
+                dateOfBirth,
+                primaryIntent: selected?.id,
             });
         } catch (err) {
             console.error('[Palante] CinematicIntro completion error:', err);
@@ -79,7 +114,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
             return;
         }
         setNameError('');
-        setStep(2);
+        setStep(3);
     };
 
     return (
@@ -219,8 +254,114 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                     </motion.div>
                 )}
 
-                {/* ── STEP 1 · NAME ── */}
+                {/* ── STEP 1 · AGE ── */}
                 {step === 1 && (
+                    <motion.div
+                        key="age"
+                        className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
+                        style={{ paddingTop: 'max(env(safe-area-inset-top), 32px)', paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
+                        initial={{ opacity: 0, x: 44 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -44 }}
+                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                        <div className="w-full max-w-sm">
+                            <div className="flex justify-center mb-10">
+                                <Logo className="w-10 h-10" color="rgba(229,214,167,0.55)" />
+                            </div>
+
+                            <motion.h2
+                                className="text-4xl font-display font-bold text-white text-center mb-3 tracking-tight"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.08 }}
+                            >
+                                Before we begin
+                            </motion.h2>
+                            <motion.p
+                                className="text-center text-base mb-10"
+                                style={{ color: 'rgba(229,214,167,0.55)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.18 }}
+                            >
+                                Just your birth month and year — that's all we keep.
+                            </motion.p>
+
+                            <motion.div
+                                className="space-y-3"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.22 }}
+                            >
+                                <select
+                                    value={birthMonth}
+                                    onChange={e => { setBirthMonth(e.target.value); setAgeError(''); }}
+                                    className="w-full px-5 py-4 rounded-2xl text-lg font-display outline-none appearance-none"
+                                    style={{
+                                        background: '#FDFBF7',
+                                        color: birthMonth ? '#2D3E33' : 'rgba(45,62,51,0.5)',
+                                        border: ageError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.9)',
+                                    }}
+                                >
+                                    <option value="">Birth month</option>
+                                    {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
+                                </select>
+                                <select
+                                    value={birthYear}
+                                    onChange={e => { setBirthYear(e.target.value); setAgeError(''); }}
+                                    className="w-full px-5 py-4 rounded-2xl text-lg font-display outline-none appearance-none"
+                                    style={{
+                                        background: '#FDFBF7',
+                                        color: birthYear ? '#2D3E33' : 'rgba(45,62,51,0.5)',
+                                        border: ageError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.9)',
+                                    }}
+                                >
+                                    <option value="">Birth year</option>
+                                    {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
+                                </select>
+                            </motion.div>
+
+                            {ageError && (
+                                <p className="text-sm text-center mt-3" style={{ color: '#C96A3A' }}>{ageError}</p>
+                            )}
+
+                            <motion.button
+                                onClick={handleAgeNext}
+                                className="w-full mt-6 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
+                                style={{
+                                    background: '#E5D6A7',
+                                    color: '#2D3E33',
+                                    boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
+                                }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.30 }}
+                                whileTap={{ scale: 0.97 }}
+                            >
+                                Continue →
+                            </motion.button>
+
+                            <motion.button
+                                onClick={() => setStep(0)}
+                                className="w-full mt-4 py-2 text-sm font-medium"
+                                style={{ color: 'rgba(229,214,167,0.32)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.48 }}
+                            >
+                                ← Back
+                            </motion.button>
+
+                            <p className="text-center text-xs mt-6 px-4" style={{ color: 'rgba(229,214,167,0.30)' }}>
+                                Stored securely. Never shared with third parties.
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ── STEP 2 · NAME ── */}
+                {step === 2 && (
                     <motion.div
                         key="name"
                         className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
@@ -294,7 +435,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             </motion.button>
 
                             <motion.button
-                                onClick={() => setStep(0)}
+                                onClick={() => setStep(1)}
                                 className="w-full mt-4 py-2 text-sm font-medium"
                                 style={{ color: 'rgba(229,214,167,0.32)' }}
                                 initial={{ opacity: 0 }}
@@ -306,8 +447,8 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         </div>
                     </motion.div>
                 )}
-                {/* ── STEP 2 · ORIENTING QUESTION ── */}
-                {step === 2 && (
+                {/* ── STEP 3 · ORIENTING QUESTION ── */}
+                {step === 3 && (
                     <motion.div
                         key="orient"
                         className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
@@ -395,7 +536,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             )}
 
                             <motion.button
-                                onClick={() => setStep(1)}
+                                onClick={() => setStep(2)}
                                 className="w-full mt-2 py-2 text-sm font-medium"
                                 style={{ color: 'rgba(229,214,167,0.25)' }}
                                 initial={{ opacity: 0 }}
@@ -411,7 +552,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
 
             {/* Progress dots */}
             <div className="absolute bottom-10 inset-x-0 flex justify-center gap-2 pointer-events-none">
-                {[0, 1, 2].map(i => (
+                {[0, 1, 2, 3].map(i => (
                     <div
                         key={i}
                         className="h-1.5 rounded-full transition-all duration-500"

@@ -8,6 +8,8 @@
  * No API calls. Pure template logic driven by real user data.
  */
 
+import type { PrimaryIntent } from '../types';
+
 export interface DispatchMessage {
     body: string;
     minutesFromNow: number;
@@ -15,6 +17,45 @@ export interface DispatchMessage {
 
 type CoachTone = 'nurturing' | 'direct' | 'accountability';
 type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
+
+// Map the onboarding "what's bringing you here?" answer to the partner's default voice,
+// so a person who came to "manage stress" is met with a calmer tone than someone here
+// to "build consistency." Used only as the default — an explicit tone in settings wins.
+const INTENT_TONE: Record<PrimaryIntent, CoachTone> = {
+    consistency: 'accountability',
+    clarity:     'direct',
+    stress:      'nurturing',
+    purpose:     'nurturing',
+};
+
+export function intentToTone(intent?: PrimaryIntent | null): CoachTone | undefined {
+    return intent ? INTENT_TONE[intent] : undefined;
+}
+
+// Intent-flavored midday lines. Used when the user has no typed intention to reference yet
+// (e.g. their first days, or a quick practice) so the dispatch still speaks to their "why."
+const INTENT_OPENER: Record<PrimaryIntent, string[]> = {
+    consistency: [
+        '{name}, showing up today is the whole game. You came here to be consistent — this is it.',
+        'Consistency is just today, repeated. You already did today. Keep it going, {name}.',
+        'The streak isn\'t the point, {name} — the showing-up is. And you showed up.',
+    ],
+    clarity: [
+        '{name}, you came here for clarity. Take one minute now to name the single thing that matters most today.',
+        'Clarity comes from subtraction. What can you set down for the rest of today, {name}?',
+        'A clear afternoon beats a busy one. What\'s the one thing, {name}?',
+    ],
+    stress: [
+        '{name}, one slow breath right now. You came here to feel steadier — this is the moment to practice it.',
+        'Whatever the afternoon holds, {name}, your shoulders can come down an inch. Try it now.',
+        'You don\'t have to carry it all at once, {name}. Just the next thing.',
+    ],
+    purpose: [
+        '{name}, you\'re here to make your days mean something. Does this afternoon point that direction?',
+        'Purpose lives in small choices, {name}. Pick one that matters in the next hour.',
+        'Before the day runs out, {name} — one act that feels like the person you\'re becoming.',
+    ],
+};
 
 // ─── Template pools ───────────────────────────────────────────────────────────
 // Each key is [tone][slot] where slot is 'midday', 'afternoon', or 'sunset'.
@@ -170,6 +211,7 @@ export function generateDailyDispatch(params: {
     firstName: string;
     tone?: CoachTone;
     momentumState?: MomentumState;
+    intent?: PrimaryIntent | null;
 }): DispatchMessage[] {
     const {
         intention,
@@ -177,6 +219,7 @@ export function generateDailyDispatch(params: {
         firstName,
         tone = 'nurturing',
         momentumState = 'steady',
+        intent,
     } = params;
 
     // Pick the most specific (longest) gratitude for the notification
@@ -192,6 +235,9 @@ export function generateDailyDispatch(params: {
         middayBody = fill(pick(MOMENTUM_BURST[tone]), firstName, intention, gratitude);
     } else if (intention && intention.trim().length > 2) {
         middayBody = fill(pick(INTENTION_MIDDAY[tone]), firstName, intention, gratitude);
+    } else if (intent) {
+        // No typed intention to reference — fall back to their onboarding "why" instead of a generic nudge.
+        middayBody = fill(pick(INTENT_OPENER[intent]), firstName, intention, gratitude);
     } else {
         middayBody = fill(pick(MIDDAY_FALLBACK[tone]), firstName, intention, gratitude);
     }

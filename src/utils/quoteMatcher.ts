@@ -1,8 +1,18 @@
 import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
-import type { UserProfile, Quote } from '../types';
+import type { UserProfile, Quote, PrimaryIntent } from '../types';
 import { generateAffirmation, isAIAvailable, getMomentumState } from './aiService';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+
+// The onboarding "what's bringing you here?" answer biases content selection so the
+// library leans toward the user's reason for being here — without overriding the
+// stronger signals (today's intention, active focus) scored above.
+const INTENT_THEMES: Record<PrimaryIntent, string[]> = {
+    consistency: ['consistency', 'discipline', 'habit', 'commitment', 'routine', 'persistence', 'showing up', 'practice', 'daily', 'momentum'],
+    clarity:     ['clarity', 'focus', 'simplicity', 'priorities', 'present', 'mindfulness', 'attention', 'essential', 'direction', 'stillness'],
+    stress:      ['peace', 'calm', 'breath', 'ease', 'rest', 'release', 'grounding', 'patience', 'stillness', 'acceptance'],
+    purpose:     ['purpose', 'meaning', 'legacy', 'values', 'intention', 'fulfillment', 'calling', 'vision', 'growth', 'significance'],
+};
 
 // Themes that resonate most with each momentum state
 const MOMENTUM_THEMES: Record<string, string[]> = {
@@ -300,6 +310,16 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         momentumKeywords.forEach(keyword => {
             if (quoteSearchText.includes(keyword)) score += 60;
         });
+
+        // PRIORITY 6.5: Primary intent ("what's bringing you here?") — a persistent backdrop
+        // preference. Weighted below today's intention/focus so it never overrides them.
+        if (user.primaryIntent && INTENT_THEMES[user.primaryIntent]) {
+            let intentHits = 0;
+            INTENT_THEMES[user.primaryIntent].forEach(keyword => {
+                if (quoteSearchText.includes(keyword)) intentHits++;
+            });
+            score += Math.min(intentHits * 50, 150);
+        }
 
         // PRIORITY 7: Current mood
         if (user.currentMood && MOOD_THEMES[user.currentMood]) {

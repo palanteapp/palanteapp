@@ -114,6 +114,7 @@ export interface UserProfile {
     aiDisabled?: boolean; // Master switch to disable all AI features (default: false)
     bio?: string; // Free-text intro the user shares with their AI partner
     focusAreas?: ('stress' | 'focus' | 'sleep' | 'confidence' | 'relationships' | 'productivity')[]; // What user is working on
+    primaryIntent?: PrimaryIntent; // "What's bringing you here?" — chosen in onboarding, drives partner tone + dispatch flavor
     restDays?: string[]; // ISO date strings of intentional rest days (preserves streak)
     practiceDays?: number[]; // 0=Sun, 1=Mon … 6=Sat — days user intends to practice each week
     futureLetters?: FutureLetter[]; // Letters written to future self for tough days
@@ -368,6 +369,10 @@ export interface PartnerActivity {
 }
 
 export type CoachTone = 'nurturing' | 'direct' | 'accountability';
+
+// "What's bringing you here?" onboarding answer. Drives the partner's default tone
+// and flavors the first daily dispatches so the choice actually shapes the experience.
+export type PrimaryIntent = 'consistency' | 'clarity' | 'stress' | 'purpose';
 
 export interface CoachSettings {
     nudgeFrequency: 'morning-only' | 'morning-evening' | 'off';

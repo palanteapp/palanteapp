@@ -6,13 +6,19 @@ import { ChevronLeft, Shield } from 'lucide-react';
 interface PrivacyPolicyProps {
     onBack: () => void;
     isDarkMode: boolean;
+    /** When true, scroll straight to the Privacy Policy section instead of the top of the combined doc. */
+    scrollToPrivacy?: boolean;
 }
 
-export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack, isDarkMode }) => {
-    // Scroll to top on mount
+export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack, isDarkMode, scrollToPrivacy = false }) => {
+    // Land on the section the user actually asked for: privacy → §12, otherwise the top.
     useEffect(() => {
+        if (scrollToPrivacy) {
+            const el = document.getElementById('privacy-section');
+            if (el) { el.scrollIntoView({ behavior: 'auto', block: 'start' }); return; }
+        }
         window.scrollTo(0, 0);
-    }, []);
+    }, [scrollToPrivacy]);
 
     const textPrimary = isDarkMode ? 'text-white' : 'text-white';
     const textSecondary = isDarkMode ? 'text-white' : 'text-white/70';
@@ -48,7 +54,7 @@ export const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack, isDarkMode
 
                 <div className="space-y-12">
                     {LEGAL_DISCLAIMER.sections.map((section, idx) => (
-                        <section key={idx} className={`p-8 rounded-3xl ${cardClass} space-y-4 border ${isDarkMode ? 'border-white/5' : 'border-white/10'}`}>
+                        <section key={idx} id={section.heading.includes('PRIVACY POLICY') ? 'privacy-section' : undefined} className={`p-8 rounded-3xl ${cardClass} space-y-4 border ${isDarkMode ? 'border-white/5' : 'border-white/10'} scroll-mt-24`}>
                             <h2 className="text-xl font-bold font-display text-pale-gold border-b border-pale-gold/20 pb-2">
                                 {section.heading}
                             </h2>

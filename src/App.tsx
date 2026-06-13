@@ -13,7 +13,7 @@ import { getAIQuote, pickAndMarkQuote } from './utils/quoteMatcher';
 import { generateUserNarrative, generateWeeklyReflection, generatePalanteQuote } from './utils/aiService';
 import { analytics, identifyUser } from './utils/analytics';
 import { AFFIRMATIONS } from './data/affirmations';
-import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, ContentType, QuoteSource, SoundMix } from './types';
+import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, ContentType, QuoteSource, SoundMix, PrimaryIntent } from './types';
 import { haptics } from './utils/haptics';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
@@ -42,7 +42,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import type { CoachSettings, WeeklyReport, CoachIntervention, DailyPriming, CoachSession, CoachPillar } from './types';
 import { SCIENCE_FACTS, type ScienceFact } from './data/scienceFacts';
-import { generateDailyDispatch, generateRecoveryDispatch } from './utils/dailyDispatch';
+import { generateDailyDispatch, generateRecoveryDispatch, intentToTone } from './utils/dailyDispatch';
 import { isReviewerEmail, REVIEWER_DISPATCH_OFFSETS_MIN } from './constants/reviewer';
 import { getMomentumState } from './utils/aiService';
 import { api } from './lib/api';
@@ -387,6 +387,26 @@ function AppContent() {
     if (user?.id) identifyUser(user.id, { name: user.name, profession: user.profession });
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // One-time cleanup: earlier onboarding saved the orienting answer as a raw id
+  // ("purpose") instead of a label. Relabel any such goals in place. Idempotent —
+  // once relabeled the text no longer matches an id, so it won't run again.
+  useEffect(() => {
+    if (!user?.dailyFocuses?.length) return;
+    const ID_TO_LABEL: Record<string, string> = {
+      consistency: 'Build consistency',
+      clarity: 'Find clarity & focus',
+      stress: 'Manage stress',
+      purpose: 'Connect to purpose',
+    };
+    let changed = false;
+    const fixed = user.dailyFocuses.map(f => {
+      const label = ID_TO_LABEL[(f.text || '').trim()];
+      if (label) { changed = true; return { ...f, text: label }; }
+      return f;
+    });
+    if (changed) updateProfile({ ...user, dailyFocuses: fixed });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // Routing State
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -408,8 +428,12 @@ function AppContent() {
 
   // CINEMATIC INTRO STATE (New Onboarding Flow)
   // Defaults to true if 'palante_intro_seen' is missing
-  // Age gate — must pass before intro sequence. Shown once; stored permanently.
-  const [showAgeGate, setShowAgeGate] = useState(() => !localStorage.getItem(STORAGE_KEYS.AGE_GATE_PASSED));
+  // Age gate. New users confirm age inside the cinematic intro (after the brand splash),
+  // so the standalone modal only covers legacy users who finished the intro before age
+  // gating existed (INTRO_SEEN set, AGE_GATE_PASSED missing).
+  const [showAgeGate, setShowAgeGate] = useState(() =>
+    !!localStorage.getItem(STORAGE_KEYS.INTRO_SEEN) && !localStorage.getItem(STORAGE_KEYS.AGE_GATE_PASSED)
+  );
 
   const handleAgeVerified = (dateOfBirth: string) => {
     localStorage.setItem(STORAGE_KEYS.AGE_GATE_PASSED, dateOfBirth);
@@ -427,8 +451,15 @@ function AppContent() {
     contentType: ContentType;
     sourcePreference: QuoteSource;
     ageRange?: string;
+    dateOfBirth?: string;
+    primaryIntent?: PrimaryIntent;
   }) => {
     analytics.onboardingCompleted({ profession: userData.profession, quoteIntensity: userData.quoteIntensity });
+
+    // 0. Record the age gate from the intro's age step (COPPA — happens before any practice)
+    if (userData.dateOfBirth) {
+      localStorage.setItem(STORAGE_KEYS.AGE_GATE_PASSED, userData.dateOfBirth);
+    }
 
     // 1. Mark intro as seen FIRST
     localStorage.setItem(STORAGE_KEYS.INTRO_SEEN, 'true');
@@ -446,6 +477,9 @@ function AppContent() {
 
     // 6. Create/Update User Profile with all data (AFTER dismissing intro)
     if (user) {
+      // Their onboarding answer sets the partner's default voice — unless they've already
+      // chosen one explicitly. (intentToTone returns undefined when no intent was picked.)
+      const defaultedTone = user.coachSettings?.coachTone ?? intentToTone(userData.primaryIntent) ?? 'nurturing';
       const updatedUser = {
         ...user,
         name: userData.name,
@@ -453,8 +487,20 @@ function AppContent() {
         quoteIntensity: userData.quoteIntensity as 1 | 2 | 3,
         contentTypePreference: userData.contentType,
         sourcePreference: userData.sourcePreference,
-        ageRange: userData.ageRange,
-        // Add focus goal as first daily focus if provided
+        ageRange: userData.ageRange as UserProfile['ageRange'],
+        dateOfBirth: userData.dateOfBirth ?? user.dateOfBirth,
+        ageVerified: userData.dateOfBirth ? true : user.ageVerified,
+        primaryIntent: userData.primaryIntent ?? user.primaryIntent,
+        coachSettings: {
+          nudgeFrequency: user.coachSettings?.nudgeFrequency ?? 'morning-evening',
+          nudgeEnabled: user.coachSettings?.nudgeEnabled ?? false,
+          tipsEnabled: user.coachSettings?.tipsEnabled,
+          partnerTipsEnabled: user.coachSettings?.partnerTipsEnabled,
+          waterRemindersEnabled: user.coachSettings?.waterRemindersEnabled,
+          lastNudgeTime: user.coachSettings?.lastNudgeTime,
+          coachTone: defaultedTone,
+        },
+        // Add focus goal as first daily focus if provided (already a human label, not a raw id)
         dailyFocuses: userData.focusGoal ? [{
           id: `focus-${Date.now()}`,
           text: userData.focusGoal,
@@ -1289,7 +1335,7 @@ function AppContent() {
     // App Store reviewers (matched by auth email) get compressed 1/2/3 minute
     // offsets so the feature can actually be verified during review.
     const firstName = user.name?.split(' ')[0] || 'friend';
-    const coachTone = user.coachSettings?.coachTone ?? 'nurturing';
+    const coachTone = user.coachSettings?.coachTone ?? intentToTone(user.primaryIntent) ?? 'nurturing';
     const momentumState = getMomentumState(user);
     const dispatchMessages = generateDailyDispatch({
       intention: data.dailyIntention,
@@ -1297,6 +1343,7 @@ function AppContent() {
       firstName,
       tone: coachTone,
       momentumState,
+      intent: user.primaryIntent,
     });
     const finalDispatch = isReviewerEmail(authUser?.email)
       ? dispatchMessages.map((m, i) => ({
@@ -1549,6 +1596,8 @@ function AppContent() {
           firstName={user?.name?.split(' ')[0]}
           practiceCount={user?.practiceData?.totalPractices ?? 0}
           gratitudeCount={gratitudeCount}
+          onShowPrivacy={() => navigate('/privacy#privacy')}
+          onShowTerms={() => navigate('/privacy')}
         />
       </Suspense>
     );
@@ -3406,8 +3455,10 @@ function AppContent() {
   );
 
   // Render Logic
-  if (currentPath === '/privacy') {
-    return <Suspense fallback={null}><PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} /></Suspense>;
+  if (currentPath.split('#')[0] === '/privacy') {
+    // Read the hash from the live URL (not currentPath) so the deep-link survives reload and back/forward.
+    const wantPrivacy = window.location.hash === '#privacy' || currentPath.includes('#privacy');
+    return <Suspense fallback={null}><PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} scrollToPrivacy={wantPrivacy} /></Suspense>;
   }
 
   if (showAgeGate) {
