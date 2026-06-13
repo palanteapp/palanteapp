@@ -165,11 +165,11 @@ function AppContent() {
   const dismissFirstTimeWelcome = () => {
     localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
     setShowFirstTimeWelcome(false);
-    // After the welcome letter is dismissed, surface the interests picker (first-practice only).
-    // This keeps the two modals sequential — never overlapping.
-    if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
-      setTimeout(() => setShowPostPracticeSetup(true), 850);
-    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+    // The first-run tail is now just the welcome letter. Interests setup moved to a dismissible
+    // home card; the notification ask waits until a return session. Returning users who already
+    // finished interests still get the lightweight profile nudge.
+    if (localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)
+        && !localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
       setTimeout(() => setShowProfileNudge(true), 800);
     }
   };
@@ -203,6 +203,12 @@ function AppContent() {
   const [showGardenLegend, setShowGardenLegend] = useState(false);
   const [showPostPracticeSetup, setShowPostPracticeSetup] = useState(false);
   const [showNotifAsk, setShowNotifAsk] = useState(false);
+  // Interests/content setup — was a blocking first-run modal, now a dismissible home card (opt-in).
+  const [showInterestsCard, setShowInterestsCard] = useState(() => !localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN));
+  const dismissInterestsCard = () => {
+    localStorage.setItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN, 'true');
+    setShowInterestsCard(false);
+  };
   const [restDayMissedDate, setRestDayMissedDate] = useState<string | null>(null);
 
   // Synchronize browser overscroll color with Palante theme
@@ -530,12 +536,6 @@ function AppContent() {
     }
   };
 
-  const maybeShowNotifAsk = () => {
-    if (!localStorage.getItem(STORAGE_KEYS.NOTIF_ASK_SEEN) && notifications.permission !== 'granted') {
-      setTimeout(() => setShowNotifAsk(true), 500);
-    }
-  };
-
   const handlePostPracticeSetupComplete = async (prefs: {
     interests: string[];
     contentType: ContentType;
@@ -543,6 +543,7 @@ function AppContent() {
   }) => {
     localStorage.setItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN, 'true');
     setShowPostPracticeSetup(false);
+    setShowInterestsCard(false);
     if (user) {
       const updatedUser = {
         ...user,
@@ -556,13 +557,12 @@ function AppContent() {
         console.error('[Palante] Failed to save post-practice preferences:', err);
       }
     }
-    maybeShowNotifAsk();
   };
 
   const handlePostPracticeSetupSkip = () => {
     localStorage.setItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN, 'true');
     setShowPostPracticeSetup(false);
-    maybeShowNotifAsk();
+    setShowInterestsCard(false);
   };
 
   const handleNotifAskAllow = async () => {
@@ -1322,12 +1322,10 @@ function AppContent() {
     // Queue welcome screen to appear once the success overlay auto-dismisses.
     // Using a ref avoids racing against the auto-dismiss useEffect.
     if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
-      // dismissFirstTimeWelcome will chain into PostPracticeSetupModal if needed.
       pendingWelcome.current = true;
-    } else if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
-      // Returning user who missed the interests picker — show it now.
-      setTimeout(() => setShowPostPracticeSetup(true), 3200);
-    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+    } else if (localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)
+        && !localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+      // Interests setup is now a home card, not a modal — only the lightweight profile nudge remains.
       setTimeout(() => setShowProfileNudge(true), 3200);
     }
 
@@ -1458,6 +1456,22 @@ function AppContent() {
       return () => clearTimeout(t);
     }
   }, [authUser, user?.practiceData?.totalPractices, user?.streak]);
+
+  // Notification permission ask — deferred off the first-practice day to a return session, after
+  // the user has had a chance to feel a daily dispatch's value. (Day 1 ends on the welcome letter.)
+  const notifAskCheckedRef = useRef(false);
+  useEffect(() => {
+    if (notifAskCheckedRef.current) return;
+    if (!user) return;
+    if (localStorage.getItem(STORAGE_KEYS.NOTIF_ASK_SEEN)) return;
+    if (notifications.permission === 'granted') return;
+    if ((user.practiceData?.totalPractices ?? 0) < 1) return;
+    const firstPracticeDate = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE);
+    if (!firstPracticeDate || firstPracticeDate === getTodayDate()) return; // still day 1 — wait
+    notifAskCheckedRef.current = true;
+    const t = setTimeout(() => setShowNotifAsk(true), 2500);
+    return () => clearTimeout(t);
+  }, [user?.id, user?.practiceData?.totalPractices]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // PRO-ACTIVE COACH SESSION INITIALIZATION
   const sessionInitialized = useRef(false);
@@ -2119,6 +2133,47 @@ function AppContent() {
                           </button>
                           <button
                             onClick={dismissProfileNudge}
+                            className={`text-xs p-1 ${isDarkMode ? 'text-white' : 'text-sage'}`}
+                            aria-label="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Personalize-your-content card — replaces the old first-run interests modal ── */}
+                <AnimatePresence>
+                  {showInterestsCard && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                    <motion.div
+                      key="interests-card"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            Make your content fit
+                          </p>
+                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white' : 'text-sage'}`}>
+                            Tell Palante what you're into and your daily words will follow.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => { haptics.light(); setShowPostPracticeSetup(true); }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#C96A3A' }}
+                          >
+                            Personalize →
+                          </button>
+                          <button
+                            onClick={dismissInterestsCard}
                             className={`text-xs p-1 ${isDarkMode ? 'text-white' : 'text-sage'}`}
                             aria-label="Dismiss"
                           >
@@ -3101,7 +3156,7 @@ function AppContent() {
         />
       </Suspense>
 
-      {/* Notification permission ask — shown once after first practice */}
+      {/* Notification permission ask — deferred to a return session (not the first-practice day) */}
       <Suspense fallback={null}>
         <NotificationAskModal
           isOpen={showNotifAsk}
