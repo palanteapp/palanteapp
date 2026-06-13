@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
+import { buildYearForwardData, hasEnoughForYearForward } from '../utils/yearForward';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
 import { CelebrationModal } from './CelebrationModal';
@@ -26,6 +27,7 @@ interface MomentumProps {
     onOpenKoiPond?: () => void;
     onWriteLetter?: () => void;
     onOpenHighlights?: () => void;
+    onOpenYearForward?: () => void;
     highlightsBadge?: boolean;
 }
 
@@ -39,10 +41,17 @@ export const Momentum: React.FC<MomentumProps> = ({
     onOpenKoiPond,
     onWriteLetter,
     onOpenHighlights,
+    onOpenYearForward,
     highlightsBadge,
 }) => {
     const { isDarkMode } = useTheme();
     const bellRef = useRef<HTMLAudioElement | null>(null);
+
+    // Your Year, Forward — only surfaces once a year has enough lived data.
+    const yearForwardReady = useMemo(() => {
+        const data = buildYearForwardData(user);
+        return hasEnoughForYearForward(data);
+    }, [user]);
 
     useEffect(() => {
         // Pre-load the bell sound
@@ -245,6 +254,33 @@ export const Momentum: React.FC<MomentumProps> = ({
                     </p>
                 </div>
             </div>
+
+            {/* ── Your Year, Forward ── */}
+            {yearForwardReady && onOpenYearForward && (
+                <button
+                    onClick={() => { haptics.medium(); onOpenYearForward(); }}
+                    className="w-full rounded-2xl px-5 py-4 mb-6 flex items-center gap-4 text-left transition-all active:scale-[0.98] relative overflow-hidden"
+                    style={{
+                        background: isDarkMode
+                            ? 'linear-gradient(135deg, rgba(201,106,58,0.18), rgba(229,214,167,0.06))'
+                            : 'linear-gradient(135deg, rgba(201,106,58,0.12), rgba(229,214,167,0.18))',
+                        border: '1px solid rgba(201,106,58,0.3)',
+                    }}
+                >
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,106,58,0.85)' }}>
+                        <Sparkles size={20} color="#FAF7F3" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className={`text-[15px] font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                            Your Year, Forward
+                        </p>
+                        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/55'}`}>
+                            {new Date().getFullYear()}, told back to you
+                        </p>
+                    </div>
+                    <ChevronRight size={18} className={isDarkMode ? 'text-white/40' : 'text-sage-dark/40'} />
+                </button>
+            )}
 
             {/* ── Koi Pond Progress Teaser ── */}
             {(user.streak || 0) < 30 && (

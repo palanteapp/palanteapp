@@ -31,6 +31,7 @@ import { generateWeeklyLetter, isSunday, letterIsStale, getISOWeekNumber } from 
 import type { EssentialToolId } from './components/HomeEssentialTools';
 import type { RingCeremonyType } from './components/RingCeremony';
 import type { GrowthStoryData } from './utils/aiService';
+import type { YearForwardData } from './utils/yearForward';
 import { Logo } from './components/Logo';
 import {
   Home, TrendingUp, User as UserIcon, Moon, Sun,
@@ -87,6 +88,7 @@ const CoachSettingsModal = lazy(() => import('./components/CoachSettingsModal').
 const MilestoneCelebration = lazy(() => import('./components/MilestoneCelebration').then(m => ({ default: m.MilestoneCelebration })));
 const RingCeremony = lazy(() => import('./components/RingCeremony').then(m => ({ default: m.RingCeremony })));
 const GrowthStoryModal = lazy(() => import('./components/GrowthStoryModal').then(m => ({ default: m.GrowthStoryModal })));
+const YearForwardModal = lazy(() => import('./components/YearForwardModal').then(m => ({ default: m.YearForwardModal })));
 const CoachInterventionCard = lazy(() => import('./components/CoachInterventionCard').then(m => ({ default: m.CoachInterventionCard })));
 const SlideUpModal = lazy(() => import('./components/SlideUpModal').then(m => ({ default: m.SlideUpModal })));
 const ProfileCompletionCard = lazy(() => import('./components/ProfileCompletionCard').then(m => ({ default: m.ProfileCompletionCard })));
@@ -581,6 +583,12 @@ function AppContent() {
 
   // Growth Story (Day 90)
   const [growthStory, setGrowthStory] = useState<{ isOpen: boolean; data: GrowthStoryData | null }>({
+    isOpen: false,
+    data: null,
+  });
+
+  // Your Year, Forward (annual memoir)
+  const [yearForward, setYearForward] = useState<{ isOpen: boolean; data: YearForwardData | null }>({
     isOpen: false,
     data: null,
   });
@@ -2402,6 +2410,12 @@ function AppContent() {
                   }}
                   onOpenHighlights={() => setShowWeeklyHighlightsModal(true)}
                   highlightsBadge={showWeeklyHighlights}
+                  onOpenYearForward={async () => {
+                    if (!user) return;
+                    haptics.medium();
+                    const { buildYearForwardData } = await import('./utils/yearForward');
+                    setYearForward({ isOpen: true, data: buildYearForwardData(user) });
+                  }}
                 />
               </div>
             </PageTransition>
@@ -3006,6 +3020,26 @@ function AppContent() {
           });
         }}
       />
+
+      {/* Your Year, Forward — annual memoir */}
+      <Suspense fallback={null}>
+        <YearForwardModal
+          isOpen={yearForward.isOpen}
+          data={yearForward.data}
+          onClose={() => setYearForward(prev => ({ ...prev, isOpen: false }))}
+          onShare={async (letter) => {
+            const { shareMilestoneAsImage } = await import('./utils/shareUtils');
+            await shareMilestoneAsImage({
+              title: `My Year, Forward — ${yearForward.data?.year ?? new Date().getFullYear()}`,
+              label: 'Your Year, Forward',
+              count: yearForward.data?.daysPracticed ?? 0,
+              message: letter.slice(0, 120) + (letter.length > 120 ? '...' : ''),
+              iconName: 'Sparkles',
+              shareText: `My year with Palante: ${letter.slice(0, 100)}... Pa'lante! #PalanteApp`,
+            });
+          }}
+        />
+      </Suspense>
 
       {/* Post-First-Practice Personalization Setup */}
       <Suspense fallback={null}>
