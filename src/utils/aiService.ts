@@ -1827,7 +1827,7 @@ export const generateInterventions = (
             id: `grace-period-${Date.now()}`,
             type: 'streak_warning',
             trigger: { condition: 'streak_grace_period', confidence: 1.0 },
-            message: `⚠️ You're in your grace period! Complete any practice today to keep your ${user.streakData.currentStreak}-day streak alive`,
+            message: `Grace period: complete any practice today to keep your ${user.streakData.currentStreak}-day streak alive`,
             action: { type: 'open_practice' },
             priority: 'high',
             timestamp: now.toISOString(),

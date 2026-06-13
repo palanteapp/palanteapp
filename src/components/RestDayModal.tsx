@@ -23,7 +23,7 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
-            <div className={`w-full max-w-md p-8 rounded-3xl shadow-2xl ${isDarkMode ? 'bg-sage-mid border border-white/10' : 'bg-ivory border border-sage/10'
+            <div className={`relative w-full max-w-md p-8 rounded-3xl shadow-2xl ${isDarkMode ? 'bg-sage-mid border border-white/10' : 'bg-ivory border border-sage/10'
                 }`}>
                 {/* Close Button */}
                 <button
@@ -90,14 +90,14 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
                                 : 'bg-sage/10 text-sage hover:bg-sage/20'
                             }`}
                     >
-                        I Just Forgot
+                        I'll Make It Up Today
                     </button>
                 </div>
 
                 {/* Reassurance */}
                 <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
                     }`}>
-                    Rest is part of growth. Your streak is safe. 🌱
+                    Rest is part of growth. Your streak is safe.
                 </p>
             </div>
         </div>

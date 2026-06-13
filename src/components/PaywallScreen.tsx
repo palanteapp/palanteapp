@@ -355,6 +355,24 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                     </motion.p>
                 )}
 
+                {/* Data-backup nudge — reminds guest users to create an account before subscribing */}
+                {practiceCount > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5, duration: 0.4 }}
+                        className="mb-5 rounded-xl px-4 py-3 flex items-start gap-3"
+                        style={{ background: 'rgba(250,247,243,0.06)', border: '1px solid rgba(250,247,243,0.10)' }}
+                    >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(229,214,167,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.55)', fontSize: '12px', lineHeight: 1.5 }}>
+                            Your {practiceCount} practice{practiceCount !== 1 ? 's' : ''} are saved on this device. Create a free account to protect them across devices before you subscribe.
+                        </p>
+                    </motion.div>
+                )}
+
                 {/* Fine print */}
                 <div className="text-center space-y-3">
                     <p style={{

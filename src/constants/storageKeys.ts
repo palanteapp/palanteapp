@@ -105,8 +105,11 @@ export const STORAGE_KEYS = {
   // Used to suppress the automatic evening prompt on Day 1 so new users can explore first.
   FIRST_PRACTICE_DATE: 'palante_first_practice_date',
 
-  // Sign-in nudge — shown after user accumulates real data but hasn't created an account
+  // Sign-in nudge — stores ISO date last dismissed (re-surfaces after 3 days)
   SIGNIN_NUDGE_DISMISSED: 'palante_signin_nudge_dismissed',
+
+  // Partner/chat discovery card — shown once after first practice to surface the Coach tab
+  PARTNER_CHAT_DISCOVERY_SHOWN: 'palante_partner_chat_discovery_shown',
 
   // Age gate — COPPA compliance (must pass before intro sequence)
   AGE_GATE_PASSED: 'palante_age_gate_passed',

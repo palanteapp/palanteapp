@@ -371,8 +371,15 @@ function AppContent() {
       ).then(msg => setWeeklyReflectionMessage(msg)).catch(() => {});
     }
 
-    // Weekly partner letter — generate once per week on Sunday (or first open if stale)
-    if (isSunday() && letterIsStale(user)) {
+    // Weekly partner letter — generate on Sunday, OR on day 7 of the trial for new users
+    // who may never reach a Sunday before the paywall (e.g. installs Monday → paywall day 8).
+    const firstPracticeDate = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE);
+    const daysSinceFirst = firstPracticeDate
+      ? Math.floor((Date.now() - new Date(firstPracticeDate).getTime()) / (1000 * 60 * 60 * 24))
+      : -1;
+    const isDay7ForNewUser = daysSinceFirst === 6 && !isPro; // day 7 (0-indexed from first practice)
+
+    if ((isSunday() || isDay7ForNewUser) && letterIsStale(user)) {
       generateWeeklyLetter(user).then(letter => {
         setWeeklyLetterText(letter);
         updateProfile({ weeklyPartnerLetter: { text: letter, generatedAt: new Date().toISOString(), weekNumber: getISOWeekNumber() } });
@@ -934,8 +941,8 @@ function AppContent() {
       const name = milestoneMap[milestone] || 'week';
       const earlyToasts: Partial<Record<typeof name, string>> = {
         first: "First practice. Pa'lante.",
-        three: "3 practices — you're building something.",
-        week:  "7 practices. One week in.",
+        three: "Three in. You came back.",
+        week:  "Seven practices. You're not stopping.",
       };
       if (earlyToasts[name]) {
         triggerConfetti();
@@ -1410,6 +1417,18 @@ function AppContent() {
   })();
   const trialExpired = !isPro && appUsed && trialDaysLeft === 0;
 
+  // Early paywall: user taps the trial ribbon to subscribe before their trial expires.
+  const [showPaywallEarly, setShowPaywallEarly] = useState(false);
+
+  // Partner chat discovery: show once after first practice to surface the Coach tab.
+  const [showPartnerDiscovery, setShowPartnerDiscovery] = useState(
+    () => !localStorage.getItem(STORAGE_KEYS.PARTNER_CHAT_DISCOVERY_SHOWN)
+  );
+  const dismissPartnerDiscovery = () => {
+    localStorage.setItem(STORAGE_KEYS.PARTNER_CHAT_DISCOVERY_SHOWN, 'true');
+    setShowPartnerDiscovery(false);
+  };
+
   // Day 1 share card — dismissed via X or after sharing
   const [shareDayOneDismissed, setShareDayOneDismissed] = useState(
     () => !!localStorage.getItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED)
@@ -1430,7 +1449,7 @@ function AppContent() {
   const [showSignInNudge, setShowSignInNudge] = useState(false);
   const dismissSignInNudge = () => {
     setShowSignInNudge(false);
-    localStorage.setItem(STORAGE_KEYS.SIGNIN_NUDGE_DISMISSED, 'true');
+    localStorage.setItem(STORAGE_KEYS.SIGNIN_NUDGE_DISMISSED, getTodayDate());
   };
 
   // pendingWelcome: set to true in handlePrimingComplete when the welcome screen
@@ -1456,17 +1475,21 @@ function AppContent() {
   // (handlePrimingComplete / evening onComplete) — never on app open,
   // which caused the welcome overlay to block the morning practice flow.
 
-  // Sign-in nudge: fires once the guest user has 2+ practices and hasn't dismissed it
+  // Sign-in nudge: fires for guest users with 2+ practices.
+  // Dismissal stores the date — re-surfaces after 3 days so data-loss risk stays visible
+  // through the trial window without being permanently ignorable.
   useEffect(() => {
-    if (authUser) return; // Already signed in — never show
-    if (localStorage.getItem(STORAGE_KEYS.SIGNIN_NUDGE_DISMISSED)) return;
+    if (authUser) return;
     const totalPractices = user?.practiceData?.totalPractices ?? 0;
     const streak = user?.streak ?? 0;
-    if (totalPractices >= 2 || streak >= 2) {
-      // Delay slightly so it doesn't fight with other nudges on the same render
-      const t = setTimeout(() => setShowSignInNudge(true), 2000);
-      return () => clearTimeout(t);
+    if (totalPractices < 2 && streak < 2) return;
+    const dismissedDate = localStorage.getItem(STORAGE_KEYS.SIGNIN_NUDGE_DISMISSED);
+    if (dismissedDate) {
+      const daysSince = getDaysDifference(dismissedDate, getTodayDate());
+      if (daysSince < 3) return; // suppressed for 3 days, then re-shows
     }
+    const t = setTimeout(() => setShowSignInNudge(true), 2000);
+    return () => clearTimeout(t);
   }, [authUser, user?.practiceData?.totalPractices, user?.streak]);
 
   // Notification permission ask — deferred off the first-practice day to a return session, after
@@ -1647,15 +1670,20 @@ function AppContent() {
 
       {/* Global Koi Trigger (Appears after 60s) */}
 
-      {/* Free-trial ribbon — shown on days 5, 6, 7 of the 7-day app trial (pre-subscription) */}
+      {/* Free-trial ribbon — shown on days 5, 6, 7 of the 7-day app trial (pre-subscription).
+          Tappable — opens the paywall so users can subscribe early without waiting for the hard gate. */}
       {appUsed && !isPro && trialDaysLeft > 0 && trialDaysLeft <= 3 && (
-        <div className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center" style={{ background: '#C96A3A' }}>
+        <button
+          onClick={() => setShowPaywallEarly(true)}
+          className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center w-full"
+          style={{ background: '#C96A3A', border: 'none', cursor: 'pointer' }}
+        >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
             {trialDaysLeft === 1
-              ? 'Your free trial ends tomorrow — subscribe to keep your practice.'
-              : `${trialDaysLeft} days left in your free trial. Keep going.`}
+              ? 'Your free trial ends tomorrow — tap to subscribe.'
+              : `${trialDaysLeft} days left in your free trial. Tap to subscribe.`}
           </span>
-        </div>
+        </button>
       )}
 
       {/* Trial banner — shown days 5, 6, 7 of an active Apple IAP trial */}
@@ -2167,9 +2195,10 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Personalize-your-content card — replaces the old first-run interests modal ── */}
+                {/* ── Personalize-your-content card — replaces the old first-run interests modal.
+                    Deferred until partner discovery card is dismissed to avoid setup-card pile-up. ── */}
                 <AnimatePresence>
-                  {showInterestsCard && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                  {showInterestsCard && !showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
                     <motion.div
                       key="interests-card"
                       className="mb-5"
@@ -2208,8 +2237,59 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Profile completion card — persistent until 90% complete or dismissed 3x ── */}
-                {user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                {/* ── Partner chat discovery — shown once after first practice to surface the Coach tab ── */}
+                <AnimatePresence>
+                  {showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                    <motion.div
+                      key="partner-discovery"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <div
+                        className="rounded-2xl px-5 py-4"
+                        style={{
+                          background: isDarkMode
+                            ? 'linear-gradient(135deg, rgba(201,106,58,0.18) 0%, rgba(65,93,67,0.40) 100%)'
+                            : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(250,247,243,1) 100%)',
+                          border: isDarkMode ? '1px solid rgba(201,106,58,0.30)' : '1px solid rgba(201,106,58,0.20)',
+                        }}
+                      >
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] mb-1`} style={{ color: '#C96A3A' }}>
+                          Your Partner
+                        </p>
+                        <p className={`text-sm font-bold mb-1 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                          {user.coachName || 'Your partner'} remembers everything you just shared.
+                        </p>
+                        <p className={`text-xs leading-relaxed mb-3 ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                          Ask a question, go deeper on your intention, or just talk. They're here between practices too.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { haptics.light(); dismissPartnerDiscovery(); setActiveTab('coach'); }}
+                            className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#C96A3A' }}
+                          >
+                            Talk to {user.coachName || 'your partner'} →
+                          </button>
+                          <button
+                            onClick={() => { haptics.light(); dismissPartnerDiscovery(); }}
+                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
+                            aria-label="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Profile completion card — persistent until 90% complete or dismissed 3x.
+                    Suppressed while partner discovery or sign-in nudge is active. ── */}
+                {user && (user.practiceData?.totalPractices ?? 0) >= 1 && !showPartnerDiscovery && !showSignInNudge && (
                   <Suspense fallback={null}>
                     <ProfileCompletionCard
                       user={user}
@@ -2316,7 +2396,7 @@ function AppContent() {
                         quote={{
                           id: `message-of-day-${todayDate}`,
                           text: todayMessage,
-                          author: user?.coachName || 'Palante',
+                          author: user?.coachName || 'Your Partner',
                           intensity: (user?.quoteIntensity as 1 | 2 | 3) || 2,
                           category: 'morning-practice',
                           isAI: true,
@@ -2899,6 +2979,7 @@ function AppContent() {
                   setActiveTab(tab.id as typeof activeTab);
                   haptics.selection();
                   analytics.screenViewed(tab.id);
+                  if (tab.id === 'coach' && showPartnerDiscovery) dismissPartnerDiscovery();
                 }}
                 className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-4 md:px-5 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
                   ? isDarkMode
@@ -2911,6 +2992,9 @@ function AppContent() {
               >
                 <div className="relative">
                   <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
+                  {tab.id === 'coach' && showPartnerDiscovery && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
+                  )}
                   {tab.id === 'momentum' && showWeeklyHighlights && (
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
                   )}
@@ -2955,7 +3039,7 @@ function AppContent() {
         isDarkMode={isDarkMode}
         onClose={() => { setShowWeeklyHighlightsModal(false); setShowWeeklyHighlights(false); }}
         weeklyLetter={weeklyLetterText || undefined}
-        partnerName={user?.coachName || 'Palante'}
+        partnerName={user?.coachName || 'Your Partner'}
       />
 
       {/* Legal Disclaimer Modal - First Launch (Blocks Everything) */}
@@ -3112,7 +3196,7 @@ function AppContent() {
             title: labels[ringCeremony.type],
             label: 'Mandala of Growth',
             count: user?.practiceData?.totalPractices ?? 0,
-            message: 'My garden is growing. Pa\'lante. 🌸',
+            message: "My garden is growing. Pa'lante.",
             iconName: 'Trophy',
             shareText: `${labels[ringCeremony.type]} on my Palante journey. Pa'lante! #PalanteApp`,
           });
@@ -3123,7 +3207,7 @@ function AppContent() {
             title: '90 Days — Full Bloom',
             label: 'Mandala of Growth',
             count: user?.practiceData?.totalPractices ?? 90,
-            message: 'My garden is in full bloom. Pa\'lante. 🌸',
+            message: "My garden is in full bloom. Pa'lante.",
             iconName: 'Trophy',
           });
         }}
@@ -3510,6 +3594,21 @@ function AppContent() {
           )}
         </Suspense>
       </ErrorBoundary>
+
+      {/* Early paywall — user tapped the trial ribbon to subscribe before the trial expires */}
+      {showPaywallEarly && (
+        <Suspense fallback={null}>
+          <PaywallScreen
+            firstName={user?.name?.split(' ')[0]}
+            practiceCount={user?.practiceData?.totalPractices ?? 0}
+            gratitudeCount={(user?.dailyMorningPractice || user?.dailyPriming || [])
+              .reduce((n, p) => n + (p.gratitudes?.filter((g: string) => g.trim()).length || 0), 0)}
+            onDismiss={() => setShowPaywallEarly(false)}
+            onShowPrivacy={() => { setShowPaywallEarly(false); navigate('/privacy#privacy'); }}
+            onShowTerms={() => { setShowPaywallEarly(false); navigate('/privacy'); }}
+          />
+        </Suspense>
+      )}
 
       <ErrorBoundary name="SoundMixer" onReset={() => setShowSoundMixer(false)}>
         <Suspense fallback={null}>

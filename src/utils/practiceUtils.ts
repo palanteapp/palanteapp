@@ -26,15 +26,15 @@ export const getDaysDifference = (date1: string, date2: string): number => {
 /** Get display details for a count milestone (Total Practices) */
 export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year') => {
     const milestones = {
-        first: { title: 'First Step', icon: 'Sprout', message: "You've completed your very first practice! A journey of a thousand miles begins with a single step.", label: 'Total Practices', days: 1 },
-        three: { title: 'Consistency Starter', icon: 'Sun', message: "Three practices completed! You're planting the seeds of habit.", label: 'Total Practices', days: 3 },
-        week: { title: 'Week Warrior', icon: 'Flame', message: "You've completed 7 total practices! Your momentum is building beautifully.", label: 'Total Practices', days: 7 },
-        fortnight: { title: 'Consistent Flow', icon: 'Compass', message: "14 total practices. You're building a solid foundation of self-care.", label: 'Total Practices', days: 14 },
-        month: { title: 'Dedicated Practitioner', icon: 'Trophy', message: "30 total practices of showing up for yourself. This is how transformation happens.", label: 'Total Practices', days: 30 },
-        fifty: { title: 'Intrinsic Master', icon: 'Star', message: "50 total practices! You've proven your commitment to your path.", label: 'Total Practices', days: 50 },
-        century: { title: 'Elite Practitioner', icon: 'Award', message: "100 total practices! You are now among the top 1% of consistent souls.", label: 'Total Practices', days: 100 },
-        twohundred: { title: 'Lifestyle Legend', icon: 'Heart', message: "200 practices. This is no longer a task—it's who you are.", label: 'Total Practices', days: 200 },
-        year: { title: 'The Year of You', icon: 'PartyPopper', message: '365 total practices of excellence! A monumental achievement of consistency.', label: 'Total Practices', days: 365 },
+        first: { title: 'The First Day', icon: 'Sprout', message: "One practice. That's not nothing — that's everything. The garden is awake now.", label: 'Total Practices', days: 1 },
+        three: { title: 'Three In', icon: 'Sun', message: "Three practices. Most people stop at one. You came back twice more. Something in you means it.", label: 'Total Practices', days: 3 },
+        week: { title: 'Seven Practices', icon: 'Flame', message: "Seven down. The routine is taking shape. You're not just trying anymore — you're doing.", label: 'Total Practices', days: 7 },
+        fortnight: { title: 'Fourteen Practices', icon: 'Compass', message: "Fourteen practices. This isn't a streak anymore. It's a relationship with yourself.", label: 'Total Practices', days: 14 },
+        month: { title: 'Thirty Practices', icon: 'Trophy', message: "Thirty practices. This is what it looks like when someone actually commits.", label: 'Total Practices', days: 30 },
+        fifty: { title: 'Fifty Practices', icon: 'Star', message: "Fifty. You've been here through hard days, tired days, days when skipping would have been easy. You didn't.", label: 'Total Practices', days: 50 },
+        century: { title: 'One Hundred', icon: 'Award', message: "A hundred practices. The person who started this is not the same person standing here now.", label: 'Total Practices', days: 100 },
+        twohundred: { title: 'Two Hundred', icon: 'Heart', message: "Two hundred. This isn't a habit you built. It's who you are.", label: 'Total Practices', days: 200 },
+        year: { title: 'Three Sixty-Five', icon: 'PartyPopper', message: "365 practices. A full year of coming back to yourself. There are no more words for this.", label: 'Total Practices', days: 365 },
     };
     return milestones[milestone];
 };
