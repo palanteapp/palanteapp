@@ -66,6 +66,11 @@ export const STORAGE_KEYS = {
   // Misc
   LAST_RESET_DATE: 'palante_last_reset_date',
 
+  // Cloud sync — the profiles.updated_at value from our last successful
+  // read/write. If the cloud stamp differs, another device wrote in between
+  // and we merge instead of overwriting.
+  CLOUD_SYNC_STAMP: 'palante_cloud_sync_stamp',
+
   // Coach Sessions
   COACH_SESSIONS: 'palante_coach_sessions',
 
@@ -95,6 +100,10 @@ export const STORAGE_KEYS = {
 
   // Share Day 1 card — shown once after first practice is completed
   SHARE_DAY1_DISMISSED: 'palante_share_day1_dismissed',
+
+  // Date of the user's very first completed practice (ISO date, e.g. "2026-06-11").
+  // Used to suppress the automatic evening prompt on Day 1 so new users can explore first.
+  FIRST_PRACTICE_DATE: 'palante_first_practice_date',
 
   // Sign-in nudge — shown after user accumulates real data but hasn't created an account
   SIGNIN_NUDGE_DISMISSED: 'palante_signin_nudge_dismissed',

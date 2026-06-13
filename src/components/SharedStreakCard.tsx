@@ -24,11 +24,16 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
 }) => {
     const pal = BG_COLORS[colorCycle % BG_COLORS.length];
     const cycle = Math.floor(totalPractices / 90);
-    const petalsEarned = totalPractices > 0 && totalPractices % 90 === 0 ? 90 : totalPractices % 90;
-    const remaining = 90 - petalsEarned;
+    // completedDays drives the SVG: center lights at 1, outer petals grow from 2 onward.
+    const completedDays = totalPractices > 0 && totalPractices % 90 === 0 ? 90 : totalPractices % 90;
+    // Outer petals visible = completedDays - 1 (center is practice #1, not a "petal")
+    const outerPetals = Math.max(0, completedDays - 1);
+    const remaining = 90 - completedDays;
 
     const streakLabel = streak === 1 ? '1 day' : `${streak} days`;
-    const progressLine = `${petalsEarned} petal${petalsEarned !== 1 ? 's' : ''} earned · ${remaining} to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`;
+    const progressLine = outerPetals === 0
+        ? `Garden started · ${remaining} petals to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`
+        : `${outerPetals} petal${outerPetals !== 1 ? 's' : ''} earned · ${remaining} to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`;
 
     return (
         // NOTE: explicit px dimensions — html2canvas requires fixed sizes
@@ -49,40 +54,49 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
                 pointerEvents: 'none',
             }} />
 
-            {/* ── Streak badge ──────────────────────────── */}
+            {/* ── Streak badge — ghost pill ─────────────── */}
             <div style={{
                 position: 'absolute',
-                top: 10, left: 24, right: 24,
-                height: 48,
-                backgroundColor: pal.T,
-                borderRadius: 11,
+                top: 12, left: 0, right: 0,
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
                 justifyContent: 'center',
-                gap: 1,
             }}>
-                <span style={{
-                    fontSize: 7,
-                    fontWeight: 700,
-                    fontFamily: 'Poppins, sans-serif',
-                    color: 'rgba(253,251,247,0.82)',
-                    letterSpacing: '1.8px',
-                    textTransform: 'uppercase',
-                }}>Current Streak</span>
-                <span style={{
-                    fontSize: 20,
-                    fontWeight: 800,
-                    fontFamily: 'Poppins, sans-serif',
-                    color: '#FDFBF7',
-                    lineHeight: 1,
-                }}>{streakLabel}</span>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    paddingLeft: 14,
+                    paddingRight: 14,
+                    paddingTop: 6,
+                    paddingBottom: 6,
+                    borderRadius: 24,
+                    border: `1.5px solid ${pal.T}80`,
+                    backgroundColor: `${pal.T}12`,
+                }}>
+                    <span style={{
+                        fontSize: 7,
+                        fontWeight: 700,
+                        fontFamily: 'Inter, sans-serif',
+                        color: pal.T,
+                        letterSpacing: '1.4px',
+                        textTransform: 'uppercase',
+                        lineHeight: 1,
+                    }}>Streak</span>
+                    <div style={{ width: 1, height: 12, backgroundColor: pal.G, opacity: 0.3 }} />
+                    <span style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: 'Poppins, sans-serif',
+                        color: pal.G,
+                        lineHeight: 1,
+                    }}>{streakLabel}</span>
+                </div>
             </div>
 
             {/* ── Real mandala SVG ─────────────────────── */}
             <div style={{
                 position: 'absolute',
-                top: 62, left: 0, right: 0, height: 196,
+                top: 48, left: 0, right: 0, height: 210,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -140,8 +154,8 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
                     fontSize: 4.5,
                     fontFamily: 'Inter, sans-serif',
                     fontWeight: 500,
-                    color: pal.S,
-                    opacity: 0.7,
+                    color: '#FFFFFF',
+                    opacity: 0.65,
                     letterSpacing: '0.6px',
                     textTransform: 'uppercase',
                 }}>Forward, Together — Every Single Day</span>

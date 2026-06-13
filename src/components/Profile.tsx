@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { AuthModal } from './AuthModal';
 import { UpdatePasswordModal } from './UpdatePasswordModal';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
-import { getHealthAuthStatus, requestHealthPermissions } from '../utils/healthService';
+import { Capacitor } from '@capacitor/core';
 import { WidgetDataSync } from '../utils/widgetDataSync';
 import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
@@ -67,6 +67,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [career, setCareer] = useState(user.career);
     const [profession, setProfession] = useState(user.profession);
     const [interests, setInterests] = useState(user.interests.join(', '));
+    const [bio, setBio] = useState(user.bio || '');
     const [frequency, setFrequency] = useState(user.notificationFrequency || 2);
     const [hapticsEnabled, setHapticsEnabled] = useState(user.hapticsEnabled ?? true);
     const [journalPromptsEnabled, setJournalPromptsEnabled] = useState(user.journalPromptsEnabled ?? true);
@@ -109,12 +110,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [isRefreshingNarrative, setIsRefreshingNarrative] = useState(false);
     const isFirstRender = useRef(true);
 
-    const [healthStatus, setHealthStatus] = useState<'authorized' | 'denied' | 'notDetermined' | 'unavailable'>('notDetermined');
-
-    useEffect(() => {
-        getHealthAuthStatus().then(({ status }) => setHealthStatus(status));
-    }, []);
-
     const toggleSection = (section: keyof typeof openSections) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
@@ -131,6 +126,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                 career,
                 profession,
                 interests: interests.split(',').map(i => i.trim()).filter(i => i),
+                bio: bio.trim() || undefined,
                 notificationFrequency: frequency,
                 hapticsEnabled,
                 journalPromptsEnabled,
@@ -149,7 +145,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         });
         setTimeout(() => setSaveStatus('saved'), 600);
         setTimeout(() => setSaveStatus('idle'), 3000);
-    }, [name, age, coachName, career, profession, interests, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled, onUpdate]); // Removed 'user' dependency
+    }, [name, age, coachName, career, profession, interests, bio, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled, onUpdate]); // Removed 'user' dependency
 
     // Auto-save effect
     useEffect(() => {
@@ -163,7 +159,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         }, 1500); // Increased debounce to 1.5s for stability
 
         return () => clearTimeout(timer);
-    }, [name, age, coachName, career, profession, interests, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, weightGoal, practiceDays, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled]); // Removed performSave from deps
+    }, [name, age, coachName, career, profession, interests, bio, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, weightGoal, practiceDays, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled]); // Removed performSave from deps
 
     const handleSave = () => {
         performSave();
@@ -442,7 +438,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <div>
                                             <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>The Philosophy</h4>
                                             <p className="text-base leading-relaxed">
-                                                We're not here to optimize you. We're here so you feel better doing the things you love. That's the whole thing. If the practices work, you'll know. Not because of a score, but because the things you care about are getting easier to return to.
+                                                We're not here to optimize you. We're here so you feel better doing the things you love. If the practices work, you'll know. Not because of a score, but because the things you care about are getting easier to return to.
                                             </p>
                                         </div>
                                     </div>
@@ -731,6 +727,24 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+                            <div>
+                                <label className={labelClasses}>About me</label>
+                                <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
+                                    Share anything you want your partner to know — your situation, what you're working through, what matters most right now.
+                                </p>
+                                <textarea
+                                    value={bio}
+                                    onChange={e => setBio(e.target.value)}
+                                    rows={4}
+                                    maxLength={500}
+                                    className={inputClasses}
+                                    style={{ resize: 'none', lineHeight: '1.6' }}
+                                    placeholder="e.g., I'm a parent of two, running my own business while trying to stay sane. I'm working on not letting stress drive every decision..."
+                                />
+                                <p className={`text-xs mt-1 text-right ${isDarkMode ? 'text-white/25' : 'text-sage/30'}`}>
+                                    {bio.length}/500
+                                </p>
                             </div>
                         </div>
                     </CollapsibleSection>
@@ -1241,52 +1255,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         onToggle={() => toggleSection('data')}
                         isDarkMode={isDarkMode}
                     >
-                        {healthStatus !== 'unavailable' && (
-                            <div className={`w-full p-4 rounded-xl border-2 flex items-center justify-between gap-3 mb-3 ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                            <path d="M12 21C12 21 3 13.5 3 8.5C3 5.46 5.46 3 8.5 3C10.24 3 11.91 3.81 13 5.08C14.09 3.81 15.76 3 17.5 3C20.54 3 23 5.46 23 8.5C23 13.5 12 21 12 21Z" fill={healthStatus === 'authorized' ? '#C96A3A' : 'currentColor'} opacity={healthStatus === 'authorized' ? 1 : 0.3} />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Apple Health</p>
-                                        <p className={`text-xs ${healthStatus === 'authorized' ? 'text-[#C96A3A]' : isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>
-                                            {healthStatus === 'authorized' ? 'Connected' : healthStatus === 'denied' ? 'Access denied in Settings' : 'Not connected'}
-                                        </p>
-                                    </div>
-                                </div>
-                                {healthStatus !== 'denied' && (
-                                    <button
-                                        onClick={async () => {
-                                            const { status } = await requestHealthPermissions();
-                                            setHealthStatus(status);
-                                        }}
-                                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${healthStatus === 'authorized'
-                                            ? isDarkMode ? 'bg-white/10 text-white/60' : 'bg-sage/10 text-sage-dark/60'
-                                            : 'bg-[#C96A3A] text-white'
-                                        }`}
-                                    >
-                                        {healthStatus === 'authorized' ? 'Connected' : 'Connect'}
-                                    </button>
-                                )}
-                                {healthStatus === 'denied' && (
-                                    <button
-                                        onClick={async () => {
-                                            const { Capacitor } = await import('@capacitor/core');
-                                            if (Capacitor.isNativePlatform()) {
-                                                const { App } = await import('@capacitor/app');
-                                                await App.openUrl({ url: 'app-settings:' });
-                                            }
-                                        }}
-                                        className="text-xs px-3 py-1.5 rounded-lg font-medium bg-white/10 text-white/60 transition-all"
-                                    >
-                                        Open Settings
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
                         <button
                             onClick={async () => {
                                 const allData: any = {
@@ -1459,7 +1427,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                     </CollapsibleSection>
 
                     {/* Footer Actions */}
-                    <div className="flex flex-col gap-4 mt-12 mb-20">
+                    <div className="flex flex-col gap-4 mt-12" style={{ marginBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}>
                         <button
                             onClick={handleSave}
                             className={`w-full py-5 rounded-2xl font-bold text-lg transition-all active:scale-95 shadow-lg ${isDarkMode
@@ -1473,17 +1441,6 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
                 </div>
             </div >
-
-            {/* Save Button */}
-            <div className={`absolute bottom-0 left-0 right-0 p-6 backdrop-blur-xl border-t ${isDarkMode ? 'bg-rich-black/95 border-white/10' : 'bg-sage-mid/95 border-white/10'}`}>
-                <button
-                    onClick={handleSave}
-                    className="w-full max-w-md mx-auto py-4 rounded-full bg-pale-gold text-sage-dark font-body font-medium text-lg shadow-spa hover:shadow-spa-lg hover:scale-105 transition-all flex items-center justify-center gap-3"
-                >
-                    <Save size={20} />
-                    <span>Save Changes</span>
-                </button>
-            </div>
 
             {/* Modals */}
             <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} isDarkMode={isDarkMode} />

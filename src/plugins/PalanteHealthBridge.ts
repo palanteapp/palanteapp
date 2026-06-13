@@ -12,7 +12,7 @@ export interface HealthContext {
 
 export interface PalanteHealthBridgePlugin {
     checkAuthStatus(): Promise<HealthAuthStatus>;
-    requestPermissions(): Promise<HealthAuthStatus>;
+    requestHealthPermissions(): Promise<HealthAuthStatus>;
     getHealthContext(): Promise<HealthContext>;
     logMindfulSession(options: { startTime: number; endTime: number }): Promise<{ success: boolean }>;
 }
@@ -22,7 +22,7 @@ export const PalanteHealthBridge = registerPlugin<PalanteHealthBridgePlugin>(
     {
         web: {
             async checkAuthStatus() { return { status: 'unavailable' }; },
-            async requestPermissions() { return { status: 'unavailable' }; },
+            async requestHealthPermissions() { return { status: 'unavailable' }; },
             async getHealthContext() { return {}; },
             async logMindfulSession() { return { success: false }; },
         },

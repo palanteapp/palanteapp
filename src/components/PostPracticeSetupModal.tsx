@@ -27,6 +27,10 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
 }) => {
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
+    React.useEffect(() => {
+        if (!isOpen) setSelectedInterests([]);
+    }, [isOpen]);
+
     const toggleInterest = (tag: string) => {
         setSelectedInterests(prev =>
             prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
@@ -42,8 +46,8 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
     };
 
     const gold = '#E5D6A7';
-    const goldDim = 'rgba(229,214,167,0.50)';
-    const goldFaint = 'rgba(229,214,167,0.28)';
+    const goldDim = 'rgba(229,214,167,0.75)';
+    const goldFaint = 'rgba(229,214,167,0.45)';
 
     return (
         <AnimatePresence>
@@ -102,7 +106,7 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
                                 <h2 className="text-3xl font-display font-bold tracking-tight mb-1 text-white">
                                     What matters to you, {userName.split(' ')[0]}?
                                 </h2>
-                                <p className="text-sm mb-7" style={{ color: goldDim }}>
+                                <p className="text-sm mb-7 text-white/70">
                                     Palante uses this to personalize your daily affirmations.
                                 </p>
 
@@ -117,9 +121,9 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
                                                 whileTap={{ scale: 0.94 }}
                                                 className="px-5 py-2 rounded-full text-sm font-medium transition-all"
                                                 style={{
-                                                    background: selected ? gold : 'rgba(229,214,167,0.10)',
-                                                    border: `1px solid ${selected ? gold : goldFaint}`,
-                                                    color: selected ? '#2D3E33' : goldDim,
+                                                    background: selected ? gold : 'rgba(255,255,255,0.10)',
+                                                    border: `1px solid ${selected ? gold : 'rgba(255,255,255,0.25)'}`,
+                                                    color: selected ? '#2D3E33' : 'rgba(255,255,255,0.85)',
                                                     boxShadow: selected ? '0 4px 14px rgba(229,214,167,0.25)' : 'none',
                                                 }}
                                             >

@@ -9,6 +9,7 @@ interface ProfileCompletionCardProps {
         career?: string; // "Focus Goals" from Profile.tsx are stored here
         age?: number;
         contentTypePreference?: string;
+        coachName?: string;
     };
     isDarkMode: boolean;
     onOpenProfile: () => void;
@@ -64,6 +65,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
     onOpenProfile
 }) => {
     const [isDismissed, setIsDismissed] = useState(false);
+    const partnerName = user.coachName?.trim() || 'your partner';
 
     const completion = calculateCompletion(user);
     const missingFields = getMissingFields(user);
@@ -161,11 +163,11 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
                 <div className="flex-1 min-w-0">
                     <h4 className={`text-sm font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'
                         }`}>
-                        Personalize Your Experience
+                        Help {partnerName} get to know you
                     </h4>
-                    <p className={`text-xs mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'
+                    <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/50'
                         }`}>
-                        Complete your profile for better quotes & insights
+                        The more you share, the more {partnerName} can actually show up for you.
                     </p>
 
                     {/* Missing Fields Preview */}

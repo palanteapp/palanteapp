@@ -107,8 +107,8 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                 <button
                     onClick={handleAccept}
                     className={`w-full py-4 rounded-full font-body font-bold text-lg tracking-wide transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg ${isDarkMode
-                        ? 'bg-pale-gold text-rich-black hover:bg-white hover:text-black shadow-pale-gold/10'
-                        : 'bg-terracotta-500 text-white hover:bg-sage-600 shadow-terracotta-500/20'}`}
+                        ? 'bg-pale-gold text-sage-dark hover:bg-white shadow-pale-gold/10'
+                        : 'bg-[#C96A3A] text-white hover:bg-[#A8521F] shadow-terracotta-500/20'}`}
                 >
                     Enter Palante
                 </button>

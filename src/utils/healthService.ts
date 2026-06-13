@@ -13,7 +13,7 @@ export async function getHealthAuthStatus() {
 
 export async function requestHealthPermissions() {
     try {
-        return await PalanteHealthBridge.requestPermissions();
+        return await PalanteHealthBridge.requestHealthPermissions();
     } catch {
         return { status: 'unavailable' as const };
     }

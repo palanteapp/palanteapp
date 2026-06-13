@@ -22,6 +22,7 @@
 		FFCAC31D2FAFAEE50004F113 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */; };
 		FFAB10022F0000000000A002 /* PalanteAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */; };
 		FFAB10042F0000000000A004 /* PalanteWidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */; };
+		FFAB10072F0000000000A007 /* PalanteHealthBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */; };
 		FFAB10062F0000000000A006 /* bell.caf in Resources */ = {isa = PBXBuildFile; fileRef = FFAB10052F0000000000A005 /* bell.caf */; };
 /* End PBXBuildFile section */
 
@@ -71,6 +72,7 @@
 		FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteAudioBridge.swift; sourceTree = "<group>"; };
 		FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteWidgetBridge.swift; sourceTree = "<group>"; };
+		FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteHealthBridgePlugin.swift; sourceTree = "<group>"; };
 		FFAB10052F0000000000A005 /* bell.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = bell.caf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -147,6 +149,7 @@
 				FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */,
 				FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */,
 				FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */,
+				FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */,
 				FFAB10052F0000000000A005 /* bell.caf */,
 				FF3C671B2F929C05002A3778 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -327,6 +330,7 @@
 				FFCAC31D2FAFAEE50004F113 /* SceneDelegate.swift in Sources */,
 				FFAB10022F0000000000A002 /* PalanteAudioBridge.swift in Sources */,
 				FFAB10042F0000000000A004 /* PalanteWidgetBridge.swift in Sources */,
+				FFAB10072F0000000000A007 /* PalanteHealthBridgePlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

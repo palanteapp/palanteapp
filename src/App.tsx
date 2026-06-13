@@ -178,6 +178,7 @@ function AppContent() {
   // Resets on app launch so there's nothing to clean up before shipping.
   const [forcedEvening, setForcedEvening] = useState(false);
   const greetingTapsRef = useRef<{ count: number; firstTapAt: number }>({ count: 0, firstTapAt: 0 });
+  const lastSeenDateRef = useRef(getTodayDate());
   const handleGreetingTap = useCallback(() => {
     const now = Date.now();
     const TRIPLE_TAP_WINDOW_MS = 700;
@@ -241,7 +242,10 @@ function AppContent() {
     if (force && hasDailyIntention && wantsAI) {
       getAIQuote(activeUser)
         .then(saveQuote)
-        .catch(() => saveQuote(pickAndMarkQuote(activeUser, excludeId)));
+        .catch((err) => {
+          console.warn('[Palante] AI quote failed, using static fallback:', err);
+          saveQuote(pickAndMarkQuote(activeUser, excludeId));
+        });
       return;
     }
 
@@ -460,13 +464,22 @@ function AppContent() {
         interests: userData.interests ? userData.interests.split(',').map(i => i.trim()) : user.interests
       };
 
-      await updateProfile(updatedUser);
+      try {
+        await updateProfile(updatedUser);
+      } catch (err) {
+        console.error('[Palante] Failed to save onboarding profile:', err);
+      }
     }
 
-    // Drop the user directly into their first morning practice.
-    // This is the first real value moment — they get a personalized AI send-off
-    // and the "it knows me" feeling lands on Day 1 instead of Day 3.
-    setShowMorningPractice(true);
+    // Drop the user directly into their first practice.
+    // If they signed up at night, route to the evening practice so the first
+    // experience matches the time of day instead of asking them to "set the
+    // tone for the day" at 10 PM.
+    if (shouldShowEveningMode) {
+      setForcedEvening(true);
+    } else {
+      setShowMorningPractice(true);
+    }
   };
 
   const maybeShowNotifAsk = () => {
@@ -489,7 +502,11 @@ function AppContent() {
         contentTypePreference: prefs.contentType,
         sourcePreference: prefs.sourcePreference,
       };
-      await updateProfile(updatedUser);
+      try {
+        await updateProfile(updatedUser);
+      } catch (err) {
+        console.error('[Palante] Failed to save post-practice preferences:', err);
+      }
     }
     maybeShowNotifAsk();
   };
@@ -571,6 +588,10 @@ function AppContent() {
   // Garden streak share modal
   const [gardenShareOpen, setGardenShareOpen] = useState(false);
   const [isGeneratingStreakCard, setIsGeneratingStreakCard] = useState(false);
+
+  // Day 1 share modal — shows beautiful quote card instead of plain text
+  const [showDay1ShareModal, setShowDay1ShareModal] = useState(false);
+  const [isGeneratingDay1Card, setIsGeneratingDay1Card] = useState(false);
 
   // Routine Stack Runner
 
@@ -660,7 +681,9 @@ function AppContent() {
   // iOS throttles this to ~3 prompts per year, so calling it more often is harmless.
   const requestAppReview = useCallback(() => {
     if (Capacitor.isNativePlatform()) {
-      InAppReview.requestReview().catch(() => {});
+      InAppReview.requestReview().catch((err) => {
+        console.warn('[Palante] In-app review request failed (iOS throttle or unsupported):', err);
+      });
     }
   }, []);
 
@@ -1193,6 +1216,11 @@ function AppContent() {
     // Mark that the user has genuinely completed a practice (gates the paywall on next open).
     // Intentionally here — on completion — not on modal close, so abandoners don't get locked out.
     localStorage.setItem(STORAGE_KEYS.APP_USED, 'true');
+    setAppUsed(true);
+    // Record date of very first practice so the evening prompt is suppressed on Day 1.
+    if (!localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE)) {
+      localStorage.setItem(STORAGE_KEYS.FIRST_PRACTICE_DATE, new Date().toISOString().split('T')[0]);
+    }
     // Guard against the morning ritual re-appearing if the user context is momentarily stale
     // (e.g. React re-render before updateProfile propagates). Cleared automatically each session.
     sessionStorage.setItem(SESSION_KEYS.MORNING_DONE, 'true');
@@ -1212,10 +1240,25 @@ function AppContent() {
       updatedPriming.push(data);
     }
 
+    // Calculate streak the same way logActivity does — morning priming is the primary
+    // daily practice so it must update user.streak, not just practiceData.
+    const todayStr = getTodayDate();
+    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+    const yesterdayStr = `${yd.getFullYear()}-${String(yd.getMonth()+1).padStart(2,'0')}-${String(yd.getDate()).padStart(2,'0')}`;
+    const hadActivityTodayBefore = (user.activityHistory || []).some(log => log.date === todayStr)
+        || (user.practiceData?.activityHistory || []).some(a => a.date === todayStr);
+    const hadActivityYesterday = (user.activityHistory || []).some(log => log.date === yesterdayStr)
+        || (user.practiceData?.activityHistory || []).some(a => a.date === yesterdayStr);
+    let newStreak = user.streak || 0;
+    if (!hadActivityTodayBefore) {
+        newStreak = hadActivityYesterday ? newStreak + 1 : 1;
+    }
+
     const updatedUser: UserProfile = {
       ...user,
       dailyPriming: updatedPriming,
       points: (user.points || 0) + 5,
+      streak: newStreak,
       practiceData: logPractice(user.practiceData || migrateStreakToPractice(user), 'morning_priming')
     };
     updateProfile(updatedUser);
@@ -1280,6 +1323,11 @@ function AppContent() {
     todaysPriming?.dailyIntention ||
     (user?.dailyMorningPractice || []).find(p => p.date === todayDate)?.dailyIntention;
 
+  // Suppress the automatic evening prompt on the same day as the user's very first practice
+  // so they get time to explore before being pushed into a second session.
+  // forcedEvening (night-signup onboarding path) is intentional and still goes through.
+  const isFirstPracticeDay = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE) === todayDate;
+
   // Morning practice flow: hide header + nav during the full morning ritual
   const [beat1Step, setBeat1Step] = useState<string>('intro');
   const ritualDoneToday = !!todaysIntention || !!sessionStorage.getItem(SESSION_KEYS.MORNING_DONE);
@@ -1293,6 +1341,18 @@ function AppContent() {
 
   // Completion moment: captures the intention word right as practice finishes
   const [completionIntention, setCompletionIntention] = useState<string>('');
+
+  // Tracks whether the user has completed at least one practice (gates the paywall)
+  const [appUsed, setAppUsed] = useState(() => !!localStorage.getItem(STORAGE_KEYS.APP_USED));
+
+  // Day 1 share card — dismissed via X or after sharing
+  const [shareDayOneDismissed, setShareDayOneDismissed] = useState(
+    () => !!localStorage.getItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED)
+  );
+  const dismissShareDayOne = () => {
+    localStorage.setItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED, 'true');
+    setShareDayOneDismissed(true);
+  };
 
   // Profile nudge — shown once after first practice completes
   const [showProfileNudge, setShowProfileNudge] = useState(false);
@@ -1428,11 +1488,17 @@ function AppContent() {
 
     const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return;
-      // Refresh widget quotes
       if (user) WidgetDataSync.refreshQuotes(user);
+      // Detect day rollover — refresh date-sensitive content when the user returns on a new day
+      const today = getTodayDate();
+      if (today !== lastSeenDateRef.current) {
+        lastSeenDateRef.current = today;
+        refreshDailyQuote(false);
+        generateGardenAffirmation(false);
+      }
     });
     return () => { listener.then(h => h.remove()); };
-  }, [user]);
+  }, [user, refreshDailyQuote, generateGardenAffirmation]);
 
 
 
@@ -1466,7 +1532,7 @@ function AppContent() {
 
   // PAYWALL — show when user has no active subscription AND has already experienced the app.
   // New users get through to their first morning practice before we ask for money.
-  if (!isPro && localStorage.getItem(STORAGE_KEYS.APP_USED)) {
+  if (!isPro && appUsed) {
     const gratitudeCount = (user?.dailyMorningPractice || user?.dailyPriming || [])
       .reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
     return (
@@ -1757,7 +1823,9 @@ function AppContent() {
             }
 
             // ── BEAT 1 · EVENING ARRIVAL ────────────────────────────────────────
-            if ((shouldShowEveningMode || forcedEvening) && !eveningDoneToday && !eveningSkipped && user) {
+            // On Day 1, shouldShowEveningMode is suppressed so new users can explore.
+            // forcedEvening (night-signup onboarding) bypasses this — it's intentional.
+            if (((shouldShowEveningMode && !isFirstPracticeDay) || forcedEvening) && !eveningDoneToday && !eveningSkipped && user) {
               return (
                 <div
                   className="flex flex-col px-6 max-w-md mx-auto overflow-y-auto"
@@ -1778,6 +1846,9 @@ function AppContent() {
                       }
                       onStepChange={setEveningStep}
                       onComplete={(data) => {
+                        if (!localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE)) {
+                          localStorage.setItem(STORAGE_KEYS.FIRST_PRACTICE_DATE, new Date().toISOString().split('T')[0]);
+                        }
                         const existingEntries = user.dailyEveningPractice || [];
                         const otherEntries = existingEntries.filter(p => p.date !== todayDate);
                         updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data] });
@@ -1916,7 +1987,7 @@ function AppContent() {
                 {/* ── Share Day 1 card — shown once after first practice ── */}
                 <AnimatePresence>
                   {(user?.practiceData?.totalPractices ?? 0) === 1
-                    && !localStorage.getItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED) && (
+                    && !shareDayOneDismissed && (
                     <motion.div
                       key="share-day1"
                       className="mb-5"
@@ -1936,16 +2007,9 @@ function AppContent() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <button
-                            onClick={async () => {
-                              try {
-                                const { Share } = await import('@capacitor/share');
-                                await Share.share({
-                                  title: 'Day 1 with Palante',
-                                  text: `Just completed my first morning practice with Palante — an app for intention, gratitude, and forward motion. If you're looking to build a daily practice, check it out. 🌱 #PalanteApp`,
-                                  dialogTitle: 'Share Palante',
-                                });
-                              } catch { /* user cancelled or no share support */ }
-                              localStorage.setItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED, 'true');
+                            onClick={() => {
+                              haptics.light();
+                              setShowDay1ShareModal(true);
                             }}
                             className="px-3 py-2 rounded-xl text-xs font-bold text-white"
                             style={{ background: '#C96A3A' }}
@@ -1954,7 +2018,7 @@ function AppContent() {
                           </button>
                           <button
                             onClick={() => {
-                              localStorage.setItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED, 'true');
+                              dismissShareDayOne();
                               haptics.light();
                             }}
                             className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
@@ -2008,6 +2072,17 @@ function AppContent() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* ── Profile completion card — persistent until 90% complete or dismissed 3x ── */}
+                {user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                  <Suspense fallback={null}>
+                    <ProfileCompletionCard
+                      user={user}
+                      isDarkMode={isDarkMode}
+                      onOpenProfile={() => { haptics.light(); setShowProfile(true); }}
+                    />
+                  </Suspense>
+                )}
 
                 {/* ── Sign-in nudge — shown after 2+ sessions with no account ── */}
                 <AnimatePresence>
@@ -3041,7 +3116,10 @@ function AppContent() {
             try {
               const { shareStreakCard } = await import('./utils/shareUtils');
               await shareStreakCard({
-                streak: user.practiceData?.currentStreak ?? user.streak ?? 0,
+                streak:         user.practiceData?.currentStreak ?? user.streak ?? 0,
+                colorCycle:     user.mandalaColorCycle ?? 0,
+                totalPractices: user.practiceData?.totalPractices ?? 0,
+                firstName:      user.name?.split(' ')[0] || undefined,
               });
             } finally {
               setIsGeneratingStreakCard(false);
@@ -3051,12 +3129,64 @@ function AppContent() {
             setIsGeneratingStreakCard(true);
             try {
               const { downloadStreakCard } = await import('./utils/shareUtils');
-              await downloadStreakCard();
+              await downloadStreakCard({
+                colorCycle:     user.mandalaColorCycle ?? 0,
+                totalPractices: user.practiceData?.totalPractices ?? 0,
+                firstName:      user.name?.split(' ')[0] || undefined,
+              });
             } finally {
               setIsGeneratingStreakCard(false);
             }
           }}
           isGeneratingImage={isGeneratingStreakCard}
+        />
+      )}
+
+      {/* Day 1 share modal — uses the existing beautiful quote card */}
+      {showDay1ShareModal && user && (
+        <ShareModal
+          isOpen={showDay1ShareModal}
+          onClose={() => { setShowDay1ShareModal(false); dismissShareDayOne(); }}
+          isDarkMode={isDarkMode}
+          streakData={{
+            streak: user.practiceData?.currentStreak ?? user.streak ?? 0,
+            totalPractices: user.practiceData?.totalPractices ?? 0,
+            colorCycle: user.mandalaColorCycle ?? 0,
+            firstName: user.name?.split(' ')[0] || undefined,
+          }}
+          onGenerateImage={async () => {
+            setIsGeneratingDay1Card(true);
+            try {
+              const { shareStreakCard } = await import('./utils/shareUtils');
+              await shareStreakCard({
+                streak:         user.practiceData?.currentStreak ?? user.streak ?? 0,
+                colorCycle:     user.mandalaColorCycle ?? 0,
+                totalPractices: user.practiceData?.totalPractices ?? 0,
+                firstName:      user.name?.split(' ')[0] || undefined,
+              });
+              dismissShareDayOne();
+            } catch (err) {
+              console.error('[Palante] Day 1 share error:', err);
+            } finally {
+              setIsGeneratingDay1Card(false);
+            }
+          }}
+          onDownloadImage={async () => {
+            setIsGeneratingDay1Card(true);
+            try {
+              const { downloadStreakCard } = await import('./utils/shareUtils');
+              await downloadStreakCard({
+                colorCycle:     user.mandalaColorCycle ?? 0,
+                totalPractices: user.practiceData?.totalPractices ?? 0,
+                firstName:      user.name?.split(' ')[0] || undefined,
+              });
+            } catch (err) {
+              console.error('[Palante] Day 1 download error:', err);
+            } finally {
+              setIsGeneratingDay1Card(false);
+            }
+          }}
+          isGeneratingImage={isGeneratingDay1Card}
         />
       )}
 

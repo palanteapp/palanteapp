@@ -66,7 +66,8 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 ageRange: undefined,
             });
         } catch (err) {
-            console.error('CinematicIntro error:', err);
+            console.error('[Palante] CinematicIntro completion error:', err);
+        } finally {
             setIsSubmitting(false);
         }
     };
@@ -162,7 +163,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
 
                         {/* Wordmark */}
                         <motion.h1
-                            className="text-5xl font-display font-bold text-white tracking-tight mb-4"
+                            className="text-7xl font-display font-bold text-white tracking-tight mb-4"
                             style={{ textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}
                             initial={{ opacity: 0, y: 14 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -184,7 +185,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.52 }}
                         >
-                            The partner who knows you.
+                            Your personal growth partner.
                         </motion.p>
 
                         {/* CTA */}

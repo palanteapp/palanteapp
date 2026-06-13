@@ -8,7 +8,7 @@ public class PalanteHealthBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "PalanteHealthBridge"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "checkAuthStatus", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestHealthPermissions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getHealthContext", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "logMindfulSession", returnType: CAPPluginReturnPromise),
     ]
@@ -33,12 +33,13 @@ public class PalanteHealthBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["status": "unavailable"])
             return
         }
-        // We check sleep as the representative read type
-        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+        // Check the write type (mindfulSession) — HealthKit always returns notDetermined
+        // for read-only types, so checking them is useless for connection state.
+        guard let mindfulType = HKObjectType.categoryType(forIdentifier: .mindfulSession) else {
             call.resolve(["status": "unavailable"])
             return
         }
-        let status = store.authorizationStatus(for: sleepType)
+        let status = store.authorizationStatus(for: mindfulType)
         switch status {
         case .sharingAuthorized:
             call.resolve(["status": "authorized"])
@@ -49,17 +50,31 @@ public class PalanteHealthBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc func requestHealthPermissions(_ call: CAPPluginCall) {
         guard HKHealthStore.isHealthDataAvailable() else {
             call.resolve(["status": "unavailable"])
             return
         }
-        store.requestAuthorization(toShare: writeTypes, read: readTypes) { success, error in
+        store.requestAuthorization(toShare: writeTypes, read: readTypes) { _, error in
             if let error = error {
                 call.reject("HealthKit auth failed: \(error.localizedDescription)")
                 return
             }
-            call.resolve(["status": success ? "authorized" : "denied"])
+            // Check the write-type status — HealthKit never reveals read-permission state.
+            guard let mindfulType = HKObjectType.categoryType(forIdentifier: .mindfulSession) else {
+                call.resolve(["status": "authorized"])
+                return
+            }
+            let status = self.store.authorizationStatus(for: mindfulType)
+            switch status {
+            case .sharingAuthorized:
+                call.resolve(["status": "authorized"])
+            case .sharingDenied:
+                call.resolve(["status": "denied"])
+            default:
+                // Dialog was presented — treat as authorized (read access may still be granted)
+                call.resolve(["status": "authorized"])
+            }
         }
     }
 

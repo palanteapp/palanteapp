@@ -57,7 +57,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     const hasContent = !!(quote || reflection || weeklyReflection || streakData);
 
     return (
-        <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode}>
+        <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode} position="center">
             <div className="p-6 flex flex-col items-center w-full">
                 {/* Content Preview — ID used as html2canvas capture target */}
                 <div id="share-preview-container"

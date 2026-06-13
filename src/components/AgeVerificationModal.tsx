@@ -80,7 +80,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     ];
 
     return (
-        <SlideUpModal isOpen={isOpen} onClose={required ? () => {} : onClose} isDarkMode={isDarkMode} showCloseButton={!required}>
+        <SlideUpModal isOpen={isOpen} onClose={required ? () => {} : onClose} isDarkMode={isDarkMode} showCloseButton={!required} position="center">
             <div className="p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">

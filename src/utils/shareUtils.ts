@@ -97,6 +97,8 @@ function roundedRect(
     ctx: CanvasRenderingContext2D,
     x: number, y: number, w: number, h: number, r: number,
 ) {
+    // Cap radius so corners never overlap — beyond half the shortest side produces sharp artifacts
+    r = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
     ctx.moveTo(x + r, y);
     ctx.lineTo(x + w - r, y);
@@ -806,32 +808,270 @@ export async function shareMilestoneAsImage(params: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Streak share card — captures #streak-share-card via html2canvas at 5.4×
-// scale to produce a ~1080×1922 image from the 200×356 SharedStreakCard div.
-// This preserves the real mandala with the user's actual earned petals.
+// Streak share card — drawn entirely with Canvas 2D (no html2canvas).
+// html2canvas fails silently on elements inside position:fixed modals in
+// WKWebView, which is exactly where SharedStreakCard lives. Direct canvas
+// drawing is the only reliable path.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function captureStreakCardAsBase64(): Promise<{ base64: string; fileName: string }> {
-    const element = document.getElementById('streak-share-card');
-    if (!element) throw new Error('streak-share-card element not found');
+// Full palette per cycle — mirrors SharedStreakCard's BG_COLORS exactly
+const STREAK_CARD_PAL = [
+    { bg0: '#1A3320', bg1: '#243D2A', T: '#C96A3A', G: '#E5D6A7', S: '#415D43', story0: '#1A3320', story1: '#0F1E13' },
+    { bg0: '#12103A', bg1: '#1A1B42', T: '#6B4FBB', G: '#C5C0F0', S: '#2D3E6B', story0: '#12103A', story1: '#0A0922' },
+    { bg0: '#2A1E04', bg1: '#2C220A', T: '#C89030', G: '#F5E8B0', S: '#5C4A10', story0: '#2A1E04', story1: '#1A1202' },
+    { bg0: '#2A0A14', bg1: '#2C101A', T: '#C95080', G: '#F0C8D8', S: '#6B2A3A', story0: '#2A0A14', story1: '#1A060C' },
+] as const;
 
-    const html2canvas = (await import('html2canvas')).default;
-    const canvas = await html2canvas(element, {
-        useCORS: true,
-        scale: 5.4,
-        backgroundColor: null,
-        logging: false,
+function hexAlpha(hex: string, alpha: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function loadImg(src: string): Promise<HTMLImageElement> {
+    return new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
     });
+}
 
-    const base64 = canvas.toDataURL('image/jpeg', 0.93).split(',')[1];
+async function generateStreakStoryImage(params: {
+    streak: number;
+    totalPractices: number;
+    colorCycle: number;
+    firstName?: string;
+}): Promise<{ base64: string; fileName: string }> {
+    const { streak, totalPractices, colorCycle, firstName } = params;
+    const pal = STREAK_CARD_PAL[colorCycle % STREAK_CARD_PAL.length];
+
+    const completedDays = totalPractices > 0 && totalPractices % 90 === 0 ? 90 : totalPractices % 90;
+    const outerPetals   = Math.max(0, completedDays - 1);
+    const remaining     = 90 - completedDays;
+    const cycle         = Math.floor(totalPractices / 90);
+    const streakLabel   = streak === 1 ? '1 day' : `${streak} days`;
+    const progressLine  = outerPetals === 0
+        ? `Garden started · ${remaining} petals to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`
+        : `${outerPetals} petal${outerPetals !== 1 ? 's' : ''} earned · ${remaining} to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`;
+
+    // Canvas — 1080×1920 Instagram Stories format
+    const W = 1080, H = 1920;
+    // Card is 3× the 200×356 CSS card
+    const CW = 600, CH = 1068, CR = 48;
+    // Center in the safe zone: keep bottom 520px free for Instagram's chrome
+    const CX = Math.round((W - CW) / 2);
+    const CY = Math.round(Math.max(80, ((H - 520) - CH) / 2));
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+
+    try {
+        await Promise.all([
+            document.fonts.load('700 21px Inter'),
+            document.fonts.load('700 36px Poppins'),
+            document.fonts.load('700 21px Poppins'),
+            document.fonts.load('500 18px Inter'),
+            document.fonts.load('500 14px Inter'),
+        ]);
+    } catch { /* system fallback */ }
+    await document.fonts.ready;
+
+    // ── Story background ─────────────────────────────────────────────────────
+    const glowCY = CY + CH * 0.37;
+    const bg = ctx.createRadialGradient(W / 2, glowCY, 0, W / 2, glowCY, H * 0.65);
+    bg.addColorStop(0, pal.story0);
+    bg.addColorStop(1, pal.story1);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const vign = ctx.createRadialGradient(W / 2, CY + CH / 2, H * 0.2, W / 2, CY + CH / 2, H * 0.7);
+    vign.addColorStop(0, 'rgba(0,0,0,0)');
+    vign.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = vign;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Card shadow + fill ───────────────────────────────────────────────────
+    ctx.save();
+    ctx.shadowColor   = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur    = 60;
+    ctx.shadowOffsetY = 20;
+    ctx.fillStyle     = pal.bg0;
+    roundedRect(ctx, CX, CY, CW, CH, CR);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = pal.bg0;
+    roundedRect(ctx, CX, CY, CW, CH, CR);
+    ctx.fill();
+
+    // Ambient glow clipped to card
+    ctx.save();
+    roundedRect(ctx, CX, CY, CW, CH, CR);
+    ctx.clip();
+    const mandalaGlowCY = CY + 144 + 315; // mandala visual centre
+    const glow = ctx.createRadialGradient(W / 2, mandalaGlowCY, 0, W / 2, mandalaGlowCY, CW * 0.55);
+    glow.addColorStop(0, hexAlpha(pal.T, 0.16));
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(CX, CY, CW, CH);
+    ctx.restore();
+
+    // ── Streak badge pill ────────────────────────────────────────────────────
+    ctx.font = '700 21px Inter, sans-serif';
+    const labelW = ctx.measureText('STREAK').width;
+    ctx.font = '700 36px Poppins, sans-serif';
+    const daysW = ctx.measureText(streakLabel).width;
+
+    const PILL_PAD = 42, GAP = 24, DIV_W = 3, PILL_H = 52;
+    const PILL_W   = PILL_PAD + labelW + GAP + DIV_W + GAP + daysW + PILL_PAD;
+    const PILL_TOP = CY + 36;
+    const PILL_X   = Math.round(CX + CW / 2 - PILL_W / 2);
+
+    ctx.fillStyle   = hexAlpha(pal.T, 0.07);
+    ctx.strokeStyle = hexAlpha(pal.T, 0.5);
+    ctx.lineWidth   = 4.5;
+    roundedRect(ctx, PILL_X, PILL_TOP, PILL_W, PILL_H, 72);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font         = '700 21px Inter, sans-serif';
+    ctx.fillStyle    = pal.T;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('STREAK', PILL_X + PILL_PAD, PILL_TOP + PILL_H / 2);
+
+    const divX = PILL_X + PILL_PAD + labelW + GAP;
+    ctx.save();
+    ctx.globalAlpha  = 0.3;
+    ctx.strokeStyle  = pal.G;
+    ctx.lineWidth    = 3;
+    ctx.beginPath();
+    ctx.moveTo(divX, PILL_TOP + 10);
+    ctx.lineTo(divX, PILL_TOP + PILL_H - 10);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.font         = '700 36px Poppins, sans-serif';
+    ctx.fillStyle    = pal.G;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(streakLabel, divX + DIV_W + GAP, PILL_TOP + PILL_H / 2 + 2);
+
+    // ── Mandala SVG ──────────────────────────────────────────────────────────
+    // Grab the live SVG rendered in the ShareModal, serialize to data URL,
+    // and draw it on canvas — more reliable than html2canvas in WKWebView.
+    const svgEl = document.querySelector('#streak-share-card svg') as SVGElement | null;
+    // Match DOM card: mandala container is full card width × 210/356 of card height
+    const MANDALA_SIZE = CW;
+    const MANDALA_X    = CX;
+    const MANDALA_Y    = CY + 144; // 48 CSS × 3
+
+    ctx.save();
+    roundedRect(ctx, CX, CY, CW, CH, CR);
+    ctx.clip();
+
+    if (svgEl) {
+        try {
+            const clone = svgEl.cloneNode(true) as SVGElement;
+            clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            clone.setAttribute('width', String(MANDALA_SIZE));
+            clone.setAttribute('height', String(MANDALA_SIZE));
+            const svgStr = new XMLSerializer().serializeToString(clone);
+            const b64    = btoa(unescape(encodeURIComponent(svgStr)));
+            const mandalaImg = await loadImg(`data:image/svg+xml;base64,${b64}`);
+            ctx.drawImage(mandalaImg, MANDALA_X, MANDALA_Y, MANDALA_SIZE, MANDALA_SIZE);
+        } catch {
+            // Soft fallback: faint circle so the card still looks intentional
+            ctx.globalAlpha = 0.12;
+            ctx.fillStyle   = pal.T;
+            ctx.beginPath();
+            ctx.arc(CX + CW / 2, MANDALA_Y + MANDALA_SIZE / 2, MANDALA_SIZE / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    ctx.restore();
+
+    // ── Info panel ───────────────────────────────────────────────────────────
+    const INFO_MX = 42, INFO_B = 30;
+    const INFO_W  = CW - INFO_MX * 2;
+    const INFO_H  = firstName ? 178 : 148;
+    const INFO_X  = CX + INFO_MX;
+    const INFO_Y  = CY + CH - INFO_B - INFO_H;
+
+    ctx.fillStyle = pal.bg1;
+    roundedRect(ctx, INFO_X, INFO_Y, INFO_W, INFO_H, 30);
+    ctx.fill();
+
+    // Progress line
+    ctx.font         = '500 18px Inter, sans-serif';
+    ctx.fillStyle    = pal.G;
+    ctx.globalAlpha  = 0.88;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(progressLine, INFO_X + INFO_W / 2, INFO_Y + 24);
+    ctx.globalAlpha = 1;
+
+    let curY = INFO_Y + 24 + 26;
+
+    if (firstName) {
+        ctx.font        = '400 16px Inter, sans-serif';
+        ctx.fillStyle   = pal.G;
+        ctx.globalAlpha = 0.5;
+        ctx.fillText(`${firstName}'s garden`, INFO_X + INFO_W / 2, curY);
+        ctx.globalAlpha = 1;
+        curY += 26;
+    }
+
+    curY += 10;
+    ctx.save();
+    ctx.globalAlpha  = 0.2;
+    ctx.strokeStyle  = pal.G;
+    ctx.lineWidth    = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(INFO_X + INFO_W * 0.1, curY);
+    ctx.lineTo(INFO_X + INFO_W * 0.9, curY);
+    ctx.stroke();
+    ctx.restore();
+    curY += 14;
+
+    ctx.font         = '700 21px Poppins, sans-serif';
+    ctx.fillStyle    = pal.T;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('PALANTE.APP', INFO_X + INFO_W / 2, curY);
+    curY += 30;
+
+    ctx.font        = '500 14px Inter, sans-serif';
+    ctx.fillStyle   = '#FFFFFF';
+    ctx.globalAlpha = 0.65;
+    ctx.fillText('FORWARD, TOGETHER — EVERY SINGLE DAY', INFO_X + INFO_W / 2, curY);
+    ctx.globalAlpha = 1;
+
+    const base64   = canvas.toDataURL('image/jpeg', 0.93).split(',')[1];
     const fileName = `palante_streak_${Date.now()}.jpg`;
     return { base64, fileName };
 }
 
-export async function shareStreakCard(params: { streak: number }): Promise<void> {
+export async function shareStreakCard(params: {
+    streak: number;
+    colorCycle?: number;
+    totalPractices?: number;
+    firstName?: string;
+}): Promise<void> {
     haptics.light();
     try {
-        const { base64, fileName } = await captureStreakCardAsBase64();
+        const { base64, fileName } = await generateStreakStoryImage({
+            streak:         params.streak,
+            totalPractices: params.totalPractices ?? 0,
+            colorCycle:     params.colorCycle     ?? 0,
+            firstName:      params.firstName,
+        });
 
         const saved = await Filesystem.writeFile({
             path: fileName,
@@ -840,11 +1080,9 @@ export async function shareStreakCard(params: { streak: number }): Promise<void>
         });
 
         const { streak } = params;
-        const shareText = `${streak} day${streak !== 1 ? 's' : ''} and counting. Growing with Palante.\npalante.app`;
-
         await Share.share({
             title:       'My Palante Streak',
-            text:        shareText,
+            text:        `${streak} day${streak !== 1 ? 's' : ''} and counting. Growing with Palante.\npalante.app`,
             files:       [saved.uri],
             dialogTitle: 'Share your streak',
         });
@@ -854,19 +1092,32 @@ export async function shareStreakCard(params: { streak: number }): Promise<void>
         console.error('Streak share failed:', err);
         haptics.error();
         try {
-            const { streak } = params;
             await Share.share({
                 title: 'My Palante Streak',
-                text:  `${streak} day${streak !== 1 ? 's' : ''} and counting. Growing with Palante.`,
+                text:  `${params.streak} day${params.streak !== 1 ? 's' : ''} and counting. Growing with Palante.`,
             });
         } catch { /* silence */ }
     }
 }
 
-export async function downloadStreakCard(): Promise<void> {
+export async function downloadStreakCard(params: {
+    colorCycle?: number;
+    totalPractices?: number;
+    firstName?: string;
+} | number = 0): Promise<void> {
+    // Accept legacy `colorCycle` number call or new params object
+    const p = typeof params === 'number'
+        ? { colorCycle: params, totalPractices: 0, firstName: undefined }
+        : params;
+
     haptics.light();
     try {
-        const { base64, fileName } = await captureStreakCardAsBase64();
+        const { base64, fileName } = await generateStreakStoryImage({
+            streak:         0,
+            totalPractices: p.totalPractices ?? 0,
+            colorCycle:     p.colorCycle     ?? 0,
+            firstName:      p.firstName,
+        });
 
         const saved = await Filesystem.writeFile({
             path: fileName,

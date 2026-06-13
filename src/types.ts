@@ -112,6 +112,7 @@ export interface UserProfile {
     ageVerified?: boolean; // Has user provided DOB
     journalPromptsEnabled?: boolean; // Show prompts in daily reflection (default: true)
     aiDisabled?: boolean; // Master switch to disable all AI features (default: false)
+    bio?: string; // Free-text intro the user shares with their AI partner
     focusAreas?: ('stress' | 'focus' | 'sleep' | 'confidence' | 'relationships' | 'productivity')[]; // What user is working on
     restDays?: string[]; // ISO date strings of intentional rest days (preserves streak)
     practiceDays?: number[]; // 0=Sun, 1=Mon … 6=Sat — days user intends to practice each week
