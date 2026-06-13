@@ -21,6 +21,7 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
     onClose,
     children,
     isDarkMode,
+    title,
     showCloseButton = true,
     fullScreen = false,
     position = 'top',
@@ -93,6 +94,9 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
             {/* Modal Container */}
             <div className={`relative z-10 min-h-[100dvh] flex ${position === 'center' ? 'items-center px-4' : position === 'top' ? 'items-start pt-16 px-4' : 'items-end sm:items-center'} justify-center p-0 ${fullScreen ? '' : 'sm:p-4'} pointer-events-none`}>
                 <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={title}
                     className={`
                         pointer-events-auto
                         relative w-full overflow-hidden
@@ -148,6 +152,7 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                     {showCloseButton && (
                         <div className={`absolute top-4 right-4 z-50 pointer-events-auto ${fullScreen ? 'mt-[env(safe-area-inset-top)]' : ''}`}>
                             <button
+                                aria-label="Close"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onClose();

@@ -86,6 +86,9 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
 
     return (
         <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Morning practice"
             className={`fixed inset-0 z-[60] flex flex-col pb-[env(safe-area-inset-bottom)] transition-all duration-500 ${isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
             style={{ background: '#415D43' }}
         >

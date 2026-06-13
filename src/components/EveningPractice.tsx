@@ -34,10 +34,10 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
 
     const commitmentText = todayMorningCommitment?.trim() || '';
     const intentionText = todayMorningIntention?.trim() || '';
-    // Show the check-in beat if there's EITHER a concrete commitment OR a one-word intention to anchor on.
-    const hasCheckIn = !!(commitmentText || intentionText);
-    // Renamed locally to keep the rest of the file's existing references working.
-    const hasCommitment = hasCheckIn;
+    // Commitment check-in step is intentionally disabled — evening flows straight to GLAD.
+    // morningCommitment is still forwarded to the AI for message context (line 88).
+    const hasCommitment = false;
+    void commitmentText; void intentionText; // suppress unused-var warnings
 
     const [step, setStep] = useState<'intro' | 'commitment' | 'gratitude' | 'learning' | 'accomplishment' | 'delight' | 'message'>('intro');
 
@@ -200,6 +200,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
                 <textarea
                     value={commitmentReflection}
                     onChange={(e) => setCommitmentReflection(e.target.value)}
+                    aria-label={checkInPrompt}
                     placeholder="Whatever's true. No score, no judgment."
                     className={`w-full text-lg bg-transparent border rounded-xl p-4 outline-none transition-all min-h-[100px] resize-none ${inputBg} ${textPrimary} placeholder:opacity-40`}
                     autoFocus
@@ -250,6 +251,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
                 <textarea
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
+                    aria-label={subtitle}
                     placeholder={placeholder}
                     className={`w-full text-lg bg-transparent border rounded-xl p-4 outline-none transition-all min-h-[120px] resize-none ${inputBg} ${textPrimary} placeholder:opacity-40`}
                     autoFocus
@@ -290,8 +292,8 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
         return (
             <div className="w-full flex flex-col items-center animate-fade-in">
                 {isGenerating ? (
-                    <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                        <Loader2 size={36} className={`animate-spin ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
+                    <div role="status" className="flex flex-col items-center justify-center py-12 space-y-4">
+                        <Loader2 size={36} aria-hidden className={`animate-spin ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`} />
                         <p className={`text-sm font-medium ${textSecondary}`}>Crafting your evening summary...</p>
                     </div>
                 ) : (
@@ -371,13 +373,27 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
             </div>
 
             {/* Progress Dots */}
-            {step !== 'intro' && step !== 'message' && (
-                <div className="flex justify-center gap-2 mt-6">
-                    {(hasCommitment ? ['commitment', 'gratitude', 'learning', 'accomplishment', 'delight'] : ['gratitude', 'learning', 'accomplishment', 'delight']).map((s) => (
-                        <div key={s} className={`w-2 h-2 rounded-full transition-all ${step === s ? (isDarkMode ? 'bg-pale-gold w-6' : 'bg-sage w-6') : (isDarkMode ? 'bg-white/20' : 'bg-sage/20')}`} />
-                    ))}
-                </div>
-            )}
+            {step !== 'intro' && step !== 'message' && (() => {
+                const steps = hasCommitment
+                    ? ['commitment', 'gratitude', 'learning', 'accomplishment', 'delight']
+                    : ['gratitude', 'learning', 'accomplishment', 'delight'];
+                const stepIndex = steps.indexOf(step) + 1;
+                return (
+                    <div
+                        className="flex justify-center gap-2 mt-6"
+                        role="progressbar"
+                        aria-label="Reflection progress"
+                        aria-valuemin={1}
+                        aria-valuemax={steps.length}
+                        aria-valuenow={stepIndex}
+                        aria-valuetext={`Step ${stepIndex} of ${steps.length}`}
+                    >
+                        {steps.map((s) => (
+                            <div key={s} className={`w-2 h-2 rounded-full transition-all ${step === s ? (isDarkMode ? 'bg-pale-gold w-6' : 'bg-sage w-6') : (isDarkMode ? 'bg-white/20' : 'bg-sage/20')}`} />
+                        ))}
+                    </div>
+                );
+            })()}
         </div>
     );
 };

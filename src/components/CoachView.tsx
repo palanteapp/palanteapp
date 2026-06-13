@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
+import { getHealthContext } from '../utils/healthService';
+import type { HealthContext } from '../utils/healthService';
 import type { CoachPillarKey } from '../utils/aiService';
 import type { UserProfile, ChatMessage, CoachSession, CoachPillar } from '../types';
 import { canUseAI } from '../types';
@@ -152,14 +154,24 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [historySearch, setHistorySearch] = useState('');
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [showCompletionMoment, setShowCompletionMoment] = useState(false);
-    const completionShownRef = useRef(false);
     const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const healthCtxRef = useRef<HealthContext | undefined>(undefined);
+
+    // Fetch Apple Health context once on mount — silently ignored if unavailable
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            getHealthContext().then(ctx => {
+                if (ctx && (ctx.sleepHours !== undefined || ctx.restingHR !== undefined)) {
+                    healthCtxRef.current = ctx;
+                }
+            }).catch(() => {});
+        }
+    }, []);
 
     // Load cross-session memories so Palante remembers the user across conversations
     useEffect(() => {
@@ -225,7 +237,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     // This prevents the Archive from filling up with empty single-greeting sessions every time
     // the user taps "Palante" without saying anything.
     const startPillarSession = useCallback((pillar: CoachPillar) => {
-        completionShownRef.current = false;
         haptics.medium();
         const config = PILLAR_CONFIGS.find(p => p.key === pillar);
         const greeting = config?.greeting ?? "What's on your mind?";
@@ -323,6 +334,8 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         focusAreas: user.focusAreas,
         coachTone: user.coachSettings?.coachTone,
         persistedMemories,
+        bio: user.bio,
+        healthContext: healthCtxRef.current,
     }), [user, persistedMemories]);
 
     const handleSend = async (e: React.FormEvent) => {
@@ -378,16 +391,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             upsertSession(finalSession);
             haptics.medium();
 
-            // After the 3rd coach reply in a session, surface a quiet completion moment
-            const coachMsgCount = finalSession.messages.filter(m => m.role === 'assistant').length;
-            if (coachMsgCount === 3 && !completionShownRef.current) {
-                completionShownRef.current = true;
-                setTimeout(() => {
-                    setShowCompletionMoment(true);
-                    haptics.success();
-                    setTimeout(() => setShowCompletionMoment(false), 4000);
-                }, 600);
-            }
         } catch (error) {
             console.error('Chat error:', error);
             const errMsg: ChatMessage = {
@@ -560,7 +563,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2 space-y-10 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '9rem' }}>
+                    <div role="log" aria-label="Conversation" className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2 space-y-10 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '9rem' }}>
                         {activeSession.messages.map((msg: ChatMessage, idx: number) => (
                             <div key={msg.id} className={`flex flex-col min-w-0 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 {msg.role === 'assistant' && idx > 0 && (
@@ -672,7 +675,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         })()}
 
                         {isTyping && (
-                            <div className="flex flex-col items-start">
+                            <div role="status" aria-label="Your partner is thinking" className="flex flex-col items-start">
                                 <div className="flex items-center gap-2 mb-3 opacity-30 text-xs font-black uppercase tracking-widest text-[#E5D6A7]">
                                     Thinking...
                                 </div>
@@ -687,7 +690,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         <div ref={messagesEndRef} className="h-36" />
                     </div>
 
-                    <div className="fixed bottom-0 left-0 right-0 z-[220] px-6 pb-20 pt-4">
+                    <div className="fixed bottom-0 left-0 right-0 z-[220] px-6 pt-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">
                             <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
                                 <input
@@ -696,11 +699,13 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                     value={inputText}
                                     onChange={e => setInputText(e.target.value)}
                                     placeholder="Speak your truth..."
+                                    aria-label="Message your partner"
                                     className="flex-1 bg-transparent py-2 outline-none text-white placeholder:text-white/20"
                                     style={{ fontSize: '16px' }}
                                 />
                                 <button
                                     type="submit"
+                                    aria-label="Send message"
                                     disabled={!inputText.trim() || isTyping}
                                     className={`w-12 h-12 flex items-center justify-center rounded-full transition-all
                                         ${!inputText.trim() || isTyping
@@ -716,37 +721,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 </>
             )}
 
-            {/* ── COMPLETION MOMENT ──────────────────────────────────────── */}
-            <AnimatePresence>
-                {showCompletionMoment && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.8 }}
-                        onClick={() => setShowCompletionMoment(false)}
-                        className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-auto"
-                        style={{ background: 'rgba(65, 93, 67, 0.72)', backdropFilter: 'blur(18px)' }}
-                    >
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.6, delay: 0.15 }}
-                            className="text-center px-10"
-                        >
-                            <div className="w-16 h-px bg-[#E5D6A7]/30 mx-auto mb-8" />
-                            <p className="font-display text-4xl font-medium text-white leading-snug mb-4">
-                                You showed up<br />for yourself.
-                            </p>
-                            <p className="text-[#E5D6A7]/60 text-sm font-medium tracking-wide">
-                                That's the whole practice.
-                            </p>
-                            <div className="w-16 h-px bg-[#E5D6A7]/30 mx-auto mt-8" />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* ── HISTORY VIEW ───────────────────────────────────────────── */}
             {view === 'history' && (
@@ -779,6 +753,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 value={historySearch}
                                 onChange={e => setHistorySearch(e.target.value)}
                                 placeholder="Search sessions..."
+                                aria-label="Search sessions"
                                 className="flex-1 bg-transparent outline-none text-[#E5D6A7] placeholder:opacity-30"
                                 style={{ fontSize: '16px' }}
                             />

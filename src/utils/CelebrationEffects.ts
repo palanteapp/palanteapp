@@ -8,10 +8,16 @@ const COLORS = {
     warmGray: '#A3A3A3'
 };
 
+// Honor the OS Reduce Motion setting — celebrate with haptics only.
+const prefersReducedMotion = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 export const triggerConfetti = async () => {
     try {
         const end = Date.now() + 1000;
         haptics.success();
+        if (prefersReducedMotion()) return;
 
         // Lazy load confetti
         const confetti = (await import('canvas-confetti')).default;
@@ -46,6 +52,7 @@ export const triggerConfetti = async () => {
 export const triggerLevelUpConfetti = async () => {
     try {
         haptics.success();
+        if (prefersReducedMotion()) return;
         const duration = 3000;
         const end = Date.now() + duration;
 

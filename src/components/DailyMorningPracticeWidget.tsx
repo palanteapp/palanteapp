@@ -6,7 +6,7 @@ import type { UserProfile } from '../types';
 import { DashboardQuoteCard } from './DashboardQuoteCard';
 import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
 import { supabase } from '../lib/supabase';
-import { logMindfulSession } from '../utils/healthService';
+import { logMindfulSession, getHealthContext } from '../utils/healthService';
 
 interface DailyMorningPracticeProps {
     onComplete: (data: DailyMorningPractice) => void;
@@ -106,16 +106,22 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 setIsGenerating(false);
             }, 8000);
 
-            generateMorningPracticeMessage(userName || 'Friend', {
-                ...fallbackData,
-                narrative: user?.userNarrative?.text,
-                momentumState: user ? getMomentumState(user) : undefined,
-                userVoiceProfile: user?.userVoiceProfile,
+            getHealthContext().then(healthContext => {
+                return generateMorningPracticeMessage(userName || 'Friend', {
+                    ...fallbackData,
+                    narrative: user?.userNarrative?.text,
+                    momentumState: user ? getMomentumState(user) : undefined,
+                    userVoiceProfile: user?.userVoiceProfile,
+                    healthContext: (healthContext?.sleepHours !== undefined || healthContext?.restingHR !== undefined)
+                        ? healthContext
+                        : undefined,
+                });
             }).then(msg => {
                 clearTimeout(fallbackTimer);
                 setGeneratedMessage(msg);
                 setIsGenerating(false);
-            }).catch(() => {
+            }).catch((err) => {
+                console.error('[Palante] Morning message generation failed:', err);
                 clearTimeout(fallbackTimer);
                 setGeneratedMessage(
                     intention.trim()
@@ -375,6 +381,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                                         : 'rgba(255,255,255,0.85)';
                                 }}
                                 placeholder={`${placeholderPrefix}...`}
+                                aria-label={`${title} ${idx + 1} of ${values.length}`}
                                 className="flex-1 bg-transparent outline-none text-[17px] text-white placeholder:text-white/20 py-1 font-medium"
                                 autoFocus={idx === 0}
                             />
@@ -437,6 +444,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 value={intention}
                 onChange={(e) => setIntention(e.target.value)}
                 placeholder="One word…"
+                aria-label="Your one-word intention for today"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="words"
@@ -550,7 +558,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                         style={{ border: '1px solid rgba(229,214,167,0.12)', background: 'rgba(229,214,167,0.12)' }}
                     >
                         <span className="text-sm uppercase tracking-widest mr-2" style={{ color: 'rgba(229,214,167,0.90)' }}>Today's Intention</span>
-                        <span className="font-bold font-display uppercase" style={{ color: '#E5D6A7' }}>{intention}</span>
+                        <span className="font-bold font-display" style={{ color: '#E5D6A7' }}>{intention}</span>
                     </div>
                 )}
             </div>
