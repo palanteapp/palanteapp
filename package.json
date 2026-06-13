@@ -30,7 +30,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@revenuecat/purchases-capacitor": "^11.3.2",
     "@sentry/capacitor": "^4.0.0",
-    "@sentry/react": "^10.57.0",
+    "@sentry/react": "10.43.0",
     "@supabase/supabase-js": "^2.89.0",
     "@types/canvas-confetti": "^1.9.0",
     "canvas-confetti": "^1.9.4",
