@@ -75,7 +75,7 @@ interface PaywallScreenProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitudeCount = 0 }: PaywallScreenProps) {
-    const { purchaseMonthly, purchaseAnnual, restorePurchases } = useSubscription();
+    const { purchaseMonthly, purchaseAnnual, restorePurchases, prices } = useSubscription();
     const [loading, setLoading] = useState<'monthly' | 'annual' | 'restore' | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -118,7 +118,12 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
         ? 'Pick up where you left off · 50% off monthly'
         : 'Most popular · 50% off monthly';
 
-    const annualSubline = isReturning ? 'Just $4.99 a month, billed annually' : 'Just $4.99 a month · 7 days free';
+    // Localized store prices — USD copy is the fallback until offerings load
+    const annualPrice = prices.annual ?? '$59.99';
+    const monthlyPrice = prices.monthly ?? '$9.99';
+    const annualPerMonth = prices.annualPerMonth ?? '$4.99';
+
+    const annualSubline = isReturning ? `Just ${annualPerMonth} a month, billed annually` : `Just ${annualPerMonth} a month · 7 days free`;
     const monthlySubline = isReturning ? 'Cancel anytime' : '7 days free · cancel anytime';
     const finePrint = isReturning
         ? 'Billed through Apple. Subscription renews automatically. Cancel anytime.'
@@ -284,7 +289,7 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
                     >
                         <div className="text-left">
                             <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#FAF7F3', fontSize: '17px' }}>
-                                {loading === 'annual' ? 'Just a moment…' : 'Annual — $59.99 / year'}
+                                {loading === 'annual' ? 'Just a moment…' : `Annual — ${annualPrice} / year`}
                             </div>
                             <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.78)', fontSize: '13px', marginTop: 2 }}>
                                 {annualSubline}
@@ -319,7 +324,7 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
                     >
                         <div className="text-left">
                             <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '17px' }}>
-                                {loading === 'monthly' ? 'Just a moment…' : 'Monthly — $9.99 / month'}
+                                {loading === 'monthly' ? 'Just a moment…' : `Monthly — ${monthlyPrice} / month`}
                             </div>
                             <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.5)', fontSize: '13px', marginTop: 2 }}>
                                 {monthlySubline}

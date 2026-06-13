@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { ChatMessage } from '../types';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -65,7 +66,7 @@ Conversation:
 ${transcript}`;
 
     try {
-        const res = await fetch(PROXY_URL, {
+        const res = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: proxyHeaders(),
             body: JSON.stringify({

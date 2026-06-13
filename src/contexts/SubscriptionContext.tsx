@@ -11,11 +11,18 @@ export const ENTITLEMENT_ID = 'Palante: Personal Growth Partner Pro';
 export const PRODUCT_MONTHLY = 'palante_monthly';
 export const PRODUCT_ANNUAL = 'palante_annual';
 
+export interface SubscriptionPrices {
+  monthly?: string;        // e.g. "$9.99" — localized priceString from the store
+  annual?: string;         // e.g. "$59.99"
+  annualPerMonth?: string; // annual price / 12, formatted in the store currency
+}
+
 interface SubscriptionContextType {
   isPro: boolean;
   isTrialing: boolean;
   trialDaysRemaining: number;
   isLoading: boolean;
+  prices: SubscriptionPrices;
   purchaseMonthly: () => Promise<{ error?: string }>;
   purchaseAnnual: () => Promise<{ error?: string }>;
   restorePurchases: () => Promise<{ error?: string }>;
@@ -28,6 +35,33 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
   const [isTrialing, setIsTrialing] = useState(false);
   const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
   const [isLoading, setIsLoading] = useState(!IS_BETA);
+  const [prices, setPrices] = useState<SubscriptionPrices>({});
+
+  const loadPrices = useCallback(async () => {
+    try {
+      const offerings = await Purchases.getOfferings();
+      const packages = offerings.current?.availablePackages ?? [];
+      const monthly = packages.find(p => p.product.identifier === PRODUCT_MONTHLY);
+      const annual = packages.find(p => p.product.identifier === PRODUCT_ANNUAL);
+
+      let annualPerMonth: string | undefined;
+      if (annual?.product.price && annual.product.currencyCode) {
+        annualPerMonth = new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: annual.product.currencyCode,
+        }).format(annual.product.price / 12);
+      }
+
+      setPrices({
+        monthly: monthly?.product.priceString,
+        annual: annual?.product.priceString,
+        annualPerMonth,
+      });
+    } catch (e) {
+      console.error('RevenueCat price fetch failed:', e);
+      // prices stay empty — paywall falls back to USD copy
+    }
+  }, []);
 
   const refreshEntitlement = useCallback(async () => {
     if (IS_BETA) return;
@@ -68,6 +102,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
           await Purchases.logIn({ appUserID: userId });
         }
         await refreshEntitlement();
+        await loadPrices();
       } catch (e) {
         console.error('RevenueCat init failed:', e);
         setIsLoading(false);
@@ -75,13 +110,12 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
     };
 
     init();
-  }, [userId, refreshEntitlement]);
+  }, [userId, refreshEntitlement, loadPrices]);
 
   const purchaseMonthly = async (): Promise<{ error?: string }> => {
     try {
       const offerings = await Purchases.getOfferings();
-      const pkg = offerings.current?.availablePackages.find((p: { product: { identifier: string } }) => p.product.identifier === PRODUCT_MONTHLY)
-        ?? offerings.current?.availablePackages[0];
+      const pkg = offerings.current?.availablePackages.find((p: { product: { identifier: string } }) => p.product.identifier === PRODUCT_MONTHLY);
       if (!pkg) return { error: 'Monthly plan unavailable. Please try again.' };
       await Purchases.purchasePackage({ aPackage: pkg });
       await refreshEntitlement();
@@ -96,8 +130,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
   const purchaseAnnual = async (): Promise<{ error?: string }> => {
     try {
       const offerings = await Purchases.getOfferings();
-      const pkg = offerings.current?.availablePackages.find((p: { product: { identifier: string } }) => p.product.identifier === PRODUCT_ANNUAL)
-        ?? offerings.current?.availablePackages[1];
+      const pkg = offerings.current?.availablePackages.find((p: { product: { identifier: string } }) => p.product.identifier === PRODUCT_ANNUAL);
       if (!pkg) return { error: 'Annual plan unavailable. Please try again.' };
       await Purchases.purchasePackage({ aPackage: pkg });
       await refreshEntitlement();
@@ -126,6 +159,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
       isTrialing,
       trialDaysRemaining,
       isLoading,
+      prices,
       purchaseMonthly,
       purchaseAnnual,
       restorePurchases,

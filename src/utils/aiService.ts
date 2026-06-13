@@ -4,6 +4,8 @@
  * Also contains behavior analysis and coach intervention logic (consolidated from aiCoach).
  */
 
+import { fetchWithTimeout } from './fetchWithTimeout';
+
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
@@ -13,11 +15,12 @@ const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 function getProxyHeaders(): HeadersInit {
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (!anonKey) {
-        console.error('[Palante AI] VITE_SUPABASE_ANON_KEY not set');
+        console.error('[Palante AI] VITE_SUPABASE_ANON_KEY not set — API calls will fail');
+        throw new Error('Missing VITE_SUPABASE_ANON_KEY');
     }
     return {
         'content-type': 'application/json',
-        'apikey': anonKey ?? '',
+        'apikey': anonKey,
     };
 }
 
@@ -56,6 +59,7 @@ export interface UserContext {
     coachTone?: 'nurturing' | 'direct' | 'accountability';
     persistedMemories?: string[];
     healthContext?: { sleepHours?: number; restingHR?: number; sleepTrend?: 'below_average' | 'above_average' | 'typical' };
+    bio?: string;
 }
 
 export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
@@ -234,7 +238,7 @@ ${contextBlock}
 Write the observation now (4-5 sentences, second person, no headers, no lists):`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -353,7 +357,7 @@ Respond with ONLY a single valid JSON object, no markdown fences, no commentary 
 The author field defaults to ${coachIdentity} unless you are quoting a specific historical figure that perfectly fits this persona's ${intensityDesc} tone.`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -433,7 +437,7 @@ MEDICAL SAFETY GUIDE:
 - Stay within the bounds of a supportive coach.`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -473,6 +477,7 @@ export const generateMorningPracticeMessage = async (
         momentumState?: MomentumState;
         coachTone?: 'nurturing' | 'direct' | 'accountability';
         userVoiceProfile?: UserVoiceProfile;
+        healthContext?: { sleepHours?: number; restingHR?: number; sleepTrend?: 'below_average' | 'above_average' | 'typical' };
     }
 ): Promise<string> => {
     const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
@@ -480,12 +485,16 @@ export const generateMorningPracticeMessage = async (
         ? `\nTheir core values: ${data.userVoiceProfile.extractedValues.join(', ')}\nHow they want to be spoken to: ${data.userVoiceProfile.voiceTone}`
         : '';
 
+    const { buildHealthPromptBlock } = await import('./healthService');
+    const healthBlock = data.healthContext ? buildHealthPromptBlock(data.healthContext) : '';
+
     const prompt = `You are a wise, present partner who knows ${userName} deeply.
 
 YOUR RELATIONSHIP WITH THEM:
 You listen. You remember. You see the pattern in what they care about.
 ${voiceContext}
 ${data.narrative ? `\nWho they've been lately: ${data.narrative}` : ''}
+${healthBlock}
 
 WHAT THEY SHARED THIS MORNING:
 - Grateful for: ${data.gratitudes.join(', ')}
@@ -529,7 +538,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
 
     try {
         const headers = getProxyHeaders();
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -608,7 +617,7 @@ RULES:
 Write only the affirmation. Nothing else.`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -713,7 +722,7 @@ Write the message. Three sentences. Make them feel seen, honored, and ready to r
 MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -755,13 +764,12 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     const a = data.accomplishment?.trim();
     const d = data.delight?.trim();
 
-    // Deterministic seed from the actual content
     const seed = `${g}${l}${a}${d}`.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0);
 
-    // Safely quote user input — shorter entries get quoted directly, longer ones get referenced
-    const q = (s: string) => s.length <= 80 ? `"${s}"` : `what you wrote about ${s.split(' ').slice(0, 3).join(' ')}...`;
+    // Only quote short entries inline — long ones get prose that doesn't try to embed the text.
+    const short = (s: string) => s.length <= 80;
+    const q = (s: string) => `"${s}"`;
 
-    // Pick the single most vivid anchor — the longest entry wins (more words = more specific)
     const ranked = ([
         { field: 'delight', value: d },
         { field: 'accomplishment', value: a },
@@ -776,37 +784,69 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     const { field, value } = ranked[0];
 
     if (field === 'delight') {
+        if (short(value!)) {
+            const pool = [
+                `You noticed ${q(value!)}. Not just that it happened, but that it was worth naming. That is a specific kind of aliveness that most people lose over time, and you have not lost it.`,
+                `${q(value!)} landed on you today, in a day full of things you could have rushed past. The fact that you felt it means you are still paying attention to the good parts of being alive.`,
+                `${q(value!)} opened something up in you today. That is what a life worth living feels like from the inside. You recognized it, and that recognition is the whole thing.`,
+            ];
+            return pool[seed % pool.length];
+        }
         const pool = [
-            `You noticed ${q(value!)}. Not just that it happened, but that it was worth naming. That is a specific kind of aliveness that most people lose over time, and you have not lost it.`,
-            `${q(value!)} landed on you today, in a day full of things you could have rushed past. The fact that you felt it and named it means you are still paying attention to the good parts of being alive. That matters.`,
-            `${q(value!)} opened something up in you today. That is what a life worth living feels like from the inside. You recognized it, and that recognition is the whole thing.`,
+            `Something in your day opened something up in you. You noticed it and named it. That is the kind of attention that keeps a life feeling alive, and not everyone still has it.`,
+            `You found a moment of delight in a full day and you held onto it long enough to name it tonight. That is not a small thing.`,
+            `The fact that you can still be delighted — and notice it — says something real about how you move through the world. You stayed close to your life today.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (field === 'accomplishment') {
+        if (short(value!)) {
+            const pool = [
+                `${q(value!)} moved from undone to done today, and you are the one who moved it. Not time. Not circumstance, but you.`,
+                `You got ${q(value!)} done today. The gap between where that stood this morning and where it stands now, you are that gap. You closed it.`,
+                `${q(value!)} happened because you made it happen. That is the story of today, and it is yours.`,
+            ];
+            return pool[seed % pool.length];
+        }
         const pool = [
-            `${q(value!)} moved from undone to done today, and you are the one who moved it. Not time. Not circumstance, but you.`,
-            `You got ${q(value!)} done today. The gap between where that stood this morning and where it stands now, you are that gap. You closed it.`,
-            `${q(value!)} happened because you made it happen. That is the story of today, and it is yours.`,
+            `You did something today that needed doing. That gap between undone and done, you are what closed it. Not luck, not time. You.`,
+            `Something moved forward today because you showed up for it. That is the whole story, and it is worth naming.`,
+            `You got it done. Whatever it took to cross that line, you had it. That is yours to carry into tomorrow.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (field === 'learning') {
+        if (short(value!)) {
+            const pool = [
+                `You walked away from today knowing ${q(value!)}. You did not know it this morning. That is a real thing you built today, and no one can take it from you.`,
+                `You figured out ${q(value!)} today, from being inside your own life and paying close enough attention to notice it. That kind of knowing does not expire.`,
+                `${q(value!)} is what the day taught you. You were open enough to receive it. Most people miss that lesson because they are moving too fast, and you were not.`,
+            ];
+            return pool[seed % pool.length];
+        }
         const pool = [
-            `You walked away from today knowing ${q(value!)}. You did not know it this morning. That is a real thing you built today, and no one can take it from you.`,
-            `You figured out ${q(value!)} today, from being inside your own life and paying close enough attention to notice it. That kind of knowing does not expire. You built something real.`,
-            `${q(value!)} is what the day taught you. You were open enough to receive it. Most people miss that lesson because they are moving too fast, and you were not.`,
+            `You walked away from today knowing something you did not know this morning. That is a real thing you built, and no one can take it from you.`,
+            `You were paying close enough attention to your own life today that it taught you something. That kind of knowing does not expire.`,
+            `Most people move too fast to notice what the day is trying to show them. You were not moving too fast. You caught it.`,
         ];
         return pool[seed % pool.length];
     }
 
     // gratitude anchor
+    if (short(value!)) {
+        const pool = [
+            `You ended this day grateful for ${q(value!)}. That specific thing was still with you at the close of a whole day. That means it mattered, all the way through.`,
+            `${q(value!)} is what you are holding at the end of today. There is something right about closing a day with your attention on the things worth holding.`,
+            `You found ${q(value!)} worth naming at the end of a full day. That kind of noticing is how people stay close to what their life is actually made of.`,
+        ];
+        return pool[seed % pool.length];
+    }
     const pool = [
-        `You ended this day grateful for ${q(value!)}. That specific thing was still with you at the close of a whole day. That means it mattered, all the way through.`,
-        `${q(value!)} is what you are holding at the end of today. There is something right about closing a day with your attention on the things worth holding. You did that.`,
-        `You found ${q(value!)} worth naming at the end of a full day. That kind of noticing is how people stay close to what their life is actually made of. You stayed close today.`,
+        `You ended today with something worth being grateful for, and you named it. That specific attention at the close of a full day means it mattered, all the way through.`,
+        `There is something right about closing a day with your attention on the things worth holding. You did that tonight.`,
+        `You stayed close to what your life is actually made of today. That is the whole practice, and you did it.`,
     ];
     return pool[seed % pool.length];
 };
@@ -916,6 +956,10 @@ export const chatWithCoach = async (
     const healthBlock = context.healthContext ? buildHealthPromptBlock(context.healthContext) : '';
 
     // Construct System Prompt — sent as Anthropic's top-level `system` field, not as a user message.
+    const bioBlock = context.bio
+        ? `\nABOUT THIS PERSON (in their own words):\n${context.bio}`
+        : '';
+
     const systemPrompt = `You are Palante, a warm, nurturing, and deeply supportive friend and mentor.
 
 USER CONTEXT:
@@ -926,6 +970,7 @@ USER CONTEXT:
 - Time: ${timeOfDay}
 ${moodBlock}
 ${focusBlock}
+${bioBlock}
 
 ${memoriesBlock}
 ${narrativeBlock}
@@ -996,7 +1041,7 @@ MEDICAL SAFETY GUIDE:
     }
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -1193,7 +1238,7 @@ MEDICAL SAFETY GUIDE:
     }
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -1244,9 +1289,8 @@ const FALLBACK_AFFIRMATIONS: Record<1 | 2 | 3, string[]> = {
 };
 
 const getFallbackAffirmation = (request: AIAffirmationRequest): AIAffirmationResponse => {
-    const intensity = request.quoteIntensity || 2;
-    // @ts-expect-error - FALLBACK_AFFIRMATIONS uses numeric index keys
-    const affirmations = FALLBACK_AFFIRMATIONS[intensity] || FALLBACK_AFFIRMATIONS[2];
+    const intensity = (request.quoteIntensity || 2) as 1 | 2 | 3;
+    const affirmations = FALLBACK_AFFIRMATIONS[intensity] ?? FALLBACK_AFFIRMATIONS[2];
     const text = affirmations[Math.floor(Math.random() * affirmations.length)];
     // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
     const coachIdentity = request.coachName?.trim() || 'Palante';
@@ -1407,7 +1451,7 @@ TONE:
 - Power Move: Direct, strategic, encouraging. "Try this...", "Focus on...", "Remember to..."`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -1592,7 +1636,7 @@ Respond with ONLY a single valid JSON object, no markdown fences, no commentary.
 {"insight":"...","dataPoint":"..."}`;
 
     try {
-        const res = await fetch(PROXY_URL, {
+        const res = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -1864,7 +1908,7 @@ Write a warm, specific 2-3 sentence reflection that speaks directly to them. Ref
 Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max 60 words.`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({
@@ -2050,7 +2094,7 @@ Write a memoir of 5 to 7 sentences. Rules:
 Write the memoir now — no quotation marks around the whole thing, no preamble:`;
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({

@@ -1,4 +1,5 @@
 import type { UserProfile } from '../types';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
@@ -120,7 +121,7 @@ Write the letter now:`;
     const fallback = buildFallbackLetter(firstName, partnerName, practicesThisWeek, streak, gratitudes[0]);
 
     try {
-        const response = await fetch(PROXY_URL, {
+        const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
             body: JSON.stringify({

@@ -19,6 +19,21 @@ export const persistProfile = (user: UserProfile): void => {
     }).catch(() => {}); // localStorage is already written — native backup is best-effort
 };
 
+// Removes the native backup so a deleted account cannot be resurrected by
+// loadProfileWithFallback on next launch. Safe to call when no backup exists.
+export const clearProfileBackup = async (): Promise<void> => {
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        await Filesystem.deleteFile({
+            path: BACKUP_FILE,
+            directory: Directory.Documents,
+        });
+    } catch {
+        // File may not exist — nothing to clear
+    }
+};
+
 // Reads from localStorage first (fast path). If evicted, recovers from native
 // filesystem and restores localStorage so subsequent reads are fast again.
 export const loadProfileWithFallback = async (): Promise<string | null> => {

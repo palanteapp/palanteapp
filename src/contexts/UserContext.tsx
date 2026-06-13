@@ -3,10 +3,10 @@ import type { UserProfile, ActivityType, MeditationReflection } from '../types';
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
 import { WidgetDataSync } from '../utils/widgetDataSync';
-import { STORAGE_KEYS } from '../constants/storageKeys';
 import { logPractice, migrateStreakToPractice, getTodayDate } from '../utils/practiceUtils';
 import { generateUserNarrative, generateMonthlyPatternInsight } from '../utils/aiService';
 import { persistProfile, loadProfileWithFallback } from '../utils/nativeStorage';
+import { createDefaultProfile } from '../utils/defaultProfile';
 
 const getLocalYesterdayDate = (): string => {
     const d = new Date();
@@ -109,25 +109,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                             WidgetDataSync.syncAll(migratedUser).catch(e => console.error('Initial guest-migration widget sync failed', e));
                         } else {
                             // Truly new user with no local data — start fresh
-                            const guestUser: UserProfile = {
-                                id: authUser.id,
-                                name: 'Friend',
-                                career: '',
-                                profession: '',
-                                interests: [],
-                                quoteIntensity: 1,
-                                subscriptionTier: 'free',
-                                streak: 0,
-                                points: 0,
-                                sourcePreference: 'mix',
-                                contentTypePreference: 'mix',
-                                notificationFrequency: 3,
-                                quietHoursStart: '22:00',
-                                quietHoursEnd: '07:00',
-                                goals: [],
-                                favoriteQuotes: [],
-                                aiDisabled: false
-                            };
+                            const guestUser = createDefaultProfile(authUser.id);
                             setUser(guestUser);
                             userRef.current = guestUser;
                             persistProfile(guestUser);
@@ -151,24 +133,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         WidgetDataSync.syncAll(localUser).catch(e => console.error('Initial guest local widget sync failed', e));
                     } else {
                         // Create fresh guest user
-                        const guestUser: UserProfile = {
-                            id: 'guest-' + Date.now(),
-                            name: 'Friend',
-                            career: '',
-                            profession: '',
-                            interests: [],
-                            quoteIntensity: 1,
-                            subscriptionTier: 'free',
-                            streak: 0,
-                            points: 0,
-                            sourcePreference: 'mix',
-                            contentTypePreference: 'mix',
-                            notificationFrequency: 3,
-                            quietHoursStart: '22:00',
-                            quietHoursEnd: '07:00',
-                            goals: [],
-                            aiDisabled: false
-                        };
+                        const guestUser = createDefaultProfile('guest-' + Date.now());
                         setUser(guestUser);
                         userRef.current = guestUser;
                         persistProfile(guestUser);

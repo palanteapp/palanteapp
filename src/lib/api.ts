@@ -1,6 +1,8 @@
 // Local and Cloud storage API for Palante
 import type { UserProfile, JournalEntry, DailyFocus, ActivityLog, MeditationReflection } from '../types';
 import { supabase } from './supabase';
+import { clearProfileBackup } from '../utils/nativeStorage';
+import { mergeProfiles } from '../utils/profileMerge';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export const api = {
@@ -10,60 +12,11 @@ export const api = {
         return !!session;
     },
 
-    async createProfile(userId: string): Promise<UserProfile> {
-        const defaultProfile: UserProfile = {
-            id: userId,
-            name: '',
-            tier: 1,
-            subscriptionTier: 'free',
-            career: '',
-            profession: '',
-            interests: [],
-            streak: 0,
-            points: 0,
-            dailyFocuses: [],
-            sourcePreference: 'human',
-            contentTypePreference: 'mix',
-            notificationFrequency: 3,
-            quietHoursStart: '22:00',
-            quietHoursEnd: '07:00',
-            goals: [],
-            coachSettings: { nudgeEnabled: true, nudgeFrequency: 'every-2-hours' },
-            activityHistory: [],
-            journalEntries: [],
-            meditationReflections: [],
-            favoriteQuotes: [],
-            dashboardOrder: ['morning_practice', 'todays_goals', 'accountability_coach'],
-            hapticsEnabled: true
-        };
-
-        // Save local
-        localStorage.setItem(`palante_profile_${userId}`, JSON.stringify(defaultProfile));
-
-        // Save to Supabase if logged in
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            try {
-                await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: session.user.id,
-                        data: defaultProfile,
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'id' });
-            } catch (e) {
-                console.error('Supabase create profile failed:', e);
-            }
-        }
-
-        return defaultProfile;
-    },
-
     // User profile operations
     async getProfile(userId: string): Promise<UserProfile | null> {
         // Always check local first for speed
         const stored = localStorage.getItem(`palante_profile_${userId}`);
-        const localData = stored ? JSON.parse(stored) : null;
+        const localData: UserProfile | null = stored ? JSON.parse(stored) : null;
 
         // If cloud sync is enabled, try to fetch from Supabase
         const { data: { session } } = await supabase.auth.getSession();
@@ -71,14 +24,28 @@ export const api = {
             try {
                 const { data, error } = await supabase
                     .from('profiles')
-                    .select('data')
+                    .select('data, updated_at')
                     .eq('id', session.user.id)
                     .single();
 
                 if (data && data.data) {
-                    // Sync local with cloud
-                    localStorage.setItem(`palante_profile_${userId}`, JSON.stringify(data.data));
-                    return data.data;
+                    const lastSeenStamp = localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_STAMP);
+                    const cloudChanged = data.updated_at && data.updated_at !== lastSeenStamp;
+
+                    // If another device wrote since our last sync, cloud scalars win
+                    // but local collections are preserved via union. If we were the
+                    // last writer, local wins (it may hold changes that failed to push).
+                    const result: UserProfile = localData
+                        ? (cloudChanged
+                            ? mergeProfiles(data.data, localData)
+                            : mergeProfiles(localData, data.data))
+                        : data.data;
+
+                    localStorage.setItem(`palante_profile_${userId}`, JSON.stringify(result));
+                    if (data.updated_at) {
+                        localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_STAMP, data.updated_at);
+                    }
+                    return result;
                 }
                 if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
                     console.error('Error fetching profile from Supabase:', error);
@@ -92,29 +59,53 @@ export const api = {
     },
 
     async updateProfile(userId: string, profile: Partial<UserProfile>): Promise<void> {
-        const existing = await this.getProfile(userId);
-        const updated = { ...existing, ...profile } as UserProfile;
+        const stored = localStorage.getItem(`palante_profile_${userId}`);
+        const existing: UserProfile | null = stored ? JSON.parse(stored) : null;
+        let updated = { ...existing, ...profile } as UserProfile;
 
-        // Save local
+        // Save local immediately — cloud round-trips below must never delay
+        // or block persistence. Re-saved after a conflict merge if one occurs.
         localStorage.setItem(`palante_profile_${userId}`, JSON.stringify(updated));
 
         // Save to Supabase if logged in
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
             try {
+                // Conflict guard: if the cloud row changed since our last sync,
+                // another device wrote in between. Merge (union collections,
+                // local scalars win) instead of overwriting their entries.
+                const { data: cloudRow } = await supabase
+                    .from('profiles')
+                    .select('data, updated_at')
+                    .eq('id', session.user.id)
+                    .maybeSingle();
+
+                const lastSeenStamp = localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_STAMP);
+                if (cloudRow?.data && cloudRow.updated_at && cloudRow.updated_at !== lastSeenStamp) {
+                    updated = mergeProfiles(updated, cloudRow.data);
+                }
+
+                const newStamp = new Date().toISOString();
                 const { error } = await supabase
                     .from('profiles')
                     .upsert({
                         id: session.user.id,
                         data: updated,
-                        updated_at: new Date().toISOString()
+                        updated_at: newStamp
                     }, { onConflict: 'id' });
 
-                if (error) console.error('Error updating profile in Supabase:', error);
+                if (error) {
+                    console.error('Error updating profile in Supabase:', error);
+                } else {
+                    localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_STAMP, newStamp);
+                }
             } catch (e) {
                 console.error('Supabase update failed:', e);
             }
         }
+
+        // Re-save local in case the conflict merge changed the profile
+        localStorage.setItem(`palante_profile_${userId}`, JSON.stringify(updated));
     },
 
     async updateUserProfile(userId: string, profile: UserProfile): Promise<void> {
@@ -295,16 +286,13 @@ export const api = {
         }
     },
 
-    // Tier updates
-    async updateTier(userId: string, tier: number): Promise<void> {
-        await this.updateProfile(userId, { tier });
-    },
-
     // Account Deletion (Mandatory for App Store)
     async deleteUserAccount(userId: string): Promise<{ error: { message: string } | null }> {
-        // 1. Clear local data
+        // 1. Clear local data — including the native filesystem backup, otherwise
+        // loadProfileWithFallback resurrects the deleted profile on next launch
         localStorage.removeItem(`palante_profile_${userId}`);
-        localStorage.removeItem(STORAGE_KEYS.USER);
+        localStorage.removeItem(STORAGE_KEYS.CLOUD_SYNC_STAMP);
+        await clearProfileBackup();
 
         // 2. Clear all journal entries from local storage
         for (let i = localStorage.length - 1; i >= 0; i--) {
