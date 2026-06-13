@@ -1398,6 +1398,18 @@ function AppContent() {
   // Tracks whether the user has completed at least one practice (gates the paywall)
   const [appUsed, setAppUsed] = useState(() => !!localStorage.getItem(STORAGE_KEYS.APP_USED));
 
+  // Free-trial window: users get 7 days from their first practice before the paywall hard-gates.
+  // Uses FIRST_PRACTICE_DATE (set in the same handler as APP_USED) as the clock.
+  // If APP_USED is set but FIRST_PRACTICE_DATE is absent (shouldn't happen post-launch) → expired.
+  const trialDaysLeft = (() => {
+    if (isPro || !appUsed) return 7;
+    const firstDate = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE);
+    if (!firstDate) return 0;
+    const daysSince = Math.floor((Date.now() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 7 - daysSince);
+  })();
+  const trialExpired = !isPro && appUsed && trialDaysLeft === 0;
+
   // Day 1 share card — dismissed via X or after sharing
   const [shareDayOneDismissed, setShareDayOneDismissed] = useState(
     () => !!localStorage.getItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED)
@@ -1599,9 +1611,9 @@ function AppContent() {
     );
   }
 
-  // PAYWALL — show when user has no active subscription AND has already experienced the app.
-  // New users get through to their first morning practice before we ask for money.
-  if (!isPro && appUsed) {
+  // PAYWALL — show when the 7-day free trial has expired and the user hasn't subscribed.
+  // New users get through their first morning practice and 7 free days before we ask for money.
+  if (trialExpired) {
     const gratitudeCount = (user?.dailyMorningPractice || user?.dailyPriming || [])
       .reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
     return (
@@ -1635,7 +1647,18 @@ function AppContent() {
 
       {/* Global Koi Trigger (Appears after 60s) */}
 
-      {/* Trial banner — shown days 5, 6, 7 */}
+      {/* Free-trial ribbon — shown on days 5, 6, 7 of the 7-day app trial (pre-subscription) */}
+      {appUsed && !isPro && trialDaysLeft > 0 && trialDaysLeft <= 3 && (
+        <div className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center" style={{ background: '#C96A3A' }}>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
+            {trialDaysLeft === 1
+              ? 'Your free trial ends tomorrow — subscribe to keep your practice.'
+              : `${trialDaysLeft} days left in your free trial. Keep going.`}
+          </span>
+        </div>
+      )}
+
+      {/* Trial banner — shown days 5, 6, 7 of an active Apple IAP trial */}
       {isTrialing && trialDaysRemaining <= 3 && (
         <div className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center" style={{ background: '#C96A3A' }}>
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
