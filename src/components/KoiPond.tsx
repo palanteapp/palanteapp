@@ -4,8 +4,14 @@ import { KeepAwake } from '@capacitor-community/keep-awake';
 import { haptics } from '../utils/haptics';
 import { RippleLayer, type RippleLayerRef } from './RippleLayer';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { SOUND_SOURCES } from '../constants/soundSources';
+import { isSynthSound, getSynthLoopBlobUrl, SYNTH_SOUNDS } from '../utils/synthSounds';
+import type { SoundMix } from '../types';
 // Fish removed per user request
 // KoiFishSprite logic removed, using Processed Static Assets
+
+/** Name of the user-saved mix the pond plays by default (case-insensitive match). */
+const POND_MIX_NAME = 'koi pond vibes';
 
 interface KoiPondProps {
     totalPractices?: number;
@@ -13,6 +19,7 @@ interface KoiPondProps {
     onClose: () => void;
     streak?: number;
     points?: number;
+    savedMixes?: SoundMix[];
 }
 
 /** How many koi to spawn — takes the higher of streak-based or practices-based milestones.
@@ -197,7 +204,7 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
 
 const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
 
-export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points = 0, totalPractices = 0 }) => {
+export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points = 0, totalPractices = 0, savedMixes = [] }) => {
     const fishCount = getFishCount(streak, totalPractices);
     const earnedKoi = fishCount > 1; // earned a second fish via streak or practices
 
@@ -779,122 +786,82 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showRain]); // Depend on showRain to restart if toggled, or keep Ref updated
 
-    // 3. Dual-Audio Crossfade Logic
-    const audio1Ref = useRef<HTMLAudioElement | null>(null);
-    const audio2Ref = useRef<HTMLAudioElement | null>(null);
-    const activeAudioRef = useRef<1 | 2>(1);
-    const crossfadeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-    const CROSSFADE_DURATION = 5000; // 5 seconds
-    const TARGET_VOLUME = 0.12; // Reduced by half again (subtle)
-
-    type AudioWithFade = HTMLAudioElement & { _fadeInterval?: ReturnType<typeof setInterval> | null };
-
-    const fadeAudio = (audio: HTMLAudioElement, startVol: number, endVol: number, duration: number) => {
-        // Clear any existing fade intervals on this audio object to prevent overlap
-        const audioEx = audio as AudioWithFade;
-        if (audioEx._fadeInterval) {
-            clearInterval(audioEx._fadeInterval);
-        }
-
-        const steps = 20;
-        const stepTime = duration / steps;
-        const volStep = (endVol - startVol) / steps;
-        let currentStep = 0;
-
-        const fadeInterval = setInterval(() => {
-            currentStep++;
-            const newVol = startVol + (volStep * currentStep);
-
-            // Sync muted state from Ref in every step
-            audio.muted = isMutedRef.current;
-
-            // Clamp volume between 0 and 1
-            // FORCE ZERO if muted - user reports "lower but still there" which suggests
-            // some tracks might not be respecting the muted property alone.
-            audio.volume = isMutedRef.current ? 0 : Math.max(0, Math.min(1, newVol));
-
-            if (currentStep >= steps) {
-                clearInterval(fadeInterval);
-                audioEx._fadeInterval = null;
-                if (endVol === 0) {
-                    audio.pause();
-                    audio.currentTime = 0;
-                }
-            }
-        }, stepTime);
-
-        audioEx._fadeInterval = fadeInterval;
-    };
-
-    const startCrossfadeLoop = () => {
-        if (!audio1Ref.current || !audio2Ref.current) return;
-
-        const currentAudio = activeAudioRef.current === 1 ? audio1Ref.current : audio2Ref.current;
-        const nextAudio = activeAudioRef.current === 1 ? audio2Ref.current : audio1Ref.current;
-
-        // Ensure next audio is ready and reset
-        nextAudio.currentTime = 0;
-        nextAudio.volume = 0; // Start silent
-
-        // Play next audio (fade in)
-        nextAudio.muted = isMutedRef.current; // Sync mute state
-        nextAudio.play().catch(e => console.error("Audio play failed", e));
-        fadeAudio(nextAudio, 0, TARGET_VOLUME, CROSSFADE_DURATION); // Fade IN
-
-        // Fade OUT current audio
-        fadeAudio(currentAudio, TARGET_VOLUME, 0, CROSSFADE_DURATION);
-
-        // Swap active reference
-        activeAudioRef.current = activeAudioRef.current === 1 ? 2 : 1;
-
-        // Schedule NEXT crossfade
-        // We know the duration from metadata. Using 30s as fallback if undefined, but ideally dynamic.
-        const duration = nextAudio.duration || 30; // seconds
-        const nextCrossfadeDelay = (duration * 1000) - CROSSFADE_DURATION;
-
-        crossfadeTimerRef.current = setTimeout(startCrossfadeLoop, nextCrossfadeDelay);
-    };
+    // 3. Pond audio — plays the user's saved "koi pond vibes" mix (multiple looping
+    //    layers at 40% master volume). Each layer loops seamlessly (baked files or
+    //    procedurally-rendered synth blobs). Falls back to a single river track if the
+    //    mix isn't found, so the pond is never silent.
+    const tracksRef = useRef<Array<{ audio: HTMLAudioElement; targetVol: number }>>([]);
+    const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const MASTER_VOLUME = 0.40;          // user-requested 40% overall
+    const FALLBACK_SRC = '/sounds/flowing-river.mp3';
+    const FALLBACK_VOLUME = 0.10;        // calm default when no mix is saved
 
     useEffect(() => {
-        // Initialize Audio Objects
-        audio1Ref.current = new Audio('/sounds/sounds-of-zen.mp3');
-        audio2Ref.current = new Audio('/sounds/sounds-of-zen.mp3');
+        let cancelled = false;
 
-        // Initial Play (Audio 1)
-        const audio1 = audio1Ref.current;
-        if (audio1) {
-            audio1.volume = 0; // Start silent
-            const playPromise = audio1.play();
+        // Resolve the saved mix into a list of {src, vol}. Synth ids (noise/binaural)
+        // have no file — render them to a seamless WAV blob; file ids map via SOUND_SOURCES.
+        const buildTracks = async (): Promise<Array<{ src: string; vol: number }>> => {
+            const mix = (savedMixes || []).find(
+                m => m.name?.trim().toLowerCase() === POND_MIX_NAME
+            );
+            const entries = mix ? Object.entries(mix.volumes || {}).filter(([, v]) => v > 0) : [];
+            if (!entries.length) return [{ src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
 
-            if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    // Initial Fade In
-                    audio1.muted = isMutedRef.current;
-                    fadeAudio(audio1, 0, TARGET_VOLUME, 3000);
-
-                    // Schedule first crossfade
-                    // Wait for metadata to ensure we have duration
-                    if (audio1.duration) {
-                        const duration = audio1.duration;
-                        const delay = (duration * 1000) - CROSSFADE_DURATION;
-                        crossfadeTimerRef.current = setTimeout(startCrossfadeLoop, delay);
-                    } else {
-                        audio1.onloadedmetadata = () => {
-                            const duration = audio1.duration;
-                            const delay = (duration * 1000) - CROSSFADE_DURATION;
-                            crossfadeTimerRef.current = setTimeout(startCrossfadeLoop, delay);
-                        };
-                    }
-                }).catch(() => {
-                });
+            const out: Array<{ src: string; vol: number }> = [];
+            for (const [id, raw] of entries) {
+                const vol = Math.max(0, Math.min(1, raw)) * MASTER_VOLUME;
+                if (vol <= 0) continue;
+                if (isSynthSound(id)) {
+                    try {
+                        const url = await getSynthLoopBlobUrl(id, SYNTH_SOUNDS[id], 44100);
+                        out.push({ src: url, vol });
+                    } catch { /* skip a synth layer that fails to render */ }
+                } else if (SOUND_SOURCES[id]) {
+                    out.push({ src: SOUND_SOURCES[id], vol });
+                }
             }
-        }
+            return out.length ? out : [{ src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
+        };
+
+        const created: HTMLAudioElement[] = [];
+        buildTracks().then(tracks => {
+            if (cancelled) {
+                // Effect was torn down mid-build — don't start anything.
+                return;
+            }
+            tracks.forEach(({ src, vol }) => {
+                const audio = new Audio(src);
+                audio.loop = true;
+                audio.volume = 0;
+                audio.muted = isMutedRef.current;
+                created.push(audio);
+                tracksRef.current.push({ audio, targetVol: vol });
+                audio.play().catch(() => {});
+            });
+
+            if (isMutedRef.current) return;
+            // Gentle ~3s fade-in for every layer together.
+            let t = 0;
+            const steps = 30;
+            fadeIntervalRef.current = setInterval(() => {
+                t = Math.min(t + 1, steps);
+                const k = t / steps;
+                tracksRef.current.forEach(({ audio, targetVol }) => {
+                    audio.volume = isMutedRef.current ? 0 : targetVol * k;
+                });
+                if (t >= steps) {
+                    clearInterval(fadeIntervalRef.current!);
+                    fadeIntervalRef.current = null;
+                }
+            }, 100);
+        });
 
         return () => {
-            if (audio1Ref.current) { audio1Ref.current.pause(); audio1Ref.current = null; }
-            if (audio2Ref.current) { audio2Ref.current.pause(); audio2Ref.current = null; }
-            if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current);
+            cancelled = true;
+            if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
+            created.forEach(a => { a.pause(); a.src = ''; });
+            tracksRef.current = [];
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -904,25 +871,28 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         const newState = !isMutedRef.current;
         setIsMuted(newState);
         isMutedRef.current = newState;
-        haptics.selection(); // Visual/Tactile feedback for toggle
+        haptics.selection();
 
-        type AudioWithFadeRef = HTMLAudioElement & { _fadeInterval?: ReturnType<typeof setInterval> | null };
-        // Mute/Unmute BOTH tracks directly
-        if (audio1Ref.current) {
-            audio1Ref.current.muted = newState;
-            if (newState) audio1Ref.current.volume = 0;
-            else if (!(audio1Ref.current as AudioWithFadeRef)._fadeInterval) {
-                // If not currently fading, restore target volume
-                audio1Ref.current.volume = TARGET_VOLUME;
-            }
-        }
-        if (audio2Ref.current) {
-            audio2Ref.current.muted = newState;
-            if (newState) audio2Ref.current.volume = 0;
-            else if (!(audio2Ref.current as AudioWithFadeRef)._fadeInterval) {
-                // If not currently fading, restore target volume
-                audio2Ref.current.volume = TARGET_VOLUME;
-            }
+        const tracks = tracksRef.current;
+        if (!tracks.length) return;
+        if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
+
+        if (newState) {
+            tracks.forEach(({ audio }) => { audio.volume = 0; audio.muted = true; });
+        } else {
+            tracks.forEach(({ audio }) => { audio.muted = false; });
+            // Fade every layer back to its target together.
+            let step = 0;
+            const steps = 15;
+            fadeIntervalRef.current = setInterval(() => {
+                step = Math.min(step + 1, steps);
+                const k = step / steps;
+                tracks.forEach(({ audio, targetVol }) => { audio.volume = targetVol * k; });
+                if (step >= steps) {
+                    clearInterval(fadeIntervalRef.current!);
+                    fadeIntervalRef.current = null;
+                }
+            }, 50);
         }
     }, []);
 
@@ -1104,7 +1074,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             pointerEvents: 'none',
                             // remove transition to prevent fighting with JS loop
                             transition: 'opacity 0.5s ease-in-out',
-                            filter: 'drop-shadow(8px 16px 16px rgba(0,0,0,0.5))'
+                            filter: 'drop-shadow(8px 16px 16px rgba(0,0,0,0.5))',
+                            willChange: 'transform',
                         }}
                     >
                         <KoiFishSVG variant={f.variant} />
@@ -1152,7 +1123,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             pointerEvents: 'none',
                             zIndex: 15,
                             transition: 'opacity 1s ease-in-out',
-                            filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.2))'
+                            filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.2))',
+                            willChange: 'transform',
                         }}
                     >
                         <svg width="40" height="40" viewBox="0 0 100 100" className="opacity-90 overflow-visible">
@@ -1208,7 +1180,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: 0.95,
                             zIndex: 20,
-                            filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.08))'
+                            filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.08))',
+                            willChange: 'transform',
                         }}
                     >
                         <svg width="80" height="80" viewBox="0 0 100 100" className="overflow-visible">

@@ -5,6 +5,7 @@
  */
 
 import { fetchWithTimeout } from './fetchWithTimeout';
+import { isChatLimitReached, recordChatCall, getDailyLimitMessage } from './aiUsageBudget';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
@@ -915,18 +916,29 @@ export const chatWithCoach = async (
     history: ChatMessage[],
     context: UserContext
 ): Promise<string> => {
+    // Daily cost guardrail: partner chat is the only unbounded AI vector. Once a
+    // user hits the daily ceiling, return a warm sign-off instead of calling the
+    // API — protects margins without ever touching normal use. See aiUsageBudget.
+    if (isChatLimitReached()) {
+        return getDailyLimitMessage(context.name);
+    }
+
     // If no key, skip straight to simulation to avoid error logs
 
     const intensityDesc = getIntensityDescription(context.quoteIntensity);
     const timeOfDay = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening';
 
-    // Construct Memory Block
+    // Construct Memory Block — all blocks are trimmed to bound token cost per call.
+    const trunc = (s: string, n: number) => s.length > n ? s.slice(0, n) + '…' : s;
+
     const journalMemory = context.recentJournalEntries?.length
-        ? `RECENT JOURNAL HIGHLIGHTS:\n${context.recentJournalEntries.map(e => `- ${e.date}: Win: ${e.highlight} | Challenge: ${e.lowlight}`).join('\n')}`
+        ? `RECENT JOURNAL HIGHLIGHTS:\n${context.recentJournalEntries.slice(-5).map(e =>
+            `- ${e.date}: Win: ${trunc(e.highlight, 120)} | Challenge: ${trunc(e.lowlight, 120)}`).join('\n')}`
         : '';
 
     const reflectionMemory = context.recentReflections?.length
-        ? `RECENT MEDITATION REFLECTIONS:\n${context.recentReflections.map(r => `- ${r.date}: Intention: ${r.intention} | Reflection: ${r.reflection}`).join('\n')}`
+        ? `RECENT MEDITATION REFLECTIONS:\n${context.recentReflections.slice(-3).map(r =>
+            `- ${r.date}: Intention: ${trunc(r.intention, 100)} | Reflection: ${trunc(r.reflection, 100)}`).join('\n')}`
         : '';
 
     const energyMemory = context.energyLevel
@@ -934,7 +946,7 @@ export const chatWithCoach = async (
         : '';
 
     const narrativeBlock = context.userNarrative
-        ? `THEIR GROWTH STORY (synthesized from recent weeks):\n${context.userNarrative}\n`
+        ? `THEIR GROWTH STORY (synthesized from recent weeks):\n${trunc(context.userNarrative, 600)}\n`
         : '';
 
     const momentumBlock = context.momentumState
@@ -949,7 +961,7 @@ export const chatWithCoach = async (
         : `\nTONE DIRECTIVE FOR THIS SESSION:\n${COACH_TONE_GUIDANCE['nurturing']}\n`;
 
     const memoriesBlock = context.persistedMemories?.length
-        ? `MEMORIES FROM PAST CONVERSATIONS (reference naturally, not robotically):\n${context.persistedMemories.slice(0, 12).map(m => `- ${m}`).join('\n')}\n`
+        ? `MEMORIES FROM PAST CONVERSATIONS (reference naturally, not robotically):\n${context.persistedMemories.slice(0, 8).map(m => `- ${m}`).join('\n')}\n`
         : '';
 
     const { buildHealthPromptBlock } = await import('./healthService');
@@ -1010,7 +1022,7 @@ MEDICAL SAFETY GUIDE:
     //   consecutive same-role messages by joining with a newline.
     const cleanHistory = history
         .filter(msg => !msg.id?.startsWith('init-'))
-        .slice(-10);
+        .slice(-6);
     const historyForAPI = cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === 'user'
         ? cleanHistory.slice(0, -1)
         : cleanHistory;
@@ -1061,6 +1073,8 @@ MEDICAL SAFETY GUIDE:
         const data = await response.json();
         const text = data.content?.[0]?.text?.trim();
         if (!text) return getSimulatedResponse(message, context);
+        // Only count calls that actually hit the API (cost money), not fallbacks.
+        recordChatCall();
         return stripMarkdown(text);
 
     } catch (error) {
@@ -1152,17 +1166,25 @@ export const chatWithCoachPillar = async (
     context: UserContext,
     pillar: CoachPillarKey
 ): Promise<string> => {
+    // Same daily cost guardrail as chatWithCoach — see aiUsageBudget.
+    if (isChatLimitReached()) {
+        return getDailyLimitMessage(context.name);
+    }
 
     const pillarPrompt = PILLAR_SYSTEM_PROMPTS[pillar];
     const intensityDesc = getIntensityDescription(context.quoteIntensity);
     const timeOfDay = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening';
 
+    const trunc = (s: string, n: number) => s.length > n ? s.slice(0, n) + '…' : s;
+
     const journalMemory = context.recentJournalEntries?.length
-        ? `RECENT JOURNAL HIGHLIGHTS:\n${context.recentJournalEntries.map(e => `- ${e.date}: Win: ${e.highlight} | Challenge: ${e.lowlight}`).join('\n')}`
+        ? `RECENT JOURNAL HIGHLIGHTS:\n${context.recentJournalEntries.slice(-5).map(e =>
+            `- ${e.date}: Win: ${trunc(e.highlight, 120)} | Challenge: ${trunc(e.lowlight, 120)}`).join('\n')}`
         : '';
 
     const reflectionMemory = context.recentReflections?.length
-        ? `RECENT MEDITATION REFLECTIONS:\n${context.recentReflections.map(r => `- ${r.date}: Intention: ${r.intention} | Reflection: ${r.reflection}`).join('\n')}`
+        ? `RECENT MEDITATION REFLECTIONS:\n${context.recentReflections.slice(-3).map(r =>
+            `- ${r.date}: Intention: ${trunc(r.intention, 100)} | Reflection: ${trunc(r.reflection, 100)}`).join('\n')}`
         : '';
 
     const energyMemory = context.energyLevel
@@ -1170,7 +1192,7 @@ export const chatWithCoachPillar = async (
         : '';
 
     const narrativeBlockPillar = context.userNarrative
-        ? `THEIR GROWTH STORY (synthesized from recent weeks):\n${context.userNarrative}\n`
+        ? `THEIR GROWTH STORY (synthesized from recent weeks):\n${trunc(context.userNarrative, 600)}\n`
         : '';
 
     const momentumBlockPillar = context.momentumState
@@ -1211,7 +1233,7 @@ MEDICAL SAFETY GUIDE:
     // Build threaded history for Anthropic — same shape as chatWithCoach.
     const cleanHistoryPillar = history
         .filter(msg => !msg.id?.startsWith('init-'))
-        .slice(-10);
+        .slice(-6);
     const historyForAPIPillar = cleanHistoryPillar.length > 0 && cleanHistoryPillar[cleanHistoryPillar.length - 1].role === 'user'
         ? cleanHistoryPillar.slice(0, -1)
         : cleanHistoryPillar;
@@ -1258,6 +1280,8 @@ MEDICAL SAFETY GUIDE:
         const data = await response.json();
         const text = data.content?.[0]?.text?.trim();
         if (!text) return getSimulatedResponse(message, context);
+        // Only count real API calls against the daily budget, not fallbacks.
+        recordChatCall();
         return stripMarkdown(text);
 
     } catch (error) {

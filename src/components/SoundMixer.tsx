@@ -4,6 +4,7 @@ import { KeepAwake } from '@capacitor-community/keep-awake';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
 import { loadSeamlessBuffer } from '../utils/seamlessAudio';
+import { SYNTH_SOUNDS, SynthVoice, getSynthLoopBlobUrl } from '../utils/synthSounds';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SlideUpModal } from './SlideUpModal';
@@ -39,7 +40,7 @@ const SOUNDS: SoundTrack[] = [
     { id: 'autumn', label: 'Autumn Wind', category: 'Nature', src: '/Autumn%20Wind.mp3', icon: Wind },
     { id: 'birds', label: 'Birdsong', category: 'Nature', src: '/sounds/birdsong.mp3', icon: Bird },
     { id: 'fire', label: 'Camp Fire', category: 'Nature', src: '/sounds/camp-fire.mp3', icon: Zap },
-    { id: 'whale', label: 'Whale Sounds', category: 'Nature', src: '/sounds/whale-sounds.wav', icon: Waves },
+    { id: 'whale', label: 'Whale Sounds', category: 'Nature', src: '/sounds/whale-sounds.mp3', icon: Waves },
 
     // Ambient
     { id: 'cafe1', label: 'Busy Cafe 1', category: 'Ambient', src: '/sounds/busy-cafe-1.mp3', icon: Coffee },
@@ -210,6 +211,7 @@ class CrossfadingSound {
             this.gainNode2.gain.setValueAtTime(0, now);
 
             if (this.loopInterval) clearInterval(this.loopInterval);
+            let prevTime = -1;
             this.loopInterval = setInterval(() => {
                 const activeAudio = this.activeIndex === 1 ? this.audio1 : this.audio2;
                 const nextAudio = this.activeIndex === 1 ? this.audio2 : this.audio1;
@@ -218,8 +220,18 @@ class CrossfadingSound {
 
                 if (!activeAudio || !nextAudio || !activeGain || !nextGain || !ctx) return;
 
-                if (!this.isCrossfading && activeAudio.duration > 0 &&
-                    activeAudio.currentTime > activeAudio.duration - 3.5) {
+                const cTime = activeAudio.currentTime;
+                const dur = activeAudio.duration;
+
+                // Detect a native browser loop: time jumped backward past the halfway point.
+                // This means the 50ms interval missed the crossfade window (e.g. app was
+                // backgrounded or CPU-starved) and the element looped on its own with a gap.
+                // Trigger the crossfade immediately so the next cycle is seamless.
+                const missedWindow = prevTime > 0 && dur > 0 && prevTime > dur * 0.5 && cTime < prevTime * 0.5;
+                prevTime = cTime;
+
+                if (!this.isCrossfading && dur > 0 &&
+                    (cTime > dur - 3.5 || missedWindow)) {
 
                     this.isCrossfading = true;
 
@@ -376,20 +388,26 @@ class BufferLoopSound {
     }
 }
 
-// Facade choosing the playback strategy per sound: short files (the ones that
-// loop often) are decoded into a seamless-loop buffer; files over the size
-// gate in seamlessAudio.ts stream through the dual-element crossfader.
+// Facade choosing the playback strategy per sound:
+//   • synth  — colored noise / binaural beats are generated procedurally and
+//              have no loop point at all (see synthSounds.ts);
+//   • buffer — short files are decoded into a seamless-loop buffer;
+//   • stream — files over the size gate in seamlessAudio.ts stream through the
+//              dual-element crossfader.
 class MixerSound {
-    private mode: 'undecided' | 'buffer' | 'stream' = 'undecided';
+    private mode: 'undecided' | 'synth' | 'buffer' | 'stream' = 'undecided';
+    private synthSound: SynthVoice | null = null;
     private bufferSound: BufferLoopSound | null = null;
     private streamSound: CrossfadingSound | null = null;
     private playToken = 0;
     private src: string;
+    private id: string;
     public volume = 0.5;
     public isPlaying = false;
 
-    constructor(src: string) {
+    constructor(src: string, id: string) {
         this.src = src;
+        this.id = id;
     }
 
     async play(startVol = 0.5) {
@@ -403,18 +421,29 @@ class MixerSound {
         }
 
         if (this.mode === 'undecided') {
-            const buffer = await loadSeamlessBuffer(ctx, this.src);
-            if (buffer) {
-                this.mode = 'buffer';
-                this.bufferSound = new BufferLoopSound(buffer);
+            const synthSpec = SYNTH_SOUNDS[this.id];
+            if (synthSpec) {
+                this.mode = 'synth';
+                this.synthSound = new SynthVoice(synthSpec);
             } else {
-                this.mode = 'stream';
+                const buffer = await loadSeamlessBuffer(ctx, this.src);
+                if (buffer) {
+                    this.mode = 'buffer';
+                    this.bufferSound = new BufferLoopSound(buffer);
+                } else {
+                    this.mode = 'stream';
+                }
             }
         }
         // Toggled off (or re-played) while decoding — don't start a stale voice.
         if (token !== this.playToken) return;
 
-        if (this.mode === 'buffer' && this.bufferSound) {
+        if (this.mode === 'synth' && this.synthSound) {
+            this.synthSound.play(ctx, this.volume);
+            // Pre-render the background loop blob so it's ready if the app backgrounds.
+            const spec = SYNTH_SOUNDS[this.id];
+            if (spec) getSynthLoopBlobUrl(this.id, spec, ctx.sampleRate).catch(() => {});
+        } else if (this.mode === 'buffer' && this.bufferSound) {
             this.bufferSound.play(ctx, this.volume);
         } else {
             if (!this.streamSound) this.streamSound = new CrossfadingSound(this.src);
@@ -425,6 +454,7 @@ class MixerSound {
     stop() {
         this.playToken++;
         this.isPlaying = false;
+        this.synthSound?.stop(getAudioContext());
         this.bufferSound?.stop(getAudioContext());
         this.streamSound?.stop();
     }
@@ -432,6 +462,7 @@ class MixerSound {
     setVolume(vol?: number, instant: boolean = false) {
         if (typeof vol !== 'number' || Number.isNaN(vol)) return;
         this.volume = vol;
+        this.synthSound?.setVolume(getAudioContext(), vol, instant);
         this.bufferSound?.setVolume(getAudioContext(), vol, instant);
         this.streamSound?.setVolume(vol, instant);
     }
@@ -444,9 +475,27 @@ class MixerSound {
     enterBackground(vol: number) {
         this.leaveBackground();
         if (!this.isPlaying) return;
+        const clamped = Math.min(1, Math.max(0, vol));
+
+        // Synth sounds have no file — render/reuse a seamless loop blob instead.
+        const spec = SYNTH_SOUNDS[this.id];
+        if (spec) {
+            const sr = getAudioContext()?.sampleRate || 48000;
+            getSynthLoopBlobUrl(this.id, spec, sr).then(url => {
+                // Bail if we returned to the foreground or stopped while rendering.
+                if (!this.isPlaying || document.visibilityState === 'visible') return;
+                const a = new Audio(url);
+                a.loop = true;
+                a.volume = clamped;
+                a.play().catch(() => {});
+                this.bgAudio = a;
+            }).catch(() => {});
+            return;
+        }
+
         const a = new Audio(this.src);
         a.loop = true;
-        a.volume = Math.min(1, Math.max(0, vol));
+        a.volume = clamped;
         a.play().catch(() => {});
         this.bgAudio = a;
     }
@@ -530,7 +579,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
     // Initialize Audio Refs lazily
     const getAudioRef = (id: string, src: string) => {
         if (!audioRefs.current[id]) {
-            audioRefs.current[id] = new MixerSound(src);
+            audioRefs.current[id] = new MixerSound(src, id);
         }
         return audioRefs.current[id];
     };
@@ -610,8 +659,30 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             }
         };
 
+        const handleLoadMix = (event: CustomEvent<{ volumes?: Record<string, number> }>) => {
+            const volumes = event.detail?.volumes;
+            if (!volumes || !Object.keys(volumes).length) return;
+            Object.values(audioRefs.current).forEach(audio => { if (audio.isPlaying) audio.stop(); });
+            setTimeout(() => {
+                const newActive = new Set<string>();
+                const newVols: Record<string, number> = {};
+                Object.entries(volumes).forEach(([id, vol]) => {
+                    const soundData = SOUNDS.find(s => s.id === id);
+                    if (soundData) {
+                        const audio = getAudioRef(id, soundData.src);
+                        newActive.add(id);
+                        newVols[id] = vol;
+                        audio.play(vol);
+                    }
+                });
+                setActiveSounds(newActive);
+                setVolumes(newVols);
+            }, 100);
+        };
+
         window.addEventListener('palante-restart-sounds', handleRestartSounds);
         window.addEventListener('palante-load-preset', handleLoadPreset as EventListener);
+        window.addEventListener('palante-load-mix', handleLoadMix as EventListener);
         window.addEventListener('palante-toggle-sound', handleToggleSound as EventListener);
         window.addEventListener('palante-set-volume', handleSetVolume as EventListener);
 
@@ -619,6 +690,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             Object.values(audioRefs.current).forEach(audio => audio.stop());
             window.removeEventListener('palante-restart-sounds', handleRestartSounds);
             window.removeEventListener('palante-load-preset', handleLoadPreset as EventListener);
+            window.removeEventListener('palante-load-mix', handleLoadMix as EventListener);
             window.removeEventListener('palante-toggle-sound', handleToggleSound as EventListener);
             window.removeEventListener('palante-set-volume', handleSetVolume as EventListener);
         };

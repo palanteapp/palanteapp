@@ -66,10 +66,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
             <div
                 className="absolute inset-0 bg-black/20 backdrop-blur-xl transition-all duration-500"
                 onClick={onClose}
+                aria-hidden="true"
             />
 
             {/* Modal */}
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="auth-modal-title"
                 className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[2.5rem] overflow-hidden transition-all border animate-in zoom-in-95 duration-500 ${isDarkMode ? 'bg-sage-mid/95 border-white/10' : 'bg-ivory/95 border-sage/20'}`}
                 style={{
                     boxShadow: isDarkMode
@@ -87,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                         <div className={`mx-auto w-12 h-12 rounded-2xl flex items-center justify-center mb-2 shadow-lg ${isDarkMode ? 'bg-white/10 text-pale-gold' : 'bg-sage text-white'}`}>
                             <Cloud size={24} />
                         </div>
-                        <h2 className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                        <h2 id="auth-modal-title" className={`text-xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                             {success ? 'Verify your email' : (isLogin ? 'Welcome Back' : 'Create Cloud Account')}
                         </h2>
                     </div>

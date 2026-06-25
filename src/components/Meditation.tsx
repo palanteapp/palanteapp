@@ -128,7 +128,7 @@ const matchMantraToIntention = (intention: string): Mantra => {
     return MANTRAS[Math.floor(Math.random() * MANTRAS.length)];
 };
 
-export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSaveReflection, tipsEnabled: _tipsEnabled = true, onShowTip: _onShowTip, onStrategize: _onStrategize, user: _user, onSaveMix: _onSaveMix, onDeleteMix: _onDeleteMix, onOpenSoundMixer, onWriteLetter }) => {
+export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSaveReflection, tipsEnabled: _tipsEnabled = true, onShowTip: _onShowTip, onStrategize: _onStrategize, user, onSaveMix: _onSaveMix, onDeleteMix: _onDeleteMix, onOpenSoundMixer, onWriteLetter }) => {
     const [isActive, setIsActive] = useState(false);
     const [duration, setDuration] = useState(10); // minutes
     const [timeLeft, setTimeLeft] = useState(10 * 60);
@@ -419,7 +419,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                 resetTimer();
                                 if (onComplete) onComplete();
                             }}
-                            className={`w-full py-4 rounded-full font-display font-medium text-lg transition-all ${isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-white' : 'bg-1B4332 text-white hover:shadow-spa'}`}
+                            className={`w-full py-4 rounded-full font-display font-medium text-lg transition-all ${isDarkMode ? 'bg-pale-gold text-sage-dark hover:bg-white' : 'bg-[#C96A3A] text-white hover:shadow-spa'}`}
                         >
                             Save Reflection
                         </button>
@@ -507,6 +507,27 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                     </button>
                                 ))}
                             </div>
+                            {(user?.savedMixes || []).length > 0 && (
+                                <div className="space-y-2">
+                                    <p className={`text-xs font-bold uppercase tracking-[0.2em] opacity-40 text-center ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                                        My Mixes
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {(user?.savedMixes || []).slice(0, 4).map(mix => (
+                                            <button
+                                                key={mix.id}
+                                                onClick={() => window.dispatchEvent(new CustomEvent('palante-load-mix', { detail: { volumes: mix.volumes } }))}
+                                                className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-xs font-medium transition-all ${isDarkMode
+                                                    ? 'bg-pale-gold/10 text-white/70 hover:bg-pale-gold/20 border border-pale-gold/10'
+                                                    : 'bg-[#C96A3A]/5 text-sage hover:bg-[#C96A3A]/10 border border-[#C96A3A]/10'}`}
+                                            >
+                                                <Music size={16} className={`shrink-0 ${isDarkMode ? 'text-pale-gold' : 'text-[#C96A3A]'}`} />
+                                                <span className="text-left leading-tight line-clamp-2 break-words min-w-0">{mix.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -595,7 +616,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                         <button
                             onClick={toggleTimer}
                             disabled={!isActive && !intention.trim()}
-                            className={`p-6 rounded-full transition-all ${!isActive && !intention.trim() ? (isDarkMode ? 'bg-white/5 text-white cursor-not-allowed' : 'bg-sage/5 text-sage/30 cursor-not-allowed') : isActive ? (isDarkMode ? 'bg-white text-sage-dark' : 'bg-sage text-white') : ('bg-1B4332 text-white hover:scale-105')}`}
+                            className={`p-6 rounded-full transition-all ${!isActive && !intention.trim() ? (isDarkMode ? 'bg-white/5 text-white cursor-not-allowed' : 'bg-sage/5 text-sage/30 cursor-not-allowed') : isActive ? (isDarkMode ? 'bg-white text-sage-dark' : 'bg-sage text-white') : ('bg-[#C96A3A] text-white hover:scale-105')}`}
                         >
                             {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                         </button>

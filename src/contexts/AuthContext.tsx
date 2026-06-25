@@ -1,7 +1,11 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
+
+const getAuthRedirectUrl = () =>
+    Capacitor.isNativePlatform() ? 'palante://auth-callback' : window.location.origin;
 
 interface AuthErrorResult {
     error: AuthError | { message: string } | null;
@@ -56,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const { error } = await supabase.auth.signInWithOtp({
                     email,
                     options: {
-                        emailRedirectTo: window.location.origin,
+                        emailRedirectTo: getAuthRedirectUrl(),
                     }
                 });
                 return { error };
@@ -83,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: window.location.origin
+                    emailRedirectTo: getAuthRedirectUrl()
                 }
             });
 
@@ -112,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 type: 'signup',
                 email,
                 options: {
-                    emailRedirectTo: window.location.origin
+                    emailRedirectTo: getAuthRedirectUrl()
                 }
             });
             if (error?.status === 429) {
@@ -128,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const resetPasswordForEmail = async (email: string) => {
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/update-password`,
+                redirectTo: `${getAuthRedirectUrl()}/update-password`,
             });
             if (error?.status === 429) {
                 return { error: { message: 'Too many requests. Please wait a bit.' } };

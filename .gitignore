@@ -39,3 +39,7 @@ fix_colors.js
 fix_colors.py
 nuke_ios.py
 purge_widget.py
+
+# Seamless-loop QA artifacts (dev only)
+public/_loopqa/
+audio-raw/

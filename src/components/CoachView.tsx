@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, Bot, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
-    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2, Brain
+    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2, Brain,
+    Volume2, Loader2
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
+import { speak, stopSpeaking } from '../utils/ttsService';
 import { getHealthContext } from '../utils/healthService';
 import type { HealthContext } from '../utils/healthService';
 import type { CoachPillarKey } from '../utils/aiService';
@@ -157,6 +159,9 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
+    // Voice playback: which message is currently speaking / loading audio.
+    const [voiceMsgId, setVoiceMsgId] = useState<string | null>(null);
+    const [voiceLoadingId, setVoiceLoadingId] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -239,8 +244,21 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const startPillarSession = useCallback((pillar: CoachPillar) => {
         haptics.medium();
         const config = PILLAR_CONFIGS.find(p => p.key === pillar);
-        const greeting = config?.greeting ?? "What's on your mind?";
         const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
+
+        // For the very first session, use an intent-seeded opening instead of the generic prompt.
+        // This gives day-1 users a greeting that already knows why they came.
+        let greeting = config?.greeting ?? "What's on your mind?";
+        const isFirstSession = sessions.length === 0;
+        if (pillar === 'open' && isFirstSession && user.primaryIntent) {
+            const INTENT_GREETINGS: Record<string, string> = {
+                consistency: `Building a daily practice is one of the most powerful things you can do. Tell me — what's been getting in the way of showing up consistently?`,
+                clarity: `You said you're looking for more clarity and focus. What's feeling most scattered or overwhelming right now?`,
+                stress: `Life has been heavy lately. I'm right here. What's been weighing on you the most?`,
+                purpose: `You want your days to mean something more. I love that you're here for that reason. What would a life with more purpose actually feel like to you?`,
+            };
+            greeting = INTENT_GREETINGS[user.primaryIntent] ?? greeting;
+        }
 
         const greetingMsg: ChatMessage = {
             id: 'init-' + Date.now(),
@@ -263,7 +281,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         // calls upsertSession when a message lands, which is when the session becomes worth saving.
         setActiveSession(newSession);
         setView('chat');
-    }, [user.name, upsertSession]);
+    }, [user.name, user.primaryIntent, sessions.length, upsertSession]);
 
     const resumeSession = useCallback((session: CoachSession) => {
         haptics.light();
@@ -308,35 +326,58 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         if (pendingDeleteTimerRef.current) clearTimeout(pendingDeleteTimerRef.current);
     }, []);
 
-    const buildContext = useCallback(() => ({
-        name: user.name,
-        quoteIntensity: user.quoteIntensity,
-        energyLevel: user.currentEnergy,
-        currentStreak: user.streak || 0,
-        completedGoals: user.dailyFocuses?.filter(f => f.isCompleted).length || 0,
-        totalGoals: user.dailyFocuses?.length || 0,
-        profession: user.profession,
-        detectedPatterns: analyzeBehaviorPatterns(user),
-        recentJournalEntries: user.journalEntries?.slice(-3).map(e => ({
-            date: e.date,
-            highlight: e.highlight,
-            lowlight: e.lowlight,
-        })),
-        recentReflections: user.meditationReflections?.slice(-3).map(r => ({
-            date: r.date,
-            intention: r.intention,
-            reflection: r.reflection,
-        })),
-        energyTrends: user.energyHistory?.slice(-10),
-        userNarrative: user.userNarrative?.text,
-        momentumState: getMomentumState(user),
-        currentMood: user.currentMood,
-        focusAreas: user.focusAreas,
-        coachTone: user.coachSettings?.coachTone,
-        persistedMemories,
-        bio: user.bio,
-        healthContext: healthCtxRef.current,
-    }), [user, persistedMemories]);
+    const buildContext = useCallback(() => {
+        // Load seed memories written from onboarding (available pre-auth / pre-Supabase)
+        let seedMemories: string[] = [];
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.SEED_MEMORIES);
+            if (raw) seedMemories = JSON.parse(raw);
+        } catch { /* ignore */ }
+        const allMemories = [...seedMemories, ...persistedMemories];
+
+        // When the partner has no narrative and no prior memories, synthesize a seed narrative
+        // from the intent the user chose in onboarding so day-1 context isn't empty.
+        const INTENT_SEED_NARRATIVES: Partial<Record<string, string>> = {
+            consistency: `This person came to Palante because they want to build more consistency in their life — to show up for themselves every day regardless of how they feel.`,
+            clarity: `This person is looking for clarity and focus. They feel scattered or overwhelmed and want to cut through the noise and know what matters most.`,
+            stress: `This person is dealing with real stress and came to Palante to stay grounded. Life has felt heavy and they want support managing that weight.`,
+            purpose: `This person wants their days to feel meaningful. They came to Palante to reconnect with purpose and make their life feel intentional and directed.`,
+        };
+        const hasRealContext = user.userNarrative?.text || allMemories.length > 0;
+        const intentSeed = (!hasRealContext && user.primaryIntent)
+            ? INTENT_SEED_NARRATIVES[user.primaryIntent]
+            : undefined;
+
+        return {
+            name: user.name,
+            quoteIntensity: user.quoteIntensity,
+            energyLevel: user.currentEnergy,
+            currentStreak: user.streak || 0,
+            completedGoals: user.dailyFocuses?.filter(f => f.isCompleted).length || 0,
+            totalGoals: user.dailyFocuses?.length || 0,
+            profession: user.profession,
+            detectedPatterns: analyzeBehaviorPatterns(user),
+            recentJournalEntries: user.journalEntries?.slice(-3).map(e => ({
+                date: e.date,
+                highlight: e.highlight,
+                lowlight: e.lowlight,
+            })),
+            recentReflections: user.meditationReflections?.slice(-3).map(r => ({
+                date: r.date,
+                intention: r.intention,
+                reflection: r.reflection,
+            })),
+            energyTrends: user.energyHistory?.slice(-10),
+            userNarrative: user.userNarrative?.text ?? intentSeed,
+            momentumState: getMomentumState(user),
+            currentMood: user.currentMood,
+            focusAreas: user.focusAreas,
+            coachTone: user.coachSettings?.coachTone,
+            persistedMemories: allMemories,
+            bio: user.bio,
+            healthContext: healthCtxRef.current,
+        };
+    }, [user, persistedMemories]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -409,6 +450,99 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         }
     };
 
+
+    // Tap-to-send a quick-start prompt directly without going through the form
+    const handleQuickStart = async (prompt: string) => {
+        if (!activeSession || isTyping) return;
+        haptics.medium();
+
+        const userMsg: ChatMessage = {
+            id: Date.now().toString(),
+            text: prompt,
+            timestamp: Date.now(),
+            role: 'user',
+        };
+
+        const updatedSession: CoachSession = {
+            ...activeSession,
+            title: autoTitle(prompt),
+            messages: [...activeSession.messages, userMsg],
+            updatedAt: Date.now(),
+            messageCount: activeSession.messageCount + 1,
+        };
+        setActiveSession(updatedSession);
+        setInputText('');
+        setIsTyping(true);
+
+        try {
+            const context = buildContext();
+            const pillar = activeSession.pillar as CoachPillarKey;
+            const reply = pillar && pillar !== 'open'
+                ? await chatWithCoachPillar(prompt, updatedSession.messages, context, pillar)
+                : await chatWithCoach(prompt, updatedSession.messages, context);
+
+            const coachMsg: ChatMessage = {
+                id: (Date.now() + 1).toString(),
+                text: reply,
+                timestamp: Date.now(),
+                role: 'assistant',
+            };
+            const finalSession = { ...updatedSession, messages: [...updatedSession.messages, coachMsg], updatedAt: Date.now() };
+            setActiveSession(finalSession);
+            upsertSession(finalSession);
+            haptics.medium();
+        } catch {
+            setIsTyping(false);
+        } finally {
+            setIsTyping(false);
+        }
+    };
+
+    // Tap-to-hear: synthesize a partner reply aloud. On-demand only — never
+    // auto-plays. Tapping the active message again stops it. Cost is bounded by
+    // the monthly TTS backstop, which silently falls back to the device voice.
+    const handleSpeak = async (msg: ChatMessage) => {
+        if (voiceMsgId === msg.id || voiceLoadingId === msg.id) {
+            stopSpeaking();
+            setVoiceMsgId(null);
+            setVoiceLoadingId(null);
+            return;
+        }
+        stopSpeaking();
+        setVoiceLoadingId(msg.id);
+        haptics.light();
+        await speak(msg.text, {
+            onStart: () => { setVoiceLoadingId(null); setVoiceMsgId(msg.id); },
+            onEnd: () => { setVoiceMsgId(null); setVoiceLoadingId(null); },
+            onError: () => { setVoiceMsgId(null); setVoiceLoadingId(null); },
+        });
+    };
+
+    // Stop any audio when the view unmounts so it can't keep playing off-screen.
+    useEffect(() => () => stopSpeaking(), []);
+
+    const INTENT_PROMPTS: Partial<Record<string, string[]>> = {
+        consistency: [
+            "What's been getting in the way of me showing up?",
+            "How do I build a streak that actually sticks?",
+            "What's the smallest practice I can commit to right now?",
+        ],
+        clarity: [
+            "I'm feeling scattered. Help me find my focus.",
+            "What should I actually be working on right now?",
+            "I have too many priorities. Where do I start?",
+        ],
+        stress: [
+            "I'm overwhelmed right now. Where do I begin?",
+            "What's the quickest way to feel less anxious?",
+            "I need to get out of my head. Can you help?",
+        ],
+        purpose: [
+            "I don't know what I'm working toward anymore.",
+            "What would a meaningful day look like for me?",
+            "Help me reconnect with why I'm doing all of this.",
+        ],
+    };
 
     const filteredSessions = sessions.filter(s => {
         if (!historySearch.trim()) return true;
@@ -563,7 +697,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         </div>
                     </header>
 
-                    <div role="log" aria-label="Conversation" className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2 space-y-10 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '9rem' }}>
+                    <div role="log" aria-label="Conversation" className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-2 space-y-10 relative z-10 scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', paddingBottom: '2rem' }}>
                         {activeSession.messages.map((msg: ChatMessage, idx: number) => (
                             <div key={msg.id} className={`flex flex-col min-w-0 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                 {msg.role === 'assistant' && idx > 0 && (
@@ -581,6 +715,20 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 `}>
                                     {msg.text}
                                 </div>
+                                {msg.role === 'assistant' && (
+                                    <button
+                                        onClick={() => handleSpeak(msg)}
+                                        className="mt-2 flex items-center gap-1.5 text-[#E5D6A7]/40 hover:text-[#E5D6A7]/80 active:scale-95 transition-all"
+                                        aria-label={voiceMsgId === msg.id ? 'Stop voice' : 'Hear this aloud'}
+                                    >
+                                        {voiceLoadingId === msg.id
+                                            ? <Loader2 size={14} className="animate-spin" />
+                                            : <Volume2 size={14} className={voiceMsgId === msg.id ? 'text-[#C96A3A]' : ''} />}
+                                        <span className="text-[11px] font-bold uppercase tracking-wider">
+                                            {voiceLoadingId === msg.id ? 'Loading' : voiceMsgId === msg.id ? 'Stop' : 'Listen'}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
                         ))}
 
@@ -687,10 +835,10 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             </div>
                         )}
 
-                        <div ref={messagesEndRef} className="h-36" />
+                        <div ref={messagesEndRef} className="h-4" />
                     </div>
 
-                    <div className="fixed bottom-0 left-0 right-0 z-[220] px-6 pt-4" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}>
+                    <div className="relative z-20 flex-shrink-0 px-6 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">
                             <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
                                 <input

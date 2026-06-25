@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { haptics } from '../utils/haptics';
 import type { UserProfile, AccountabilityPartner } from '../types';
-import { Save, Bell, User, X, Crown, Download, ChevronDown, ChevronUp, Sparkles, Target, Flame, Sun, Moon, Clock, Info, BellOff, BookOpen, Fish, Users, Cloud, ShieldCheck, MessageCircle, Trash2, Compass, AlertTriangle, Droplets, RefreshCw, Lock } from 'lucide-react';
+import { Save, Bell, User, X, Crown, Download, ChevronDown, ChevronUp, Sparkles, Target, Flame, Sun, Moon, Clock, Info, BellOff, BookOpen, Fish, Users, Cloud, ShieldCheck, MessageCircle, Trash2, Compass, AlertTriangle, Droplets, RefreshCw, Lock, Heart } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import { AccountabilityPartners } from './AccountabilityPartners';
 import { PartnerInviteModal } from './PartnerInviteModal';
@@ -14,6 +14,8 @@ import { UpdatePasswordModal } from './UpdatePasswordModal';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
 import { Capacitor } from '@capacitor/core';
 import { WidgetDataSync } from '../utils/widgetDataSync';
+import { getHealthAuthStatus, requestHealthPermissions } from '../utils/healthService';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
 
@@ -86,6 +88,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [showUpdatePassword, setShowUpdatePassword] = useState(false);
     const { user: authUser, signOut, deleteAccount } = useAuth();
     const [confirmAction, setConfirmAction] = useState<{ label: string; message: string; onConfirm: () => void } | null>(null);
+    // Apple Health connection state (native only)
+    const [healthStatus, setHealthStatus] = useState<'authorized' | 'notDetermined' | 'denied' | 'unavailable' | 'loading'>('loading');
+    const [healthConnecting, setHealthConnecting] = useState(false);
 
     // Sync quiet hours state with hook if needed when saving
     const handleQuietHoursChange = (start: string, end: string) => {
@@ -109,6 +114,12 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [isRefreshingNarrative, setIsRefreshingNarrative] = useState(false);
     const isFirstRender = useRef(true);
+
+    // Check Apple Health auth status on mount (native only)
+    useEffect(() => {
+        if (!Capacitor.isNativePlatform()) { setHealthStatus('unavailable'); return; }
+        getHealthAuthStatus().then(r => setHealthStatus(r.status)).catch(() => setHealthStatus('unavailable'));
+    }, []);
 
     const toggleSection = (section: keyof typeof openSections) => {
         setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -1247,6 +1258,49 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
+                    {/* Apple Health — only shown on native */}
+                    {healthStatus !== 'unavailable' && (
+                        <div className={`rounded-3xl border p-5 mb-4 ${isDarkMode ? 'bg-white/5 border-white/8' : 'bg-white border-sage/10 shadow-spa'}`}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${healthStatus === 'authorized' ? 'bg-rose-500/20' : isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`}>
+                                        <Heart size={20} style={{ color: healthStatus === 'authorized' ? '#f43f5e' : isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(74,93,78,0.4)' }} />
+                                    </div>
+                                    <div>
+                                        <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Apple Health</p>
+                                        <p className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
+                                            {healthStatus === 'authorized' && 'Connected — your partner reads sleep & heart rate'}
+                                            {healthStatus === 'notDetermined' && 'Not connected yet'}
+                                            {healthStatus === 'denied' && 'Permission denied — update in iOS Settings'}
+                                            {healthStatus === 'loading' && 'Checking…'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {(healthStatus === 'notDetermined') && (
+                                    <button
+                                        onClick={async () => {
+                                            setHealthConnecting(true);
+                                            localStorage.setItem(STORAGE_KEYS.HEALTH_ASKED, 'true');
+                                            const result = await requestHealthPermissions();
+                                            setHealthStatus(result.status);
+                                            setHealthConnecting(false);
+                                        }}
+                                        disabled={healthConnecting}
+                                        className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                                        style={{ background: '#C96A3A', color: 'white', opacity: healthConnecting ? 0.6 : 1 }}
+                                    >
+                                        {healthConnecting ? 'Connecting…' : 'Connect'}
+                                    </button>
+                                )}
+                                {healthStatus === 'authorized' && (
+                                    <span className="text-xs font-semibold px-3 py-1 rounded-full" style={{ background: 'rgba(244,63,94,0.12)', color: '#f43f5e' }}>
+                                        Connected
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Data & Privacy Section */}
                     <CollapsibleSection
                         title="Data & Privacy"
@@ -1403,22 +1457,33 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             </div>
 
                             <div className={`pt-4 mt-6 flex flex-col items-center gap-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/20'}`}>
-                                <button
-                                    onClick={() => {
-                                        if (onViewPrivacy) {
-                                            onClose();
-                                            onViewPrivacy();
-                                        } else {
-                                            window.open('https://palante.app/privacy', '_blank');
-                                        }
-                                    }}
-                                    className={`px-6 py-2 rounded-full text-xs font-medium border transition-all ${isDarkMode
-                                        ? 'border-pale-gold/30 text-pale-gold hover:bg-pale-gold/10'
-                                        : 'border-sage/30 text-sage hover:bg-sage/10'
-                                        }`}
-                                >
-                                    View Full Privacy Policy
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => {
+                                            if (onViewPrivacy) {
+                                                onClose();
+                                                onViewPrivacy();
+                                            } else {
+                                                window.open('https://palante.app/privacy', '_blank');
+                                            }
+                                        }}
+                                        className={`px-6 py-2 rounded-full text-xs font-medium border transition-all ${isDarkMode
+                                            ? 'border-pale-gold/30 text-pale-gold hover:bg-pale-gold/10'
+                                            : 'border-sage/30 text-sage hover:bg-sage/10'
+                                            }`}
+                                    >
+                                        Privacy Policy
+                                    </button>
+                                    <button
+                                        onClick={() => window.open('https://palante.app/support', '_blank')}
+                                        className={`px-6 py-2 rounded-full text-xs font-medium border transition-all ${isDarkMode
+                                            ? 'border-pale-gold/30 text-pale-gold hover:bg-pale-gold/10'
+                                            : 'border-sage/30 text-sage hover:bg-sage/10'
+                                            }`}
+                                    >
+                                        Get Help
+                                    </button>
+                                </div>
                                 <p className={`text-xs text-center ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                                     Last Updated: {LEGAL_DISCLAIMER.lastUpdated}
                                 </p>

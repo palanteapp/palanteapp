@@ -7,6 +7,8 @@ PODS:
     - Capacitor
   - CapacitorCommunityKeepAwake (6.0.0):
     - Capacitor
+  - CapacitorCommunityTextToSpeech (8.0.2):
+    - Capacitor
   - CapacitorCordova (7.6.2)
   - CapacitorFilesystem (7.1.8):
     - Capacitor
@@ -36,6 +38,7 @@ DEPENDENCIES:
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorCommunityInAppReview (from `../../node_modules/@capacitor-community/in-app-review`)"
   - "CapacitorCommunityKeepAwake (from `../../node_modules/@capacitor-community/keep-awake`)"
+  - "CapacitorCommunityTextToSpeech (from `../../node_modules/@capacitor-community/text-to-speech`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
@@ -60,6 +63,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/in-app-review"
   CapacitorCommunityKeepAwake:
     :path: "../../node_modules/@capacitor-community/keep-awake"
+  CapacitorCommunityTextToSpeech:
+    :path: "../../node_modules/@capacitor-community/text-to-speech"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorFilesystem:
@@ -80,6 +85,7 @@ SPEC CHECKSUMS:
   CapacitorApp: f01a913211780e0718dae9750442c3e23f96e106
   CapacitorCommunityInAppReview: 3756d05524c5cf2eccbc8ed460f77f8f8db6c141
   CapacitorCommunityKeepAwake: 31119384836fb7d4c0f7323df974891d399b03e2
+  CapacitorCommunityTextToSpeech: a9f7c5bcdc424197d11bb7ae3e9010b415e931b0
   CapacitorCordova: 8214697bed435f6e7c5e3ed86d1632a8c42f7d77
   CapacitorFilesystem: c63fc54df41e5a6761785a7f3c49dc696c22e296
   CapacitorHaptics: 1b145fa83c622e5383a3bac04ea81e2514f0b0f5
@@ -92,6 +98,6 @@ SPEC CHECKSUMS:
   Sentry: 88746bf877eff714bc45315a39ad1d1efea2cdda
   SentryCapacitor: 1d620200b850ef6f4e7056f5e20d7860e7c04572
 
-PODFILE CHECKSUM: 94937848684b876dee32f522433127aaf2fa0b43
+PODFILE CHECKSUM: 15b9c90f59a9bcf192c4bfbde33b6becca1356cd
 
 COCOAPODS: 1.16.2

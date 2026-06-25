@@ -380,7 +380,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
             <div className="w-full flex flex-col items-center mb-8 gap-5">
                 <div className="w-full flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                        <Timer className={isDarkMode ? 'text-pale-gold' : 'text-1B4332'} size={24} />
+                        <Timer className={isDarkMode ? 'text-pale-gold' : 'text-[#C96A3A]'} size={24} />
                         <h2 className={`font-display font-medium text-2xl ${textPrimary}`}>Focus Timer</h2>
                     </div>
                     <div className="flex gap-2">
@@ -392,7 +392,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         </button>
                         <button
                             onClick={() => setShowSettings(!showSettings)}
-                            className={`p-2 rounded-full ${showSettings ? ('bg-1B4332 text-white hover:scale-105') : `${isDarkMode ? 'bg-white/5' : 'bg-sage/5'} ${textSecondary}`}`}
+                            className={`p-2 rounded-full ${showSettings ? ('bg-[#C96A3A] text-white hover:scale-105') : `${isDarkMode ? 'bg-white/5' : 'bg-sage/5'} ${textSecondary}`}`}
                         >
                             <Settings size={18} />
                         </button>
@@ -426,7 +426,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                             haptics.selection();
                         }}
                         className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${mode === m
-                            ? (isDarkMode ? 'bg-pale-gold text-sage-dark shadow-lg' : 'bg-1B4332 text-white shadow-lg')
+                            ? (isDarkMode ? 'bg-pale-gold text-sage-dark shadow-lg' : 'bg-[#C96A3A] text-white shadow-lg')
                             : textSecondary
                             }`}
                     >
@@ -512,7 +512,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                 </button>
                 <button
                     onClick={toggleTimer}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-2xl ${'bg-1B4332 text-white hover:scale-105'}`}
+                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-2xl ${'bg-[#C96A3A] text-white hover:scale-105'}`}
                 >
                     {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
                 </button>
@@ -561,7 +561,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         exit={{ opacity: 0, y: -20 }}
                         className={`w-full p-6 rounded-[2rem] border ${bgCard} text-center`}
                     >
-                        <div className={`inline-flex p-3 rounded-2xl mb-4 ${isDarkMode ? 'bg-pale-gold/10 text-pale-gold' : 'bg-1B4332/10 text-1B4332'}`}>
+                        <div className={`inline-flex p-3 rounded-2xl mb-4 ${isDarkMode ? 'bg-pale-gold/10 text-pale-gold' : 'bg-[#C96A3A]/10 text-[#C96A3A]'}`}>
                             <currentSuggestion.icon size={24} />
                         </div>
                         <h3 className={`text-lg font-display font-medium mb-3 ${textPrimary}`}>Partner Suggestion</h3>
@@ -571,7 +571,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                         {currentSuggestion.action === 'hydrate' && (
                             <button
                                 onClick={() => { onAddHydration?.(); haptics.success(); }}
-                                className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${'bg-1B4332 text-white hover:scale-105'}`}
+                                className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${'bg-[#C96A3A] text-white hover:scale-105'}`}
                             >
                                 Track Water
                             </button>
@@ -598,9 +598,9 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                             className={`w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl ${isDarkMode ? 'bg-[#1e2820]' : 'bg-white'}`}
                         >
                             {/* Top accent bar */}
-                            <div className={`h-1.5 w-full ${isDarkMode ? 'bg-pale-gold' : 'bg-1B4332'}`} />
+                            <div className={`h-1.5 w-full ${isDarkMode ? 'bg-pale-gold' : 'bg-[#C96A3A]'}`} />
                             <div className="p-7 text-center">
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-pale-gold/15 text-pale-gold' : 'bg-1B4332/10 text-1B4332'}`}>
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-pale-gold/15 text-pale-gold' : 'bg-[#C96A3A]/10 text-[#C96A3A]'}`}>
                                     <Bell size={24} />
                                 </div>
                                 <h3 className={`text-xl font-display font-bold mb-1 ${textPrimary}`}>
@@ -620,7 +620,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                                             resetToMode(mode);
                                         }
                                     }}
-                                    className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 mb-3 ${'bg-1B4332 text-white hover:scale-105'}`}
+                                    className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 mb-3 ${'bg-[#C96A3A] text-white hover:scale-105'}`}
                                 >
                                     <Coffee size={16} />
                                     {pendingBreakMode === 'longBreak' ? 'Start Long Break' : 'Start Short Break'}
@@ -683,7 +683,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ onAddHydration }) => {
                     </div>
                     <button
                         onClick={() => setShowSettings(false)}
-                        className={`w-full mt-10 py-4 rounded-full font-bold text-sm uppercase tracking-widest active:scale-95 transition-all outline-none ${isDarkMode ? 'bg-pale-gold text-sage-dark shadow-lg shadow-pale-gold/20' : 'bg-1B4332 text-white shadow-lg shadow-1B4332/20'}`}
+                        className={`w-full mt-10 py-4 rounded-full font-bold text-sm uppercase tracking-widest active:scale-95 transition-all outline-none ${isDarkMode ? 'bg-pale-gold text-sage-dark shadow-lg shadow-pale-gold/20' : 'bg-[#C96A3A] text-white shadow-lg shadow-[#C96A3A]/20'}`}
                     >
                         Save Changes
                     </button>

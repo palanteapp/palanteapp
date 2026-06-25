@@ -103,7 +103,7 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
             }}>
                 <MandalaOnlySVG
                     isDarkMode={true}
-                    completedDays={petalsEarned}
+                    completedDays={completedDays}
                     colorCycle={colorCycle}
                 />
             </div>

@@ -119,6 +119,21 @@ export const STORAGE_KEYS = {
   RING2_CEREMONY_SHOWN: 'palante_ring2_ceremony_shown',
   RING3_CEREMONY_SHOWN: 'palante_ring3_ceremony_shown',
   FULLBLOOM_CEREMONY_SHOWN: 'palante_fullbloom_ceremony_shown',
+
+  // Apple Health — tracks whether the one-time connect prompt has been shown
+  HEALTH_ASKED: 'palante_health_asked',
+
+  // Cold start — seed memories written from onboarding data, loaded into partner chat
+  SEED_MEMORIES: 'palante_seed_memories',
+
+  // AI usage budget — per-user daily partner-chat call count { date, count }.
+  // Caps the only unbounded AI cost vector so a single heavy user can't run
+  // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.
+  AI_USAGE: 'palante_ai_usage',
+
+  // Voice (TTS) monthly backstop — paid synth seconds { month, seconds }.
+  // Past the monthly cap, voice falls back to the free on-device iOS voice.
+  TTS_USAGE: 'palante_tts_usage',
 } as const;
 
 /** sessionStorage keys (not persisted across sessions) */

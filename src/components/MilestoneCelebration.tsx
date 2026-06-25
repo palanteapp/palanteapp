@@ -15,7 +15,7 @@ const getMilestoneIcon = (iconName: string, size = 96) => {
 };
 
 interface MilestoneCelebrationProps {
-    milestone?: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year';
+    milestone?: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year';
     streakDays?: number;
     isOpen: boolean;
     onClose: () => void;

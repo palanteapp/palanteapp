@@ -74,5 +74,16 @@
 	<string>Palante reads your sleep and heart rate data to help your partner understand how you're doing and offer more relevant support.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Palante logs your mindfulness sessions so they appear alongside your other wellness data in Apple Health.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.move.palante</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>palante</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

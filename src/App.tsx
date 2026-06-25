@@ -17,6 +17,7 @@ import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, Conten
 import { haptics } from './utils/haptics';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
+import { supabase } from './lib/supabase';
 import { SubscriptionProvider, useSubscription } from './contexts/SubscriptionContext';
 import { useNotifications } from './hooks/useNotifications';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -174,6 +175,8 @@ function AppContent() {
     }
   };
   const [eveningSkipped, setEveningSkipped] = useState(false);
+  const [morningSkipped, setMorningSkipped] = useState(false);
+  const [morningSkipReminderSent, setMorningSkipReminderSent] = useState(false);
   const [showEveningPracticeInline, setShowEveningPracticeInline] = useState(false);
 
   // Dev unlock: triple-tap the greeting on the home screen to force evening mode any hour.
@@ -466,6 +469,7 @@ function AppContent() {
     ageRange?: string;
     dateOfBirth?: string;
     primaryIntent?: PrimaryIntent;
+    bio?: string;
   }) => {
     analytics.onboardingCompleted({ profession: userData.profession, quoteIntensity: userData.quoteIntensity });
 
@@ -522,8 +526,30 @@ function AppContent() {
           order: 0
         }] : user.dailyFocuses,
         // Parse and add interests if provided
-        interests: userData.interests ? userData.interests.split(',').map(i => i.trim()) : user.interests
+        interests: userData.interests ? userData.interests.split(',').map(i => i.trim()) : user.interests,
+        // Bio written in onboarding gives the partner real context from the very first chat
+        bio: userData.bio ?? user.bio,
       };
+
+      // Write seed memories so the partner has real context from the very first chat,
+      // even before Supabase conversation memories exist (available pre-auth too).
+      const seedMemories: string[] = [];
+      const firstName = userData.name.trim().split(/\s+/)[0] || userData.name.trim();
+      const INTENT_MEMORY: Partial<Record<string, string>> = {
+        consistency: `${firstName} came to Palante because they want to build more consistency — showing up every day regardless of how they feel.`,
+        clarity: `${firstName} is looking for clarity and focus. They feel scattered and want to know what truly matters so they can cut through the noise.`,
+        stress: `${firstName} is dealing with real stress and came to Palante to stay grounded. Life has felt heavy and they need support managing it.`,
+        purpose: `${firstName} wants their days to feel meaningful. They came to Palante to reconnect with purpose and make their life more intentional.`,
+      };
+      if (userData.primaryIntent && INTENT_MEMORY[userData.primaryIntent]) {
+        seedMemories.push(INTENT_MEMORY[userData.primaryIntent]!);
+      }
+      if (userData.bio?.trim()) {
+        seedMemories.push(`${firstName} shared this about themselves when they joined: "${userData.bio.trim()}"`);
+      }
+      if (seedMemories.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SEED_MEMORIES, JSON.stringify(seedMemories));
+      }
 
       try {
         await updateProfile(updatedUser);
@@ -620,7 +646,7 @@ function AppContent() {
   // Milestone Celebration
   const [showMilestone, setShowMilestone] = useState<{
     isOpen: boolean;
-    milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year' | null;
+    milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year' | null;
     streakDays?: number;
   }>({
     isOpen: false,
@@ -841,11 +867,15 @@ function AppContent() {
     const lastActivity = user.practiceData.lastActivityDate;
     const daysSince = getDaysDifference(lastActivity, getTodayDate());
 
-    if (daysSince === 1 && (user.streak ?? 0) >= 2) {
-      // Missed exactly yesterday and has a real streak worth protecting — show grace day modal
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+    // daysSince === 1 means the last practice was YESTERDAY: the user is on track and
+    // simply hasn't practiced yet today, so nothing should fire. The grace-day modal is
+    // for returning after a real gap — daysSince === 2 means exactly yesterday was missed.
+    if (daysSince === 2 && (user.streak ?? 0) >= 2) {
+      // Missed exactly yesterday and has a real streak worth protecting — show grace day modal.
+      // Build the date with LOCAL parts (not toISOString, which is UTC and can be off by one).
+      const yd = new Date();
+      yd.setDate(yd.getDate() - 1);
+      const yesterdayStr = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`;
       setTimeout(() => setRestDayMissedDate(yesterdayStr), 1200);
     } else if (daysSince >= 3) {
       const lastRecoveryKey = 'palante_last_recovery_nudge';
@@ -888,6 +918,13 @@ function AppContent() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Always restore nav + scroll to top when switching tabs so the nav bar is never
+  // stranded hidden from a previous page's scroll position.
+  useEffect(() => {
+    setIsNavVisible(true);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [activeTab]);
 
 
 
@@ -933,10 +970,11 @@ function AppContent() {
     const { milestone, isNew } = checkMilestone(updatedCount, currentPracticeData.milestones);
     
     if (milestone && isNew) {
-      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year'> = {
+      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year'> = {
         'practices_1': 'first', 'practices_3': 'three', 'practices_7': 'week',
         'practices_14': 'fortnight', 'practices_30': 'month', 'practices_50': 'fifty',
-        'practices_100': 'century', 'practices_200': 'twohundred', 'practices_365': 'year'
+        'practices_90': 'quarter', 'practices_100': 'century',
+        'practices_180': 'halfyear', 'practices_200': 'twohundred', 'practices_365': 'year'
       };
       const name = milestoneMap[milestone] || 'week';
       const earlyToasts: Partial<Record<typeof name, string>> = {
@@ -1092,14 +1130,16 @@ function AppContent() {
     // Trigger milestone celebration if new milestone reached
     if (milestone && isNew) {
       // Map practice milestones to old milestone names for celebration modal
-      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year'> = {
+      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year'> = {
         'practices_1': 'first',
         'practices_3': 'three',
         'practices_7': 'week',
         'practices_14': 'fortnight',
         'practices_30': 'month',
         'practices_50': 'fifty',
+        'practices_90': 'quarter',
         'practices_100': 'century',
+        'practices_180': 'halfyear',
         'practices_200': 'twohundred',
         'practices_365': 'year'
       };
@@ -1240,14 +1280,16 @@ function AppContent() {
 
       const { milestone, isNew } = checkMilestone(updatedPracticeData.totalPractices, currentPracticeData.milestones);
       if (milestone && isNew) {
-        const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year'> = {
+        const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year'> = {
           'practices_1': 'first',
           'practices_3': 'three',
           'practices_7': 'week',
           'practices_14': 'fortnight',
           'practices_30': 'month',
           'practices_50': 'fifty',
+          'practices_90': 'quarter',
           'practices_100': 'century',
+          'practices_180': 'halfyear',
           'practices_200': 'twohundred',
           'practices_365': 'year'
         };
@@ -1391,7 +1433,7 @@ function AppContent() {
   // Morning practice flow: hide header + nav during the full morning ritual
   const [beat1Step, setBeat1Step] = useState<string>('intro');
   const ritualDoneToday = !!todaysIntention || !!sessionStorage.getItem(SESSION_KEYS.MORNING_DONE);
-  const isInMorningFlow = !ritualDoneToday && !shouldShowEveningMode && !forcedEvening && !!user && activeTab === 'home';
+  const isInMorningFlow = !ritualDoneToday && !morningSkipped && !shouldShowEveningMode && !forcedEvening && !!user && activeTab === 'home';
 
   // Evening practice flow: hide nav once the user leaves the intro step
   const [eveningStep, setEveningStep] = useState<string>('intro');
@@ -1479,6 +1521,7 @@ function AppContent() {
   // Dismissal stores the date — re-surfaces after 3 days so data-loss risk stays visible
   // through the trial window without being permanently ignorable.
   useEffect(() => {
+    if (authLoading) return; // wait for Supabase auth to resolve before showing nudge
     if (authUser) return;
     const totalPractices = user?.practiceData?.totalPractices ?? 0;
     const streak = user?.streak ?? 0;
@@ -1490,7 +1533,7 @@ function AppContent() {
     }
     const t = setTimeout(() => setShowSignInNudge(true), 2000);
     return () => clearTimeout(t);
-  }, [authUser, user?.practiceData?.totalPractices, user?.streak]);
+  }, [authLoading, authUser, user?.practiceData?.totalPractices, user?.streak]);
 
   // Notification permission ask — deferred off the first-practice day to a return session, after
   // the user has had a chance to feel a daily dispatch's value. (Day 1 ends on the welcome letter.)
@@ -1604,7 +1647,24 @@ function AppContent() {
     return () => { listener.then(h => h.remove()); };
   }, [user, refreshDailyQuote, generateGardenAffirmation]);
 
-
+  // Deep-link handler — captures palante://auth-callback URLs from Supabase email links on device
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listener = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+      if (!url.includes('auth-callback') && !url.includes('access_token') && !url.includes('code=')) return;
+      const hashParams = new URLSearchParams(url.split('#')[1] ?? '');
+      const queryParams = new URLSearchParams((url.split('?')[1] ?? '').split('#')[0]);
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const code = queryParams.get('code');
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      } else if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+      }
+    });
+    return () => { listener.then(h => h.remove()); };
+  }, []);
 
   // LOADING STATE
   if (authLoading) {
@@ -1775,7 +1835,7 @@ function AppContent() {
 {/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
-        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && activeTab !== 'breath' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
+        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && !isInEveningInputFlow && activeTab !== 'breath' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
       >
 
         {/* Top: Tagline & Logo */}
@@ -1847,8 +1907,8 @@ function AppContent() {
 
       {/* Main Content - Full Screen Sections */}
       <main
-        className={`relative z-20 ${isInMorningFlow ? '' : 'pb-40'}`}
-        style={{ paddingTop: isInMorningFlow ? 0 : 'calc(env(safe-area-inset-top) + 8.5rem)' }}
+        className={`relative z-20 ${isInMorningFlow || isInEveningInputFlow ? '' : 'pb-40'}`}
+        style={{ paddingTop: isInMorningFlow ? 0 : isInEveningInputFlow ? 'calc(env(safe-area-inset-top) + 1.5rem)' : 'calc(env(safe-area-inset-top) + 8.5rem)' }}
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -1868,7 +1928,7 @@ function AppContent() {
             const firstName = rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1);
 
             // ── BEAT 1 · MORNING ARRIVAL ────────────────────────────────────────
-            if (!ritualDoneToday && !shouldShowEveningMode && !forcedEvening && user) {
+            if (!ritualDoneToday && !morningSkipped && !shouldShowEveningMode && !forcedEvening && user) {
               const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
               const timeSub = hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
               const isIntroStep = beat1Step === 'intro';
@@ -1928,6 +1988,33 @@ function AppContent() {
                       hideEnergyCheckIn={true}
                       user={user}
                       onStepChange={setBeat1Step}
+                      onSkip={async () => {
+                        haptics.light();
+                        // Try to schedule a nudge ~2 hours from now (cap at 10 PM).
+                        try {
+                          const { LocalNotifications } = await import('@capacitor/local-notifications');
+                          const status = await LocalNotifications.checkPermissions();
+                          const permitted = status.display === 'granted'
+                            || (status.display === 'prompt' && await notifications.requestPermission());
+                          if (permitted) {
+                            const remind = new Date();
+                            remind.setHours(Math.min(remind.getHours() + 2, 22), 0, 0, 0);
+                            await LocalNotifications.schedule({
+                              notifications: [{
+                                id: 9001,
+                                title: 'Your morning practice is waiting',
+                                body: 'Take a moment to set your intention. It only takes 2 minutes.',
+                                schedule: { at: remind },
+                                smallIcon: 'ic_stat_icon',
+                              }],
+                            });
+                            setMorningSkipReminderSent(true);
+                          }
+                        } catch {
+                          // Notifications unavailable on web or denied — skip silently
+                        }
+                        setMorningSkipped(true);
+                      }}
                     />
                   </div>
 
@@ -1973,7 +2060,23 @@ function AppContent() {
                         }
                         const existingEntries = user.dailyEveningPractice || [];
                         const otherEntries = existingEntries.filter(p => p.date !== todayDate);
-                        updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data] });
+                        // Register the evening GLAD practice as a REAL practice: log it into
+                        // activityHistory + practiceData (totalPractices, lastActivityDate) AND
+                        // advance the streak — mirroring the morning path. Previously it only set
+                        // lastActivityDate, so evening-only days never counted toward practices,
+                        // milestones, or streak, and the recovery nudge kept false-firing.
+                        const yd = new Date(); yd.setDate(yd.getDate() - 1);
+                        const yesterdayStr = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`;
+                        const hadActivityTodayBefore = (user.activityHistory || []).some(log => log.date === todayDate)
+                            || (user.practiceData?.activityHistory || []).some(a => a.date === todayDate);
+                        const hadActivityYesterday = (user.activityHistory || []).some(log => log.date === yesterdayStr)
+                            || (user.practiceData?.activityHistory || []).some(a => a.date === yesterdayStr);
+                        let newStreak = user.streak || 0;
+                        if (!hadActivityTodayBefore) {
+                          newStreak = hadActivityYesterday ? newStreak + 1 : 1;
+                        }
+                        const updatedPracticeData = logPractice(user.practiceData || migrateStreakToPractice(user), 'evening_glad');
+                        updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data], practiceData: updatedPracticeData, streak: newStreak });
                         analytics.eveningPracticeCompleted({ gratitudeCount: data.gratitude?.length ?? 0 });
                         // Cancel tonight's last-call notification — they finished the practice
                         cancelEveningLastCall();
@@ -2051,9 +2154,40 @@ function AppContent() {
                         ? 'Practice complete. The day is yours.'
                         : eveningDoneToday
                           ? 'Evening reflection complete.'
-                          : hour < 12 ? 'Ready to rise?' : hour < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
+                          : morningSkipped
+                            ? 'Your practice is here whenever you\'re ready.'
+                            : hour < 12 ? 'Ready to rise?' : hour < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
                   </p>
                 </motion.div>
+
+                {/* ── Morning practice nudge when user skipped ─── */}
+                {morningSkipped && !ritualDoneToday && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <button
+                      onClick={() => {
+                        haptics.light();
+                        setMorningSkipped(false);
+                      }}
+                      className={`w-full rounded-2xl px-5 py-4 flex items-center justify-between gap-3 transition-all active:scale-[0.98] ${isDarkMode ? 'bg-white/[0.07] border border-white/[0.10] hover:bg-white/[0.10]' : 'bg-white border border-[#C96A3A]/20 shadow-sm hover:border-[#C96A3A]/40'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-pale-gold/15 text-pale-gold' : 'bg-[#C96A3A]/10 text-[#C96A3A]'}`}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div className="text-left">
+                          <p className={`text-xs font-black uppercase tracking-[0.15em] mb-0.5 ${isDarkMode ? 'text-white/50' : 'text-[#C96A3A]/70'}`}>Morning Practice</p>
+                          <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Ready when you are</p>
+                        </div>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={isDarkMode ? 'text-white/30' : 'text-sage/30'}><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                  </motion.div>
+                )}
 
                 {/* ── Today's Intention ────────────────────── */}
                 {ritualDoneToday && todaysIntention && (
@@ -2093,7 +2227,7 @@ function AppContent() {
                         boxShadow: isDarkMode ? 'none' : '0 2px 12px rgba(201,106,58,0.08)',
                       }}
                     >
-                      <p className="text-xs font-black uppercase tracking-[0.18em] mb-1" style={{ color: '#C96A3A' }}>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] mb-1" style={{ color: isDarkMode ? '#FFFFFF' : '#C96A3A' }}>
                         Day 1
                       </p>
                       <p className={`text-base font-bold mb-1 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
@@ -2257,7 +2391,7 @@ function AppContent() {
                           border: isDarkMode ? '1px solid rgba(201,106,58,0.30)' : '1px solid rgba(201,106,58,0.20)',
                         }}
                       >
-                        <p className={`text-xs font-black uppercase tracking-[0.18em] mb-1`} style={{ color: '#C96A3A' }}>
+                        <p className={`text-xs font-black uppercase tracking-[0.18em] mb-1`} style={{ color: isDarkMode ? '#FFFFFF' : '#C96A3A' }}>
                           Your Partner
                         </p>
                         <p className={`text-sm font-bold mb-1 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
@@ -2962,7 +3096,7 @@ function AppContent() {
 
 
       {/* Premium Bottom Navigation - Scroll Aware */}
-      < nav className={`fixed left-1/2 -translate-x-1/2 z-[210] transition-all duration-300 ${isNavVisible && activeTab !== 'breath' && !isInMorningFlow && !isInEveningInputFlow ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
+      < nav className={`fixed left-1/2 -translate-x-1/2 z-[210] transition-all duration-300 ${isNavVisible && activeTab !== 'breath' && !isInEveningInputFlow && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
@@ -2981,6 +3115,8 @@ function AppContent() {
                   analytics.screenViewed(tab.id);
                   if (tab.id === 'coach' && showPartnerDiscovery) dismissPartnerDiscovery();
                 }}
+                aria-label={tab.label}
+                aria-current={activeTab === tab.id ? 'page' : undefined}
                 className={`tap-zone flex flex-col items-center gap-0.5 md:gap-1 px-4 md:px-5 py-2 rounded-full transition-all duration-300 ${activeTab === tab.id
                   ? isDarkMode
                     ? 'bg-white/20 text-white border border-white/20'
@@ -2991,21 +3127,22 @@ function AppContent() {
                   } `}
               >
                 <div className="relative">
-                  <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" />
+                  <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" aria-hidden="true" />
                   {tab.id === 'coach' && showPartnerDiscovery && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
+                    <span aria-label="New" className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
                   )}
                   {tab.id === 'momentum' && showWeeklyHighlights && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
+                    <span aria-label="New highlights" className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
                   )}
                   {tab.id === 'momentum' && !showWeeklyHighlights && (user?.streak ?? 0) > 0 && (
                     <span
+                      aria-label="Active streak"
                       className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-white animate-pulse"
                       style={{ boxShadow: '0 0 8px rgba(255, 255, 255, 0.4)' }}
                     />
                   )}
                 </div>
-                <span className="text-xs md:text-xs font-medium">{tab.label}</span>
+                <span className="text-xs md:text-xs font-medium" aria-hidden="true">{tab.label}</span>
               </button>
             );
           })}
@@ -3590,6 +3727,7 @@ function AppContent() {
               streak={user.streak || 0}
               points={user.points || 0}
               totalPractices={user.practiceData?.totalPractices || 0}
+              savedMixes={user.savedMixes || []}
             />
           )}
         </Suspense>

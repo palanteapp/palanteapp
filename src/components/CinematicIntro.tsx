@@ -18,6 +18,7 @@ interface CinematicIntroProps {
         ageRange?: string;
         dateOfBirth?: string;
         primaryIntent?: PrimaryIntent;
+        bio?: string;
     }) => void;
     onOpenSettings?: () => void;
 }
@@ -47,11 +48,12 @@ const MONTHS = [
     'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-// Steps: 0 splash · 1 age · 2 name · 3 orienting question
+// Steps: 0 splash · 1 age · 2 name · 3 orienting question · 4 bio
 export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const [step, setStep] = useState(0);
     const [name, setName] = useState('');
     const [orientingChoice, setOrientingChoice] = useState<PrimaryIntent | ''>('');
+    const [bio, setBio] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     const [nameError, setNameError] = useState('');
@@ -99,6 +101,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 ageRange: undefined,
                 dateOfBirth,
                 primaryIntent: selected?.id,
+                bio: bio.trim() || undefined,
             });
         } catch (err) {
             console.error('[Palante] CinematicIntro completion error:', err);
@@ -504,27 +507,24 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             </motion.div>
 
                             <motion.button
-                                onClick={handleComplete}
-                                disabled={isSubmitting}
+                                onClick={() => setStep(4)}
                                 className="w-full mt-6 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
                                 style={{
                                     background: orientingChoice ? '#E5D6A7' : 'rgba(229,214,167,0.25)',
                                     color: orientingChoice ? '#2D3E33' : 'rgba(229,214,167,0.40)',
                                     boxShadow: orientingChoice ? '0 8px 28px rgba(229,214,167,0.40)' : 'none',
-                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
                                 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.38 }}
                                 whileTap={{ scale: 0.97 }}
                             >
-                                {isSubmitting ? 'Setting up your practice…' : "Let's begin →"}
+                                Continue →
                             </motion.button>
 
                             {!orientingChoice && (
                                 <motion.button
-                                    onClick={handleComplete}
-                                    disabled={isSubmitting}
+                                    onClick={() => setStep(4)}
                                     className="w-full mt-3 py-2 text-sm font-medium"
                                     style={{ color: 'rgba(229,214,167,0.25)' }}
                                     initial={{ opacity: 0 }}
@@ -548,11 +548,115 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         </div>
                     </motion.div>
                 )}
+                {/* ── STEP 4 · BIO ── */}
+                {step === 4 && (
+                    <motion.div
+                        key="bio"
+                        className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
+                        style={{ paddingTop: 'max(env(safe-area-inset-top), 32px)', paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
+                        initial={{ opacity: 0, x: 44 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -44 }}
+                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    >
+                        <div className="w-full max-w-sm">
+                            <div className="flex justify-center mb-10">
+                                <Logo className="w-10 h-10" color="rgba(229,214,167,0.55)" />
+                            </div>
+
+                            <motion.h2
+                                className="text-4xl font-display font-bold text-white text-center mb-3 tracking-tight"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.08 }}
+                            >
+                                What's going on for you right now?
+                            </motion.h2>
+                            <motion.p
+                                className="text-center text-sm mb-8"
+                                style={{ color: 'rgba(229,214,167,0.55)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.18 }}
+                            >
+                                Your partner will hold onto this. Share as much or as little as you want.
+                            </motion.p>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.22 }}
+                            >
+                                <textarea
+                                    value={bio}
+                                    onChange={e => setBio(e.target.value)}
+                                    placeholder="A few sentences is plenty. What's on your mind, what you're working through, where you want to go…"
+                                    rows={5}
+                                    maxLength={500}
+                                    className="w-full px-5 py-4 rounded-2xl text-base font-body outline-none transition-all resize-none"
+                                    style={{
+                                        background: '#FDFBF7',
+                                        color: '#2D3E33',
+                                        border: '1.5px solid rgba(255,255,255,0.9)',
+                                        caretColor: '#C96A3A',
+                                        lineHeight: '1.6',
+                                    }}
+                                />
+                                <p className="text-right text-xs mt-1" style={{ color: 'rgba(229,214,167,0.30)' }}>
+                                    {bio.length}/500
+                                </p>
+                            </motion.div>
+
+                            <motion.button
+                                onClick={handleComplete}
+                                disabled={isSubmitting}
+                                className="w-full mt-4 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
+                                style={{
+                                    background: '#E5D6A7',
+                                    color: '#2D3E33',
+                                    boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
+                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                }}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.30 }}
+                                whileTap={{ scale: 0.97 }}
+                            >
+                                {isSubmitting ? 'Setting up your practice…' : "Let's begin →"}
+                            </motion.button>
+
+                            {!bio.trim() && (
+                                <motion.button
+                                    onClick={handleComplete}
+                                    disabled={isSubmitting}
+                                    className="w-full mt-3 py-2 text-sm font-medium"
+                                    style={{ color: 'rgba(229,214,167,0.28)' }}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.48 }}
+                                >
+                                    Skip for now
+                                </motion.button>
+                            )}
+
+                            <motion.button
+                                onClick={() => setStep(3)}
+                                className="w-full mt-2 py-2 text-sm font-medium"
+                                style={{ color: 'rgba(229,214,167,0.25)' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 0.55 }}
+                            >
+                                ← Back
+                            </motion.button>
+                        </div>
+                    </motion.div>
+                )}
             </AnimatePresence>
 
-            {/* Progress dots */}
+            {/* Progress dots — 5 steps: 0 splash · 1 age · 2 name · 3 intent · 4 bio */}
             <div className="absolute bottom-10 inset-x-0 flex justify-center gap-2 pointer-events-none">
-                {[0, 1, 2, 3].map(i => (
+                {[0, 1, 2, 3, 4].map(i => (
                     <div
                         key={i}
                         className="h-1.5 rounded-full transition-all duration-500"

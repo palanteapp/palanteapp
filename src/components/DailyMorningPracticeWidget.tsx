@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sun, Sparkles, Check, ChevronRight, Sprout, Flame, Loader2 } from 'lucide-react';
+import { Sun, Sparkles, Check, ChevronRight, Sprout, Flame, Loader2, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DailyMorningPractice, Quote } from '../types';
 import type { UserProfile } from '../types';
 import { DashboardQuoteCard } from './DashboardQuoteCard';
 import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
 import { supabase } from '../lib/supabase';
-import { logMindfulSession, getHealthContext } from '../utils/healthService';
+import { logMindfulSession, getHealthContext, requestHealthPermissions } from '../utils/healthService';
+import { Capacitor } from '@capacitor/core';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 interface DailyMorningPracticeProps {
     onComplete: (data: DailyMorningPractice) => void;
@@ -19,9 +21,10 @@ interface DailyMorningPracticeProps {
     onStepChange?: (step: 'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary') => void;
     user?: UserProfile;
     isFirstEver?: boolean;
+    onSkip?: () => void;
 }
 
-export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver }) => {
+export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver, onSkip }) => {
     const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
     const practiceStartTime = useRef(Date.now());
     const [gratitudes, setGratitudes] = useState<string[]>(['', '', '', '', '']);
@@ -31,6 +34,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     const [isGenerating, setIsGenerating] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const [hasRefreshed, setHasRefreshed] = useState(false);
+    // One-time Apple Health connect prompt — only shown on native, once ever
+    const [showHealthPrompt, setShowHealthPrompt] = useState(false);
+    const [healthDenied, setHealthDenied] = useState(false);
 
     useEffect(() => {
         if (existingPriming && !hasRefreshed) {
@@ -67,6 +73,10 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     document.body.scrollTop = 0;
                 });
             });
+        }
+        // Show the Apple Health connect prompt once on the message step (native only)
+        if (step === 'message' && Capacitor.isNativePlatform() && !localStorage.getItem(STORAGE_KEYS.HEALTH_ASKED)) {
+            setShowHealthPrompt(true);
         }
     }, [step, onStepChange]);
 
@@ -106,7 +116,10 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 setIsGenerating(false);
             }, 8000);
 
-            getHealthContext().then(healthContext => {
+            const healthFetch = Capacitor.isNativePlatform()
+                ? getHealthContext()
+                : Promise.resolve({});
+            healthFetch.then(healthContext => {
                 return generateMorningPracticeMessage(userName || 'Friend', {
                     ...fallbackData,
                     narrative: user?.userNarrative?.text,
@@ -318,6 +331,16 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 >
                     Begin Morning Practice
                 </motion.button>
+
+                {onSkip && (
+                    <button
+                        onClick={onSkip}
+                        className="mt-5 w-full py-2 text-center text-sm font-medium transition-colors"
+                        style={{ color: 'rgba(255,255,255,0.35)' }}
+                    >
+                        Skip for now
+                    </button>
+                )}
             </motion.div>
         );
     };
@@ -506,7 +529,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                         </p>
                     </div>
                 ) : (
-                    <div className="w-full mb-8">
+                    <div className="w-full mb-6">
                         <p className="text-xs font-black uppercase tracking-[0.22em] mb-4 text-center" style={{ color: 'rgba(229,214,167,0.90)' }}>
                             Your message for today
                         </p>
@@ -516,6 +539,77 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                         />
                     </div>
                 )}
+
+                {/* Apple Health one-time connect prompt */}
+                <AnimatePresence>
+                    {showHealthPrompt && !isGenerating && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.35 }}
+                            className="w-full mb-5 rounded-2xl px-5 py-4"
+                            style={{ background: 'rgba(229,214,167,0.10)', border: '1px solid rgba(229,214,167,0.18)' }}
+                        >
+                            <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                    style={{ background: 'rgba(229,214,167,0.15)' }}>
+                                    <Heart size={16} style={{ color: '#E5D6A7' }} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-white mb-1">
+                                        {healthDenied ? 'Health access is off' : 'Let your partner notice how you\'re doing'}
+                                    </p>
+                                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(229,214,167,0.60)' }}>
+                                        {healthDenied
+                                            ? 'Tap Open Settings, then go to Privacy & Security → Health → Palante to enable access.'
+                                            : 'Connect Apple Health so your partner can gently acknowledge your sleep and energy — never used for anything else.'}
+                                    </p>
+                                    <div className="flex gap-2 mt-3">
+                                        {healthDenied ? (
+                                            <button
+                                                onClick={async () => {
+                                                    const { App } = await import('@capacitor/app');
+                                                    await App.openUrl({ url: 'app-settings:' });
+                                                }}
+                                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                                                style={{ background: '#E5D6A7', color: '#2D3E33' }}
+                                            >
+                                                Open Settings
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={async () => {
+                                                    localStorage.setItem(STORAGE_KEYS.HEALTH_ASKED, 'true');
+                                                    const result = await requestHealthPermissions();
+                                                    if (result?.status === 'denied') {
+                                                        setHealthDenied(true);
+                                                    } else {
+                                                        setShowHealthPrompt(false);
+                                                    }
+                                                }}
+                                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                                                style={{ background: '#E5D6A7', color: '#2D3E33' }}
+                                            >
+                                                Connect Health
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => {
+                                                localStorage.setItem(STORAGE_KEYS.HEALTH_ASKED, 'true');
+                                                setShowHealthPrompt(false);
+                                            }}
+                                            className="px-4 py-2 rounded-xl text-xs font-medium"
+                                            style={{ color: 'rgba(229,214,167,0.45)' }}
+                                        >
+                                            Not now
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <div className="flex gap-3">
                     <button

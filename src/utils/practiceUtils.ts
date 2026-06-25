@@ -24,15 +24,17 @@ export const getDaysDifference = (date1: string, date2: string): number => {
 };
 
 /** Get display details for a count milestone (Total Practices) */
-export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year') => {
+export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year') => {
     const milestones = {
         first: { title: 'The First Day', icon: 'Sprout', message: "One practice. That's not nothing — that's everything. The garden is awake now.", label: 'Total Practices', days: 1 },
         three: { title: 'Three In', icon: 'Sun', message: "Three practices. Most people stop at one. You came back twice more. Something in you means it.", label: 'Total Practices', days: 3 },
         week: { title: 'Seven Practices', icon: 'Flame', message: "Seven down. The routine is taking shape. You're not just trying anymore — you're doing.", label: 'Total Practices', days: 7 },
-        fortnight: { title: 'Fourteen Practices', icon: 'Compass', message: "Fourteen practices. This isn't a streak anymore. It's a relationship with yourself.", label: 'Total Practices', days: 14 },
+        fortnight: { title: 'Fourteen Practices', icon: 'Compass', message: "Fourteen practices. You're not just trying anymore — you're keeping a promise to yourself.", label: 'Total Practices', days: 14 },
         month: { title: 'Thirty Practices', icon: 'Trophy', message: "Thirty practices. This is what it looks like when someone actually commits.", label: 'Total Practices', days: 30 },
         fifty: { title: 'Fifty Practices', icon: 'Star', message: "Fifty. You've been here through hard days, tired days, days when skipping would have been easy. You didn't.", label: 'Total Practices', days: 50 },
+        quarter: { title: 'Ninety Practices', icon: 'Award', message: "Ninety. Three months of choosing yourself. That's not a phase anymore — that's a foundation.", label: 'Total Practices', days: 90 },
         century: { title: 'One Hundred', icon: 'Award', message: "A hundred practices. The person who started this is not the same person standing here now.", label: 'Total Practices', days: 100 },
+        halfyear: { title: 'One Eighty', icon: 'Trophy', message: "One hundred eighty. Six months of not quitting on yourself. The math is undeniable.", label: 'Total Practices', days: 180 },
         twohundred: { title: 'Two Hundred', icon: 'Heart', message: "Two hundred. This isn't a habit you built. It's who you are.", label: 'Total Practices', days: 200 },
         year: { title: 'Three Sixty-Five', icon: 'PartyPopper', message: "365 practices. A full year of coming back to yourself. There are no more words for this.", label: 'Total Practices', days: 365 },
     };
@@ -61,7 +63,9 @@ export interface PracticeData {
         practices_14: boolean;     // 14 total practices
         practices_30: boolean;     // 30 total practices
         practices_50: boolean;     // 50 total practices
+        practices_90: boolean;     // 90 total practices (3-month)
         practices_100: boolean;    // 100 total practices
+        practices_180: boolean;    // 180 total practices (6-month)
         practices_200: boolean;    // 200 total practices
         practices_365: boolean;    // 365 total practices
     };
@@ -86,7 +90,9 @@ export const initializePracticeData = (): PracticeData => ({
         practices_14: false,
         practices_30: false,
         practices_50: false,
+        practices_90: false,
         practices_100: false,
+        practices_180: false,
         practices_200: false,
         practices_365: false,
     },
@@ -136,7 +142,14 @@ export const logPractice = (
         ...currentData,
         totalPractices,
         lastActivityDate: today,
-        activityHistory: updatedHistory
+        activityHistory: updatedHistory,
+        milestones: {
+            ...currentData.milestones,
+            // Backfill fields added after initial release so existing users don't get
+            // a false ceremony on their next practice. undefined → already-earned if count met.
+            practices_90: currentData.milestones.practices_90 ?? totalPractices > 90,
+            practices_180: currentData.milestones.practices_180 ?? totalPractices > 180,
+        },
     };
 };
 
@@ -146,16 +159,22 @@ export const logPractice = (
 export const checkMilestone = (
     totalPractices: number,
     currentMilestones: PracticeData['milestones']
-): { milestone: 'practices_1' | 'practices_3' | 'practices_7' | 'practices_14' | 'practices_30' | 'practices_50' | 'practices_100' | 'practices_200' | 'practices_365' | null; isNew: boolean } => {
-    // Check milestones in order
+): { milestone: 'practices_1' | 'practices_3' | 'practices_7' | 'practices_14' | 'practices_30' | 'practices_50' | 'practices_90' | 'practices_100' | 'practices_180' | 'practices_200' | 'practices_365' | null; isNew: boolean } => {
+    // Check milestones in descending order so the highest newly-unlocked one fires
     if (totalPractices >= 365 && !currentMilestones.practices_365) {
         return { milestone: 'practices_365', isNew: true };
     }
     if (totalPractices >= 200 && !currentMilestones.practices_200) {
         return { milestone: 'practices_200', isNew: true };
     }
+    if (totalPractices >= 180 && !currentMilestones.practices_180) {
+        return { milestone: 'practices_180', isNew: true };
+    }
     if (totalPractices >= 100 && !currentMilestones.practices_100) {
         return { milestone: 'practices_100', isNew: true };
+    }
+    if (totalPractices >= 90 && !currentMilestones.practices_90) {
+        return { milestone: 'practices_90', isNew: true };
     }
     if (totalPractices >= 50 && !currentMilestones.practices_50) {
         return { milestone: 'practices_50', isNew: true };
@@ -201,8 +220,14 @@ export const getNextMilestone = (totalPractices: number): { target: number; name
     if (totalPractices < 50) {
         return { target: 50, name: '50 Practices', remaining: 50 - totalPractices };
     }
+    if (totalPractices < 90) {
+        return { target: 90, name: '90 Practices', remaining: 90 - totalPractices };
+    }
     if (totalPractices < 100) {
         return { target: 100, name: '100 Practices', remaining: 100 - totalPractices };
+    }
+    if (totalPractices < 180) {
+        return { target: 180, name: '180 Practices', remaining: 180 - totalPractices };
     }
     if (totalPractices < 200) {
         return { target: 200, name: '200 Practices', remaining: 200 - totalPractices };
@@ -248,7 +273,9 @@ export const migrateStreakToPractice = (user: UserProfile): PracticeData => {
         practices_14: totalPractices >= 14,
         practices_30: totalPractices >= 30,
         practices_50: totalPractices >= 50,
+        practices_90: totalPractices >= 90,
         practices_100: totalPractices >= 100,
+        practices_180: totalPractices >= 180,
         practices_200: totalPractices >= 200,
         practices_365: totalPractices >= 365,
     };

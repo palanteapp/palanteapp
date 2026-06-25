@@ -255,6 +255,12 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
                     placeholder={placeholder}
                     className={`w-full text-lg bg-transparent border rounded-xl p-4 outline-none transition-all min-h-[120px] resize-none ${inputBg} ${textPrimary} placeholder:opacity-40`}
                     autoFocus
+                    onFocus={(e) => {
+                        // Wait for iOS keyboard animation + body resize before scrolling
+                        setTimeout(() => {
+                            e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 350);
+                    }}
                 />
             </div>
 
