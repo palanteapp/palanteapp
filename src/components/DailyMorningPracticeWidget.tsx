@@ -8,6 +8,70 @@ import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiSer
 import { supabase } from '../lib/supabase';
 import { logMindfulSession, getHealthContext } from '../utils/healthService';
 
+const GRATITUDE_POOL = [
+    "Someone who showed up for you",
+    "Something your body did today",
+    "A moment you almost missed",
+    "Something easy to take for granted",
+    "What made today worth waking up for",
+    "A person who changed you without knowing it",
+    "Something that used to be hard and now isn't",
+    "A small thing that brought comfort",
+    "Something in nature you noticed lately",
+    "A conversation that stayed with you",
+    "Something you have now that you once wished for",
+    "A mistake that taught you something",
+    "A door that closed but led somewhere better",
+    "Someone who believed in you before you did",
+    "Something about your home that grounds you",
+    "A skill you built through repetition",
+    "A memory that still makes you smile",
+    "Something your future self will thank you for",
+    "A stranger who was kind",
+    "The version of yourself you've grown past",
+    "Something that scared you but you did anyway",
+];
+
+const AFFIRMATION_POOL = [
+    "I am",
+    "I am becoming",
+    "I choose",
+    "I trust",
+    "I release",
+    "I deserve",
+    "I create",
+    "I attract",
+    "I am",
+    "I am learning to",
+    "I embrace",
+    "I am worthy of",
+    "I bring",
+    "I move forward as",
+    "I let go of",
+    "I give myself permission to",
+    "I celebrate",
+    "I stand in",
+    "I lead with",
+];
+
+const getDayOfYear = (): number => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    return Math.floor((now.getTime() - start.getTime()) / 86400000);
+};
+
+const pickThreeForToday = (pool: string[], salt: number): string[] => {
+    const day = getDayOfYear();
+    const seed = day * 7 + salt;
+    const result: string[] = [];
+    const used = new Set<number>();
+    for (let i = 0; result.length < 3; i++) {
+        const idx = (seed + i * 13 + i * i) % pool.length;
+        if (!used.has(idx)) { used.add(idx); result.push(pool[idx]); }
+    }
+    return result;
+};
+
 interface DailyMorningPracticeProps {
     onComplete: (data: DailyMorningPractice) => void;
     onRefresh?: () => void;
@@ -17,15 +81,17 @@ interface DailyMorningPracticeProps {
     hideEnergyCheckIn?: boolean;
     onFinish: () => void;
     onStepChange?: (step: 'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary') => void;
+    onSkip?: () => void;
     user?: UserProfile;
     isFirstEver?: boolean;
+    skipIntro?: boolean;
 }
 
-export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver }) => {
-    const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
+export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onSkip, onStepChange, user, isFirstEver, skipIntro }) => {
+    const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>(skipIntro ? 'gratitude' : 'intro');
     const practiceStartTime = useRef(Date.now());
-    const [gratitudes, setGratitudes] = useState<string[]>(['', '', '', '', '']);
-    const [affirmations, setAffirmations] = useState<string[]>(['', '', '', '', '']);
+    const [gratitudes, setGratitudes] = useState<string[]>(['', '', '']);
+    const [affirmations, setAffirmations] = useState<string[]>(['', '', '']);
     const [intention, setIntention] = useState<string>('');
     const [generatedMessage, setGeneratedMessage] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -247,6 +313,14 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     >
                         Let's begin →
                     </motion.button>
+
+                    <button
+                        onClick={() => { onSkip ? onSkip() : onFinish(); }}
+                        className="mt-5 w-full py-3 text-sm font-medium tracking-wide"
+                        style={{ color: 'rgba(229,214,167,0.45)' }}
+                    >
+                        Skip for Now
+                    </button>
                 </motion.div>
             );
         }
@@ -279,17 +353,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     </div>
                 </div>
 
-                {(streak > 0 || pts > 0) && (
+                {pts > 0 && (
                     <div className="flex gap-5 mb-5">
-                        {streak > 0 && (
-                            <div className="flex items-center gap-1.5">
-                                <Flame size={13} style={{ color: '#E5D6A7' }} />
-                                <span className="text-sm font-semibold text-white/70">{streak}-day streak</span>
-                            </div>
-                        )}
-                        {pts > 0 && (
-                            <div className="text-sm font-semibold text-white">{pts.toLocaleString()} pts</div>
-                        )}
+                        <div className="text-sm font-semibold text-white">{pts.toLocaleString()} pts</div>
                     </div>
                 )}
 
@@ -328,7 +394,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         icon: React.ReactNode,
         values: string[],
         setter: React.Dispatch<React.SetStateAction<string[]>>,
-        placeholderPrefix: string,
+        placeholders: string | string[],
         stepNum: number
     ) => {
         return (
@@ -380,7 +446,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                                         ? 'rgba(229,214,167,0.90)'
                                         : 'rgba(255,255,255,0.85)';
                                 }}
-                                placeholder={`${placeholderPrefix}...`}
+                                placeholder={`${Array.isArray(placeholders) ? (placeholders[idx] ?? placeholders[0]) : placeholders}...`}
                                 aria-label={`${title} ${idx + 1} of ${values.length}`}
                                 className="flex-1 bg-transparent outline-none text-[17px] text-white placeholder:text-white/20 py-1 font-medium"
                                 autoFocus={idx === 0}
@@ -592,9 +658,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 <p className="text-base leading-relaxed text-white/70">
                     Five slow belly breaths — in through your nose.{' '}
                     <span className="font-semibold text-white/90">Inhale:</span>{' '}
-                    <span className="italic">I love you.</span>{' '}
+                    <span className="">I love you.</span>{' '}
                     <span className="font-semibold text-white/90">Exhale:</span>{' '}
-                    <span className="italic">I am enough.</span>
+                    <span className="">I am enough.</span>
                 </p>
             </div>
 
@@ -643,20 +709,20 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     {step === 'intro' && renderIntro()}
                     {step === 'gratitude' && renderInputs(
                         "Gratitude",
-                        "List 5 things you're thankful for right now.",
+                        "List 3 things you're thankful for right now.",
                         <Sun size={22} style={{ color: '#E5D6A7' }} />,
                         gratitudes,
                         setGratitudes,
-                        "I am grateful for",
+                        pickThreeForToday(GRATITUDE_POOL, 0),
                         1
                     )}
                     {step === 'affirmation' && renderInputs(
                         "Affirmations",
-                        "List 5 truths about your highest self.",
+                        "Remind yourself who you are. Complete each line.",
                         <Sparkles size={22} style={{ color: '#E5D6A7' }} />,
                         affirmations,
                         setAffirmations,
-                        "I am",
+                        pickThreeForToday(AFFIRMATION_POOL, 3),
                         2
                     )}
                     {step === 'intention' && renderIntention()}

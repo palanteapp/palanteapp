@@ -174,7 +174,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
         const subLabel = usingCommitment
             ? 'You said today would look like:'
             : 'You set out to focus on:';
-        const checkInPrompt = usingCommitment ? 'How did it go?' : 'How did that show up today?';
+        const checkInPrompt = usingCommitment ? 'How did it go?' : 'How did that land for you today?';
 
         return (
         <div className="w-full flex flex-col py-4 animate-fade-in">
@@ -189,7 +189,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
             </p>
 
             <div className={`mb-6 rounded-2xl px-5 py-4 border ${isDarkMode ? 'bg-pale-gold/5 border-pale-gold/20 text-white' : 'bg-sage/5 border-sage/20 text-sage-dark'}`}>
-                <p className="text-base font-display italic leading-relaxed">
+                <p className="text-base font-display leading-relaxed">
                     "{anchorText}"
                 </p>
             </div>
@@ -335,38 +335,38 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
                 {step === 'commitment' && renderCommitmentReflection()}
                 {step === 'gratitude' && renderInputStep(
                     "Gratitude",
-                    "What is one thing I am grateful for on this day?",
+                    "What are you grateful for tonight?",
                     <Heart size={20} />,
                     gratitude,
                     setGratitude,
-                    "I am grateful for...",
+                    "Something I'm grateful for...",
                     "G"
                 )}
                 {step === 'learning' && renderInputStep(
                     "Learning",
-                    "What is one thing that I learned today? Wire your brain for positivity.",
+                    "What did you learn today?",
                     <BookOpen size={20} />,
                     learning,
                     setLearning,
-                    "I learned that...",
+                    "Something I learned...",
                     "L"
                 )}
                 {step === 'accomplishment' && renderInputStep(
                     "Accomplishment",
-                    "What is one thing that I accomplished today? Big or small.",
+                    "What did you get done today? Big or small.",
                     <Award size={20} />,
                     accomplishment,
                     setAccomplishment,
-                    "I accomplished...",
+                    "Something I accomplished...",
                     "A"
                 )}
                 {step === 'delight' && renderInputStep(
                     "Delight",
-                    "What is one thing that delighted me today? Note a moment of joy.",
+                    "What made you smile today?",
                     <Smile size={20} />,
                     delight,
                     setDelight,
-                    "I was delighted by...",
+                    "Something that delighted me...",
                     "D"
                 )}
                 {step === 'message' && renderMessage()}

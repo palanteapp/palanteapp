@@ -55,7 +55,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     private func writeToWidgetDefaults(_ obj: [String: Any]) {
-        let appGroup = "group.com.move.palante.dev"
+        let appGroup = "group.com.move.palante"
         guard let defaults = UserDefaults(suiteName: appGroup) else {
             print("❌ PalanteWidget sync: UserDefaults(suiteName:) returned nil — check App Group entitlement")
             return

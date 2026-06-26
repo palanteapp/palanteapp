@@ -426,7 +426,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <div>
                                             <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Our Mission</h4>
                                             <p className="text-base leading-relaxed">
-                                                To help you show up for the things that matter to you. Not perfectly, but consistently. Because when you're doing more of what brings you joy, everything else gets easier.
+                                                To help you stay consistent with the things that matter to you. Not perfectly, but consistently. Because when you're doing more of what brings you joy, everything else gets easier.
                                             </p>
                                         </div>
                                         <div>
@@ -461,7 +461,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         </div>
                                         <div>
                                             <h3 className="text-sm font-display font-medium text-white">A Note From Palante</h3>
-                                            <p className="text-xs text-white uppercase tracking-widest mt-0.5">Reflecting on your journey</p>
+                                            <p className="text-xs text-white uppercase tracking-widest mt-0.5">Your progress</p>
                                         </div>
                                     </div>
                                     <button
@@ -477,7 +477,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <RefreshCw size={14} className={isRefreshingNarrative ? 'animate-spin' : ''} />
                                     </button>
                                 </div>
-                                <p className="text-sm text-white/70 leading-relaxed italic relative z-10 mb-5">
+                                <p className="text-sm text-white/70 leading-relaxed relative z-10 mb-5">
                                     "{user.userNarrative.text}"
                                 </p>
                                 <div className="grid grid-cols-3 gap-3 relative z-10 mb-4">
@@ -709,9 +709,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             </div>
                             <div>
                                 <label className={labelClasses}>Interests</label>
-                                <input value={interests} onChange={e => setInterests(e.target.value)} className={inputClasses} placeholder="Mindfulness, Growth, etc." />
+                                <input value={interests} onChange={e => setInterests(e.target.value)} className={inputClasses} placeholder="Mindset, Health, Growth, etc." />
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                    {['Meditation', 'Productivity', 'Wellness'].map(suggestion => (
+                                    {['Meditation', 'Productivity', 'Health'].map(suggestion => (
                                         <button
                                             key={suggestion}
                                             onClick={() => {

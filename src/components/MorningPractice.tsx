@@ -169,6 +169,10 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
                             setIsExiting(true);
                             setTimeout(onClose, 500);
                         }}
+                        onSkip={() => {
+                            setIsExiting(true);
+                            setTimeout(onClose, 300);
+                        }}
                     />
                 </div>
             </div>

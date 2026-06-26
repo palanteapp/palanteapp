@@ -71,7 +71,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
 
     const handleNudge = (name: string) => {
         haptics.medium();
-        setToast(`Sent Fire to ${name}! 🔥`);
+        setToast(`Sent Fire to ${name}!`);
         setTimeout(() => setToast(null), 2500);
     };
 

@@ -27,7 +27,7 @@ export const STREAK_MILESTONES: GardenMilestone[] = [
     threshold: 3,
     label: 'Fern',
     description: '3-day streak',
-    detail: 'Three days of showing up. Consistency is taking hold.',
+    detail: 'Three days in. Consistency is taking hold.',
     plantType: 'fern',
   },
   {

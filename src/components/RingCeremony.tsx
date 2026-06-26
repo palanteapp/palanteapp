@@ -211,7 +211,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3, duration: 0.6 }}
                         >
-                            Palante · 90-Day Journey
+                            Palante · 90 Days
                         </motion.p>
 
                         {/* Mandala visualization */}
@@ -250,7 +250,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
 
                         {/* Coach message */}
                         <motion.p
-                            className="text-base font-serif italic text-white/75 leading-relaxed mt-6 mb-2"
+                            className="text-base font-serif text-white/75 leading-relaxed mt-6 mb-2"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 1.0, duration: 0.7 }}

@@ -226,12 +226,14 @@ export const useNotifications = () => {
 
         const first = userName?.split(' ')[0];
         const morningBodies = first ? [
-            `Good morning, ${first}. Your intentions are waiting. Let's design the day.`,
-            `${first}, the morning belongs to you. Set the tone before the world does.`,
-            `Rise with purpose, ${first}. Five minutes of intention changes everything.`,
+            `Morning, ${first}. Your practice is ready.`,
+            `${first} — five minutes to set the tone before the day sets it for you.`,
+            `Start before the noise does, ${first}. Your practice is open.`,
+            `${first}, gratitude, intention, a message written for exactly where you are. Let's go.`,
         ] : [
-            "Your morning practice is ready. Set your intentions before the world sets them for you.",
-            "The most powerful hour is the first. Start yours with purpose.",
+            "Your morning practice is ready. Five minutes to set the tone.",
+            "Start before the noise does. Your practice is open.",
+            "Gratitude, intention, a message written for exactly where you are. Open Palante.",
         ];
         const body = morningBodies[Math.floor(Math.random() * morningBodies.length)];
 
@@ -240,7 +242,7 @@ export const useNotifications = () => {
             await LocalNotifications.schedule({
                 notifications: [{
                     id: 2000,
-                    title: coachName || "Rise & Shine",
+                    title: coachName || "Palante",
                     body,
                     schedule: { on: { hour, minute }, allowWhileIdle: true },
                     sound: 'bell.caf',
@@ -261,37 +263,35 @@ export const useNotifications = () => {
         const coach = coachName || 'Palante';
         const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
         const isFriday = new Date().getDay() === 5;
-        const streakLine = streak > 1 ? ` You're on a ${streak}-day streak.` : '';
+        const streakLine = streak > 1 ? ` ${streak} days in a row.` : '';
 
         // Main reminder — personal, G.L.A.D.-aware, streak-aware
         const mainBodies = first ? [
-            `${first}, how did today feel? Your G.L.A.D. reflection is waiting.${streakLine}`,
-            `Before you close ${dayName}, ${first} — what's one thing you're grateful for right now?`,
-            `${first}, one honest reflection tonight compounds into clarity tomorrow.${streakLine}`,
-            `Your wins from today deserve to be captured, ${first}. G.L.A.D. takes 3 minutes.`,
-            `${isFriday ? `End the week strong, ${first}.` : `${first}, how did ${dayName} treat you?`} Your evening reflection is open.`,
-            `${first}, Grateful · Learned · Accomplished · Desired — close the day with intention.${streakLine}`,
-            `The best version of tomorrow starts with reflecting on today, ${first}.`,
+            `${first}, how did today go? Your evening reflection is waiting.${streakLine}`,
+            `Before ${dayName} closes, ${first} — what are you grateful for tonight?`,
+            `${first}, three minutes of reflection tonight makes tomorrow clearer.${streakLine}`,
+            `${isFriday ? `End the week with intention, ${first}.` : `${first}, how did ${dayName} feel?`} Your reflection is open.`,
+            `What did today teach you, ${first}? Take a moment before you rest.`,
+            `${first}, don't let today slip by without capturing it.${streakLine}`,
         ] : [
-            "How did today feel? Your G.L.A.D. evening reflection takes 3 minutes.",
-            `${isFriday ? 'End the week strong.' : `How did ${dayName} treat you?`} Capture your wins before the day slips away.`,
-            "What are you grateful for right now? Your evening reflection is waiting.",
-            "One honest reflection tonight builds lasting clarity tomorrow.",
-            "Grateful · Learned · Accomplished · Desired — close the day with intention.",
-            "The best version of tomorrow starts with reflecting on today.",
+            "How did today go? Your evening reflection takes three minutes.",
+            `${isFriday ? 'End the week with intention.' : `How did ${dayName} feel?`} Your reflection is waiting.`,
+            "What are you grateful for right now? Take a moment before you rest.",
+            "Three minutes of reflection tonight sharpens tomorrow.",
+            "Don't let today slip by without capturing it.",
         ];
         const mainBody = mainBodies[Math.floor(Math.random() * mainBodies.length)];
 
         // Last-call reminder at 9:30pm — softer, zero pressure
         const lastCallBodies = first ? [
-            `Still here, ${first}. Your G.L.A.D. reflection takes just a few minutes before bed.`,
-            `No rush, ${first} — just a gentle nudge to close the day with intention.`,
-            `${first}, even one sentence of reflection tonight makes tomorrow clearer.`,
-            `Last chance to capture today's wins, ${first}. You've got this.`,
+            `Still here, ${first}. Close the day before you close your eyes.`,
+            `One last check-in before tomorrow, ${first}.`,
+            `${first}, even one sentence tonight is worth it.`,
+            `Last call, ${first}. Your reflection takes two minutes.`,
         ] : [
-            "Still here — your evening reflection is just a few minutes before bed.",
-            "A gentle nudge to close the day with intention before you rest.",
-            "Even one sentence of reflection tonight makes tomorrow clearer.",
+            "Still here. Close the day before you close your eyes.",
+            "One last check-in before tomorrow.",
+            "Even one sentence tonight is worth it.",
         ];
         const lastCallBody = lastCallBodies[Math.floor(Math.random() * lastCallBodies.length)];
 
@@ -312,7 +312,7 @@ export const useNotifications = () => {
         if (lastCallEnabled) {
             notifications.push({
                 id: 4001,
-                title: `${coach} • Last call 🌙`,
+                title: `${coach} • Last call`,
                 body: lastCallBody,
                 schedule: { on: { hour: lcHour, minute: lcMinute }, allowWhileIdle: true },
                 sound: 'bell.caf',
@@ -357,60 +357,60 @@ export const useNotifications = () => {
 
         // Intensity-specific generic nudges
         const genericNudgesByIntensity: Record<number, string[]> = {
-            1: [ // Gentle & Poetic
-                "Take a breath and check in with yourself.",
-                "What does your heart need right now?",
-                "Small steps create beautiful journeys.",
-                "Honor your rhythm. You're exactly where you need to be.",
-                "Let's pause and reflect on your path.",
-                "Your growth is unfolding perfectly.",
-                "Embrace this moment of possibility.",
-                "Listen to your inner wisdom.",
-                "Flow with your intentions today."
+            1: [ // Gentle
+                "Take a breath. Check in with yourself.",
+                "What does right now need from you?",
+                "One small thing. Just one.",
+                "How are you actually feeling?",
+                "A moment for yourself.",
+                "Slow down. What's really going on?",
+                "You don't have to do everything. What matters most?",
+                "Check in. You've been moving fast.",
+                "Pause. Notice. Continue."
             ],
-            2: [ // Direct & Clear
-                "Time to check in on your big picture.",
-                "Take a deep breath. You got this.",
-                "Small steps lead to big changes.",
-                "What's one thing you can do right now to move forward?",
-                "Remember your 'Why'.",
-                "Stay focused on what matters most.",
-                "Consistency is the key to breakthrough.",
-                "Drink some water and stretch!",
-                "Keep moving forward. Palante!"
+            2: [ // Direct
+                "What's the most important thing right now?",
+                "Check in on your intention for today.",
+                "One step forward.",
+                "You know what needs to happen. Start there.",
+                "Stay with it.",
+                "What are you avoiding?",
+                "Make one decision. Move on it.",
+                "Is this how you want to spend the next hour?",
+                "Small progress still counts."
             ],
-            3: [ // Empowered & Bold
-                "You have the power to create change. Use it.",
-                "Step into your full potential today.",
-                "You are stronger than any obstacle.",
-                "Lead your life with intention.",
-                "Your vision is worth the effort.",
-                "Break through the doubt. Trust your power.",
-                "Rise up. This is your moment.",
-                "Limitless potential. Limitless growth.",
-                "Commit to your greatness. Palante!"
+            3: [ // Bold
+                "You said you would. Now do.",
+                "Stop preparing. Start.",
+                "The gap closes here.",
+                "No more setup. Execute.",
+                "Forward. Now.",
+                "What's stopping you? Name it. Remove it.",
+                "You're not tired. You're avoiding.",
+                "Decide. Commit. Move.",
+                "This is the moment you'll look back on."
             ]
         };
 
         // Intensity-specific "no goal" prompts
         const noGoalPromptsByIntensity: Record<number, string[]> = {
             1: [ // Gentle
-                "What intention would serve your soul today?",
-                "Invite clarity: What matters most right now?",
-                "Let's explore what you'd like to create today.",
-                "What would bring you peace and purpose today?"
+                "What's one thing you want to carry with you today?",
+                "What would make today feel complete?",
+                "What are you working toward right now?",
+                "What matters most to you this week?"
             ],
             2: [ // Direct
-                "What is your main focus for today?",
-                "Set a clear intention to guide your energy.",
-                "A clear goal is the first step to success.",
-                "Take a moment to define your win for the day."
+                "What's your focus for the rest of today?",
+                "Name one thing you want to finish today.",
+                "What's the win that would make today count?",
+                "Set an intention. Open Palante."
             ],
             3: [ // Bold
-                "Clarity is power. Define your target.",
-                "A clear mission drives powerful action.",
-                "Great leaders set goals. What's yours?",
-                "Choose your direction. Make it big."
+                "No goal, no direction. Set one now.",
+                "What are you actually trying to build?",
+                "Name your target. Then hit it.",
+                "You need a clear next move. What is it?"
             ]
         };
 
@@ -507,11 +507,11 @@ export const useNotifications = () => {
         await LocalNotifications.cancel({ notifications: [5001, 5002, 5003, 5004, 5005].map(id => ({ id })) });
 
         const waterNudges = [
-            "Flush time: Your cells are cleaning house. Give them the water they need.",
-            "Quick win: 8oz of cold water. Right now. No excuses.",
-            "Accountability check: Every sip is a step forward. Hydrate now.",
-            "Stall the hunger, boost the burning. One glass of water. Go.",
-            "Your metabolic engine runs on hydrogen. Get some H2O in there now."
+            "Drink some water. You've probably forgotten.",
+            "Water check. When did you last have a glass?",
+            "One glass of water. Right now.",
+            "Your body is mostly water. Act like it.",
+            "Small habit, big difference. Drink up."
         ];
 
         // Distribution logic
@@ -590,7 +590,7 @@ export const useNotifications = () => {
             }
 
             if (status.display === 'granted') {
-                const title = coachName ? `🔔 ${coachName}` : "🔔 Palante Test";
+                const title = coachName ? coachName : "Palante Test";
                 await LocalNotifications.schedule({
                     notifications: [{
                         title: title,

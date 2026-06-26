@@ -124,7 +124,7 @@ export const SharedReflectionPreview: React.FC<SharedReflectionPreviewProps> = (
                             gap: '2px',
                             marginBottom: '6px'
                         }}>
-                            <span style={{ fontSize: '6px' }}>⚡️</span>
+                            <span style={{ fontSize: '6px', fontWeight: 700 }}>+</span>
                             <span style={{ fontSize: '5px', fontWeight: 700, textTransform: 'uppercase', color: '#556054', opacity: 0.6 }}>
                                 Energy: {energyLevel}/5
                             </span>

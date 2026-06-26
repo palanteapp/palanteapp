@@ -62,13 +62,26 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                 <div className="px-6 pb-12 pt-6 overflow-y-auto">
                     {activeTab === 'philosophy' && (
                         <div className="space-y-8 animate-fade-in">
+                            {/* Pronunciation */}
+                            <div className={`text-center py-4 px-5 rounded-2xl ${isDarkMode ? 'bg-white/[0.05] border border-white/[0.08]' : 'bg-[#C96A3A]/[0.06] border border-[#C96A3A]/[0.15]'}`}>
+                                <p className={`text-xs font-black uppercase tracking-[0.2em] mb-2 ${isDarkMode ? 'text-pale-gold/70' : 'text-[#C96A3A]'}`}>
+                                    How to say it
+                                </p>
+                                <p className={`text-2xl font-display font-medium mb-1 ${textPrimary}`}>
+                                    pah · LAN · tay
+                                </p>
+                                <p className={`text-sm ${textSecondary}`}>
+                                    From Spanish — short for <span className={`${isDarkMode ? 'text-white/80' : 'text-sage-dark'}`}>para adelante</span>. Forward. Always forward.
+                                </p>
+                            </div>
+
                             {/* Intro */}
                             <div className="text-center">
                                 <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
                                     Your partner in forward motion.
                                 </h3>
                                 <p className={`text-base leading-relaxed ${textSecondary}`}>
-                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Just showing up — and being met where you are.
+                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Just doing the work — and being met where you are.
                                 </p>
                             </div>
 
@@ -96,7 +109,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         <div>
                                             <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Progress over perfection</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                There is no "falling behind" here. Your 90-day Mandala grows one practice at a time. Every day you show up counts — regardless of what else happened.
+                                                There is no "falling behind" here. Your 90-day Mandala grows one practice at a time. Every day you practice counts — regardless of what else happened.
                                             </p>
                                         </div>
                                     </div>
@@ -179,7 +192,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     >
                                         <Moon size={24} className={`mb-2 ${accentColor}`} />
                                         <h4 className={`font-medium text-sm ${textPrimary}`}>Evening Reflection</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>G.L.A.D. method</p>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Reflect on the day</p>
                                     </button>
                                     <button
                                         onClick={() => { onNavigate('garden'); onClose(); }}
@@ -263,7 +276,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                             <div>
                                                 <h4 className={`text-sm font-semibold mb-0.5 ${textPrimary}`}>Day 3 — Letter to your future self</h4>
                                                 <p className={`text-xs leading-relaxed ${textSecondary}`}>
-                                                    After your third practice, you'll be invited to write a letter to who you'll be 30 days from now. It's one of the most powerful things you can do on this journey.
+                                                    After your third practice, you'll be invited to write a letter to who you'll be 30 days from now. It's one of the most powerful things you can do.
                                                 </p>
                                             </div>
                                         </div>

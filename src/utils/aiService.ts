@@ -81,7 +81,7 @@ const MOMENTUM_GUIDANCE: Record<MomentumState, string> = {
     breakthrough: 'They are in a breakthrough period — deep consistency, high energy, results compounding. Honor the depth of what they are creating.',
     on_a_roll: 'They are building beautiful momentum. Let the message reflect their forward motion and affirm that it is working.',
     recovering: 'They are finding their way back. Let the message be a warm welcome home — gentle, not a push. No pressure.',
-    steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of just showing up.',
+    steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of consistent daily practice.',
 };
 
 export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountability', string> = {
@@ -322,7 +322,7 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
     // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
     const coachIdentity = request.coachName?.trim() || 'Palante';
 
-    const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation coach. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
+    const prompt = `You are ${coachIdentity}, a personal growth partner. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
 
 Generate a single, powerful affirmation or motivational quote for someone with these characteristics:
 - Profession: ${request.profession || 'General'}
@@ -965,7 +965,7 @@ export const chatWithCoach = async (
 USER CONTEXT:
 - Name: ${context.name}
 - Profession: ${context.profession || 'Undisclosed'}
-- Streak: ${context.currentStreak} days
+- Total practices: ${context.currentStreak} sessions
 - Today's Progress: ${context.completedGoals}/${context.totalGoals} goals completed.
 - Time: ${timeOfDay}
 ${moodBlock}
@@ -997,7 +997,7 @@ FORMATTING:
 - If you want to emphasize a question or idea, do it through phrasing, not punctuation.
 
 MEDICAL SAFETY GUIDE:
-- You are a wellness coach, NOT a doctor.
+- You are a personal growth partner, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
 - If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
@@ -1177,17 +1177,22 @@ export const chatWithCoachPillar = async (
         ? `THEIR MOMENTUM RIGHT NOW: ${MOMENTUM_GUIDANCE[context.momentumState]}\n`
         : '';
 
+    const memoriesBlockPillar = context.persistedMemories?.length
+        ? `MEMORIES FROM PAST CONVERSATIONS (reference naturally, not robotically):\n${context.persistedMemories.slice(0, 12).map(m => `- ${m}`).join('\n')}\n`
+        : '';
+
     const systemPrompt = `${pillarPrompt}
 
 USER CONTEXT:
 - Name: ${context.name}
 - Profession: ${context.profession || 'Undisclosed'}
-- Streak: ${context.currentStreak} days
+- Total practices: ${context.currentStreak} sessions
 - Today's Progress: ${context.completedGoals}/${context.totalGoals} goals completed.
 - Time: ${timeOfDay}
 ${context.currentMood ? `- Mood: ${context.currentMood}` : ''}
 ${context.focusAreas?.length ? `- Focus areas: ${context.focusAreas.join(', ')}` : ''}
 
+${memoriesBlockPillar}
 ${narrativeBlockPillar}
 ${momentumBlockPillar}
 ${energyMemory}
@@ -1203,7 +1208,7 @@ FORMATTING:
 - If you want to emphasize a question or idea, do it through phrasing, not punctuation.
 
 MEDICAL SAFETY GUIDE:
-- You are a wellness coach, NOT a doctor.
+- You are a personal growth partner, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
 - If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
@@ -1272,7 +1277,7 @@ const FALLBACK_AFFIRMATIONS: Record<1 | 2 | 3, string[]> = {
         "You are exactly where you need to be right now.",
         "Progress, not perfection, is your path forward.",
         "Your potential unfolds one breath at a time.",
-        "Trust the journey you're on.",
+        "You move forward one honest step at a time.",
     ],
     2: [
         "Discipline is the bridge between goals and accomplishment.",
@@ -1408,7 +1413,7 @@ const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals:
     if (context.timeOfDay === 'evening') {
         return "Wind down. Reflect on your wins.";
     }
-    return "Stay focused. You've got this.";
+    return "Stay focused. Keep going.";
 };
 
 /**
@@ -1827,7 +1832,7 @@ export const generateInterventions = (
             id: `grace-period-${Date.now()}`,
             type: 'streak_warning',
             trigger: { condition: 'streak_grace_period', confidence: 1.0 },
-            message: `⚠️ You're in your grace period! Complete any practice today to keep your ${user.streakData.currentStreak}-day streak alive`,
+            message: `Grace period active. Complete any practice today to keep your ${user.streakData.currentStreak}-day streak alive.`,
             action: { type: 'open_practice' },
             priority: 'high',
             timestamp: now.toISOString(),

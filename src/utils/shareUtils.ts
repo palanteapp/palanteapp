@@ -609,7 +609,7 @@ export async function generateMilestoneShareImage(params: {
     // Pre-measure text to size the card dynamically
     ctx.font = '700 84px Poppins, sans-serif';
     const titleLines = wrapText(ctx, title, cardW - 120);
-    ctx.font = 'italic 500 42px Poppins, sans-serif';
+    ctx.font = '500 42px Poppins, sans-serif';
     const msgLines = wrapText(ctx, `"${message}"`, cardW - 160);
 
     const iconBoxH = 220;
@@ -704,7 +704,7 @@ export async function generateMilestoneShareImage(params: {
     cursor += countBoxH + 48;
 
     // ── Message ───────────────────────────────────────────────────────────────
-    ctx.font         = 'italic 500 42px Poppins, sans-serif';
+    ctx.font         = '500 42px Poppins, sans-serif';
     ctx.fillStyle    = 'rgba(255,255,255,0.78)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';

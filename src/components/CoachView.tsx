@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, Bot, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
-    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2, Brain
+    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2, Brain, Share2
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
@@ -17,6 +17,14 @@ import { useTheme } from '../contexts/ThemeContext';
 import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
 import { loadConversationMemories, extractAndSaveMemories } from '../utils/memoryService';
 import { Capacitor } from '@capacitor/core';
+
+const SessionStartWatcher: React.FC<{ onTimeout: () => void; children: React.ReactNode }> = ({ onTimeout, children }) => {
+    useEffect(() => {
+        const t = setTimeout(onTimeout, 10000);
+        return () => clearTimeout(t);
+    }, [onTimeout]);
+    return <>{children}</>;
+};
 
 // ── Speech recognition type ──────────────────────────────────────────────────
 interface SpeechRecognitionInstance {
@@ -35,6 +43,7 @@ interface CoachViewProps {
     user: UserProfile;
     onBack?: () => void;
     onNavigate?: (tab: string) => void;
+    onFirstAIResponse?: () => void;
 }
 
 // ── Pillar config ─────────────────────────────────────────────────────────────
@@ -144,7 +153,7 @@ const formatDate = (ms: number): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate }) => {
+export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate, onFirstAIResponse }) => {
     const { isDarkMode } = useTheme();
     type ViewMode = 'home' | 'chat' | 'history';
     const [view, setView] = useState<ViewMode>('home');
@@ -154,6 +163,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [historySearch, setHistorySearch] = useState('');
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [sessionStartTimeout, setSessionStartTimeout] = useState(false);
     const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
@@ -179,6 +189,24 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
         }
     }, [user.id]);
+
+    // Save memories when the app is backgrounded or the tab is hidden — catches
+    // users who close the app without tapping the back button (common on mobile).
+    const activeSessionRef = useRef(activeSession);
+    useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
+    useEffect(() => {
+        if (!user.id) return;
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                const session = activeSessionRef.current;
+                if (session) {
+                    extractAndSaveMemories(session.messages, user.id, user.name || 'Friend').catch(() => {});
+                }
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [user.id, user.name]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -239,13 +267,36 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const startPillarSession = useCallback((pillar: CoachPillar) => {
         haptics.medium();
         const config = PILLAR_CONFIGS.find(p => p.key === pillar);
-        const greeting = config?.greeting ?? "What's on your mind?";
         const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
+
+        let greeting: string;
+        if (config) {
+            greeting = `Hey ${firstName}. ${config.greeting}`;
+        } else {
+            // Context-aware opening for 'open' conversations
+            const hour = new Date().getHours();
+            const isFirstEver = sessions.length === 0;
+            const streak = user.streak ?? 0;
+
+            if (isFirstEver) {
+                greeting = `Hey ${firstName}. I'm glad you're here. This is your space — no agenda, no performance. What's going on for you today?`;
+            } else if (streak >= 7) {
+                greeting = `Hey ${firstName}. ${streak} days. You're doing something real here. What's on your mind?`;
+            } else if (hour < 10) {
+                greeting = `Morning, ${firstName}. You've got the whole day ahead. What are we working with?`;
+            } else if (hour >= 21) {
+                greeting = `Hey ${firstName}. Late night. What's rattling around in your head?`;
+            } else if (hour >= 17) {
+                greeting = `Hey ${firstName}. How'd the day go? What are you carrying right now?`;
+            } else {
+                greeting = `Hey ${firstName}. Good to see you. What's on your mind?`;
+            }
+        }
 
         const greetingMsg: ChatMessage = {
             id: 'init-' + Date.now(),
             role: 'assistant',
-            text: `Hey ${firstName}. ${greeting}`,
+            text: greeting,
             timestamp: Date.now(),
         };
 
@@ -263,7 +314,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         // calls upsertSession when a message lands, which is when the session becomes worth saving.
         setActiveSession(newSession);
         setView('chat');
-    }, [user.name, upsertSession]);
+    }, [user.name, user.streak, sessions, upsertSession]);
 
     const resumeSession = useCallback((session: CoachSession) => {
         haptics.light();
@@ -391,6 +442,11 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             upsertSession(finalSession);
             haptics.medium();
 
+            // First AI response in the user's very first conversation — prime moment for a review ask.
+            if (isFirstUserMsg && sessions.length === 0) {
+                setTimeout(() => onFirstAIResponse?.(), 1200);
+            }
+
         } catch (error) {
             console.error('Chat error:', error);
             const errMsg: ChatMessage = {
@@ -446,7 +502,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 <p className="text-sm opacity-60 max-w-xs text-[#E5D6A7]/60">
                     {isDisabledInSettings
                         ? 'AI features are turned off in your settings. Go to Settings → toggle AI on to access your partner.'
-                        : 'Your partner is getting ready for your journey.'}
+                        : 'Almost ready.'}
                 </p>
             </div>
         );
@@ -501,12 +557,26 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 This minimal loader prevents a flash of empty content during that handoff. */}
             {view === 'home' && (
                 <div className="flex-1 flex items-center justify-center">
-                    <div className="flex items-center gap-3 opacity-40 text-[#E5D6A7]">
-                        <Sparkles size={14} className="animate-pulse" />
-                        <p className="text-xs font-black uppercase tracking-[0.3em]">
-                            Opening Palante…
-                        </p>
-                    </div>
+                    {sessionStartTimeout ? (
+                        <div className="text-center px-8">
+                            <p className="text-sm text-[#E5D6A7]/60 mb-4">Having trouble connecting. Check your network and try again.</p>
+                            <button
+                                onClick={() => { setSessionStartTimeout(false); startPillarSession('open'); }}
+                                className="text-xs font-black uppercase tracking-[0.2em] text-[#E5D6A7]/80 underline"
+                            >
+                                Try again
+                            </button>
+                        </div>
+                    ) : (
+                        <SessionStartWatcher onTimeout={() => setSessionStartTimeout(true)}>
+                            <div className="flex items-center gap-3 opacity-40 text-[#E5D6A7]">
+                                <Sparkles size={14} className="animate-pulse" />
+                                <p className="text-xs font-black uppercase tracking-[0.3em]">
+                                    Starting session…
+                                </p>
+                            </div>
+                        </SessionStartWatcher>
+                    )}
                 </div>
             )}
 
@@ -558,7 +628,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             </h2>
                             {/* Path B: always show one consistent identity. No more "ANXIETY SESSION" / "FOCUS SESSION" labels. */}
                             <p className="text-xs font-black uppercase tracking-[0.2em] text-white mt-1">
-                                HERE FOR YOU
+                                Your partner
                             </p>
                         </div>
                     </header>
@@ -581,6 +651,28 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 `}>
                                     {msg.text}
                                 </div>
+                                {msg.role === 'assistant' && idx > 0 && (
+                                    <button
+                                        onClick={async () => {
+                                            haptics.light();
+                                            const text = msg.text;
+                                            try {
+                                                if (navigator.share) {
+                                                    await navigator.share({ text });
+                                                } else {
+                                                    await navigator.clipboard.writeText(text);
+                                                }
+                                            } catch {
+                                                // user cancelled or clipboard unavailable — no-op
+                                            }
+                                        }}
+                                        className="mt-2 flex items-center gap-1.5 text-white/25 hover:text-white/50 transition-colors"
+                                        aria-label="Share this message"
+                                    >
+                                        <Share2 size={13} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Share</span>
+                                    </button>
+                                )}
                             </div>
                         ))}
 
@@ -643,8 +735,8 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                                 </p>
                                                 <p className="text-sm text-[#E5D6A7]/75 font-medium leading-snug">
                                                     {todayCommitment
-                                                        ? <>You said today would look like <span className="italic text-[#E5D6A7]">{todayCommitment}</span></>
-                                                        : <>Your intention is <span className="italic text-[#E5D6A7]">{todayIntention}</span></>}
+                                                        ? <>You said today would look like <span className="text-[#E5D6A7]">{todayCommitment}</span></>
+                                                        : <>Your intention is <span className="text-[#E5D6A7]">{todayIntention}</span></>}
                                                 </p>
                                             </div>
                                         </div>

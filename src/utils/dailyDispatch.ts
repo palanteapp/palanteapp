@@ -61,7 +61,7 @@ const SUNSET_INTENTIONS: Record<CoachTone, string[]> = {
     nurturing: [
         'The day is almost done. How did "{intention}" feel? Your evening reflection is waiting.',
         'Before you close out — you set "{intention}" this morning. How did today honor that?',
-        'One last check-in on "{intention}". Then give yourself credit for showing up.',
+        'One last check-in on "{intention}". Then take a moment to close it out.',
     ],
     direct: [
         '"{intention}" — how did today go? Your evening reflection takes 3 minutes.',
@@ -133,7 +133,7 @@ const SUNSET_FALLBACK: Record<CoachTone, string[]> = {
 // Momentum-specific bursts (mid-session, for users on streaks/breakthrough)
 const MOMENTUM_BURST: Record<CoachTone, string[]> = {
     nurturing: [
-        '{name}, you\'ve been showing up beautifully. Today is another chance to honor that.',
+        '{name}, you\'ve been building something real. Today is another chance to add to it.',
         'Something good is happening in you right now. Don\'t stop.',
         'The consistency you\'re building is real, {name}. Keep going.',
     ],
@@ -237,7 +237,7 @@ export function generateRecoveryDispatch(params: {
             `The garden kept growing, ${firstName}. Welcome back.`,
         ],
         direct: [
-            `${daysMissed} days gone. The streak broke. The journey didn't. Come back.`,
+            `${daysMissed} days gone. The streak broke. That happens. Come back.`,
             `${firstName}, it's been a few days. The only question is what happens next.`,
             `You know what to do, ${firstName}. You just have to do it again.`,
         ],

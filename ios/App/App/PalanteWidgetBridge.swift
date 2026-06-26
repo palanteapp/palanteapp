@@ -11,7 +11,7 @@ public class PalanteWidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "reloadWidget", returnType: CAPPluginReturnPromise)
     ]
 
-    private let appGroup = "group.com.move.palante.dev"
+    private let appGroup = "group.com.move.palante"
 
     @objc func updateWidgetData(_ call: CAPPluginCall) {
         print("🟢 PalanteWidgetBridge.updateWidgetData called")

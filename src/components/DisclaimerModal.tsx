@@ -50,7 +50,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                 </h2>
 
                 <p className={`text-sm mb-8 leading-relaxed max-w-xs mx-auto ${mutedColor}`}>
-                    Your personal space for growth and wellness.
+                    Your personal space for growth and reflection.
                 </p>
 
                 {/* Core Message Card */}
@@ -58,7 +58,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                     <div className="flex items-start gap-4">
                         <ShieldCheck size={24} className={`mt-0.5 shrink-0 ${iconColor}`} />
                         <div>
-                            <h3 className="font-display font-medium text-lg mb-1">Mindful Disclaimer</h3>
+                            <h3 className="font-display font-medium text-lg mb-1">A Note Before You Begin</h3>
                             <p className={`text-base leading-relaxed ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
                                 Palante is a personal growth partner, not a healthcare provider. It is <strong>not</strong> a substitute for professional medical or mental health advice.
                             </p>

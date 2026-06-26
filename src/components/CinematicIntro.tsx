@@ -33,7 +33,7 @@ const breathe = {
 };
 
 const ORIENTING_OPTIONS = [
-    { id: 'consistency', label: 'Build consistency', sub: 'Show up every day, no matter what' },
+    { id: 'consistency', label: 'Build consistency', sub: 'Practice every day, no matter what' },
     { id: 'clarity',     label: 'Find clarity & focus', sub: 'Cut through the noise' },
     { id: 'stress',      label: 'Manage stress', sub: 'Stay grounded when life gets heavy' },
     { id: 'purpose',     label: 'Connect to purpose', sub: 'Make my days mean something' },
@@ -172,9 +172,24 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             Palante
                         </motion.h1>
 
+                        {/* Pronunciation */}
+                        <motion.p
+                            className="text-center font-body mb-2"
+                            style={{
+                                color: 'rgba(229,214,167,0.45)',
+                                fontSize: '0.75rem',
+                                letterSpacing: '0.18em',
+                            }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.42 }}
+                        >
+                            pah · LAN · tay
+                        </motion.p>
+
                         {/* Positioning line */}
                         <motion.p
-                            className="font-serif italic text-center mb-14 px-6"
+                            className="text-center mb-14 px-6 font-body"
                             style={{
                                 color: 'rgba(229,214,167,0.62)',
                                 fontSize: '1rem',
@@ -183,9 +198,9 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             }}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.52 }}
+                            transition={{ duration: 0.6, delay: 0.60 }}
                         >
-                            Your personal growth partner.
+                            Your daily practice<br />for gratitude and growth.
                         </motion.p>
 
                         {/* CTA */}
@@ -214,7 +229,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             animate={{ opacity: 1 }}
                             transition={{ delay: 1.3 }}
                         >
-                            Terms &amp; Wellness Disclaimer
+                            Terms &amp; Disclaimer
                         </motion.button>
                     </motion.div>
                 )}
@@ -439,7 +454,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         >
                             <div className="flex items-center gap-2 mb-4">
                                 <ShieldCheck size={18} style={{ color: '#E5D6A7' }} />
-                                <h3 className="font-bold text-white text-base">Mindful Disclaimer</h3>
+                                <h3 className="font-bold text-white text-base">A Note Before You Begin</h3>
                             </div>
                             <div className="space-y-4 text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
                                 {LEGAL_DISCLAIMER.sections.map((s, i) => (

@@ -90,7 +90,7 @@ export const useAppProcess = ({
                 // Send notification
                 sendNotification(
                     currentUser.coachName || 'Palante',
-                    'Your Weekly Report is Ready! 📊 See how your week went.'
+                    'Your Weekly Report is Ready. See how your week went.'
                 );
             }
         }

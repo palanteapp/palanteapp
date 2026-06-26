@@ -165,13 +165,6 @@ function AppContent() {
   const dismissFirstTimeWelcome = () => {
     localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
     setShowFirstTimeWelcome(false);
-    // After the welcome letter is dismissed, surface the interests picker (first-practice only).
-    // This keeps the two modals sequential — never overlapping.
-    if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
-      setTimeout(() => setShowPostPracticeSetup(true), 850);
-    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
-      setTimeout(() => setShowProfileNudge(true), 800);
-    }
   };
   const [eveningSkipped, setEveningSkipped] = useState(false);
   const [showEveningPracticeInline, setShowEveningPracticeInline] = useState(false);
@@ -906,7 +899,7 @@ function AppContent() {
       setTimeout(() => {
         localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
         setLetterContext('manual');
-        setLetterContextDetails('3 practices in — you\'ve earned this moment');
+        setLetterContextDetails('Three practices in. Something is starting.');
         setShowLetterWrite(true);
       }, 3500); // after the milestone toast fades
     }
@@ -978,7 +971,7 @@ function AppContent() {
       case 'meditation':
         practiceOriginRef.current = activeTab;
         setActiveTab('meditate');
-        setToastMessage('Mindfulness Space');
+        setToastMessage('Practice Space');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
@@ -1273,16 +1266,10 @@ function AppContent() {
     setCompletionIntention(data.dailyIntention?.trim() || '');
     analytics.morningRitualCompleted({ hasIntention: !!data.dailyIntention, mood: data.mood });
 
-    // Queue welcome screen to appear once the success overlay auto-dismisses.
-    // Using a ref avoids racing against the auto-dismiss useEffect.
+    // Mark welcome as seen immediately — no modal chain after first practice.
+    // PostPracticeSetup and ProfileNudge are deferred to practice 3+ via useEffect below.
     if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
-      // dismissFirstTimeWelcome will chain into PostPracticeSetupModal if needed.
-      pendingWelcome.current = true;
-    } else if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
-      // Returning user who missed the interests picker — show it now.
-      setTimeout(() => setShowPostPracticeSetup(true), 3200);
-    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
-      setTimeout(() => setShowProfileNudge(true), 3200);
+      localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
     }
 
     // Fire personalized daily dispatch after morning practice completes.
@@ -1381,19 +1368,26 @@ function AppContent() {
   const pendingWelcome = useRef(false);
 
   // Auto-dismiss the morning completion overlay after 2.5 s.
-  // When it goes away, fire the welcome screen if one is pending.
   useEffect(() => {
     if (showMorningSuccess) {
       const t = setTimeout(() => setShowMorningSuccess(false), 2500);
       return () => clearTimeout(t);
-    } else {
-      // Overlay just closed — show welcome if queued
-      if (pendingWelcome.current) {
-        pendingWelcome.current = false;
-        setShowFirstTimeWelcome(true);
-      }
     }
   }, [showMorningSuccess]);
+
+  // After practice 3, surface PostPracticeSetup and ProfileNudge — one at a time.
+  useEffect(() => {
+    if (!user) return;
+    const totalPractices = user.practiceData?.totalPractices ?? 0;
+    if (totalPractices < 3) return;
+    if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
+      const t = setTimeout(() => setShowPostPracticeSetup(true), 1500);
+      return () => clearTimeout(t);
+    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+      const t = setTimeout(() => setShowProfileNudge(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [user?.practiceData?.totalPractices]);
 
   // Welcome screen is triggered only from practice completion handlers
   // (handlePrimingComplete / evening onComplete) — never on app open,
@@ -1519,17 +1513,15 @@ function AppContent() {
     );
   }
 
-  // NOT LOGGED IN - DISABLED FOR TESTING
-  // if (!session) {
-  //   return <AuthScreen isDarkMode={isDarkMode} />;
-  // }
+  if (!session) {
+    return <AuthScreen isDarkMode={isDarkMode} />;
+  }
 
-  // LOGGED IN BUT NO PROFILE (New User) - DISABLED FOR TESTING
-  // if (!user) {
-  //   return <Onboarding onComplete={handleOnboardingComplete} isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
-  // }
+  if (!user) {
+    return <Onboarding onComplete={handleOnboardingComplete} isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
+  }
 
-  // Safety check - should never happen in testing mode
+  // Safety check
   if (userLoading || subLoading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-sage-mid' : 'bg-ivory'} `}>
@@ -1756,7 +1748,14 @@ function AppContent() {
             // ── BEAT 1 · MORNING ARRIVAL ────────────────────────────────────────
             if (!ritualDoneToday && !shouldShowEveningMode && !forcedEvening && user) {
               const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
-              const timeSub = hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
+              const earlyStreak = user.streak ?? 0;
+              const timeSub = (() => {
+                if (earlyStreak === 2) return 'Day 2. You came back.';
+                if (earlyStreak === 3) return 'Three days. The habit is forming.';
+                if (earlyStreak >= 4 && earlyStreak <= 6) return `Day ${earlyStreak}. This is how it happens.`;
+                if (earlyStreak >= 7 && earlyStreak <= 9) return "One week in. Don't stop now.";
+                return hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
+              })();
               const isIntroStep = beat1Step === 'intro';
               const isMessageStep = beat1Step === 'message';
 
@@ -1804,6 +1803,7 @@ function AppContent() {
                       userName={user.name || "Friend"}
                       onComplete={handlePrimingComplete}
                       onFinish={() => setShowMorningSuccess(true)}
+                      skipIntro={!user.practiceData || user.practiceData.totalPractices === 0}
                       onRefresh={() => {
                         const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
                         updateProfile({ ...user, dailyPriming: updatedPriming });
@@ -1937,7 +1937,7 @@ function AppContent() {
                         ? 'Practice complete. The day is yours.'
                         : eveningDoneToday
                           ? 'Evening reflection complete.'
-                          : hour < 12 ? 'Ready to rise?' : hour < 18 ? 'Ready to flourish?' : 'Ready to unwind?'}
+                          : hour < 12 ? 'Ready to go?' : hour < 18 ? 'How\'s the day going?' : 'How are you doing?'}
                   </p>
                 </motion.div>
 
@@ -1960,6 +1960,29 @@ function AppContent() {
                     </div>
                   </motion.div>
                 )}
+
+                {/* ── Evening message card — shown after evening practice completes ── */}
+                {eveningDoneToday && (() => {
+                  const todayEveningPractice = (user?.dailyEveningPractice || []).find(p => p.date === todayDate);
+                  if (!todayEveningPractice?.reflectionMessage) return null;
+                  return (
+                    <motion.div
+                      key="evening-message"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                    >
+                      <Suspense fallback={null}>
+                        <EveningMessageCard
+                          practice={todayEveningPractice}
+                          isDarkMode={isDarkMode}
+                          onRefresh={() => {}}
+                        />
+                      </Suspense>
+                    </motion.div>
+                  );
+                })()}
 
                 {/* ── Day 1 warm state — only for brand new users ── */}
                 {(user?.practiceData?.totalPractices ?? 0) === 0 && !ritualDoneToday && (
@@ -2113,7 +2136,7 @@ function AppContent() {
                               Your progress isn't backed up yet
                             </p>
                             <p className={`text-xs leading-snug mb-3 ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>
-                              You've built {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}{user.streak > 0 ? ` and a ${user.streak}-day streak` : ''}. Create a free account to keep it safe across devices — your settings and history come with you.
+                              You've logged {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}. Create a free account to keep it safe across devices — your settings and history come with you.
                             </p>
                             <div className="flex items-center gap-2">
                               <button
@@ -2652,11 +2675,11 @@ function AppContent() {
                 {/* Body — 3 tight paragraphs */}
                 <div className="space-y-5" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
                   <p>
-                    You just did something quietly powerful. Most people never show up for themselves like this. You did.
+                    You just did something quietly powerful. Most people never do this for themselves. You did.
                   </p>
 
                   <p>
-                    This is how it begins. Not with a breakthrough, but with one honest practice and the choice to show up for another.
+                    This is how it begins. Not with a breakthrough, but with one honest practice and the choice to do it again.
                   </p>
 
                   <p>
@@ -2671,7 +2694,7 @@ function AppContent() {
 
                 {/* Signature */}
                 <div className="mt-5 mb-8">
-                  <p style={{ color: 'rgba(229,214,167,0.50)', fontSize: '13px', fontStyle: 'italic' }}>With care,</p>
+                  <p style={{ color: 'rgba(229,214,167,0.50)', fontSize: '13px', fontStyle: '' }}>With care,</p>
                   <p style={{ color: 'rgba(229,214,167,0.80)', fontSize: '14px', fontWeight: 600, letterSpacing: '0.03em' }}>
                     The Palante Team
                   </p>
@@ -2743,6 +2766,7 @@ function AppContent() {
                 setActiveTab(tab as typeof activeTab);
                 haptics.selection();
               }}
+              onFirstAIResponse={requestAppReview}
             />
           </motion.div>
           </ErrorBoundary>
@@ -2908,8 +2932,8 @@ function AppContent() {
       <CelebrationModal
         isOpen={showCelebration}
         onClose={() => setShowCelebration(false)}
-        title="Welcome, Friend!"
-        message="Your daily journey begins now. Let's make today count!"
+        title="You're in."
+        message="Practice 1 is done. That's how it starts."
         isDarkMode={isDarkMode}
       />
 
@@ -2985,9 +3009,9 @@ function AppContent() {
             title: labels[ringCeremony.type],
             label: 'Mandala of Growth',
             count: user?.practiceData?.totalPractices ?? 0,
-            message: 'My garden is growing. Pa\'lante. 🌸',
+            message: 'My garden is growing. Pa\'lante.',
             iconName: 'Trophy',
-            shareText: `${labels[ringCeremony.type]} on my Palante journey. Pa'lante! #PalanteApp`,
+            shareText: `${labels[ringCeremony.type]} — Pa'lante. #PalanteApp`,
           });
         }}
         onSave={async () => {
@@ -2996,7 +3020,7 @@ function AppContent() {
             title: '90 Days — Full Bloom',
             label: 'Mandala of Growth',
             count: user?.practiceData?.totalPractices ?? 90,
-            message: 'My garden is in full bloom. Pa\'lante. 🌸',
+            message: 'My garden is in full bloom. Pa\'lante.',
             iconName: 'Trophy',
           });
         }}
@@ -3049,6 +3073,8 @@ function AppContent() {
           isDarkMode={isDarkMode}
           onComplete={handlePostPracticeSetupComplete}
           onSkip={handlePostPracticeSetupSkip}
+          existingContentType={user?.contentTypePreference}
+          existingSourcePreference={user?.sourcePreference}
         />
       </Suspense>
 

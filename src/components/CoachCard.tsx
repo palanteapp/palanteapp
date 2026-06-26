@@ -20,66 +20,66 @@ interface CoachCardProps {
 // Message templates for different contexts
 const MESSAGES = {
     morningStart: [
-        "Fresh day, fresh start. What's your one priority?",
+        "Morning. What's the one thing that matters most today?",
         "The morning is yours. Set your intention.",
-        "A new day to move forward. Let's go.",
+        "New day. What are you moving toward?",
     ],
     morningMidway: [
-        "Morning's flying by. How are you tracking?",
-        "Time check: still on target?",
+        "Morning's moving. Still on track?",
+        "Time check. How's the focus holding?",
     ],
     afternoonPush: [
-        "Afternoon slump? Take a breath, then keep going.",
-        "The day isn't over. You've still got this.",
+        "Afternoon. Take a breath, then keep going.",
+        "The day isn't over. Stay with it.",
     ],
     eveningReflect: [
-        "Wind down well. What went right today?",
-        "Day's ending. Reflect on your wins.",
+        "Day's winding down. What went right?",
+        "Before you close out — what are you taking from today?",
     ],
     noGoals: [
-        "What are you working towards today?",
-        "Set your focus. Everything starts with one goal.",
+        "What are you working toward today?",
+        "Set your focus. Everything starts with one clear goal.",
     ],
     inProgress: [
-        "You've got this. Keep the momentum.",
-        "One step at a time. You're doing great.",
-        "Stay focused. Progress over perfection.",
+        "You're moving. Keep going.",
+        "One step, then the next.",
+        "Focused effort. That's the work.",
     ],
     allComplete: [
-        "All goals complete. You did it today!",
-        "Done and done. That's how it's done.",
-        "100% complete. Rest up, you earned it.",
+        "All goals done. That's a full day.",
+        "Done. That's how it gets built.",
+        "Everything crossed off. Good day.",
     ],
     practiceCelebration: [
-        "{{practices}} practices completed! You're building momentum.",
-        "{{practices}} practices strong. Keep going!",
-        "{{practices}} practices down. Consistency is your superpower.",
+        "{{practices}} practices in. Momentum is real.",
+        "{{practices}} sessions strong. This is adding up.",
+        "{{practices}} practices logged. Consistency compounds.",
     ],
     welcomeBack: [
-        "Welcome back! Ready to continue your journey?",
-        "Good to see you. Let's pick up where we left off.",
-        "You're here. That's what matters. Let's go.",
+        "Good to see you. Where were we?",
+        "You're back. Let's keep moving.",
+        "You're here. That's what matters.",
     ],
     longAbsence: [
-        "Welcome back! We missed you.",
-        "You're here. That's what matters. Let's go.",
-        "Every comeback starts with showing up.",
+        "You're back. No explanation needed — let's go.",
+        "Good to have you here. Pick up where you want.",
+        "Starting again is still starting.",
     ],
     morningMotivation: [
-        "Good morning! Let's make today count.",
-        "Rise and shine. Your goals are waiting.",
+        "Good morning. What's the plan?",
+        "Morning. Your day is waiting.",
     ],
     eveningReflection: [
-        "Reflecting on the day. What's your biggest takeaway?",
-        "Peaceful thoughts as you end your day.",
+        "How did the day actually go?",
+        "End of day. What are you taking with you?",
     ],
     pointsMilestone: [
-        "Milestone reached! Keep exploring.",
-        "You're making great progress. Stay the course.",
+        "Milestone. Keep building.",
+        "Progress logged. Stay the course.",
     ],
     generalCoaching: [
-        "Take a breath. You're exactly where you need to be.",
-        "Small steps lead to big changes.",
+        "You're exactly where you need to be.",
+        "Small, honest steps. That's the whole game.",
     ]
 };
 

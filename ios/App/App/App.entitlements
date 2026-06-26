@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.move.palante.dev</string>
+		<string>group.com.move.palante</string>
 	</array>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
