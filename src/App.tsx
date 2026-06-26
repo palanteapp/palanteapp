@@ -161,11 +161,6 @@ function AppContent() {
   // Transient Success States for Practices
   const [showMorningSuccess, setShowMorningSuccess] = useState(false);
   const [showEveningSuccess, setShowEveningSuccess] = useState(false);
-  const [showFirstTimeWelcome, setShowFirstTimeWelcome] = useState(false);
-  const dismissFirstTimeWelcome = () => {
-    localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
-    setShowFirstTimeWelcome(false);
-  };
   const [eveningSkipped, setEveningSkipped] = useState(false);
   const [showEveningPracticeInline, setShowEveningPracticeInline] = useState(false);
 
@@ -904,8 +899,7 @@ function AppContent() {
       }, 3500); // after the milestone toast fades
     }
 
-    // Note: PostPracticeSetupModal (interests picker) is now triggered inside
-    // dismissFirstTimeWelcome — keeping it sequential with the welcome letter.
+    // Note: PostPracticeSetupModal (interests picker) is deferred to practice 3 via useEffect.
     // For users who already saw the welcome letter (returning users), it fires there too.
 
     // Also check for STREAK milestones (7, 30, 100 days)
@@ -1803,7 +1797,7 @@ function AppContent() {
                       userName={user.name || "Friend"}
                       onComplete={handlePrimingComplete}
                       onFinish={() => setShowMorningSuccess(true)}
-                      skipIntro={!user.practiceData || user.practiceData.totalPractices === 0}
+                      skipIntro={!!(user.practiceData && user.practiceData.totalPractices > 0)}
                       onRefresh={() => {
                         const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
                         updateProfile({ ...user, dailyPriming: updatedPriming });
@@ -2608,117 +2602,6 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* ── First-Time Welcome Screen ───────────────────────────────────── */}
-      <AnimatePresence>
-        {showFirstTimeWelcome && (
-          <motion.div
-            key="first-time-welcome"
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            transition={{ duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed inset-0 z-[80]"
-            style={{ background: '#415D43', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-          >
-            {/* Ornate Flower of Life mandala — pale gold, low opacity, fixed behind content */}
-            <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice" style={{ zIndex: 0 }}>
-              <g transform="translate(195, 438)" fill="none" stroke="#E5D6A7">
-                <g strokeWidth="0.7" opacity="0.10">
-                  <circle cx="0"      cy="0"    r="130"/>
-                  <circle cx="0"      cy="-130" r="130"/>
-                  <circle cx="112.6"  cy="-65"  r="130"/>
-                  <circle cx="112.6"  cy="65"   r="130"/>
-                  <circle cx="0"      cy="130"  r="130"/>
-                  <circle cx="-112.6" cy="65"   r="130"/>
-                  <circle cx="-112.6" cy="-65"  r="130"/>
-                </g>
-                <g strokeWidth="0.5" opacity="0.07">
-                  <circle cx="0"      cy="-260" r="130"/>
-                  <circle cx="225.2"  cy="-130" r="130"/>
-                  <circle cx="225.2"  cy="130"  r="130"/>
-                  <circle cx="0"      cy="260"  r="130"/>
-                  <circle cx="-225.2" cy="130"  r="130"/>
-                  <circle cx="-225.2" cy="-130" r="130"/>
-                </g>
-                <circle cx="0" cy="0" r="226" strokeWidth="0.5" opacity="0.08"/>
-                <circle cx="0" cy="0" r="285" strokeWidth="0.35" strokeDasharray="4 8" opacity="0.06"/>
-                <circle cx="0" cy="0" r="345" strokeWidth="0.25" strokeDasharray="2 10" opacity="0.04"/>
-                <circle cx="0" cy="0" r="9"  strokeWidth="0.5" opacity="0.12"/>
-                <circle cx="0" cy="0" r="4"  fill="#E5D6A7" stroke="none" opacity="0.20"/>
-              </g>
-            </svg>
-
-            {/* Scrollable content — min-h ensures the screen feels full even with short copy */}
-            <div
-              className="relative px-8 flex flex-col"
-              style={{
-                minHeight: '100vh',
-                paddingTop: 'calc(env(safe-area-inset-top) + 3rem)',
-                paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)',
-                zIndex: 1,
-              }}
-            >
-              <motion.div
-                className="flex-1 flex flex-col justify-center"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-              >
-                {/* Headline */}
-                <h1
-                  className="font-display font-bold text-white leading-tight mb-8"
-                  style={{ fontSize: '2.5rem', letterSpacing: '-0.02em' }}
-                >
-                  Welcome to Palante.
-                </h1>
-
-                {/* Body — 3 tight paragraphs */}
-                <div className="space-y-5" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
-                  <p>
-                    You just did something quietly powerful. Most people never do this for themselves. You did.
-                  </p>
-
-                  <p>
-                    This is how it begins. Not with a breakthrough, but with one honest practice and the choice to do it again.
-                  </p>
-
-                  <p>
-                    You also have a personal partner here. One that learns who you are, remembers what matters to you, and grows with you over time. Introduce yourself when you're ready, set a goal or two, and let them help you stay accountable.
-                  </p>
-                </div>
-
-                {/* Closing */}
-                <p className="mt-7" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
-                  We're glad you're here.
-                </p>
-
-                {/* Signature */}
-                <div className="mt-5 mb-8">
-                  <p style={{ color: 'rgba(229,214,167,0.50)', fontSize: '13px', fontStyle: '' }}>With care,</p>
-                  <p style={{ color: 'rgba(229,214,167,0.80)', fontSize: '14px', fontWeight: 600, letterSpacing: '0.03em' }}>
-                    The Palante Team
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* CTA — always at the bottom of the content flow */}
-              <motion.button
-                onClick={dismissFirstTimeWelcome}
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-2xl font-semibold text-base"
-                style={{
-                  background: '#E5D6A7',
-                  color: '#415D43',
-                  boxShadow: '0 8px 32px rgba(229,214,167,0.18)',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Begin exploring
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Full-screen Overlays */}
       {activeTab === 'breath' && (
