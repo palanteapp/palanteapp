@@ -183,7 +183,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
                                             border: '1px solid rgba(255,255,255,0.08)',
                                         }}
                                     >
-                                        <p className="text-base font-serif italic leading-relaxed"
+                                        <p className="text-base font-serif leading-relaxed"
                                             style={{ color: 'rgba(255,255,255,0.82)', lineHeight: '1.75' }}>
                                             {memoir}
                                         </p>

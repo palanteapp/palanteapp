@@ -26,15 +26,15 @@ export const getDaysDifference = (date1: string, date2: string): number => {
 /** Get display details for a count milestone (Total Practices) */
 export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'century' | 'twohundred' | 'year') => {
     const milestones = {
-        first: { title: 'First Step', icon: 'Sprout', message: "You've completed your very first practice! A journey of a thousand miles begins with a single step.", label: 'Total Practices', days: 1 },
-        three: { title: 'Consistency Starter', icon: 'Sun', message: "Three practices completed! You're planting the seeds of habit.", label: 'Total Practices', days: 3 },
-        week: { title: 'Week Warrior', icon: 'Flame', message: "You've completed 7 total practices! Your momentum is building beautifully.", label: 'Total Practices', days: 7 },
-        fortnight: { title: 'Consistent Flow', icon: 'Compass', message: "14 total practices. You're building a solid foundation of self-care.", label: 'Total Practices', days: 14 },
-        month: { title: 'Dedicated Practitioner', icon: 'Trophy', message: "30 total practices of showing up for yourself. This is how transformation happens.", label: 'Total Practices', days: 30 },
-        fifty: { title: 'Intrinsic Master', icon: 'Star', message: "50 total practices! You've proven your commitment to your path.", label: 'Total Practices', days: 50 },
-        century: { title: 'Elite Practitioner', icon: 'Award', message: "100 total practices! You are now among the top 1% of consistent souls.", label: 'Total Practices', days: 100 },
-        twohundred: { title: 'Lifestyle Legend', icon: 'Heart', message: "200 practices. This is no longer a task—it's who you are.", label: 'Total Practices', days: 200 },
-        year: { title: 'The Year of You', icon: 'PartyPopper', message: '365 total practices of excellence! A monumental achievement of consistency.', label: 'Total Practices', days: 365 },
+        first: { title: 'It Begins', icon: 'Sprout', message: "One practice. That's not nothing — that's everything. Most people never start.", label: 'Total Practices', days: 1 },
+        three: { title: 'You Returned', icon: 'Sun', message: "Three practices. You showed up more than once. That's the whole game right there.", label: 'Total Practices', days: 3 },
+        week: { title: 'Seven', icon: 'Flame', message: "Seven practices. Something is shifting — you can feel it even if you can't name it yet.", label: 'Total Practices', days: 7 },
+        fortnight: { title: 'Fourteen', icon: 'Compass', message: "Fourteen practices. This is no longer a thing you're trying. It's a thing you do.", label: 'Total Practices', days: 14 },
+        month: { title: 'Thirty', icon: 'Trophy', message: "Thirty practices. You have outlasted every version of yourself that almost quit.", label: 'Total Practices', days: 30 },
+        fifty: { title: 'Fifty', icon: 'Star', message: "Fifty practices. You didn't need a reason to keep going. You just kept going.", label: 'Total Practices', days: 50 },
+        century: { title: 'One Hundred', icon: 'Award', message: "One hundred practices. That is not discipline. That is identity. You are someone who does this.", label: 'Total Practices', days: 100 },
+        twohundred: { title: 'Two Hundred', icon: 'Heart', message: "Two hundred practices. This isn't a habit anymore. It's the shape of your life.", label: 'Total Practices', days: 200 },
+        year: { title: 'Three Sixty-Five', icon: 'PartyPopper', message: "Three hundred and sixty-five practices. A full year of choosing yourself, every single time.", label: 'Total Practices', days: 365 },
     };
     return milestones[milestone];
 };
@@ -42,11 +42,11 @@ export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'for
 /** Get display details for a true STREAK milestone */
 export const getStreakMilestoneDetails = (days: number) => {
     const details: Record<number, any> = {
-        7: { title: 'Seven Days Running', icon: 'Flame', message: "Seven days in a row. Something is clicking — this is what momentum feels like. Keep this feeling.", label: 'Day Streak' },
-        30: { title: 'Thirty Straight', icon: 'Trophy', message: "Thirty consecutive days. This is no longer a practice you're trying to build. It's a rhythm you already have.", label: 'Day Streak' },
-        100: { title: 'One Hundred Days', icon: 'Award', message: "One hundred days without a break. That is extraordinary self-trust. You showed up even when it was hard.", label: 'Day Streak' }
+        7: { title: 'Seven Days', icon: 'Flame', message: "Seven days in a row. That's not luck. Something in you decided — and followed through.", label: 'Day Streak' },
+        30: { title: 'Thirty Days', icon: 'Trophy', message: "Thirty days straight. You have been choosing yourself every single morning. That is not small.", label: 'Day Streak' },
+        100: { title: 'One Hundred Days', icon: 'Award', message: "A hundred days without breaking. You showed up on the hard days too. That's the whole point.", label: 'Day Streak' }
     };
-    return details[days] || { title: `${days} Days Running`, icon: 'Flame', message: `${days} days in a row. That kind of consistency doesn't happen by accident. You built this.`, label: 'Day Streak' };
+    return details[days] || { title: `${days} Days`, icon: 'Flame', message: `${days} days in a row. That kind of consistency doesn't happen by accident. You built this.`, label: 'Day Streak' };
 };
 
 import type { UserProfile } from '../types';

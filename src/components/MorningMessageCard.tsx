@@ -178,7 +178,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                             key="empty"
                             style={{
                                 fontFamily: '"Poppins", sans-serif',
-                                fontStyle: 'italic',
+                                fontStyle: '',
                                 fontSize: '16px',
                                 lineHeight: 1.6,
                                 color: isDarkMode ? 'rgba(229,214,167,0.4)' : 'rgba(65,93,67,0.4)',

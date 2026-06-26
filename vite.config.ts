@@ -16,7 +16,7 @@ export default defineConfig({
     base: '/',
     server: {
         host: '0.0.0.0',
-        port: 5200,
+        port: 5201,
     },
     plugins: [
         react(),

@@ -47,7 +47,9 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
             case 'streak_milestone':
                 return `You've reached ${contextDetails}! What would you tell yourself on a day when you're struggling?`;
             case 'manual':
-                return "You're doing great right now. Write an encouraging note to your future self.";
+                return contextDetails
+                    ? `${contextDetails} What do you want to remember about this version of yourself?`
+                    : "You're doing great right now. Write an encouraging note to your future self.";
         }
     };
 

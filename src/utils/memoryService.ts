@@ -49,17 +49,20 @@ export const extractAndSaveMemories = async (
 
     const extractionPrompt = `You are a memory extraction assistant for Palante, a personal wellness app.
 
-From the conversation below, extract 3–5 concise memory statements that will help ${userName}'s AI partner remember important things in future sessions. Focus on:
-- Goals they are working on or mentioned wanting to pursue
-- Challenges, struggles, or fears they shared
-- Emotions, moods, or patterns they expressed
-- Wins, milestones, or things they're proud of
-- Life context: work, relationships, health, personal growth
+From the conversation below, extract 3–5 memory statements that will help ${userName}'s AI partner recall important things in future sessions. These memories should feel personal and specific — the kind of detail that, when referenced later, makes someone feel truly seen.
+
+Focus on:
+- Specific people in their life (names, relationships, what happened with them)
+- Concrete situations or events they described (not just "stress at work" — the specific project, boss, conflict)
+- Emotions they named or showed, and what triggered them
+- Things they're proud of, afraid of, or actively working on
+- Any breakthrough moment, realization, or thing they said that felt significant
 
 Rules:
 - Write each memory as one sentence starting with "${userName}"
-- Be specific and factual — only include things actually said
-- Do not invent or infer things not in the transcript
+- Be specific — include names, details, and the actual content of what was shared
+- Prefer vivid over vague: "mentioned her sister called after months of silence" beats "talked about family"
+- Only include things actually said — do not invent or infer
 - Return ONLY the memory sentences, one per line, nothing else
 
 Conversation:

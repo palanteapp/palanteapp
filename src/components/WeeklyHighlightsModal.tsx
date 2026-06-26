@@ -379,7 +379,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                 {/* Reflection text */}
                                 <p
                                     className="relative font-body leading-relaxed"
-                                    style={{ fontStyle: 'italic', fontSize: 13.5, color: 'rgba(255,255,255,0.88)', zIndex: 1 }}
+                                    style={{ fontStyle: '', fontSize: 13.5, color: 'rgba(255,255,255,0.88)', zIndex: 1 }}
                                 >
                                     {reflectionMessage || 'You showed up this week. That\'s the whole game.'}
                                 </p>
@@ -499,7 +499,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                             className="text-center mb-8 px-4"
                         >
                             <p
-                                className="font-body italic leading-relaxed mb-1"
+                                className="font-body leading-relaxed mb-1"
                                 style={{ color: 'rgba(255,255,255,1)', fontSize: 12.5 }}
                             >
                                 &ldquo;{weeklyQuote.text}&rdquo;
