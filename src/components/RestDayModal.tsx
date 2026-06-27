@@ -95,7 +95,7 @@ export const RestDayModal: React.FC<RestDayModalProps> = ({
                 </div>
 
                 {/* Reassurance */}
-                <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
+                <p className={`text-center mt-6 text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
                     }`}>
                     Rest is part of growth. Your streak is safe.
                 </p>

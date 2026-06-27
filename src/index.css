@@ -699,10 +699,10 @@ div {
    Use these for the quote card system and hero moments across the app.
    ──────────────────────────────────────────────────────────────────────── */
 
-/* Serif font — Playfair Display italic (gentle tone, quote endings) */
+/* Serif font — Playfair Display (gentle tone, quote endings) */
 .font-serif {
   font-family: var(--font-serif);
-  font-style: italic;
+  font-style: normal;
 }
 
 /* Display type scale — quote cards, onboarding hero text */
@@ -729,7 +729,7 @@ div {
 }
 .text-display-serif {
   font-family: var(--font-serif);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.125rem;   /* 18px */
   line-height: 1.3;

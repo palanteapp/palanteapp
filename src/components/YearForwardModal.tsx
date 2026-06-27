@@ -251,7 +251,7 @@ const Quote: React.FC<{ kicker: string; text: string }> = ({ kicker, text }) => 
             <p style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, color: 'rgba(229,214,167,0.5)', fontSize: '10.5px', letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 6 }}>
                 {kicker}
             </p>
-            <p style={{ fontFamily: '"Poppins", Georgia, serif', fontStyle: 'italic', fontWeight: 400, color: INK, fontSize: '19px', lineHeight: 1.4 }}>
+            <p style={{ fontFamily: '"Poppins", Georgia, serif', fontStyle: '', fontWeight: 400, color: INK, fontSize: '19px', lineHeight: 1.4 }}>
                 “{text}”
             </p>
         </div>

@@ -42,7 +42,7 @@ export const generatePDF = (user: UserProfile) => {
 
     // -- ENTRIES --
     if (entries.length === 0) {
-        doc.setFont("helvetica", "italic");
+        doc.setFont("helvetica", "normal");
         doc.text("No journal entries found yet.", margin, yPos);
     } else {
         // Sort entries by date (newest first)

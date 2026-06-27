@@ -264,7 +264,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                         <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-white/5 text-pale-gold' : 'bg-sage/5 text-sage'}`}>
                             <Sparkles size={16} />
                         </div>
-                        <p className={`text-xs leading-relaxed italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
+                        <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
                             Cloud accounts enable cross-device synchronization and ensure your settings, goals, and reflections are never lost.
                         </p>
                     </div>

@@ -235,7 +235,7 @@ export const buildYearForwardFallback = (data: YearForwardData): string => {
     lines.push(`${firstName}, here is ${windowLabel}, told back to you.`);
 
     if (firstIntention) {
-        lines.push(`You opened the year setting "${firstIntention}" as your intention, and you kept showing up to set the next one, and the next.`);
+        lines.push(`You opened the year setting "${firstIntention}" as your intention, and you kept coming back to set the next one, and the next.`);
     } else {
         lines.push(`You showed up on ${daysPracticed} days this year, and each one was a quiet choice that nobody else saw.`);
     }
@@ -273,9 +273,9 @@ export const buildYearForwardFallback = (data: YearForwardData): string => {
     }
 
     if (lastIntention && lastIntention !== firstIntention) {
-        lines.push(`You are setting intentions like "${lastIntention}" now. That is not who started the year. That is who you became. Whatever next year asks of you, you already have the evidence that you show up. Pa'lante.`);
+        lines.push(`You are setting intentions like "${lastIntention}" now. That is not who started the year. That is who you became. Whatever next year asks of you, you already have the evidence that you come back. Pa'lante.`);
     } else {
-        lines.push(`Whatever next year asks of you, you walk into it with a year of proof that you show up. Carry that forward. Pa'lante.`);
+        lines.push(`Whatever next year asks of you, you walk into it with a year of proof that you keep going. Carry that forward. Pa'lante.`);
     }
 
     return lines.join(' ');

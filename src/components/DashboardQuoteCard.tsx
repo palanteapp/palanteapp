@@ -436,7 +436,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                                         lineHeight,
                                         color: quote.originalText ? '#4A6741' : '#2D3E33',
                                         letterSpacing: '-0.02em',
-                                        fontStyle: quote.originalText ? 'italic' : 'normal',
+                                        fontStyle: quote.originalText ? '' : 'normal',
                                         opacity: quote.originalText ? 0.8 : 1,
                                     }}>
                                         {quoteText}

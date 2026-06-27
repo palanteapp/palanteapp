@@ -165,7 +165,7 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                 <div className={`mt-6 p-4 rounded-xl ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-sage/5 border border-sage/10'
                     }`}>
                     <p className={`text-xs ${textSecondary}`}>
-                        🔒 <strong>Privacy First:</strong> Partners can only see your streak count and last activity date. Your goals remain private.
+                        <strong>Privacy First:</strong> Partners can only see your streak count and last activity date. Your goals remain private.
                     </p>
                 </div>
             </div>

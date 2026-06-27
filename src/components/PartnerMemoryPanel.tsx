@@ -89,7 +89,7 @@ export const PartnerMemoryPanel: React.FC<Props> = ({ isOpen, onClose, user }) =
                         {!hasAnyMemory && (
                             <div className={`rounded-3xl border p-6 text-center ${cardBg}`}>
                                 <p className={`text-sm leading-relaxed ${textMuted}`}>
-                                    {partnerName} is still getting to know you. Keep showing up — after a few sessions this will come alive.
+                                    {partnerName} is still getting to know you. Keep talking — after a few sessions this will come alive.
                                 </p>
                             </div>
                         )}
@@ -224,7 +224,7 @@ export const PartnerMemoryPanel: React.FC<Props> = ({ isOpen, onClose, user }) =
                         {/* Footer note */}
                         {hasAnyMemory && (
                             <p className={`text-xs text-center leading-relaxed px-4 ${textMuted}`}>
-                                This grows every time you show up. The longer you stay, the more {partnerName} understands you.
+                                This grows with every session. The longer you stay, the more {partnerName} understands you.
                             </p>
                         )}
                     </div>

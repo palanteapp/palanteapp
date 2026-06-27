@@ -63,7 +63,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                             </p>
 
                             <div className="flex items-center justify-between">
-                                <p className={`text-sm font-body italic ${isDarkMode ? 'text-white' : 'text-sage/60'
+                                <p className={`text-sm font-body ${isDarkMode ? 'text-white' : 'text-sage/60'
                                     }`}>
                                     — {quote.author}
                                 </p>

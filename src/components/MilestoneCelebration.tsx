@@ -96,7 +96,7 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
                     </div>
 
                     {/* Message */}
-                    <p className="text-white/80 text-lg font-body leading-relaxed mb-4 italic">
+                    <p className="text-white/80 text-lg font-body leading-relaxed mb-4 ">
                         "{finalDetails.message}"
                     </p>
                     

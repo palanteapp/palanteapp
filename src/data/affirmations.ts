@@ -13,7 +13,7 @@ export const AFFIRMATIONS: Quote[] = [
     { id: 'aff_m7', text: "You are exactly where you need to be to bloom.", author: "Palante", category: "Growth", intensity: 1, isAffirmation: true },
     { id: 'aff_m8', text: "Let your imagination run wild and free.", author: "Palante", category: "Imagination", intensity: 1, isAffirmation: true },
     { id: 'aff_m9', text: "There is magic in your everyday life.", author: "Palante", category: "Magic", intensity: 1, isAffirmation: true },
-    { id: 'aff_m10', text: "Embrace the beauty of your own journey.", author: "Palante", category: "Self-Love", intensity: 1, isAffirmation: true },
+    { id: 'aff_m10', text: "You are capable of more than you know.", author: "Palante", category: "Self-Love", intensity: 1, isAffirmation: true },
     { id: 'aff_m11', text: "Quiet your mind and listen to your inner wisdom.", author: "Palante", category: "Intuition", intensity: 1, isAffirmation: true },
     { id: 'aff_m12', text: "You are radiant with potential.", author: "Palante", category: "Potential", intensity: 1, isAffirmation: true },
     { id: 'aff_m13', text: "Every step you take is a work of art.", author: "Palante", category: "Art", intensity: 1, isAffirmation: true },

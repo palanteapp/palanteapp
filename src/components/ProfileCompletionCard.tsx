@@ -167,7 +167,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
                     </h4>
                     <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/50'
                         }`}>
-                        The more you share, the more {partnerName} can actually show up for you.
+                        The more you share, the more {partnerName} can actually be there for you.
                     </p>
 
                     {/* Missing Fields Preview */}

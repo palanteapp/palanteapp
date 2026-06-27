@@ -19,7 +19,7 @@ struct WidgetGoal {
 }
 
 struct PalanteWidgetData {
-    static let appGroup = "group.com.move.palante.dev"
+    static let appGroup = "group.com.move.palante"
 
     let streak: Int
     let totalPractices: Int

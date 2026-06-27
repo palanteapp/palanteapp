@@ -13,10 +13,12 @@ interface PostPracticeSetupModalProps {
         sourcePreference: QuoteSource;
     }) => void;
     onSkip: () => void;
+    existingContentType?: ContentType;
+    existingSourcePreference?: QuoteSource;
 }
 
 const INTEREST_TAGS = [
-    'Mindset', 'Wellness', 'Career', 'Relationships', 'Creativity', 'Spirituality',
+    'Mindset', 'Health', 'Career', 'Relationships', 'Creativity', 'Spirituality',
 ];
 
 export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
@@ -24,6 +26,8 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
     userName,
     onComplete,
     onSkip,
+    existingContentType = 'mix',
+    existingSourcePreference = 'mix',
 }) => {
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
@@ -40,8 +44,8 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
     const handleFinish = () => {
         onComplete({
             interests: selectedInterests,
-            contentType: 'mix',
-            sourcePreference: 'mix',
+            contentType: existingContentType,
+            sourcePreference: existingSourcePreference,
         });
     };
 
@@ -100,14 +104,14 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
                                 <div className="flex items-center gap-2 mb-1">
                                     <Sparkles size={16} style={{ color: gold }} />
                                     <span className="text-sm font-bold uppercase tracking-widest" style={{ color: gold }}>
-                                        First practice done
+                                        Practice complete
                                     </span>
                                 </div>
                                 <h2 className="text-3xl font-display font-bold tracking-tight mb-1 text-white">
                                     What matters to you, {userName.split(' ')[0]}?
                                 </h2>
                                 <p className="text-sm mb-7 text-white/70">
-                                    Palante uses this to personalize your daily affirmations.
+                                    Your picks shape the daily affirmations, quotes, and partner prompts you see.
                                 </p>
 
                                 {/* Interest chips */}

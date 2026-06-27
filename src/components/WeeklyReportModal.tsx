@@ -212,7 +212,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({
                                         key={index}
                                         className="bg-white/5 rounded-xl p-4"
                                     >
-                                        <p className="text-white/90 text-sm italic leading-relaxed mb-2">
+                                        <p className="text-white/90 text-sm leading-relaxed mb-2">
                                             "{quote.text}"
                                         </p>
                                         <p className="text-white text-xs">— {quote.author}</p>

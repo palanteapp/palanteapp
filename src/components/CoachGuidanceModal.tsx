@@ -94,7 +94,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
 
                     {/* Wellness Section */}
                     <div>
-                        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] px-1 mb-2 ${textSecondary}`}>Wellness & Spirit</h3>
+                        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] px-1 mb-2 ${textSecondary}`}>Mind & Spirit</h3>
                         <div className={`p-4 rounded-2xl border ${bgCard}`}>
                             <div className="flex items-center gap-4">
                                 <div className="p-2 rounded-full flex-shrink-0 bg-white/[0.12] text-white">

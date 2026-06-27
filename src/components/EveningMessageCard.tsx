@@ -150,7 +150,7 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
                     <div>
                         <h3 className={`text-base font-display font-medium ${textPrimary}`}>Evening Practice Complete</h3>
                         <p className={`text-xs uppercase tracking-widest mt-1 ${textSecondary}`}>
-                            Reflection: <span className="font-bold border-b border-dashed opacity-80">G.L.A.D. Method</span>
+                            Reflection: <span className="font-bold border-b border-dashed opacity-80">Evening Reflection</span>
                         </p>
                     </div>
                 </div>
@@ -168,11 +168,11 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
                 {practice.reflectionMessage ? (
                     <div className="text-center px-4 mb-8">
                         <h4 className={`text-xs font-bold uppercase tracking-[0.15em] mb-4 ${textSecondary}`}>Your Evening Summary</h4>
-                        <p className={`text-xl font-display font-medium italic leading-relaxed ${textPrimary}`}>"{practice.reflectionMessage}"</p>
+                        <p className={`text-xl font-display font-medium leading-relaxed ${textPrimary}`}>"{practice.reflectionMessage}"</p>
                     </div>
                 ) : (
                     <div className="text-center px-4 mb-8">
-                        <p className={`text-sm italic ${textSecondary}`}>Rest well and reflect on your highlights.</p>
+                        <p className={`text-sm ${textSecondary}`}>Rest well and reflect on your highlights.</p>
                     </div>
                 )}
 

@@ -31,7 +31,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
             case 'manual':
                 return 'during a moment of strength';
             case 'onboarding':
-                return 'on the day you started your journey';
+                return 'on day one';
         }
     };
 
@@ -98,9 +98,9 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
                 </button>
 
                 {/* Message */}
-                <p className={`text-center mt-6 text-xs italic ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
+                <p className={`text-center mt-6 text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/40'
                     }`}>
-                    {isScheduledDelivery ? 'You wrote this 90 days ago. Look how far you have come.' : "You wrote this for yourself. You've got this."}
+                    {isScheduledDelivery ? 'You wrote this 90 days ago. Look how far you have come.' : "You wrote this for yourself. Keep going."}
                 </p>
             </div>
         </div>

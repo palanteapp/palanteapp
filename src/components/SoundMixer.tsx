@@ -969,7 +969,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             </div>
 
                             <div className="flex gap-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">💡</div>
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">i</div>
                                 <div>
                                     <h4 className="font-bold mb-1">Pro Tips</h4>
                                     <ul className="text-sm text-white/70 space-y-1 list-disc list-inside">
@@ -1006,7 +1006,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="w-full flex flex-col items-center justify-start animate-fade-in py-8 md:py-16">
                                 <h3 className="text-2xl md:text-4xl font-display font-medium text-white mb-2 text-center tracking-tight">Atmospheric Control</h3>
                                 <p className="text-white/75 text-center mb-8 md:mb-16 max-w-xs leading-relaxed font-light uppercase tracking-widest text-xs font-bold">
-                                    Select a foundation to begin your auditory journey.
+                                    Select a foundation to start building your soundscape.
                                 </p>
 
                                 {/* 1. Instant Atmospheres */}

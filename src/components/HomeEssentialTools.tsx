@@ -30,7 +30,7 @@ interface Tool {
 
 const ALL_TOOLS: Tool[] = [
     { id: 'breath',      label: 'Breathe',      sublabel: 'REGULATE',    icon: <Wind size={24} />,    color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
-    { id: 'meditate',    label: 'Meditate',     sublabel: 'MINDFULNESS', icon: <Flower2 size={24} />, color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
+    { id: 'meditate',    label: 'Meditate',     sublabel: 'MEDITATION', icon: <Flower2 size={24} />, color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
     { id: 'soundscapes', label: 'Sonic Canvas', sublabel: 'AUDIO',       icon: <Music size={24} />,   color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
     { id: 'toolkit',     label: 'Practice',     sublabel: 'RESOURCES',   icon: <Wrench size={24} />,  color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
 ];

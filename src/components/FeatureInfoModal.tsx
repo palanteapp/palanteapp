@@ -147,7 +147,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                                 <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
                                     {theScience.title}
                                 </h3>
-                                <p className="text-base leading-relaxed text-white/70 italic">
+                                <p className="text-base leading-relaxed text-white/70 ">
                                     &ldquo;{theScience.overview}&rdquo;
                                 </p>
                             </div>
@@ -175,7 +175,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                             {theScience.research && (
                                 <div className={`p-6 rounded-[2rem] bg-white/[0.12] border border-white/[0.12] shadow-xl`}>
                                     <h4 className={`text-xs font-black uppercase tracking-[0.2em] mb-3 text-[#E5D6A7]`}>
-                                        🔬 The Research
+                                        The Research
                                     </h4>
                                     <p className={`text-xs leading-relaxed text-white/90 font-light`}>
                                         {theScience.research}

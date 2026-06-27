@@ -21,20 +21,18 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     required = false,
 }) => {
     const [birthYear, setBirthYear] = useState('');
-    const [birthMonth, setBirthMonth] = useState('');
     const [error, setError] = useState('');
 
     const handleVerify = () => {
         setError('');
 
-        if (!birthYear || !birthMonth) {
-            setError('Please enter your birth month and year');
+        if (!birthYear) {
+            setError('Please select your birth year');
             haptics.error();
             return;
         }
 
         const year = parseInt(birthYear);
-        const month = parseInt(birthMonth);
 
         if (year < 1900 || year > new Date().getFullYear()) {
             setError('Please enter a valid year');
@@ -42,13 +40,8 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
             return;
         }
 
-        if (month < 1 || month > 12) {
-            setError('Please enter a valid month (1-12)');
-            haptics.error();
-            return;
-        }
-
-        const dateOfBirth = `${year}-${month.toString().padStart(2, '0')}-01`;
+        // Use July 1 as a conservative mid-year default
+        const dateOfBirth = `${year}-07-01`;
         const age = calculateAge(dateOfBirth);
 
         if (age < 13) {
@@ -64,20 +57,6 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
 
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
-    const months = [
-        { value: '1', label: 'January' },
-        { value: '2', label: 'February' },
-        { value: '3', label: 'March' },
-        { value: '4', label: 'April' },
-        { value: '5', label: 'May' },
-        { value: '6', label: 'June' },
-        { value: '7', label: 'July' },
-        { value: '8', label: 'August' },
-        { value: '9', label: 'September' },
-        { value: '10', label: 'October' },
-        { value: '11', label: 'November' },
-        { value: '12', label: 'December' }
-    ];
 
     return (
         <SlideUpModal isOpen={isOpen} onClose={required ? () => {} : onClose} isDarkMode={isDarkMode} showCloseButton={!required} position="center">
@@ -110,50 +89,29 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                 {/* Info */}
                 <div className={`p-4 rounded-xl mb-6 ${isDarkMode ? 'bg-white/5 border border-white/10' : 'bg-sage/5 border border-sage/10'}`}>
                     <p className={`text-sm ${isDarkMode ? 'text-white/80' : 'text-sage-dark/80'}`}>
-                        To comply with privacy laws and ensure age-appropriate content, we need to verify your age.
-                        We only store your birth month and year.
+                        To comply with privacy laws, we need to confirm you're 13 or older.
+                        We only store your birth year.
                     </p>
                 </div>
 
                 {/* Form */}
-                <div className="space-y-4 mb-6">
-                    <div>
-                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Birth Month
-                        </label>
-                        <select
-                            value={birthMonth}
-                            onChange={(e) => setBirthMonth(e.target.value)}
-                            className={`w-full px-5 py-3 rounded-xl border transition-colors ${isDarkMode
-                                    ? 'bg-white/5 border-white/10 text-white focus:border-pale-gold'
-                                    : 'bg-white border-sage/20 text-sage-dark focus:border-sage'
-                                }`}
-                        >
-                            <option value="">Select month...</option>
-                            {months.map(m => (
-                                <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Birth Year
-                        </label>
-                        <select
-                            value={birthYear}
-                            onChange={(e) => setBirthYear(e.target.value)}
-                            className={`w-full px-5 py-3 rounded-xl border transition-colors ${isDarkMode
-                                    ? 'bg-white/5 border-white/10 text-white focus:border-pale-gold'
-                                    : 'bg-white border-sage/20 text-sage-dark focus:border-sage'
-                                }`}
-                        >
-                            <option value="">Select year...</option>
-                            {years.map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
-                    </div>
+                <div className="mb-6">
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                        Birth Year
+                    </label>
+                    <select
+                        value={birthYear}
+                        onChange={(e) => setBirthYear(e.target.value)}
+                        className={`w-full px-5 py-3 rounded-xl border transition-colors ${isDarkMode
+                                ? 'bg-white/5 border-white/10 text-white focus:border-pale-gold'
+                                : 'bg-white border-sage/20 text-sage-dark focus:border-sage'
+                            }`}
+                    >
+                        <option value="">Select year...</option>
+                        {years.map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* Error */}
@@ -167,7 +125,7 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
                 {/* Privacy Note */}
                 <div className={`p-3 rounded-lg mb-6 ${isDarkMode ? 'bg-white/5' : 'bg-sage/5'}`}>
                     <p className={`text-xs ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
-                        Your age information is stored securely and never shared with third parties.
+                        Your birth year is stored securely and never shared with third parties.
                     </p>
                 </div>
 

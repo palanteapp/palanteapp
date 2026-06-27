@@ -134,7 +134,7 @@ export const SharedWeeklyReflectionPreview: React.FC<SharedWeeklyReflectionPrevi
                         marginBottom: '10px',
                         letterSpacing: '-0.01em',
                         fontFamily: '"Poppins", sans-serif',
-                        fontStyle: 'italic',
+                        fontStyle: '',
                         textAlign: 'left',
                     }}>
                         {text}

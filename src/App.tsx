@@ -165,9 +165,6 @@ function AppContent() {
   const dismissFirstTimeWelcome = () => {
     localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
     setShowFirstTimeWelcome(false);
-    // The first-run tail is now just the welcome letter. Interests setup moved to a dismissible
-    // home card; the notification ask waits until a return session. Returning users who already
-    // finished interests still get the lightweight profile nudge.
     if (localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)
         && !localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
       setTimeout(() => setShowProfileNudge(true), 800);
@@ -996,13 +993,12 @@ function AppContent() {
       setTimeout(() => {
         localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
         setLetterContext('manual');
-        setLetterContextDetails('3 practices in — you\'ve earned this moment');
+        setLetterContextDetails('Three practices in. Something is starting.');
         setShowLetterWrite(true);
       }, 3500); // after the milestone toast fades
     }
 
-    // Note: PostPracticeSetupModal (interests picker) is now triggered inside
-    // dismissFirstTimeWelcome — keeping it sequential with the welcome letter.
+    // Note: PostPracticeSetupModal (interests picker) is deferred to practice 3 via useEffect.
     // For users who already saw the welcome letter (returning users), it fires there too.
 
     // Also check for STREAK milestones (7, 30, 100 days)
@@ -1068,7 +1064,7 @@ function AppContent() {
       case 'meditation':
         practiceOriginRef.current = activeTab;
         setActiveTab('meditate');
-        setToastMessage('Mindfulness Space');
+        setToastMessage('Practice Space');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
@@ -1358,13 +1354,12 @@ function AppContent() {
     setCompletionIntention(data.dailyIntention?.trim() || '');
     analytics.morningRitualCompleted({ hasIntention: !!data.dailyIntention, mood: data.mood });
 
-    // Queue welcome screen to appear once the success overlay auto-dismisses.
-    // Using a ref avoids racing against the auto-dismiss useEffect.
+    // Mark welcome as seen immediately — no modal chain after first practice.
+    // PostPracticeSetup and ProfileNudge are deferred to practice 3+ via useEffect below.
     if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
       pendingWelcome.current = true;
     } else if (localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)
         && !localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
-      // Interests setup is now a home card, not a modal — only the lightweight profile nudge remains.
       setTimeout(() => setShowProfileNudge(true), 3200);
     }
 
@@ -1389,6 +1384,12 @@ function AppContent() {
         }))
       : dispatchMessages;
     notifications.scheduleDailyDispatch(finalDispatch, user.coachName);
+
+    // After the very first practice, ask for notification permission once the
+    // success overlay has had time to auto-dismiss (2.5s overlay + 1s buffer).
+    if ((updatedUser.practiceData?.totalPractices ?? 0) === 1) {
+      setTimeout(() => maybeShowNotifAsk(), 3500);
+    }
 
     // Regenerate garden affirmation with fresh practice content — don't use stale cache
     localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
@@ -1470,6 +1471,15 @@ function AppContent() {
     setShareDayOneDismissed(true);
   };
 
+  // Quick Tour card — shown after first practice, dismissed forever on tap or X
+  const [quickTourDismissed, setQuickTourDismissed] = useState(
+    () => !!localStorage.getItem(STORAGE_KEYS.QUICK_TOUR_DISMISSED)
+  );
+  const dismissQuickTour = () => {
+    localStorage.setItem(STORAGE_KEYS.QUICK_TOUR_DISMISSED, 'true');
+    setQuickTourDismissed(true);
+  };
+
   // Profile nudge — shown once after first practice completes
   const [showProfileNudge, setShowProfileNudge] = useState(false);
   const dismissProfileNudge = () => {
@@ -1489,19 +1499,26 @@ function AppContent() {
   const pendingWelcome = useRef(false);
 
   // Auto-dismiss the morning completion overlay after 2.5 s.
-  // When it goes away, fire the welcome screen if one is pending.
   useEffect(() => {
     if (showMorningSuccess) {
       const t = setTimeout(() => setShowMorningSuccess(false), 2500);
       return () => clearTimeout(t);
-    } else {
-      // Overlay just closed — show welcome if queued
-      if (pendingWelcome.current) {
-        pendingWelcome.current = false;
-        setShowFirstTimeWelcome(true);
-      }
     }
   }, [showMorningSuccess]);
+
+  // After practice 3, surface PostPracticeSetup and ProfileNudge — one at a time.
+  useEffect(() => {
+    if (!user) return;
+    const totalPractices = user.practiceData?.totalPractices ?? 0;
+    if (totalPractices < 3) return;
+    if (!localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)) {
+      const t = setTimeout(() => setShowPostPracticeSetup(true), 1500);
+      return () => clearTimeout(t);
+    } else if (!localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
+      const t = setTimeout(() => setShowProfileNudge(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [user?.practiceData?.totalPractices]);
 
   // Welcome screen is triggered only from practice completion handlers
   // (handlePrimingComplete / evening onComplete) — never on app open,
@@ -1665,17 +1682,15 @@ function AppContent() {
     );
   }
 
-  // NOT LOGGED IN - DISABLED FOR TESTING
-  // if (!session) {
-  //   return <AuthScreen isDarkMode={isDarkMode} />;
-  // }
+  if (!session) {
+    return <AuthScreen isDarkMode={isDarkMode} />;
+  }
 
-  // LOGGED IN BUT NO PROFILE (New User) - DISABLED FOR TESTING
-  // if (!user) {
-  //   return <Onboarding onComplete={handleOnboardingComplete} isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
-  // }
+  if (!user) {
+    return <Onboarding onComplete={handleOnboardingComplete} isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
+  }
 
-  // Safety check - should never happen in testing mode
+  // Safety check
   if (userLoading || subLoading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-sage-mid' : 'bg-ivory'} `}>
@@ -1929,7 +1944,14 @@ function AppContent() {
             // ── BEAT 1 · MORNING ARRIVAL ────────────────────────────────────────
             if (!ritualDoneToday && !morningSkipped && !shouldShowEveningMode && !forcedEvening && user) {
               const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
-              const timeSub = hour < 12 ? "Your practice is here." : 'A moment for yourself.';
+              const earlyStreak = user.streak ?? 0;
+              const timeSub = (() => {
+                if (earlyStreak === 2) return 'Day 2. You came back.';
+                if (earlyStreak === 3) return 'Three days. The habit is forming.';
+                if (earlyStreak >= 4 && earlyStreak <= 6) return `Day ${earlyStreak}. This is how it happens.`;
+                if (earlyStreak >= 7 && earlyStreak <= 9) return "One week in. Don't stop now.";
+                return hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
+              })();
               const isIntroStep = beat1Step === 'intro';
               const isMessageStep = beat1Step === 'message';
 
@@ -1977,6 +1999,7 @@ function AppContent() {
                       userName={user.name || "Friend"}
                       onComplete={handlePrimingComplete}
                       onFinish={() => setShowMorningSuccess(true)}
+                      skipIntro={!!(user.practiceData && user.practiceData.totalPractices > 0)}
                       onRefresh={() => {
                         const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
                         updateProfile({ ...user, dailyPriming: updatedPriming });
@@ -2230,6 +2253,29 @@ function AppContent() {
                   </motion.div>
                 )}
 
+                {/* ── Evening message card — shown after evening practice completes ── */}
+                {eveningDoneToday && (() => {
+                  const todayEveningPractice = (user?.dailyEveningPractice || []).find(p => p.date === todayDate);
+                  if (!todayEveningPractice?.reflectionMessage) return null;
+                  return (
+                    <motion.div
+                      key="evening-message"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                    >
+                      <Suspense fallback={null}>
+                        <EveningMessageCard
+                          practice={todayEveningPractice}
+                          isDarkMode={isDarkMode}
+                          onRefresh={() => {}}
+                        />
+                      </Suspense>
+                    </motion.div>
+                  );
+                })()}
+
                 {/* ── Day 1 warm state — only for brand new users ── */}
                 {(user?.practiceData?.totalPractices ?? 0) === 0 && !ritualDoneToday && (
                   <motion.div
@@ -2298,6 +2344,48 @@ function AppContent() {
                               dismissShareDayOne();
                               haptics.light();
                             }}
+                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
+                            aria-label="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Quick Tour card — shown after practice 1 until dismissed ── */}
+                <AnimatePresence>
+                  {(user?.practiceData?.totalPractices ?? 0) >= 1
+                    && !quickTourDismissed && (
+                    <motion.div
+                      key="quick-tour"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.35 }}
+                    >
+                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            Here's what's inside
+                          </p>
+                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                            Partner, garden, dispatch messages, and more — a quick look at everything available to you.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => { dismissQuickTour(); setShowWelcomeOrientation(true); }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#C96A3A' }}
+                          >
+                            Take a look →
+                          </button>
+                          <button
+                            onClick={dismissQuickTour}
                             className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
                             aria-label="Dismiss"
                           >
@@ -2475,7 +2563,7 @@ function AppContent() {
                               Your progress isn't backed up yet
                             </p>
                             <p className={`text-xs leading-snug mb-3 ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>
-                              You've built {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}{user.streak > 0 ? ` and a ${user.streak}-day streak` : ''}. Create a free account to keep it safe across devices — your settings and history come with you.
+                              You've logged {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}. Create a free account to keep it safe across devices — your settings and history come with you.
                             </p>
                             <div className="flex items-center gap-2">
                               <button
@@ -2909,6 +2997,14 @@ function AppContent() {
                   {completionIntention}
                 </p>
               )}
+              {(user?.practiceData?.totalPractices ?? 0) === 1 && (
+                <p
+                  className="text-sm font-body mb-3"
+                  style={{ color: 'rgba(229,214,167,0.55)' }}
+                >
+                  Your first one is done. The rest get easier.
+                </p>
+              )}
               <p
                 className="text-xl font-display"
                 style={{ color: 'rgba(229,214,167,0.80)' }}
@@ -2920,117 +3016,6 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {/* ── First-Time Welcome Screen ───────────────────────────────────── */}
-      <AnimatePresence>
-        {showFirstTimeWelcome && (
-          <motion.div
-            key="first-time-welcome"
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            transition={{ duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="fixed inset-0 z-[80]"
-            style={{ background: '#415D43', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-          >
-            {/* Ornate Flower of Life mandala — pale gold, low opacity, fixed behind content */}
-            <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice" style={{ zIndex: 0 }}>
-              <g transform="translate(195, 438)" fill="none" stroke="#E5D6A7">
-                <g strokeWidth="0.7" opacity="0.10">
-                  <circle cx="0"      cy="0"    r="130"/>
-                  <circle cx="0"      cy="-130" r="130"/>
-                  <circle cx="112.6"  cy="-65"  r="130"/>
-                  <circle cx="112.6"  cy="65"   r="130"/>
-                  <circle cx="0"      cy="130"  r="130"/>
-                  <circle cx="-112.6" cy="65"   r="130"/>
-                  <circle cx="-112.6" cy="-65"  r="130"/>
-                </g>
-                <g strokeWidth="0.5" opacity="0.07">
-                  <circle cx="0"      cy="-260" r="130"/>
-                  <circle cx="225.2"  cy="-130" r="130"/>
-                  <circle cx="225.2"  cy="130"  r="130"/>
-                  <circle cx="0"      cy="260"  r="130"/>
-                  <circle cx="-225.2" cy="130"  r="130"/>
-                  <circle cx="-225.2" cy="-130" r="130"/>
-                </g>
-                <circle cx="0" cy="0" r="226" strokeWidth="0.5" opacity="0.08"/>
-                <circle cx="0" cy="0" r="285" strokeWidth="0.35" strokeDasharray="4 8" opacity="0.06"/>
-                <circle cx="0" cy="0" r="345" strokeWidth="0.25" strokeDasharray="2 10" opacity="0.04"/>
-                <circle cx="0" cy="0" r="9"  strokeWidth="0.5" opacity="0.12"/>
-                <circle cx="0" cy="0" r="4"  fill="#E5D6A7" stroke="none" opacity="0.20"/>
-              </g>
-            </svg>
-
-            {/* Scrollable content — min-h ensures the screen feels full even with short copy */}
-            <div
-              className="relative px-8 flex flex-col"
-              style={{
-                minHeight: '100vh',
-                paddingTop: 'calc(env(safe-area-inset-top) + 3rem)',
-                paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)',
-                zIndex: 1,
-              }}
-            >
-              <motion.div
-                className="flex-1 flex flex-col justify-center"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-              >
-                {/* Headline */}
-                <h1
-                  className="font-display font-bold text-white leading-tight mb-8"
-                  style={{ fontSize: '2.5rem', letterSpacing: '-0.02em' }}
-                >
-                  Welcome to Palante.
-                </h1>
-
-                {/* Body — 3 tight paragraphs */}
-                <div className="space-y-5" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
-                  <p>
-                    You just did something quietly powerful. Most people never show up for themselves like this. You did.
-                  </p>
-
-                  <p>
-                    This is how it begins. Not with a breakthrough, but with one honest practice and the choice to show up for another.
-                  </p>
-
-                  <p>
-                    You also have a personal partner here. One that learns who you are, remembers what matters to you, and grows with you over time. Introduce yourself when you're ready, set a goal or two, and let them help you stay accountable.
-                  </p>
-                </div>
-
-                {/* Closing */}
-                <p className="mt-7" style={{ color: 'rgba(253,251,247,0.84)', fontSize: '17px', lineHeight: 1.70 }}>
-                  We're glad you're here.
-                </p>
-
-                {/* Signature */}
-                <div className="mt-5 mb-8">
-                  <p style={{ color: 'rgba(229,214,167,0.50)', fontSize: '13px', fontStyle: 'italic' }}>With care,</p>
-                  <p style={{ color: 'rgba(229,214,167,0.80)', fontSize: '14px', fontWeight: 600, letterSpacing: '0.03em' }}>
-                    The Palante Team
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* CTA — always at the bottom of the content flow */}
-              <motion.button
-                onClick={dismissFirstTimeWelcome}
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-2xl font-semibold text-base"
-                style={{
-                  background: '#E5D6A7',
-                  color: '#415D43',
-                  boxShadow: '0 8px 32px rgba(229,214,167,0.18)',
-                  letterSpacing: '0.01em',
-                }}
-              >
-                Begin exploring
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Full-screen Overlays */}
       {activeTab === 'breath' && (
@@ -3078,6 +3063,7 @@ function AppContent() {
                 setActiveTab(tab as typeof activeTab);
                 haptics.selection();
               }}
+              onFirstAIResponse={requestAppReview}
             />
           </motion.div>
           </ErrorBoundary>
@@ -3250,8 +3236,8 @@ function AppContent() {
       <CelebrationModal
         isOpen={showCelebration}
         onClose={() => setShowCelebration(false)}
-        title="Welcome, Friend!"
-        message="Your daily journey begins now. Let's make today count!"
+        title="You're in."
+        message="Practice 1 is done. That's how it starts."
         isDarkMode={isDarkMode}
       />
 
@@ -3329,7 +3315,7 @@ function AppContent() {
             count: user?.practiceData?.totalPractices ?? 0,
             message: "My garden is growing. Pa'lante.",
             iconName: 'Trophy',
-            shareText: `${labels[ringCeremony.type]} on my Palante journey. Pa'lante! #PalanteApp`,
+            shareText: `${labels[ringCeremony.type]} — Pa'lante. #PalanteApp`,
           });
         }}
         onSave={async () => {
@@ -3391,6 +3377,8 @@ function AppContent() {
           isDarkMode={isDarkMode}
           onComplete={handlePostPracticeSetupComplete}
           onSkip={handlePostPracticeSetupSkip}
+          existingContentType={user?.contentTypePreference}
+          existingSourcePreference={user?.sourcePreference}
         />
       </Suspense>
 
@@ -3770,20 +3758,6 @@ function AppContent() {
     return <Suspense fallback={null}><PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} scrollToPrivacy={wantPrivacy} /></Suspense>;
   }
 
-  if (showAgeGate) {
-    return (
-      <Suspense fallback={null}>
-        <AgeVerificationModal
-          isOpen={true}
-          onClose={() => {}}
-          onVerify={handleAgeVerified}
-          isDarkMode={isDarkMode}
-          required={true}
-        />
-      </Suspense>
-    );
-  }
-
   if (showIntroSequence) {
     return (
       <DebugErrorBoundary componentName="CinematicIntro">
@@ -3795,6 +3769,18 @@ function AppContent() {
               setShowProfile(true);
             }}
           />
+          {/* Age gate overlays the splash so users see the brand before bureaucracy */}
+          {showAgeGate && (
+            <Suspense fallback={null}>
+              <AgeVerificationModal
+                isOpen={true}
+                onClose={() => {}}
+                onVerify={handleAgeVerified}
+                isDarkMode={true}
+                required={true}
+              />
+            </Suspense>
+          )}
         </Suspense>
       </DebugErrorBoundary>
     );
