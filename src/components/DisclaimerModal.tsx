@@ -50,7 +50,7 @@ export const DisclaimerModal: React.FC<DisclaimerModalProps> = ({ isOpen, onAcce
                 </h2>
 
                 <p className={`text-sm mb-8 leading-relaxed max-w-xs mx-auto ${mutedColor}`}>
-                    Your personal space for growth and wellness.
+                    Your daily practice for gratitude and growth.
                 </p>
 
                 {/* Core Message Card */}

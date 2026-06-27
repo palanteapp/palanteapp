@@ -67,18 +67,6 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         greeting: "I'm here with you. Take a breath — let's slow down together. What's weighing on you right now?",
     },
     {
-        key: 'focus',
-        label: 'Focus',
-        hint: 'Lock in & cut the noise',
-        icon: <Zap size={22} />,
-        bg: (d) => d ? 'rgba(255, 255, 255, 0.05)' : '#F2EBE0',
-        border: (d) => d ? 'rgba(229, 214, 167, 0.2)' : 'rgba(31, 56, 36, 0.1)',
-        iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
-        glowColor: '#E5D6A7',
-        textColor: '#1F3824',
-        greeting: "Let's sharpen that focus. What's the one thing you need to nail right now — and what's getting in the way?",
-    },
-    {
         key: 'motivation',
         label: 'Motivation',
         hint: 'Reignite your drive',

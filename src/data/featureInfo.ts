@@ -17,39 +17,6 @@ export interface FeatureInfo {
 }
 
 export const FEATURE_INFO: Record<string, FeatureInfo> = {
-    fasting: {
-        howToUse: {
-            title: "Track Your Metabolic Health",
-            description: "Fasting Timer helps you build a sustainable intermittent fasting practice by tracking your fasting windows and providing real-time insights into your body's metabolic state.",
-            steps: [
-                "Select your desired fasting duration (13-36 hours)",
-                "Tap 'Start Fasting' when you finish your last meal",
-                "Monitor your progress and metabolic stage in real-time",
-                "Stay hydrated by logging water intake throughout your fast",
-                "End your fast when you're ready to eat"
-            ],
-            tips: [
-                "Start with 13-16 hour fasts and gradually increase duration",
-                "Drink plenty of water, black coffee, or tea during your fast",
-                "Track your weight after completing fasts to see progress",
-                "Consistency matters more than duration - aim for regular fasting windows"
-            ]
-        },
-        theScience: {
-            title: "The Metabolic Benefits of Fasting",
-            overview: "Intermittent fasting triggers a metabolic switch from glucose-based to ketone-based energy, activating powerful cellular repair processes and promoting longevity.",
-            benefits: [
-                "Enhanced autophagy - your cells clean out damaged proteins and organelles",
-                "Improved insulin sensitivity and blood sugar regulation",
-                "Increased growth hormone production (up to 5x baseline)",
-                "Activation of ketosis for sustained mental clarity and energy",
-                "Reduced inflammation and oxidative stress",
-                "Potential longevity benefits through cellular rejuvenation"
-            ],
-            research: "Studies show that fasting for 16+ hours activates autophagy, a Nobel Prize-winning discovery in cellular biology. Research from institutions like Johns Hopkins and MIT demonstrates significant metabolic and cognitive benefits from regular intermittent fasting."
-        }
-    },
-
     breathwork: {
         howToUse: {
             title: "Master Your Breath, Master Your State",
@@ -214,37 +181,6 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
                 "Increases GABA and serotonin production (improved mood)"
             ],
             research: "Harvard neuroscientist Sara Lazar's research shows that just 8 weeks of meditation practice can measurably change brain structure. Studies from MIT and Stanford demonstrate that meditation improves attention span, reduces cortisol levels, and enhances overall well-being."
-        }
-    },
-    actionStacks: {
-        howToUse: {
-            title: "Build Your Perfect Flow",
-            description: "Action Stacks allow you to combine multiple practices (breathwork, journaling, focus blocks) into a seamless routine. By chaining habits together, you reduce friction and build momentum.",
-            steps: [
-                "Tap 'Create Your First Flow' or the 'New Flow' button",
-                "Select a template or build from scratch",
-                "Choose the actions you want to include (e.g., Breathwork -> Journal -> Focus)",
-                "Customize duration and settings for each step",
-                "Launch your stack whenever you need to shift your state"
-            ],
-            tips: [
-                "Start with a 'Morning Protocol' to win the day early",
-                "Create an 'Emergency Reset' stack for high-stress moments",
-                "Keep stacks short (1-3 steps) initially to ensure consistency",
-                "Name your stack something inspiring to prime your mind"
-            ]
-        },
-        theScience: {
-            title: "The Science of Habit Stacking",
-            overview: "Habit stacking works by anchoring a new behavior to an existing one. By creating a 'stack' of actions, you turn decision-making into a single 'Go' signal, reducing cognitive load and engaging the brain's basal ganglia for automaticity.",
-            benefits: [
-                "Reduces 'activation energy' required to start tasks",
-                "Creates strong neural associations between activities",
-                "Increases consistency by leveraging existing neural pathways",
-                "Reduces decision fatigue by automating the sequence",
-                "Promotes 'flow state' by removing friction between tasks"
-            ],
-            research: "BJ Fogg (Tiny Habits) and James Clear (Atomic Habits) emphasize that linking behaviors is the most effective way to build new neural pathways. Research on 'implementation intentions' shows that pre-deciding your actions increases success rates by up to 300%."
         }
     }
 };

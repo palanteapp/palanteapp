@@ -52,6 +52,18 @@ export const SCIENCE_FACTS: ScienceFact[] = [
         fact: "Writing down three things you're grateful for releases dopamine and serotonin, rewiring your brain to scan the world for positives rather than threats."
     },
     {
+        id: 'reflect-gratitude-brain',
+        category: 'Reflect',
+        fact: "Practicing gratitude leaves a lasting mark on the brain. In a UC Berkeley study, people who wrote gratitude letters showed greater sensitivity in the medial prefrontal cortex — a region tied to learning, empathy, and decision-making — and the shift was still measurable three months later.",
+        source: "Kini, P., Wong, J., McInnis, S., Gabana, N., & Brown, J. (2016). The effects of gratitude expression on neural activity. NeuroImage."
+    },
+    {
+        id: 'reflect-gratitude-heart',
+        category: 'Reflect',
+        fact: "Gratitude doesn't just live in your head — it steadies your heart. Feelings of appreciation shift your heart rhythm into a smooth, even pattern called coherence, which calms the nervous system. Because the heart sends more signals to the brain than it receives, this heart-brain sync sharpens focus and eases reactivity.",
+        source: "HeartMath Institute — research on appreciation and physiological coherence."
+    },
+    {
         id: 'reflect-clarity',
         category: 'Reflect',
         fact: "Expressive writing about stressful events improves working memory and frees up cognitive resources that were previously tied up in suppressing negative emotions."

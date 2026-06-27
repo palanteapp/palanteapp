@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wind, Flower, Timer, Music, ChevronRight, Info, X, GripVertical } from 'lucide-react';
+import { Wind, Flower, Music, ChevronRight, Info, X, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 import { haptics } from '../utils/haptics';
 
-type PracticeId = 'breath' | 'meditate' | 'focus' | 'soundscapes';
+type PracticeId = 'breath' | 'meditate' | 'soundscapes';
 
 interface PracticeViewProps {
     onNavigate: (section: PracticeId) => void;
@@ -43,14 +43,6 @@ const PRACTICES: Practice[] = [
         subtitle: 'Find calm with guided sessions',
         icon: Flower,
         info: 'Short, guided sessions designed to quiet mental noise and build presence. Whether you have 5 minutes or 20, each session is crafted to meet you where you are — no experience needed.',
-        accent: { icon: '#E5D6A7', bg: 'rgba(229,214,167,0.13)', glow: 'rgba(229,214,167,0.08)', border: 'rgba(229,214,167,0.30)' },
-    },
-    {
-        id: 'focus',
-        title: 'Focus Timer',
-        subtitle: 'Deep work with rest cycles',
-        icon: Timer,
-        info: 'A Pomodoro-style timer built for sustained output. Work in focused sprints, rest with intention, and track your momentum over time. Designed to protect your energy, not just your schedule.',
         accent: { icon: '#E5D6A7', bg: 'rgba(229,214,167,0.13)', glow: 'rgba(229,214,167,0.08)', border: 'rgba(229,214,167,0.30)' },
     },
     {

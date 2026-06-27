@@ -992,7 +992,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                                 Evening Reflection
                                             </div>
                                             <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                                GLAD nightly recap
+                                                Evening Practice reminder
                                             </div>
                                         </div>
                                     </div>

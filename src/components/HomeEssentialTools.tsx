@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Wind, Flower2, Music, Timer,
+    Wind, Flower2, Music,
     Wrench, X, Check, Pencil, GripVertical,
 } from 'lucide-react';
 import {
@@ -16,7 +16,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { haptics } from '../utils/haptics';
 
 export type EssentialToolId =
-    | 'breath' | 'meditate' | 'soundscapes' | 'focus' | 'toolkit';
+    | 'breath' | 'meditate' | 'soundscapes' | 'toolkit';
 
 interface Tool {
     id: EssentialToolId;
@@ -32,11 +32,10 @@ const ALL_TOOLS: Tool[] = [
     { id: 'breath',      label: 'Breathe',      sublabel: 'REGULATE',    icon: <Wind size={24} />,    color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
     { id: 'meditate',    label: 'Meditate',     sublabel: 'MINDFULNESS', icon: <Flower2 size={24} />, color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
     { id: 'soundscapes', label: 'Sonic Canvas', sublabel: 'AUDIO',       icon: <Music size={24} />,   color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
-    { id: 'focus',       label: 'Focus Timer',  sublabel: 'CYCLES',      icon: <Timer size={24} />,   color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
     { id: 'toolkit',     label: 'Practice',     sublabel: 'RESOURCES',   icon: <Wrench size={24} />,  color: '#E5D6A7', iconBg: 'rgba(229,214,167,0.18)', glow: '0 0 22px rgba(229,214,167,0.20)' },
 ];
 
-const DEFAULT_TOOLS: EssentialToolId[] = ['breath', 'meditate', 'focus'];
+const DEFAULT_TOOLS: EssentialToolId[] = ['breath', 'meditate', 'soundscapes'];
 
 interface HomeEssentialToolsProps {
     isDarkMode: boolean;

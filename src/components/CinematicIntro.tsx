@@ -2,7 +2,6 @@ import React, { useState, memo } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { Logo } from './Logo';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
-import { calculateAge } from '../types';
 import type { ContentType, QuoteSource, PrimaryIntent } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,21 +42,14 @@ const ORIENTING_OPTIONS: { id: PrimaryIntent; label: string; sub: string }[] = [
     { id: 'purpose',     label: 'Connect to purpose', sub: 'Make my days mean something' },
 ];
 
-const MONTHS = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-// Steps: 0 splash · 1 age · 2 name · 3 orienting question · 4 bio
+// Steps: 0 splash · 1 age · 2 name · 3 orienting question
 export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const [step, setStep] = useState(0);
     const [name, setName] = useState('');
     const [orientingChoice, setOrientingChoice] = useState<PrimaryIntent | ''>('');
-    const [bio, setBio] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     const [nameError, setNameError] = useState('');
-    const [birthMonth, setBirthMonth] = useState('');
     const [birthYear, setBirthYear] = useState('');
     const [ageError, setAgeError] = useState('');
 
@@ -65,12 +57,11 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const YEARS = Array.from({ length: 100 }, (_, i) => currentYear - i);
 
     const handleAgeNext = () => {
-        if (!birthMonth || !birthYear) {
-            setAgeError('Please choose your birth month and year.');
+        if (!birthYear) {
+            setAgeError('Please choose your birth year.');
             return;
         }
-        const dateOfBirth = `${birthYear}-${birthMonth.padStart(2, '0')}-01`;
-        if (calculateAge(dateOfBirth) < 13) {
+        if (currentYear - parseInt(birthYear) < 13) {
             setAgeError("You need to be at least 13 to use Palante.");
             return;
         }
@@ -87,9 +78,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 version: LEGAL_DISCLAIMER.lastUpdated,
             }));
             const selected = ORIENTING_OPTIONS.find(o => o.id === orientingChoice);
-            const dateOfBirth = birthMonth && birthYear
-                ? `${birthYear}-${birthMonth.padStart(2, '0')}-01`
-                : undefined;
+            const dateOfBirth = birthYear ? `${birthYear}-01-01` : undefined;
             await onComplete({
                 name: name.trim(),
                 profession: 'Other',
@@ -101,7 +90,6 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 ageRange: undefined,
                 dateOfBirth,
                 primaryIntent: selected?.id,
-                bio: bio.trim() || undefined,
             });
         } catch (err) {
             console.error('[Palante] CinematicIntro completion error:', err);
@@ -212,7 +200,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
 
                         {/* Positioning line */}
                         <motion.p
-                            className="font-serif italic text-center mb-14 px-6"
+                            className="text-center mb-14 px-6"
                             style={{
                                 color: 'rgba(229,214,167,0.62)',
                                 fontSize: '1rem',
@@ -223,7 +211,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.52 }}
                         >
-                            Your personal growth partner.
+                            Your daily practice<br />for gratitude and growth.
                         </motion.p>
 
                         {/* CTA */}
@@ -279,7 +267,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.08 }}
                             >
-                                Before we begin
+                                One quick thing
                             </motion.h2>
                             <motion.p
                                 className="text-center text-base mb-10"
@@ -288,28 +276,14 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.18 }}
                             >
-                                Just your birth month and year — that's all we keep.
+                                Just your birth year — that's all we keep.
                             </motion.p>
 
                             <motion.div
-                                className="space-y-3"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.22 }}
                             >
-                                <select
-                                    value={birthMonth}
-                                    onChange={e => { setBirthMonth(e.target.value); setAgeError(''); }}
-                                    className="w-full px-5 py-4 rounded-2xl text-lg font-display outline-none appearance-none"
-                                    style={{
-                                        background: '#FDFBF7',
-                                        color: birthMonth ? '#2D3E33' : 'rgba(45,62,51,0.5)',
-                                        border: ageError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.9)',
-                                    }}
-                                >
-                                    <option value="">Birth month</option>
-                                    {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
-                                </select>
                                 <select
                                     value={birthYear}
                                     onChange={e => { setBirthYear(e.target.value); setAgeError(''); }}
@@ -357,7 +331,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             </motion.button>
 
                             <p className="text-center text-xs mt-6 px-4" style={{ color: 'rgba(229,214,167,0.30)' }}>
-                                Stored securely. Never shared with third parties.
+                                We only use this to keep Palante age-appropriate.
                             </p>
                         </div>
                     </motion.div>
@@ -507,141 +481,26 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             </motion.div>
 
                             <motion.button
-                                onClick={() => setStep(4)}
+                                onClick={handleComplete}
+                                disabled={isSubmitting}
                                 className="w-full mt-6 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
                                 style={{
                                     background: orientingChoice ? '#E5D6A7' : 'rgba(229,214,167,0.25)',
-                                    color: orientingChoice ? '#2D3E33' : 'rgba(229,214,167,0.40)',
+                                    color: orientingChoice ? '#2D3E33' : 'rgba(229,214,167,0.55)',
                                     boxShadow: orientingChoice ? '0 8px 28px rgba(229,214,167,0.40)' : 'none',
+                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
                                 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.38 }}
                                 whileTap={{ scale: 0.97 }}
                             >
-                                Continue →
+                                {isSubmitting ? 'Setting up your practice…' : orientingChoice ? 'Start my practice →' : 'Skip for now →'}
                             </motion.button>
-
-                            {!orientingChoice && (
-                                <motion.button
-                                    onClick={() => setStep(4)}
-                                    className="w-full mt-3 py-2 text-sm font-medium"
-                                    style={{ color: 'rgba(229,214,167,0.25)' }}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.55 }}
-                                >
-                                    Skip
-                                </motion.button>
-                            )}
 
                             <motion.button
                                 onClick={() => setStep(2)}
-                                className="w-full mt-2 py-2 text-sm font-medium"
-                                style={{ color: 'rgba(229,214,167,0.25)' }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.60 }}
-                            >
-                                ← Back
-                            </motion.button>
-                        </div>
-                    </motion.div>
-                )}
-                {/* ── STEP 4 · BIO ── */}
-                {step === 4 && (
-                    <motion.div
-                        key="bio"
-                        className="absolute inset-0 flex flex-col items-center justify-center px-8 overflow-y-auto"
-                        style={{ paddingTop: 'max(env(safe-area-inset-top), 32px)', paddingBottom: 'max(env(safe-area-inset-bottom), 32px)' }}
-                        initial={{ opacity: 0, x: 44 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
-                    >
-                        <div className="w-full max-w-sm">
-                            <div className="flex justify-center mb-10">
-                                <Logo className="w-10 h-10" color="rgba(229,214,167,0.55)" />
-                            </div>
-
-                            <motion.h2
-                                className="text-4xl font-display font-bold text-white text-center mb-3 tracking-tight"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.08 }}
-                            >
-                                What's going on for you right now?
-                            </motion.h2>
-                            <motion.p
-                                className="text-center text-sm mb-8"
-                                style={{ color: 'rgba(229,214,167,0.55)' }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.18 }}
-                            >
-                                Your partner will hold onto this. Share as much or as little as you want.
-                            </motion.p>
-
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.22 }}
-                            >
-                                <textarea
-                                    value={bio}
-                                    onChange={e => setBio(e.target.value)}
-                                    placeholder="A few sentences is plenty. What's on your mind, what you're working through, where you want to go…"
-                                    rows={5}
-                                    maxLength={500}
-                                    className="w-full px-5 py-4 rounded-2xl text-base font-body outline-none transition-all resize-none"
-                                    style={{
-                                        background: '#FDFBF7',
-                                        color: '#2D3E33',
-                                        border: '1.5px solid rgba(255,255,255,0.9)',
-                                        caretColor: '#C96A3A',
-                                        lineHeight: '1.6',
-                                    }}
-                                />
-                                <p className="text-right text-xs mt-1" style={{ color: 'rgba(229,214,167,0.30)' }}>
-                                    {bio.length}/500
-                                </p>
-                            </motion.div>
-
-                            <motion.button
-                                onClick={handleComplete}
-                                disabled={isSubmitting}
-                                className="w-full mt-4 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
-                                style={{
-                                    background: '#E5D6A7',
-                                    color: '#2D3E33',
-                                    boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
-                                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                                }}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.30 }}
-                                whileTap={{ scale: 0.97 }}
-                            >
-                                {isSubmitting ? 'Setting up your practice…' : "Let's begin →"}
-                            </motion.button>
-
-                            {!bio.trim() && (
-                                <motion.button
-                                    onClick={handleComplete}
-                                    disabled={isSubmitting}
-                                    className="w-full mt-3 py-2 text-sm font-medium"
-                                    style={{ color: 'rgba(229,214,167,0.28)' }}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.48 }}
-                                >
-                                    Skip for now
-                                </motion.button>
-                            )}
-
-                            <motion.button
-                                onClick={() => setStep(3)}
-                                className="w-full mt-2 py-2 text-sm font-medium"
+                                className="w-full mt-3 py-2 text-sm font-medium"
                                 style={{ color: 'rgba(229,214,167,0.25)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -654,9 +513,9 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 )}
             </AnimatePresence>
 
-            {/* Progress dots — 5 steps: 0 splash · 1 age · 2 name · 3 intent · 4 bio */}
+            {/* Progress dots — 4 steps: 0 splash · 1 age · 2 name · 3 intent */}
             <div className="absolute bottom-10 inset-x-0 flex justify-center gap-2 pointer-events-none">
-                {[0, 1, 2, 3, 4].map(i => (
+                {[0, 1, 2, 3].map(i => (
                     <div
                         key={i}
                         className="h-1.5 rounded-full transition-all duration-500"
