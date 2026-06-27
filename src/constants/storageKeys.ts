@@ -134,6 +134,10 @@ export const STORAGE_KEYS = {
   // empty text means "computed today, nothing worth recalling" (don't regenerate).
   CONTINUITY_OPENER: 'palante_continuity_opener',
 
+  // Home memory-callback card — ISO date the user last dismissed it, so the card
+  // stays hidden for the rest of that day instead of nagging on every home visit.
+  MEMORY_CALLBACK_DISMISSED: 'palante_memory_callback_dismissed',
+
   // AI usage budget — per-user daily partner-chat call count { date, count }.
   // Caps the only unbounded AI cost vector so a single heavy user can't run
   // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.

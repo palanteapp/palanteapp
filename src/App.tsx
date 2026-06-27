@@ -51,6 +51,7 @@ import { logPractice, checkMilestone, migrateStreakToPractice } from './utils/pr
 import { useModalState } from './hooks/useModalState';
 import { getTodayDate, getDaysDifference } from './utils/practiceUtils';
 import { useTimeOfDay } from './hooks/useTimeOfDay';
+import { useContinuityOpener } from './hooks/useContinuityOpener';
 
 // All non-startup components lazy-loaded to reduce initial memory footprint
 const Momentum = lazy(() => import('./components/Momentum').then(m => ({ default: m.Momentum })));
@@ -108,6 +109,20 @@ function AppContent() {
   const { user, loading: userLoading, updateProfile, logActivity, saveReflection, toggleFavorite } = useUser();
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
+
+  // Memory-aware continuity callback, precomputed app-wide so the home card can
+  // surface it even when the user has not opened the partner chat. Shares the
+  // per-day cache with CoachView — generation happens at most once a day across both.
+  const { continuityOpener } = useContinuityOpener(user);
+  const [memoryCallbackDismissed, setMemoryCallbackDismissed] = useState(() => {
+    try { return localStorage.getItem(STORAGE_KEYS.MEMORY_CALLBACK_DISMISSED) === new Date().toISOString().slice(0, 10); }
+    catch { return false; }
+  });
+  const dismissMemoryCallback = () => {
+    try { localStorage.setItem(STORAGE_KEYS.MEMORY_CALLBACK_DISMISSED, new Date().toISOString().slice(0, 10)); }
+    catch { /* best-effort */ }
+    setMemoryCallbackDismissed(true);
+  };
 
   const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'breath' | 'meditate' | 'coach' | 'soundscapes'>('home');
   // Tracks where the user was before entering a full-screen practice overlay, so onExit returns them there
@@ -2521,6 +2536,54 @@ function AppContent() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                {/* ── Memory callback card — surfaces the partner's continuity opener
+                    (the same memory-aware line it greets you with in chat) right on
+                    home, so the remembering is visible in the daily loop instead of
+                    being locked in the chat tab. Only appears when there's a real
+                    callback for today, so users without history never see clutter. ── */}
+                {continuityOpener && user && (user.practiceData?.totalPractices ?? 0) >= 1 && !showPartnerDiscovery && !showSignInNudge && !memoryCallbackDismissed && (
+                  <motion.div
+                    key="memory-callback"
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <div
+                      className="rounded-2xl px-5 py-4"
+                      style={{
+                        background: isDarkMode
+                          ? 'linear-gradient(135deg, rgba(201,106,58,0.18) 0%, rgba(65,93,67,0.40) 100%)'
+                          : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(250,247,243,1) 100%)',
+                        border: isDarkMode ? '1px solid rgba(201,106,58,0.30)' : '1px solid rgba(201,106,58,0.20)',
+                      }}
+                    >
+                      <p className="text-xs font-black uppercase tracking-[0.18em] mb-1.5" style={{ color: isDarkMode ? '#FFFFFF' : '#C96A3A' }}>
+                        {user.coachName || 'Your partner'}
+                      </p>
+                      <p className={`text-sm font-bold mb-3 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                        {continuityOpener}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => { haptics.light(); dismissMemoryCallback(); practiceOriginRef.current = activeTab; setActiveTab('coach'); }}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                          style={{ background: '#C96A3A' }}
+                        >
+                          Continue with {user.coachName || 'your partner'} →
+                        </button>
+                        <button
+                          onClick={() => { haptics.light(); dismissMemoryCallback(); }}
+                          className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
+                          aria-label="Dismiss"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* ── Profile completion card — persistent until 90% complete or dismissed 3x.
                     Suppressed while partner discovery or sign-in nudge is active. ── */}

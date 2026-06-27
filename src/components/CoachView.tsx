@@ -6,7 +6,7 @@ import {
     Volume2, Loader2
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
-import { chatWithCoach, chatWithCoachPillar, getMomentumState, generateContinuityOpener } from '../utils/aiService';
+import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
 import { speak, stopSpeaking } from '../utils/ttsService';
 import { getHealthContext } from '../utils/healthService';
 import type { HealthContext } from '../utils/healthService';
@@ -17,30 +17,9 @@ import { haptics } from '../utils/haptics';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { useTheme } from '../contexts/ThemeContext';
 import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
-import { loadConversationMemories, extractAndSaveMemories } from '../utils/memoryService';
+import { extractAndSaveMemories } from '../utils/memoryService';
+import { useContinuityOpener, readCachedOpener } from '../hooks/useContinuityOpener';
 import { Capacitor } from '@capacitor/core';
-
-// ── Continuity opener cache ───────────────────────────────────────────────────
-// The memory-aware greeting is precomputed once per local day and cached so it
-// costs at most one AI call/day. An empty cached text means "computed today,
-// nothing worth recalling" — we still treat that as a cache hit so we don't
-// regenerate on every open.
-const localDayKey = (): string => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-/** Read today's cached continuity opener synchronously, or null if absent/stale. */
-const readCachedOpener = (): string | null => {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEYS.CONTINUITY_OPENER);
-        if (!raw) return null;
-        const cached = JSON.parse(raw) as { date: string; text: string };
-        return cached.date === localDayKey() ? (cached.text || null) : null;
-    } catch {
-        return null;
-    }
-};
 
 // ── Speech recognition type ──────────────────────────────────────────────────
 interface SpeechRecognitionInstance {
@@ -166,11 +145,10 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [historySearch, setHistorySearch] = useState('');
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
-    // Memory-aware greeting for returning users. Seeded synchronously from today's
-    // cache so a opener computed earlier today is available on this open without a
-    // round-trip; (re)generated below when the cache is cold.
-    const [continuityOpener, setContinuityOpener] = useState<string | null>(() => readCachedOpener());
+    // Cross-session memories + the memory-aware greeting, loaded and precomputed
+    // once per day. Shared with the app-level home card through the same hook and
+    // localStorage cache, so generation happens at most once a day across both.
+    const { persistedMemories, continuityOpener } = useContinuityOpener(user);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
     // Voice playback: which message is currently speaking / loading audio.
@@ -191,50 +169,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             }).catch(() => {});
         }
     }, []);
-
-    // Load cross-session memories so Palante remembers the user across conversations
-    useEffect(() => {
-        if (user.id) {
-            loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
-        }
-    }, [user.id]);
-
-    // Precompute the memory-aware continuity opener once per day. When the partner
-    // has real things to recall, the next session opens with a gentle callback
-    // instead of a generic prompt — the moment that makes the remembering land.
-    // Cached per local day; at most one AI call/day, inside the daily chat budget.
-    useEffect(() => {
-        if (!user.id || persistedMemories.length === 0) return;
-
-        // Cache hit for today (including an empty "" = nothing worth recalling)
-        // means we've already spent today's call — skip regeneration. State is
-        // already seeded from this same cache by the useState initializer above,
-        // so there's nothing to set here.
-        try {
-            const raw = localStorage.getItem(STORAGE_KEYS.CONTINUITY_OPENER);
-            if (raw) {
-                const cached = JSON.parse(raw) as { date: string; text: string };
-                if (cached.date === localDayKey()) return;
-            }
-        } catch { /* corrupt cache — fall through and regenerate */ }
-
-        let cancelled = false;
-        generateContinuityOpener(
-            persistedMemories,
-            user.name || 'Friend',
-            user.coachName,
-        ).then(line => {
-            if (cancelled) return;
-            setContinuityOpener(line);
-            try {
-                localStorage.setItem(
-                    STORAGE_KEYS.CONTINUITY_OPENER,
-                    JSON.stringify({ date: localDayKey(), text: line ?? '' }),
-                );
-            } catch { /* cache write is best-effort */ }
-        }).catch(() => {});
-        return () => { cancelled = true; };
-    }, [user.id, user.name, user.coachName, persistedMemories]);
 
     useEffect(() => {
         const handleResize = () => {
