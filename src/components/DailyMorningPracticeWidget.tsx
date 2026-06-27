@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sun, Sparkles, Check, ChevronRight, Sprout, Flame, Loader2, Heart } from 'lucide-react';
+import { Sun, Sparkles, Check, ChevronRight, Sprout, Loader2, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DailyMorningPractice, Quote } from '../types';
 import type { UserProfile } from '../types';
@@ -27,8 +27,8 @@ interface DailyMorningPracticeProps {
 export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver, onSkip }) => {
     const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
     const practiceStartTime = useRef(Date.now());
-    const [gratitudes, setGratitudes] = useState<string[]>(['', '', '', '', '']);
-    const [affirmations, setAffirmations] = useState<string[]>(['', '', '', '', '']);
+    const [gratitudes, setGratitudes] = useState<string[]>(['', '', '']);
+    const [affirmations, setAffirmations] = useState<string[]>(['', '', '']);
     const [intention, setIntention] = useState<string>('');
     const [generatedMessage, setGeneratedMessage] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -42,11 +42,11 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         if (existingPriming && !hasRefreshed) {
             const loadedGratitudes = (existingPriming.gratitudes && existingPriming.gratitudes.length > 0)
                 ? existingPriming.gratitudes
-                : ['', '', '', '', ''];
+                : ['', '', ''];
 
             const loadedAffirmations = (existingPriming.affirmations && existingPriming.affirmations.length > 0)
                 ? existingPriming.affirmations
-                : ['', '', '', '', ''];
+                : ['', '', ''];
 
             setGratitudes(loadedGratitudes);
             setAffirmations(loadedAffirmations);
@@ -193,13 +193,23 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
 
     // --- RENDER HELPERS ---
 
+    const INTENT_FIRST_PRACTICE: Record<string, string> = {
+        consistency: 'Three minutes, every morning. The whole point is just showing up — and you did.',
+        clarity:     'Start with what you\'re grateful for. Everything else gets clearer from there.',
+        stress:      'Take a breath. This is your three minutes — no pressure, just presence.',
+        purpose:     'This is your daily moment to reconnect to what matters most.',
+    };
+
     const renderIntro = () => {
-        const pts = user?.points || 0;
         const streak = user?.streak || 0;
         const hour = new Date().getHours();
         const timeLabel = hour < 12 ? 'Start your morning.' : hour < 18 ? 'Take a moment.' : 'Close the day right.';
 
         if (isFirstEver) {
+            const intentSub = user?.primaryIntent
+                ? INTENT_FIRST_PRACTICE[user.primaryIntent]
+                : 'Gratitude, affirmation, intention, and a personal message written for exactly where you are today.';
+
             return (
                 <motion.div
                     className="flex flex-col items-center text-center px-4"
@@ -221,7 +231,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                         Your first practice.
                     </h3>
                     <p className="text-base mb-12" style={{ color: 'rgba(229,214,167,0.90)', maxWidth: '20rem' }}>
-                        Gratitude, affirmation, intention, and a personal message written for exactly where you are today.
+                        {intentSub}
                     </p>
 
                     <div className="flex items-start gap-5 mb-14">
@@ -292,30 +302,14 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     </div>
                 </div>
 
-                {(streak > 0 || pts > 0) && (
-                    <div className="flex gap-5 mb-5">
-                        {streak > 0 && (
-                            <div className="flex items-center gap-1.5">
-                                <Flame size={13} style={{ color: '#E5D6A7' }} />
-                                <span className="text-sm font-semibold text-white/70">{streak}-day streak</span>
-                            </div>
-                        )}
-                        {pts > 0 && (
-                            <div className="text-sm font-semibold text-white">{pts.toLocaleString()} pts</div>
-                        )}
-                    </div>
-                )}
 
                 <h3
-                    className="text-4xl font-display font-bold text-white mb-2 tracking-tight leading-tight"
+                    className="text-4xl font-display font-bold text-white mb-3 tracking-tight leading-tight"
                     style={{ textShadow: '0 2px 16px rgba(0,0,0,0.25)' }}
                 >
                     Let's set the tone.
                 </h3>
-                <p className="text-sm mb-1.5" style={{ color: 'rgba(229,214,167,0.85)' }}>
-                    {timeLabel}
-                </p>
-                <p className="text-sm mb-10" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                <p className="text-sm mb-10" style={{ color: 'rgba(229,214,167,0.85)' }}>
                     Gratitude · Affirmations · Intention
                 </p>
 
@@ -679,7 +673,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
             </div>
 
             {/* Breathing close */}
-            <div className="mb-6 px-5 py-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="mb-4 px-5 py-4 rounded-2xl" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <p className="text-xs font-black uppercase tracking-[0.18em] mb-2" style={{ color: 'rgba(229,214,167,0.90)' }}>
                     Before you go
                 </p>
@@ -689,6 +683,14 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     <span className="italic">I love you.</span>{' '}
                     <span className="font-semibold text-white/90">Exhale:</span>{' '}
                     <span className="italic">I am enough.</span>
+                </p>
+            </div>
+
+            {/* Evening arc teaser */}
+            <div className="mb-6 px-5 py-3 rounded-2xl flex items-center gap-3" style={{ background: 'rgba(229,214,167,0.07)', border: '1px solid rgba(229,214,167,0.14)' }}>
+                <span style={{ color: 'rgba(229,214,167,0.70)', fontSize: 16 }}>◑</span>
+                <p className="text-sm leading-snug" style={{ color: 'rgba(229,214,167,0.70)' }}>
+                    Tonight, your Evening Practice opens to close the day.
                 </p>
             </div>
 
@@ -709,8 +711,8 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 <button
                     onClick={() => {
                         setHasRefreshed(true);
-                        setGratitudes(['', '', '', '', '']);
-                        setAffirmations(['', '', '', '', '']);
+                        setGratitudes(['', '', '']);
+                        setAffirmations(['', '', '']);
                         setGeneratedMessage('');
                         setStep('intro');
                         if (onRefresh) onRefresh();
@@ -737,7 +739,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     {step === 'intro' && renderIntro()}
                     {step === 'gratitude' && renderInputs(
                         "Gratitude",
-                        "List 5 things you're thankful for right now.",
+                        "Name 3 things you're grateful for right now.",
                         <Sun size={22} style={{ color: '#E5D6A7' }} />,
                         gratitudes,
                         setGratitudes,
@@ -746,7 +748,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     )}
                     {step === 'affirmation' && renderInputs(
                         "Affirmations",
-                        "List 5 truths about your highest self.",
+                        "Write 3 truths about your highest self.",
                         <Sparkles size={22} style={{ color: '#E5D6A7' }} />,
                         affirmations,
                         setAffirmations,

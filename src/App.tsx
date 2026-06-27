@@ -77,7 +77,6 @@ const SoundMixer = lazy(() => import('./components/SoundMixer'));
 const EveningPractice = lazy(() => import('./components/EveningPractice').then(m => ({ default: m.EveningPractice })));
 const PaywallScreen = lazy(() => import('./components/PaywallScreen').then(m => ({ default: m.PaywallScreen })));
 const GardenMandala = lazy(() => import('./components/GardenDemoFinal').then(m => ({ default: m.GardenDemoFinal })));
-const FocusTimer = lazy(() => import('./components/FocusTimer').then(m => ({ default: m.FocusTimer })));
 const HomeEssentialTools = lazy(() => import('./components/HomeEssentialTools').then(m => ({ default: m.HomeEssentialTools })));
 const CoachView = lazy(() => import('./components/CoachView').then(m => ({ default: m.CoachView })));
 const WeeklyHighlightsModal = lazy(() => import('./components/WeeklyHighlightsModal').then(m => ({ default: m.WeeklyHighlightsModal })));
@@ -110,7 +109,7 @@ function AppContent() {
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
 
-  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'breath' | 'meditate' | 'coach' | 'focus' | 'soundscapes'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'momentum' | 'toolkit' | 'breath' | 'meditate' | 'coach' | 'soundscapes'>('home');
   // Tracks where the user was before entering a full-screen practice overlay, so onExit returns them there
   const practiceOriginRef = useRef<typeof activeTab>('home');
 
@@ -1079,15 +1078,6 @@ function AppContent() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
-      case 'focus':
-      case 'focus-timer':
-      case 'timer':
-        practiceOriginRef.current = activeTab;
-        setActiveTab('focus');
-        setToastMessage('Focus Timer');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        break;
       case 'toolkit':
       case 'explore':
         setActiveTab('toolkit');
@@ -1765,7 +1755,7 @@ function AppContent() {
 
       {/* ── Background depth system ── */}
       {(() => {
-        const isToolTab = ['focus', 'toolkit', 'meditate'].includes(activeTab);
+        const isToolTab = ['toolkit', 'meditate'].includes(activeTab);
         if (isToolTab) {
           return (
             <>
@@ -1897,8 +1887,17 @@ function AppContent() {
             <Music size={16} />
           </button>
 
-
-
+          {/* 5. Partner — quiet entry to the partner, one tap away (for the moments between practices) */}
+          <button
+            onClick={() => { haptics.selection(); practiceOriginRef.current = activeTab; setActiveTab('coach'); }}
+            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${activeTab === 'coach'
+              ? isDarkMode ? 'bg-white/10 border-pale-gold text-pale-gold' : 'bg-sage border-sage text-white'
+              : headerBtnClass} `}
+            title="Partner"
+            aria-label="Open Partner chat"
+          >
+            <MessageCircle size={16} />
+          </button>
 
 
         </div>
@@ -1930,7 +1929,7 @@ function AppContent() {
             // ── BEAT 1 · MORNING ARRIVAL ────────────────────────────────────────
             if (!ritualDoneToday && !morningSkipped && !shouldShowEveningMode && !forcedEvening && user) {
               const timeGreeting = hour < 12 ? `Good morning, ${firstName}.` : `Good afternoon, ${firstName}.`;
-              const timeSub = hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
+              const timeSub = hour < 12 ? "Your practice is here." : 'A moment for yourself.';
               const isIntroStep = beat1Step === 'intro';
               const isMessageStep = beat1Step === 'message';
 
@@ -2205,6 +2204,28 @@ function AppContent() {
                       <p className={`text-sm font-bold leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                         {todaysIntention}
                       </p>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ── Day 1 evening nudge — morning done, evening not yet unlocked ── */}
+                {shouldShowEveningMode && isFirstPracticeDay && ritualDoneToday && !eveningDoneToday && (
+                  <motion.div
+                    className="mb-5"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                  >
+                    <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.07] border border-white/[0.10]' : 'bg-white border border-sage/20 shadow-sm'}`}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-pale-gold/15' : 'bg-sage/10'}`}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDarkMode ? '#E5D6A7' : '#5A7A5C'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                      </div>
+                      <div>
+                        <p className={`text-xs font-black uppercase tracking-[0.15em] mb-0.5 ${isDarkMode ? 'text-white/50' : 'text-sage/50'}`}>Evening Practice</p>
+                        <p className={`text-sm font-medium leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                          Opens tomorrow night. Tonight, rest in today's practice.
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -2491,7 +2512,7 @@ function AppContent() {
                         Mandala of Growth
                       </p>
                       <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
-                        {(() => { const t = user.practiceData?.totalPractices || 0; return t > 0 && t % 90 === 0 ? 90 : t % 90; })()} of 90 practices completed
+                        {(() => { const t = user.practiceData?.totalPractices || 0; if (t === 0) return 'Your mandala grows with each practice.'; return `${t > 0 && t % 90 === 0 ? 90 : t % 90} of 90 practices completed`; })()}
                       </p>
                     </div>
                     <div id="garden-share-capture">
@@ -2758,33 +2779,6 @@ function AppContent() {
                     setYearForward({ isOpen: true, data: buildYearForwardData(user) });
                   }}
                 />
-              </div>
-            </PageTransition>
-            </ErrorBoundary>
-          )}
-
-          {activeTab === 'focus' && (
-            <ErrorBoundary name="Focus Timer">
-            <PageTransition>
-              <div className="min-h-screen max-w-md mx-auto h-full">
-                <Suspense fallback={
-                  <div className="flex justify-center items-center min-h-[60vh]">
-                    <div className={`animate-spin rounded-full h-12 w-12 border-4 border-t-transparent ${isDarkMode ? 'border-white' : 'border-sage'} `}></div>
-                  </div>
-                }>
-                  <FocusTimer
-                    onAddHydration={() => {
-                      // Link hydration to fasting state if active
-                      const savedHydration = localStorage.getItem(STORAGE_KEYS.FASTING_HYDRATION);
-                      const current = savedHydration ? parseInt(savedHydration) : 0;
-                      localStorage.setItem(STORAGE_KEYS.FASTING_HYDRATION, (current + 1).toString());
-
-                      setToastMessage('Hydration Tracked');
-                      setShowToast(true);
-                      setTimeout(() => setShowToast(false), 3000);
-                    }}
-                  />
-                </Suspense>
               </div>
             </PageTransition>
             </ErrorBoundary>
@@ -3100,9 +3094,8 @@ function AppContent() {
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
-            { id: 'coach', icon: MessageCircle, label: 'Partner' },
-            { id: 'momentum', icon: TrendingUp, label: 'Journey' },
-            { id: 'toolkit', icon: Layers, label: 'Practice' },
+            { id: 'momentum', icon: TrendingUp, label: 'Progress' },
+            { id: 'toolkit', icon: Layers, label: 'Explore' },
           ].map((tab) => {
             const Icon = tab.icon;
 
@@ -3194,6 +3187,7 @@ function AppContent() {
           isOpen={showWelcomeOrientation}
           onClose={() => setShowWelcomeOrientation(false)}
           isDarkMode={isDarkMode}
+          partnerName={user?.coachName || 'Palante'}
           onNavigate={(section) => {
             if (section === 'settings') setShowProfile(true);
             if (section === 'morning-ritual') { setActiveTab('home'); setShowMorningPractice(true); }

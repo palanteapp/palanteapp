@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Flame, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
+import { Plus, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
 import { buildYearForwardData, hasEnoughForYearForward } from '../utils/yearForward';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
@@ -9,11 +9,7 @@ import { CoachSettingsModal } from './CoachSettingsModal';
 import { WeeklyInsightsCard } from './WeeklyInsightsCard';
 import type { UserProfile, DailyFocus, CoachSettings, EnergyLog } from '../types';
 import { triggerConfetti, triggerHaptic } from '../utils/CelebrationEffects';
-import {
-    checkMilestones
-} from '../utils/GamificationEngine';
 import { haptics } from '../utils/haptics';
-import { MilestoneCelebration } from './MilestoneCelebration';
 
 import { SlideUpModal } from './SlideUpModal';
 import { CoachGuidanceModal } from './CoachGuidanceModal';
@@ -68,7 +64,6 @@ export const Momentum: React.FC<MomentumProps> = ({
     // Removed levelUpData state - no more gamification
     const [showInsightsExplainer, setShowInsightsExplainer] = useState(false);
     const [showCoachGuidance, setShowCoachGuidance] = useState(false);
-    const [showStreakMilestone, setShowStreakMilestone] = useState<{ isOpen: boolean; days: number }>({ isOpen: false, days: 0 });
 
     const dailyFocuses = user.dailyFocuses || [];
     const completedCount = dailyFocuses.filter(f => f.isCompleted).length;
@@ -120,40 +115,16 @@ export const Momentum: React.FC<MomentumProps> = ({
         const updatedUser = { ...user, dailyFocuses: updatedFocuses };
 
         if (isCompleting) {
-            // Removed XP/Level calculation - focusing on intrinsic motivation
-
             const allCompleted = updatedFocuses.length > 0 && updatedFocuses.every(f => f.isCompleted);
             if (allCompleted) {
+                // A gentle "you lived your intention today" moment — once per day, no streaks or badges.
                 const today = new Date().toISOString().split('T')[0];
-                const lastCompletion = user.lastGoalCompletionDate;
-                const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-                let newStreak = user.goalStreak || 0;
-                if (lastCompletion === yesterday) {
-                    newStreak += 1;
-                } else if (lastCompletion !== today) {
-                    newStreak = 1;
-                }
-
-                updatedUser.goalStreak = newStreak;
-                updatedUser.lastGoalCompletionDate = today;
-
-                const milestone = checkMilestones(newStreak, user.unlockedBadges);
-                if (milestone) {
-                    updatedUser.unlockedBadges = [...(user.unlockedBadges || []), milestone.badge];
-                    updatedUser.points = (user.points || 0) + milestone.bonusPoints;
-                    
-                    // Show Streak Milestone Celebration
-                    setShowStreakMilestone({ isOpen: true, days: newStreak });
-                }
-
-                if (lastCompletion !== today && !milestone) {
+                if (user.lastGoalCompletionDate !== today) {
+                    updatedUser.lastGoalCompletionDate = today;
                     setShowCelebration(true);
                 }
             } else if (updatedUser.coachSettings?.tipsEnabled !== false) {
-                // Show Productivity Tip on completion IF tips are enabled (default true)
-                // Show Productivity Tip on completion IF tips are enabled (default true)
-                // Use a small delay to ensure it feels responsive but not jarring
+                // Gentle tip on a single completion, if tips are enabled (default true).
                 setTimeout(() => {
                     onShowTip?.();
                 }, 500);
@@ -200,7 +171,7 @@ export const Momentum: React.FC<MomentumProps> = ({
         <div className="w-full flex flex-col px-6 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
             {/* 0. Header Area */}
             <div className="w-full mb-8">
-                <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Journey</h2>
+                <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Progress</h2>
                 <p className={`text-xs uppercase tracking-[0.18em] font-black mt-0.5 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>Progress & Growth</p>
                 <div className="flex gap-2">
                     <button
@@ -220,37 +191,37 @@ export const Momentum: React.FC<MomentumProps> = ({
                 </div>
             </div>
 
-            {/* ── Streak & Points Hero ── */}
+            {/* ── Today's Intention + Total Practices Hero ── */}
             <div className="grid grid-cols-2 gap-3 mb-6">
-                {/* Streak */}
+                {/* Today's Intention */}
                 <div className={`relative rounded-2xl p-5 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
                     <div className="flex flex-col items-start mb-3 gap-1.5">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
-                            <Flame size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                            <GoalIcon size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
-                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Streak</span>
+                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
                     </div>
-                    <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
-                        {user.streak || 0}
+                    <p className={`text-xl font-display font-bold leading-tight mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                        {user.dailyIntention || '—'}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                        {(user.streak || 0) === 1 ? 'day' : 'days in a row'}
+                        today's word
                     </p>
                 </div>
 
-                {/* Points */}
+                {/* Total Practices */}
                 <div className={`relative rounded-2xl p-5 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
                     <div className="flex flex-col items-start mb-3 gap-1.5">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
-                            <Sparkles size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                            <TrendingUp size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
-                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Points</span>
+                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Practices</span>
                     </div>
                     <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
-                        {(user.points || 0).toLocaleString()}
+                        {(user.practiceData?.totalPractices || 0).toLocaleString()}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                        total earned
+                        completed
                     </p>
                 </div>
             </div>
@@ -283,7 +254,7 @@ export const Momentum: React.FC<MomentumProps> = ({
             )}
 
             {/* ── Koi Pond Progress Teaser ── */}
-            {(user.streak || 0) < 30 && (
+            {(user.practiceData?.totalPractices || 0) < 30 && (
                 <button
                     onClick={() => onOpenKoiPond?.()}
                     className={`w-full rounded-2xl px-5 py-3 mb-6 flex items-center gap-3 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}
@@ -294,17 +265,17 @@ export const Momentum: React.FC<MomentumProps> = ({
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1.5">
                             <p className={`text-xs font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
-                                First koi unlocks at 30 days
+                                First koi unlocks at 30 practices
                             </p>
                             <p className={`text-xs font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
-                                {user.streak || 0}/30
+                                {user.practiceData?.totalPractices || 0}/30
                             </p>
                         </div>
                         <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
                             <div
                                 className="h-full rounded-full"
                                 style={{
-                                    width: `${Math.min(100, ((user.streak || 0) / 30) * 100)}%`,
+                                    width: `${Math.min(100, ((user.practiceData?.totalPractices || 0) / 30) * 100)}%`,
                                     background: 'linear-gradient(90deg, #4A7050, #E5D6A7)',
                                     transition: 'width 0.6s ease',
                                 }}
@@ -574,13 +545,6 @@ export const Momentum: React.FC<MomentumProps> = ({
                 onClose={() => setShowCelebration(false)}
                 isDarkMode={isDarkMode}
             />
-
-            <MilestoneCelebration
-                isOpen={showStreakMilestone.isOpen}
-                streakDays={showStreakMilestone.days}
-                onClose={() => setShowStreakMilestone({ isOpen: false, days: 0 })}
-            />
-
 
         </div>
     );

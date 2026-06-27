@@ -179,10 +179,10 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
                 {/* GLAD Breakdown */}
                 <div className="grid grid-cols-2 gap-3 mb-8">
                     {[
-                        { label: 'G', icon: Heart, text: practice.gratitude, color: 'text-rose-400' },
-                        { label: 'L', icon: BookOpen, text: practice.learning, color: 'text-blue-400' },
-                        { label: 'A', icon: Award, text: practice.accomplishment, color: 'text-pale-gold-400' },
-                        { label: 'D', icon: Smile, text: practice.delight, color: 'text-green-400' }
+                        { label: 'Grateful', icon: Heart, text: practice.gratitude, color: 'text-rose-400' },
+                        { label: 'Learned', icon: BookOpen, text: practice.learning, color: 'text-blue-400' },
+                        { label: 'Achieved', icon: Award, text: practice.accomplishment, color: 'text-pale-gold-400' },
+                        { label: 'Delighted', icon: Smile, text: practice.delight, color: 'text-green-400' }
                     ].map((item, i) => (
                         <div key={i} className={`p-3 rounded-xl ${isDarkMode ? 'bg-white/5' : 'bg-white/40'}`}>
                             <div className="flex items-center gap-2 mb-1">

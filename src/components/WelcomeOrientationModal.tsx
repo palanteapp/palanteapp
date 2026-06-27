@@ -8,13 +8,15 @@ interface WelcomeOrientationModalProps {
     onClose: () => void;
     isDarkMode: boolean;
     onNavigate: (section: string) => void;
+    partnerName?: string;
 }
 
 export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = ({
     isOpen,
     onClose,
     isDarkMode,
-    onNavigate
+    onNavigate,
+    partnerName = 'Palante',
 }) => {
     const [activeTab, setActiveTab] = useState<'philosophy' | 'tour'>('philosophy');
 
@@ -131,6 +133,27 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
 
                     {activeTab === 'tour' && (
                         <div className="space-y-6 animate-fade-in">
+                            {/* Partner — lead with the differentiator */}
+                            <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-pale-gold/10 border-pale-gold/20' : 'bg-sage/10 border-sage/20'}`}>
+                                <div className="flex gap-4">
+                                    <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/20'}`}>
+                                        <Sparkles size={20} className={accentColor} />
+                                    </div>
+                                    <div>
+                                        <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Meet {partnerName}, your partner</h4>
+                                        <p className={`text-sm ${textSecondary}`}>
+                                            After every morning practice, {partnerName} writes you a personal message. Tap the chat icon anytime to talk — it knows your intentions, sees your patterns, and meets you exactly where you are.
+                                        </p>
+                                        <button
+                                            onClick={() => { onNavigate('ai-coach'); onClose(); }}
+                                            className={`mt-3 text-xs font-bold uppercase tracking-wider ${accentColor}`}
+                                        >
+                                            Open {partnerName} →
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Navigation */}
                             <div>
                                 <h3 className={`text-base font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
@@ -142,7 +165,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         Three tabs, one home
                                     </h4>
                                     <p className={`text-sm ${textSecondary}`}>
-                                        <strong>Home</strong> — your daily dashboard. <strong>Journey</strong> — goals and progress. <strong>Practice</strong> — tools for focus, breath, and sound.
+                                        <strong>Home</strong> — your daily dashboard. <strong>Progress</strong> — your growth and mandala. <strong>Explore</strong> — tools for focus, breath, and sound.
                                     </p>
                                 </div>
                                 <button
@@ -179,7 +202,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     >
                                         <Moon size={24} className={`mb-2 ${accentColor}`} />
                                         <h4 className={`font-medium text-sm ${textPrimary}`}>Evening Reflection</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>G.L.A.D. method</p>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Gratitude · reflection · delight</p>
                                     </button>
                                     <button
                                         onClick={() => { onNavigate('garden'); onClose(); }}
@@ -280,21 +303,6 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                                 </p>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Palante Partner callout */}
-                            <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-pale-gold/10' : 'bg-sage/10'}`}>
-                                <div className="flex gap-4">
-                                    <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/20'}`}>
-                                        <Sparkles size={20} className={accentColor} />
-                                    </div>
-                                    <div>
-                                        <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Your Palante Partner</h4>
-                                        <p className={`text-sm ${textSecondary}`}>
-                                            Tap the chat icon (top right) any time to talk to your AI partner. It knows your intentions, sees your patterns, and meets you where you are — not where it thinks you should be.
-                                        </p>
                                     </div>
                                 </div>
                             </div>
