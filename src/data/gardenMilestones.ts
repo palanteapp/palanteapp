@@ -18,7 +18,7 @@ export const STREAK_MILESTONES: GardenMilestone[] = [
     threshold: 1,
     label: 'First Sprout',
     description: 'Day 1',
-    detail: 'Your garden takes root. Every great journey starts here.',
+    detail: 'Your garden takes root. This is where it begins.',
     plantType: 'grass',
   },
   {

@@ -1376,7 +1376,7 @@ const FALLBACK_AFFIRMATIONS: Record<1 | 2 | 3, string[]> = {
         "You are exactly where you need to be right now.",
         "Progress, not perfection, is your path forward.",
         "Your potential unfolds one breath at a time.",
-        "Trust the journey you're on.",
+        "Trust where you are right now.",
     ],
     2: [
         "Discipline is the bridge between goals and accomplishment.",

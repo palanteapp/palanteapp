@@ -656,7 +656,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 <p className="text-sm opacity-60 max-w-xs text-[#E5D6A7]/60">
                     {isDisabledInSettings
                         ? 'AI features are turned off in your settings. Go to Settings → toggle AI on to access your partner.'
-                        : 'Your partner is getting ready for your journey.'}
+                        : 'Your partner is getting ready for you.'}
                 </p>
             </div>
         );
