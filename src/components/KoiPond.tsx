@@ -268,6 +268,23 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Initialize caustic light patches
+    useEffect(() => {
+        const { width, height } = windowSizeRef.current;
+        causticPatchesRef.current = Array.from({ length: 24 }, () => ({
+            cx: Math.random() * width,
+            cy: Math.random() * height,
+            ax: 40 + Math.random() * 100,
+            fx: 0.00025 + Math.random() * 0.00035,
+            px: Math.random() * Math.PI * 2,
+            ay: 30 + Math.random() * 80,
+            fy: 0.00018 + Math.random() * 0.0004,
+            py: Math.random() * Math.PI * 2,
+            r: 70 + Math.random() * 130,
+            intensity: 0.045 + Math.random() * 0.055,
+        }));
+    }, []);
+
     // Customization State
     const [showLilyPads, setShowLilyPads] = useState(true);
     const [showLotus, setShowLotus] = useState(true);
@@ -285,6 +302,16 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [showControls, setShowControls] = useState(true);
+
+    // Caustic light patches
+    interface CausticPatch {
+        cx: number; cy: number;
+        ax: number; fx: number; px: number;
+        ay: number; fy: number; py: number;
+        r: number; intensity: number;
+    }
+    const causticCanvasRef = useRef<HTMLCanvasElement>(null);
+    const causticPatchesRef = useRef<CausticPatch[]>([]);
 
     // Particle System Refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -707,6 +734,35 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 }
             });
 
+            // 3.5 Caustic light shimmer
+            if (causticCanvasRef.current) {
+                const ctx = causticCanvasRef.current.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, causticCanvasRef.current.width, causticCanvasRef.current.height);
+                    causticPatchesRef.current.forEach(p => {
+                        const x = p.cx + p.ax * Math.sin(time * p.fx + p.px);
+                        const y = p.cy + p.ay * Math.sin(time * p.fy + p.py);
+                        const xRad = p.r * (0.85 + 0.15 * Math.sin(time * 0.0002 + p.px));
+                        const yRad = p.r * 0.55 * (0.85 + 0.15 * Math.cos(time * 0.00015 + p.py));
+                        const tilt = Math.sin(time * 0.0001 + p.px) * 0.6;
+                        const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(xRad, yRad));
+                        grad.addColorStop(0,   `rgba(190,230,170,${p.intensity})`);
+                        grad.addColorStop(0.45, `rgba(170,215,150,${p.intensity * 0.35})`);
+                        grad.addColorStop(1,    'rgba(0,0,0,0)');
+                        ctx.save();
+                        ctx.translate(x, y);
+                        ctx.rotate(tilt);
+                        ctx.scale(1, yRad / xRad);
+                        ctx.translate(-x, -y);
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.ellipse(x, y, xRad, xRad, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    });
+                }
+            }
+
             // 4. Update Sakura Particles (Canvas)
             if (canvasRef.current) {
                 const ctx = canvasRef.current.getContext('2d');
@@ -1054,6 +1110,15 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         }
                     `}</style>
                 </div>
+
+                {/* 0.7 Caustic light shimmer canvas (Z-3) */}
+                <canvas
+                    ref={causticCanvasRef}
+                    width={window.innerWidth}
+                    height={window.innerHeight}
+                    className="absolute inset-0 pointer-events-none z-[3]"
+                    style={{ mixBlendMode: 'screen' }}
+                />
 
                 {/* 1. Fish Layer (Z-5) - Moved OUT of Background Layer context */}
                 {showFish && fish.map(f => (
