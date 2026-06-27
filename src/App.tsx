@@ -104,7 +104,7 @@ import { useTheme } from './contexts/ThemeContext';
 
 function AppContent() {
 
-  const { loading: authLoading, user: authUser } = useAuth();
+  const { loading: authLoading, user: authUser, session } = useAuth();
   const { user, loading: userLoading, updateProfile, logActivity, saveReflection, toggleFavorite } = useUser();
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
@@ -1680,14 +1680,6 @@ function AppContent() {
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent border-sage"></div>
       </div>
     );
-  }
-
-  if (!session) {
-    return <AuthScreen isDarkMode={isDarkMode} />;
-  }
-
-  if (!user) {
-    return <Onboarding onComplete={handleOnboardingComplete} isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
   }
 
   // Safety check
