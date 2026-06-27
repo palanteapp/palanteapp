@@ -911,6 +911,86 @@ const stripMarkdown = (text: string): string => {
         .trim();
 };
 
+/**
+ * Generate the "continuity opener" — the single line the partner uses to greet a
+ * returning user by gently calling back to something they shared in a PAST
+ * conversation. This is the moment that makes the remembering feel real: instead
+ * of "What's on your mind?", the partner opens with "A while back you mentioned
+ * the thing with your brother — has that settled?"
+ *
+ * Craft rules (the difference between magic and creepy) are enforced in the
+ * prompt: exactly one callback, decay with age, never fabricate a detail, and a
+ * "NONE" escape hatch when nothing is substantial enough to warrant a callback.
+ *
+ * Returns the callback line WITHOUT a "Hey {name}" prefix (the caller adds that),
+ * or null when there is nothing worth recalling / on any failure — callers fall
+ * back to the generic greeting. Precompute this once per day and cache it; it is
+ * one Haiku call and is counted against the same daily chat budget as a turn.
+ */
+export const generateContinuityOpener = async (
+    memories: string[],
+    userName: string,
+    coachName?: string,
+): Promise<string | null> => {
+    // Only real conversation memories earn a callback — thin/empty entries don't.
+    const realMemories = memories.map(m => m?.trim()).filter((m): m is string => !!m && m.length > 15);
+    if (realMemories.length === 0) return null;
+
+    // Respect the same daily ceiling as chat. If the user is already capped, skip
+    // the precompute silently and let the greeting fall back to generic.
+    if (isChatLimitReached()) return null;
+
+    const coachIdentity = coachName?.trim() || 'Palante';
+    const firstName = userName?.split(' ')[0] || 'Friend';
+
+    const prompt = `You are ${coachIdentity}, ${firstName}'s personal growth partner. ${firstName} is opening a new conversation with you right now. Below are things ${firstName} shared with you in PAST conversations, newest first.
+
+Write ONE short opening line that gently calls back to the single most meaningful, still-open thing — a feeling they named, a situation they were working through, a person who matters to them. The goal is for ${firstName} to feel genuinely remembered, the way a close friend remembers.
+
+PAST MEMORIES (newest first):
+${realMemories.slice(0, 10).map(m => `- ${m}`).join('\n')}
+
+RULES:
+- ONE callback only. Pick the single most emotionally resonant, still-unresolved thread and ignore the rest. Do not list or stack multiple memories.
+- Lead with warmth. This line is an act of care — a friend who is glad they came back and remembers what mattered to them. Make them feel held and quietly rooted for. Invite, never interrogate; a soft question is welcome but optional.
+- Decay with age: the memories are newest first. If you reach for an older one, soften the time ("a while back…", "a bit ago…") rather than implying it just happened.
+- NEVER invent or assume. Use only what is explicitly written above. If you are unsure of a name or detail, stay general — a wrong detail breaks trust far worse than a soft one. Better vague-and-true than specific-and-wrong.
+- Do NOT open with "Hey ${firstName}" or any greeting word — that is added separately. Start directly with the callback.
+- If none of these memories are substantial enough for a natural, caring callback (they are logistical, vague, or trivial), reply with exactly: NONE
+- Plain prose. No markdown, no surrounding quotes. Under 30 words.
+
+REGISTER — always, no matter what: warm, supportive, and encouraging. Even when calling back to something hard, your belief in ${firstName} and your gladness that they are here comes through first. Never clinical, never probing, never a performance review. Just a partner who genuinely cares.`;
+
+    try {
+        const res = await fetchWithTimeout(PROXY_URL, {
+            method: 'POST',
+            headers: getProxyHeaders(),
+            body: JSON.stringify({
+                model: ANTHROPIC_MODEL,
+                max_tokens: 120,
+                messages: [{ role: 'user', content: prompt }],
+            }),
+        });
+        if (!res.ok) return null;
+
+        const result = await res.json();
+        recordChatCall();
+
+        let text: string = (result?.content?.[0]?.text ?? '').trim();
+        if (!text || /^NONE\b/i.test(text)) return null;
+
+        // Safety net: strip stray surrounding quotes and any greeting the model
+        // led with despite instructions, so the caller's "Hey {name}." reads clean.
+        text = text.replace(/^["'“”']+|["'“”']+$/g, '').trim();
+        text = text.replace(/^(hey|hi|hello)\b[^.!?]*[.,!?]+\s*/i, '').trim();
+        if (text.length < 8) return null;
+
+        return text;
+    } catch {
+        return null;
+    }
+};
+
 export const chatWithCoach = async (
     message: string,
     history: ChatMessage[],

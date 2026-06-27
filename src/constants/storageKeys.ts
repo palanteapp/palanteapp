@@ -129,6 +129,11 @@ export const STORAGE_KEYS = {
   // Cold start — seed memories written from onboarding data, loaded into partner chat
   SEED_MEMORIES: 'palante_seed_memories',
 
+  // Continuity opener — the memory-aware greeting the partner opens a new session
+  // with. Cached per local day { date, text } so it costs at most one AI call/day;
+  // empty text means "computed today, nothing worth recalling" (don't regenerate).
+  CONTINUITY_OPENER: 'palante_continuity_opener',
+
   // AI usage budget — per-user daily partner-chat call count { date, count }.
   // Caps the only unbounded AI cost vector so a single heavy user can't run
   // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.

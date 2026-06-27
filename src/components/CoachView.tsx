@@ -6,7 +6,7 @@ import {
     Volume2, Loader2
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
-import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
+import { chatWithCoach, chatWithCoachPillar, getMomentumState, generateContinuityOpener } from '../utils/aiService';
 import { speak, stopSpeaking } from '../utils/ttsService';
 import { getHealthContext } from '../utils/healthService';
 import type { HealthContext } from '../utils/healthService';
@@ -19,6 +19,28 @@ import { useTheme } from '../contexts/ThemeContext';
 import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
 import { loadConversationMemories, extractAndSaveMemories } from '../utils/memoryService';
 import { Capacitor } from '@capacitor/core';
+
+// ── Continuity opener cache ───────────────────────────────────────────────────
+// The memory-aware greeting is precomputed once per local day and cached so it
+// costs at most one AI call/day. An empty cached text means "computed today,
+// nothing worth recalling" — we still treat that as a cache hit so we don't
+// regenerate on every open.
+const localDayKey = (): string => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** Read today's cached continuity opener synchronously, or null if absent/stale. */
+const readCachedOpener = (): string | null => {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEYS.CONTINUITY_OPENER);
+        if (!raw) return null;
+        const cached = JSON.parse(raw) as { date: string; text: string };
+        return cached.date === localDayKey() ? (cached.text || null) : null;
+    } catch {
+        return null;
+    }
+};
 
 // ── Speech recognition type ──────────────────────────────────────────────────
 interface SpeechRecognitionInstance {
@@ -145,6 +167,10 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [persistedMemories, setPersistedMemories] = useState<string[]>([]);
+    // Memory-aware greeting for returning users. Seeded synchronously from today's
+    // cache so a opener computed earlier today is available on this open without a
+    // round-trip; (re)generated below when the cache is cold.
+    const [continuityOpener, setContinuityOpener] = useState<string | null>(() => readCachedOpener());
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
     // Voice playback: which message is currently speaking / loading audio.
@@ -172,6 +198,43 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             loadConversationMemories(user.id).then(setPersistedMemories).catch(() => {});
         }
     }, [user.id]);
+
+    // Precompute the memory-aware continuity opener once per day. When the partner
+    // has real things to recall, the next session opens with a gentle callback
+    // instead of a generic prompt — the moment that makes the remembering land.
+    // Cached per local day; at most one AI call/day, inside the daily chat budget.
+    useEffect(() => {
+        if (!user.id || persistedMemories.length === 0) return;
+
+        // Cache hit for today (including an empty "" = nothing worth recalling)
+        // means we've already spent today's call — skip regeneration. State is
+        // already seeded from this same cache by the useState initializer above,
+        // so there's nothing to set here.
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.CONTINUITY_OPENER);
+            if (raw) {
+                const cached = JSON.parse(raw) as { date: string; text: string };
+                if (cached.date === localDayKey()) return;
+            }
+        } catch { /* corrupt cache — fall through and regenerate */ }
+
+        let cancelled = false;
+        generateContinuityOpener(
+            persistedMemories,
+            user.name || 'Friend',
+            user.coachName,
+        ).then(line => {
+            if (cancelled) return;
+            setContinuityOpener(line);
+            try {
+                localStorage.setItem(
+                    STORAGE_KEYS.CONTINUITY_OPENER,
+                    JSON.stringify({ date: localDayKey(), text: line ?? '' }),
+                );
+            } catch { /* cache write is best-effort */ }
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    }, [user.id, user.name, user.coachName, persistedMemories]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -248,6 +311,15 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             greeting = INTENT_GREETINGS[user.primaryIntent] ?? greeting;
         }
 
+        // Returning user with something to recall: open with the memory-aware
+        // callback instead of the generic prompt. Read the cache synchronously so
+        // a opener computed earlier today lands immediately on this open; the
+        // day-1 intent greeting above always takes precedence over this.
+        if (pillar === 'open' && !isFirstSession) {
+            const opener = continuityOpener ?? readCachedOpener();
+            if (opener) greeting = opener;
+        }
+
         const greetingMsg: ChatMessage = {
             id: 'init-' + Date.now(),
             role: 'assistant',
@@ -269,7 +341,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         // calls upsertSession when a message lands, which is when the session becomes worth saving.
         setActiveSession(newSession);
         setView('chat');
-    }, [user.name, user.primaryIntent, sessions.length, upsertSession]);
+    }, [user.name, user.primaryIntent, sessions.length, upsertSession, continuityOpener]);
 
     const resumeSession = useCallback((session: CoachSession) => {
         haptics.light();
@@ -285,6 +357,22 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             startPillarSession('open');
         }
     }, [view, activeSession, startPillarSession]);
+
+    // First open of a new day, cache cold: the opener can resolve a beat after the
+    // session was created with the generic greeting. If the user hasn't replied
+    // yet (still just the init greeting), upgrade it in place so the callback still
+    // lands on this very first open. Never touches a session the user has engaged.
+    useEffect(() => {
+        if (!continuityOpener || !activeSession || activeSession.pillar !== 'open') return;
+        const msgs = activeSession.messages;
+        if (msgs.length !== 1) return;                       // user already replied
+        const only = msgs[0];
+        if (!only.id?.startsWith('init-')) return;
+        const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
+        const upgraded = `Hey ${firstName}. ${continuityOpener}`;
+        if (only.text === upgraded) return;                  // already applied
+        setActiveSession({ ...activeSession, messages: [{ ...only, text: upgraded }] });
+    }, [continuityOpener, activeSession, user.name]);
 
     // Two-step delete: tap once to arm, tap again within 3s to commit. Auto-disarms.
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
