@@ -1287,6 +1287,12 @@ function AppContent() {
       : dispatchMessages;
     notifications.scheduleDailyDispatch(finalDispatch, user.coachName);
 
+    // After the very first practice, ask for notification permission once the
+    // success overlay has had time to auto-dismiss (2.5s overlay + 1s buffer).
+    if ((updatedUser.practiceData?.totalPractices ?? 0) === 1) {
+      setTimeout(() => maybeShowNotifAsk(), 3500);
+    }
+
     // Regenerate garden affirmation with fresh practice content — don't use stale cache
     localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
     localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
@@ -1341,6 +1347,15 @@ function AppContent() {
   const dismissShareDayOne = () => {
     localStorage.setItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED, 'true');
     setShareDayOneDismissed(true);
+  };
+
+  // Quick Tour card — shown after first practice, dismissed forever on tap or X
+  const [quickTourDismissed, setQuickTourDismissed] = useState(
+    () => !!localStorage.getItem(STORAGE_KEYS.QUICK_TOUR_DISMISSED)
+  );
+  const dismissQuickTour = () => {
+    localStorage.setItem(STORAGE_KEYS.QUICK_TOUR_DISMISSED, 'true');
+    setQuickTourDismissed(true);
   };
 
   // Profile nudge — shown once after first practice completes
@@ -1524,9 +1539,9 @@ function AppContent() {
     );
   }
 
-  // PAYWALL — show when user has no active subscription AND has already experienced the app.
-  // New users get through to their first morning practice before we ask for money.
-  if (!isPro && appUsed) {
+  // PAYWALL — show once the user has completed 3 practices and has no active subscription.
+  // Gives new users enough time to feel the loop before asking for money.
+  if (!isPro && appUsed && (user?.practiceData?.totalPractices ?? 0) >= 3) {
     const gratitudeCount = (user?.dailyMorningPractice || user?.dailyPriming || [])
       .reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
     return (
@@ -2046,6 +2061,48 @@ function AppContent() {
                               dismissShareDayOne();
                               haptics.light();
                             }}
+                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
+                            aria-label="Dismiss"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* ── Quick Tour card — shown after practice 1 until dismissed ── */}
+                <AnimatePresence>
+                  {(user?.practiceData?.totalPractices ?? 0) >= 1
+                    && !quickTourDismissed && (
+                    <motion.div
+                      key="quick-tour"
+                      className="mb-5"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.35 }}
+                    >
+                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                            Here's what's inside
+                          </p>
+                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
+                            Partner, garden, dispatch messages, and more — a quick look at everything available to you.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => { dismissQuickTour(); setShowWelcomeOrientation(true); }}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
+                            style={{ background: '#C96A3A' }}
+                          >
+                            Take a look →
+                          </button>
+                          <button
+                            onClick={dismissQuickTour}
                             className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
                             aria-label="Dismiss"
                           >
@@ -2589,6 +2646,14 @@ function AppContent() {
                   style={{ textShadow: '0 2px 24px rgba(0,0,0,0.30)' }}
                 >
                   {completionIntention}
+                </p>
+              )}
+              {(user?.practiceData?.totalPractices ?? 0) === 1 && (
+                <p
+                  className="text-sm font-body mb-3"
+                  style={{ color: 'rgba(229,214,167,0.55)' }}
+                >
+                  Your first one is done. The rest get easier.
                 </p>
               )}
               <p
@@ -3319,20 +3384,6 @@ function AppContent() {
     return <Suspense fallback={null}><PrivacyPolicy isDarkMode={isDarkMode} onBack={() => navigate('/')} /></Suspense>;
   }
 
-  if (showAgeGate) {
-    return (
-      <Suspense fallback={null}>
-        <AgeVerificationModal
-          isOpen={true}
-          onClose={() => {}}
-          onVerify={handleAgeVerified}
-          isDarkMode={isDarkMode}
-          required={true}
-        />
-      </Suspense>
-    );
-  }
-
   if (showIntroSequence) {
     return (
       <DebugErrorBoundary componentName="CinematicIntro">
@@ -3344,6 +3395,18 @@ function AppContent() {
               setShowProfile(true);
             }}
           />
+          {/* Age gate overlays the splash so users see the brand before bureaucracy */}
+          {showAgeGate && (
+            <Suspense fallback={null}>
+              <AgeVerificationModal
+                isOpen={true}
+                onClose={() => {}}
+                onVerify={handleAgeVerified}
+                isDarkMode={true}
+                required={true}
+              />
+            </Suspense>
+          )}
         </Suspense>
       </DebugErrorBoundary>
     );

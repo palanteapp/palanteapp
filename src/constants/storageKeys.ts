@@ -111,6 +111,9 @@ export const STORAGE_KEYS = {
   // Age gate — COPPA compliance (must pass before intro sequence)
   AGE_GATE_PASSED: 'palante_age_gate_passed',
 
+  // Quick Tour card — shown on home after practice 1, dismissed by user
+  QUICK_TOUR_DISMISSED: 'palante_quick_tour_dismissed',
+
   // Ring ceremony flags (shown once per ring completion)
   RING1_CEREMONY_SHOWN: 'palante_ring1_ceremony_shown',
   RING2_CEREMONY_SHOWN: 'palante_ring2_ceremony_shown',
