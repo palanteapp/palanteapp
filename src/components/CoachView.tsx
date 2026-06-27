@@ -779,8 +779,8 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                                 </p>
                                                 <p className="text-sm text-[#E5D6A7]/75 font-medium leading-snug">
                                                     {todayCommitment
-                                                        ? <>You said today would look like <span className="italic text-[#E5D6A7]">{todayCommitment}</span></>
-                                                        : <>Your intention is <span className="italic text-[#E5D6A7]">{todayIntention}</span></>}
+                                                        ? <>You said today would look like <span className="font-semibold text-[#E5D6A7]">{todayCommitment}</span></>
+                                                        : <>Your intention is <span className="font-semibold text-[#E5D6A7]">{todayIntention}</span></>}
                                                 </p>
                                             </div>
                                         </div>

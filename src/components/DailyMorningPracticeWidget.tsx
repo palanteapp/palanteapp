@@ -194,7 +194,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     // --- RENDER HELPERS ---
 
     const INTENT_FIRST_PRACTICE: Record<string, string> = {
-        consistency: 'Three minutes, every morning. The whole point is just showing up — and you did.',
+        consistency: 'Three minutes, every morning. You made the decision to be here — and that is the whole practice.',
         clarity:     'Start with what you\'re grateful for. Everything else gets clearer from there.',
         stress:      'Take a breath. This is your three minutes — no pressure, just presence.',
         purpose:     'This is your daily moment to reconnect to what matters most.',
@@ -680,9 +680,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 <p className="text-base leading-relaxed text-white/70">
                     Five slow belly breaths — in through your nose.{' '}
                     <span className="font-semibold text-white/90">Inhale:</span>{' '}
-                    <span className="italic">I love you.</span>{' '}
+                    <span className="font-medium text-white/90">I love you.</span>{' '}
                     <span className="font-semibold text-white/90">Exhale:</span>{' '}
-                    <span className="italic">I am enough.</span>
+                    <span className="font-medium text-white/90">I am enough.</span>
                 </p>
             </div>
 

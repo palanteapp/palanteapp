@@ -532,7 +532,7 @@ function AppContent() {
       const seedMemories: string[] = [];
       const firstName = userData.name.trim().split(/\s+/)[0] || userData.name.trim();
       const INTENT_MEMORY: Partial<Record<string, string>> = {
-        consistency: `${firstName} came to Palante because they want to build more consistency — showing up every day regardless of how they feel.`,
+        consistency: `${firstName} came to Palante because they want to build more consistency — returning to the practice every day, regardless of how they feel.`,
         clarity: `${firstName} is looking for clarity and focus. They feel scattered and want to know what truly matters so they can cut through the noise.`,
         stress: `${firstName} is dealing with real stress and came to Palante to stay grounded. Life has felt heavy and they need support managing it.`,
         purpose: `${firstName} wants their days to feel meaningful. They came to Palante to reconnect with purpose and make their life more intentional.`,

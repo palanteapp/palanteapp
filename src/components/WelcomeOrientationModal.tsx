@@ -70,7 +70,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     Your partner in forward motion.
                                 </h3>
                                 <p className={`text-base leading-relaxed ${textSecondary}`}>
-                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Just showing up — and being met where you are.
+                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Small actions, taken daily — and being met exactly where you are.
                                 </p>
                             </div>
 
@@ -286,7 +286,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                             <div>
                                                 <h4 className={`text-sm font-semibold mb-0.5 ${textPrimary}`}>Day 3 — Letter to your future self</h4>
                                                 <p className={`text-xs leading-relaxed ${textSecondary}`}>
-                                                    After your third practice, you'll be invited to write a letter to who you'll be 30 days from now. It's one of the most powerful things you can do on this journey.
+                                                    After your third practice, you'll be invited to write a letter to who you'll be 30 days from now. It's one of the most grounding things you can do in this practice.
                                                 </p>
                                             </div>
                                         </div>
