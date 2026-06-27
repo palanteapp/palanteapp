@@ -111,7 +111,7 @@ export function PaywallScreen({ onDismiss, firstName, practiceCount = 0, gratitu
         : 'You started.\nKeep going — free for 7 days.';
 
     const subhead = isReturning
-        ? 'You've started something real. Subscribe to keep it going.'
+        ? "You've started something real. Subscribe to keep it going."
         : 'That was your first morning practice. Your Palante Partner already knows your intention. Come back tonight and it will remember.';
 
     const annualBadge = isReturning
