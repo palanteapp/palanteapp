@@ -198,6 +198,21 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             Palante
                         </motion.h1>
 
+                        {/* Pronunciation */}
+                        <motion.p
+                            className="text-center font-body mb-2"
+                            style={{
+                                color: 'rgba(229,214,167,0.45)',
+                                fontSize: '0.75rem',
+                                letterSpacing: '0.18em',
+                            }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.5, delay: 0.42 }}
+                        >
+                            pah · LAN · tay
+                        </motion.p>
+
                         {/* Positioning line */}
                         <motion.p
                             className="text-center mb-14 px-6"
