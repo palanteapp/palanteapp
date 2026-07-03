@@ -505,40 +505,51 @@ ${data.commitment ? `- One concrete thing they committed to: ${data.commitment}`
 ${data.momentumState ? `\nTheir current momentum: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
 
 YOUR TASK:
-Write 2 first-person sentences as if the user is speaking them.
-Use "I" or "Today I" — they should read this and feel it as their own voice.
+Write a 2-sentence affirmation in their voice, as if the wisest version of
+themselves is speaking. Use "I" or "Today I."
 
-This is NOT a generic affirmation. It must be unmistakably THEIRS, woven from what
-they actually wrote this morning:
-- NAME the specific thing they are grateful for: the person, the place, the win.
-  Paraphrase it naturally in everyday language, do not copy their sentence.
-- Reflect the identity in their affirmation: who they said they are.
-- Aim it all at their intention${data.commitment ? ' and the concrete thing they committed to' : ''}.
+You are not a mirror. You are a wise listener. They already know what they wrote.
+Your job is to hear what is UNDERNEATH it: the single thread that connects what
+they are grateful for, who they say they are, and where they are pointed today${data.commitment ? ' (including the concrete thing they committed to)' : ''}.
+Then give that thread back to them as something larger than what they handed you.
 
-The test: a stranger reading this message should be able to guess what this person
-wrote in their practice today. If the message could belong to anyone, start over.
+OUTPUT FORMAT — this is critical:
+The output is the affirmation ONLY, spoken entirely in the user's own
+first-person voice, start to finish. You are invisible in it. Never narrate
+your listening ("I notice," "I see," "I hear you"), never address the user
+("you," "your"), never preface or explain. Every "I" in the output is the
+USER speaking about themselves.
 
-The user should read this and think: "It heard me. That is exactly who I am today."
+HOW TO TRANSFORM (never echo):
+- Find the meaning behind the specifics. "Coffee with mom" is not about coffee,
+  it is about being loved and unhurried. Speak to THAT.
+- You may allude to AT MOST ONE specific from their practice, reframed in fresh
+  words. NEVER inventory all three sections back to them.
+- Never reuse their phrasing. If they wrote "I am patient," the word "patient"
+  should probably not appear. Find the sharper angle on the same truth.
+- The message should feel like a discovery, not a receipt. They should think
+  "that IS what I meant," never "that is what I typed."
+
+The test: it must fit this one person's morning so well it could not be swapped
+into someone else's, yet contain almost none of their own words.
 
 ABSOLUTE RULES:
-- 45 words MAX (count carefully)
+- 40 words MAX (count carefully)
 - ALWAYS write in first person: "I am," "Today I," "I carry," "I know," etc.
 - NEVER write in second person ("you," "your") — this is the user's own voice
-- Do NOT copy their sentences word for word. DO name the specific people, places,
-  and things they mentioned. "my daughter," "the pitch," "the morning run" are
-  exactly what belongs here. Specifics are how they know they were heard.
+- NEVER quote, restate, or list back their entries. Transform them.
 - NEVER use em dashes (—). Periods and commas only.
-- NEVER use: "journey," "intentional," "mindful," "anchor," "showed up," "tapestry," "sovereignty"
+- NEVER use: "journey," "intentional," "mindful," "anchor," "show up," "showed up," "showing up," "tapestry," "sovereignty"
 - No quotation marks around the output
 - Sound grounded and real, not performative
 
-EXAMPLES — study how the specifics are woven in, never copy the content:
-(they wrote: grateful for coffee with mom, affirmation I am patient, intention presence)
-"I got that hour with my mom this morning and I am not rushing past it. I am patient today, present for what is actually in front of me."
-(they wrote: grateful the deal closed, affirmation I am a builder, intention momentum)
-"The deal is done because I build things that hold. Today I take that momentum into whatever is next."
-(they wrote: grateful for sleep, affirmation I am calm under pressure, committed to the 9am call)
-"I slept, I am steady, and the 9am call gets the calmest version of me. Pressure does not decide my day. I do."
+EXAMPLES — study the transformation, never copy the content:
+(grateful: coffee with mom, affirmation: I am patient, intention: presence)
+"I was reminded this morning that nothing worth having needs to be rushed. Today I move slowly enough to actually be here for my life."
+(grateful: the deal closed, affirmation: I am a builder, intention: momentum)
+"What I make holds. Today I do not need to prove that again, I only need to keep going."
+(grateful: slept well, affirmation: I am calm under pressure, commitment: the 9am call)
+"I have everything a steady morning can give a person. Whatever gets decided at nine o'clock, I will be the calmest one in the room."
 
 TONE DIRECTIVE:
 ${toneDirective}
@@ -547,23 +558,27 @@ Write the message now. Make them feel seen and grounded.
 
 MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
-    try {
-        const headers = getProxyHeaders();
+    // The affirmation must be the user's own first-person voice. If the model
+    // narrates as the partner instead ("I notice what you're building..."),
+    // retry once with a corrective note before falling back.
+    const isSecondPerson = (text: string) => /\b(you|your|yours)\b/i.test(text);
+
+    const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
-            headers,
+            headers: getProxyHeaders(),
             body: JSON.stringify({
                 model: ANTHROPIC_MODEL,
                 max_tokens: 300,
                 temperature: 0.78,
-                messages: [{ role: 'user', content: prompt }],
+                messages: [{ role: 'user', content: correction ? `${prompt}\n\n${correction}` : prompt }],
             })
         });
 
         if (!response.ok) {
             const errBody = await response.text().catch(() => '(unreadable)');
             console.error(`[Palante AI] morning message proxy failed — status ${response.status}:`, errBody);
-            return getFallbackMorningMessage(data);
+            return null;
         }
 
         const json = await response.json();
@@ -571,12 +586,21 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
 
         if (!message) {
             console.error('[Palante AI] morning message: empty response body', json);
-            return getFallbackMorningMessage(data);
+            return null;
         }
 
         message = message.replace(/^["'']|["'']$/g, '').trim();
         message = message.replace(/ +([.,;:!?])/g, '$1');
+        return message;
+    };
 
+    try {
+        let message = await requestOnce();
+        if (message && isSecondPerson(message)) {
+            console.warn('[Palante AI] morning message slipped into second person, retrying once');
+            message = await requestOnce('IMPORTANT: your previous attempt slipped into second person ("you"/"your"). Write the affirmation again, entirely in the user\'s first-person voice, with no "you" or "your" anywhere in it.');
+        }
+        if (!message || isSecondPerson(message)) return getFallbackMorningMessage(data);
         return message;
     } catch (error) {
         console.error('[Palante AI] morning message exception:', error);
@@ -1428,10 +1452,11 @@ const getCategoryFromRequest = (request: AIAffirmationRequest): string => {
 };
 
 /**
- * Offline / proxy-failure fallback for the morning message. Unlike the AI path
- * this can't paraphrase, so it embeds the user's own short entries directly —
- * a message built from their actual words still beats a generic template.
- * Exported so DailyMorningPracticeWidget can reuse it for its timeout path.
+ * Offline / proxy-failure fallback for the morning message. A template can't
+ * be a wise listener, so it stays restrained instead: at most ONE light
+ * reference to the user's own words, never an inventory of everything they
+ * typed back at them. Exported so DailyMorningPracticeWidget can reuse it
+ * for its timeout path.
  */
 export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
     const gratitude = data.gratitudes.find(g => g.trim())?.trim();
@@ -1445,46 +1470,34 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
     // Embed helpers: strip trailing punctuation, leave the user's casing alone.
     // Entries are only embedded when short enough to read as a phrase.
     const frag = (s: string) => s.replace(/[.!?\s]+$/, '');
-    const short = (s?: string): s is string => !!s && s.trim().length > 0 && s.trim().length <= 70;
+    const short = (s?: string): s is string => !!s && s.trim().length > 0 && s.trim().length <= 60;
 
-    const sentences: string[] = [];
-
-    if (short(gratitude)) {
-        sentences.push(pick([
-            `I woke up already holding something good: ${frag(gratitude)}.`,
-            `Before anything else today, I named what is good: ${frag(gratitude)}.`,
-        ]));
-    } else if (gratitude) {
-        sentences.push(`I started today with gratitude, and I meant every word of it.`);
-    }
-
-    if (short(affirmation)) {
-        // Most affirmations already read in first person ("I am..."). Use them
-        // as their own sentence; otherwise fold the phrase into one.
-        const a = frag(affirmation);
-        sentences.push(/^i['\s]/i.test(a) ? `${a.charAt(0).toUpperCase()}${a.slice(1)}.` : `I am ${a}.`);
-    } else if (affirmation) {
-        sentences.push(`I said who I am this morning and I meant it.`);
-    }
-
-    if (intention) {
-        const canEmbed = intention.length <= 50 && !/^i\b/i.test(intention);
-        sentences.push(canEmbed
-            ? pick([
-                `Today, all of it points one direction: ${frag(intention)}.`,
-                `Today I move with ${frag(intention)}, carrying everything I just named.`,
-            ])
-            : `I know exactly what today is for, and I am carrying all of this into it.`);
-    }
-
-    if (!sentences.length) {
+    // One reference max, in priority order: the intention embeds most
+    // naturally, then gratitude, then the affirmation as its own sentence.
+    if (short(intention) && intention.length <= 50 && !/^i\b/i.test(intention)) {
         return pick([
-            `I gave myself these minutes before the day could decide anything for me. I carry that steadiness forward.`,
-            `I am here this morning, on purpose, before anything else asked for me. That sets the tone for everything.`,
+            `I did not wander into this day, I chose it: ${frag(intention)}. Everything I named this morning is already carrying me there.`,
+            `Today has one direction, ${frag(intention)}. I started from gratitude and I know who I am, so I am already moving.`,
         ]);
     }
-
-    return sentences.slice(0, 3).join(' ');
+    if (short(gratitude)) {
+        return pick([
+            `I started today from a full place: ${frag(gratitude)}. A day that begins with that much good is a day I can do something with.`,
+            `Before today asked anything of me, I named what is good: ${frag(gratitude)}. That is not behind me now, it is underneath me.`,
+        ]);
+    }
+    if (short(affirmation)) {
+        const a = frag(affirmation);
+        const line = /^i['\s]/i.test(a) ? `${a.charAt(0).toUpperCase()}${a.slice(1)}` : `I am ${a}`;
+        return pick([
+            `${line}. I did not say that this morning to sound good, I said it because today I intend to live like it is true.`,
+            `${line}. The day has barely started and that is already true.`,
+        ]);
+    }
+    return pick([
+        `I gave myself these minutes before the day could decide anything for me. I carry that steadiness into everything that comes next.`,
+        `I am here this morning, on purpose, before anything asked for me. That sets the tone for the whole day.`,
+    ]);
 };
 
 const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals: number; totalGoals: number }): string => {
