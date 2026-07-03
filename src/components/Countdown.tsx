@@ -35,7 +35,7 @@ export const Countdown: React.FC<CountdownProps> = ({ onComplete, isActive }) =>
     // transform/overflow that would break fixed positioning on iOS.
     return createPortal(
         <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-sage-mid/90 backdrop-blur-sm transition-opacity duration-700 ${count === 0 ? 'opacity-0' : 'opacity-100 animate-fade-in'}`}
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-sage-mid/90 backdrop-blur-sm transition-opacity duration-700 ${count === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100 animate-fade-in'}`}
             style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         >
             <div key={count} className="text-9xl font-display font-medium text-white animate-scale-pulse">

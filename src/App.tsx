@@ -3131,7 +3131,12 @@ function AppContent() {
 
 
       {/* Premium Bottom Navigation - Scroll Aware */}
-      < nav className={`fixed left-1/2 -translate-x-1/2 z-[210] transition-all duration-300 ${isNavVisible && activeTab !== 'breath' && !isInEveningInputFlow && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0'} `}>
+      {/* z-[55]: above page content (z-20) but BELOW every modal/sheet layer (z-60+).
+          Overlays must cover the nav — a nav floating above an open modal accepts taps
+          that switch the tab underneath while the modal stays put, which reads as a
+          dead nav bar. pointer-events-none while hidden keeps the offscreen nav from
+          swallowing taps mid-transition. */}
+      < nav className={`fixed left-1/2 -translate-x-1/2 z-[55] transition-all duration-300 ${isNavVisible && activeTab !== 'breath' && !isInEveningInputFlow && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0 pointer-events-none'} `}>
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },

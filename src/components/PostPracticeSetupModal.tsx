@@ -98,7 +98,7 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
                             <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(229,214,167,0.25)' }} />
                         </div>
 
-                        <div className="overflow-y-auto pb-10 relative z-10" style={{ maxHeight: 'calc(90vh - 20px)' }}>
+                        <div className="overflow-y-auto relative z-10" style={{ maxHeight: 'calc(90vh - 20px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)' }}>
                             <div className="px-6 pt-4">
                                 {/* Header */}
                                 <div className="flex items-center gap-2 mb-1">

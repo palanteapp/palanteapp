@@ -36,7 +36,7 @@ export const LetterReadModal: React.FC<LetterReadModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-20 bg-black/20 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-20 bg-black/20 backdrop-blur-md animate-fade-in">
             <div className={`relative w-full max-w-lg p-8 rounded-[2.5rem] shadow-2xl animate-in fade-in zoom-in duration-300 ${isDarkMode ? 'bg-sage-mid border border-white/10' : 'bg-white border border-sage/10'
                 }`}>
                 {/* Close Button */}

@@ -68,7 +68,7 @@ export const CelebrationModal: React.FC<CelebrationModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-fade-in">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/20 backdrop-blur-xl transition-all duration-500"

@@ -78,7 +78,7 @@ export const MessageFeedbackModal: React.FC<MessageFeedbackModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    className="fixed inset-0 z-[60] flex items-center justify-center p-4"
                     style={{ background: 'rgba(20, 36, 18, 0.85)', backdropFilter: 'blur(12px)' }}
                     onClick={onClose}
                 >

@@ -376,7 +376,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
 
             {/* Reflection Modal — portalled to body so Framer Motion transforms don't offset fixed positioning */}
             {showReflectionModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
                     <div className="w-full max-w-lg p-8 rounded-2xl shadow-2xl bg-sage-mid border border-white/10">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className={`text-2xl font-display font-medium ${textPrimary}`}>Reflect on your practice</h3>

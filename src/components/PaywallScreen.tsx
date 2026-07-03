@@ -144,7 +144,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex flex-col"
+            className="fixed inset-0 z-[60] flex flex-col"
             style={{ background: 'linear-gradient(160deg, #4a6741 0%, #3a5438 50%, #2d4a2e 100%)' }}
         >
             {/* Grain overlay */}
