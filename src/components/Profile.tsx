@@ -63,12 +63,12 @@ const CollapsibleSection: React.FC<{
 );
 
 export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, onClose, onOpenKoiPond, onToggleTheme, onShowWelcome, onViewPrivacy, onWriteLetter, onRefreshNarrative, onToast }) => {
-    const [name, setName] = useState(user.name);
+    const [name, setName] = useState(user.name || '');
     const [age, setAge] = useState<number | ''>(user.age || '');
     const [coachName, setCoachName] = useState(user.coachName || '');
-    const [career, setCareer] = useState(user.career);
-    const [profession, setProfession] = useState(user.profession);
-    const [interests, setInterests] = useState(user.interests.join(', '));
+    const [career, setCareer] = useState(user.career || '');
+    const [profession, setProfession] = useState(user.profession || '');
+    const [interests, setInterests] = useState((user.interests || []).join(', '));
     const [bio, setBio] = useState(user.bio || '');
     const [frequency, setFrequency] = useState(user.notificationFrequency || 2);
     const [hapticsEnabled, setHapticsEnabled] = useState(user.hapticsEnabled ?? true);

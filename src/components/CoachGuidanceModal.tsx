@@ -55,7 +55,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
                         <Sparkles size={24} />
                     </div>
                     <h2 className={`text-2xl font-display font-bold mb-1.5 ${textPrimary}`}>
-                        {greeting}, {user.name.split(' ')[0]}.
+                        {greeting}, {user.name?.split(' ')[0] || 'friend'}.
                     </h2>
                     <p className={`text-[13px] max-w-xs mx-auto ${textSecondary} leading-relaxed font-semibold`}>
                         Let's align your spirit and your work.

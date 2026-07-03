@@ -157,7 +157,7 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
             <div ref={contentRef} className={`flex-1 flex flex-col items-center px-6 pb-8 overflow-y-auto relative z-10 ${['gratitude', 'affirmation', 'intention'].includes(currentStep) ? 'justify-start pt-10' : 'justify-center pt-4'}`}>
                 <div className="w-full max-w-lg">
                     <DailyMorningPracticeWidget
-                        userName={user.name.split(' ')[0]}
+                        userName={user.name?.split(' ')[0] || 'Friend'}
                         onComplete={handleMorningPracticeComplete}
                         onRefresh={handleRefresh}
                         isDarkMode={true}
