@@ -197,7 +197,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                     </button>
 
                     {/* Content scroll area */}
-                    <div className="flex-1 overflow-y-auto px-6 pt-16 pb-10 relative" style={{ WebkitOverflowScrolling: 'touch', zIndex: 1 }}>
+                    <div className="flex-1 overflow-y-auto px-6 pt-16 relative" style={{ WebkitOverflowScrolling: 'touch', zIndex: 1, paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)' }}>
 
                         {/* Header */}
                         <motion.div

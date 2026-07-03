@@ -84,7 +84,7 @@ export const PartnerMemoryPanel: React.FC<Props> = ({ isOpen, onClose, user }) =
                     </div>
 
                     {/* Scrollable content */}
-                    <div className="flex-1 overflow-y-auto px-6 pb-12 space-y-5">
+                    <div className="flex-1 overflow-y-auto px-6 space-y-5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 3rem)' }}>
 
                         {!hasAnyMemory && (
                             <div className={`rounded-3xl border p-6 text-center ${cardBg}`}>

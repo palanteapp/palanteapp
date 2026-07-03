@@ -5,7 +5,7 @@
       "name": "Vite Dev Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "/Users/michaelvargas/Developer/Palante",
+      "cwd": ".",
       "port": 5201,
       "autoPort": false
     },

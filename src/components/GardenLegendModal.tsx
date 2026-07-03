@@ -93,7 +93,7 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
             </div>
 
             {/* Scrollable content */}
-            <div className="overflow-y-auto pb-12" style={{ maxHeight: 'calc(90vh - 100px)' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 100px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 3rem)' }}>
 
               {/* Current status bar */}
               <div className={`mx-6 mb-6 p-4 rounded-2xl flex items-center gap-6 border ${border} ${cardBg}`}>

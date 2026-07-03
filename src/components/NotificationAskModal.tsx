@@ -63,7 +63,7 @@ export const NotificationAskModal: React.FC<NotificationAskModalProps> = ({
                             <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(229,214,167,0.20)' }} />
                         </div>
 
-                        <div className="px-6 pt-6 pb-10 relative z-10">
+                        <div className="px-6 pt-6 relative z-10" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 2.5rem)' }}>
                             {/* Icon */}
                             <div
                                 className="w-16 h-16 rounded-full flex items-center justify-center mb-5 mx-auto"
