@@ -729,6 +729,12 @@ ${commitmentBlock}
 YOUR TASK:
 Read all of it. Find the MOST ALIVE thread—the thing that feels most real and human about their day. Then connect it to ONE other moment from their reflections, so they can feel the shape of the whole day, not just a fragment of it.
 
+You are a close friend who was paying attention, not a transcript. Being SEEN
+does not mean having your day read back to you. It means someone noticed what
+the day actually MEANT and can say that meaning in one breath. Find what the
+two threads reveal together that neither one says alone. That insight, not
+the inventory, is what makes someone feel heard.
+
 If the morning commitment is present AND they reflected on it: this is often the most alive thread. But only respond if you can do so without shame, scorekeeping, or pep-talk energy.
 - If they did it: witness it plainly, with quiet pride.
 - If they didn't: witness that plainly too, with affection and zero judgment.
@@ -741,26 +747,58 @@ ABSOLUTE RULES — these are non-negotiable:
 1. EXACTLY 3 sentences. Count them. If 4, delete one.
 2. NEVER use em dashes (—). Periods and commas only.
 3. NEVER open with their name.
-4. Do NOT copy their sentences back word for word. DO name the specific people, moments, and things they wrote about, in plain paraphrase. "your sister's call," "the run you almost skipped," "that bug you finally cracked." Specifics are how they know you actually listened.
-5. Reference at least TWO of the things they shared tonight. One thread leads, the other appears naturally.
+4. NEVER reproduce their own words verbatim, not even a short phrase, not
+   even inside quotation marks. If three or more consecutive words match
+   what they typed, rewrite the sentence. Touch each of your two threads in
+   ONE short, glancing phrase, entirely in YOUR OWN words, then spend the
+   rest of the sentence on what it MEANS, not what it WAS. A reader should
+   feel "they got it," not "they quoted my entry back to me."
+5. Reference at least TWO of the things they shared tonight, but lightly.
+   One thread leads, the other appears naturally. Neither should be restated
+   in full, and neither should ever appear inside quotation marks.
 6. NEVER write something generic. If the message could be sent to a stranger, start over.
 7. No pressure toward tomorrow. This is EVENING. They're winding down.
-8. NEVER use: "journey," "intentional," "mindful," "anchor," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "crushed it," "sweet dreams," "rest well," "earned it," "the day is done"
-9. No quotation marks around the output.
+8. NEVER use: "journey," "intentional," "mindful," "anchor," "show up," "showed up," "showing up," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "crushed it," "sweet dreams," "rest well," "earned it," "the day is done"
+9. No quotation marks anywhere in the output, full stop. Never quote the
+   user's own words back to them, even accurately.
 
-EXAMPLES — study how two specifics get woven together, never copy the content:
+EXAMPLES — study how two specifics get touched lightly and then read for meaning, never copy the content:
 (gratitude: sister called / accomplishment: finished the deck)
-"The deck you have been circling for days is finished, and on the same day your sister's voice found you. Some days give you both the work and the people. This was one of them."
+"You closed something out today and someone who loves you called in the middle of it. Work and the people who matter rarely land on the same day. When they do, that is worth noticing."
 (learning: saying no is allowed / delight: kid's joke at dinner)
-"You learned today that no is a full sentence, and that lesson cost you something to get. Then your kid made you laugh at dinner and the day got lighter. Both of those are yours to keep."
+"You drew a line today that cost you something to draw, and a few hours later your own kid had you laughing without trying. Both of those are what a good day is actually made of."
 (commitment: morning run, done / gratitude: cool weather)
-"You said you would run this morning and you ran. The cool air you were grateful for was there because you went out and met it. Quiet follow-through like that adds up to a person you can trust."
+"You said you would go and you went, and the morning met you halfway with cooler air than usual. That kind of follow through is quiet, but it is the kind that builds a person you can trust."
 
 Write the message. Three sentences. Make them feel seen, honored, and ready to rest.
 
 MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
-    try {
+    // Guards against the two ways the model can slip into echoing instead of
+    // witnessing: quoting the user's words outright, or reproducing a long
+    // run of their own phrasing unquoted.
+    const hasQuotes = (text: string) => /["“”]/.test(text);
+    const hasVerbatimRun = (text: string) => {
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+        const sourceWords = new Set<string>();
+        [data.gratitude, data.learning, data.accomplishment, data.delight, data.commitmentReflection]
+            .filter((s): s is string => !!s && s.trim().length > 0)
+            .forEach(entry => {
+                const words = normalize(entry);
+                // Index every 4-word run from the user's own entries.
+                for (let i = 0; i <= words.length - 4; i++) sourceWords.add(words.slice(i, i + 4).join(' '));
+            });
+        if (sourceWords.size === 0) return false;
+        const outWords = normalize(text);
+        for (let i = 0; i <= outWords.length - 4; i++) {
+            if (sourceWords.has(outWords.slice(i, i + 4).join(' '))) return true;
+        }
+        return false;
+    };
+    const BANNED_PHRASES = ['journey', 'intentional', 'mindful', 'anchor', 'show up', 'showed up', 'showing up', 'tapestry', 'tether', 'sovereignty'];
+    const hasBannedPhrase = (text: string) => BANNED_PHRASES.some(p => text.toLowerCase().includes(p));
+
+    const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
@@ -768,25 +806,40 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
                 model: ANTHROPIC_MODEL,
                 max_tokens: 300,
                 temperature: 0.72,
-                messages: [{ role: 'user', content: prompt }],
+                messages: [{ role: 'user', content: correction ? `${prompt}\n\n${correction}` : prompt }],
             })
         });
 
-        if (!response.ok) {
-            return getFallbackEveningMessage(userName, data);
-        }
+        if (!response.ok) return null;
 
         const json = await response.json();
         let message = json.content?.[0]?.text?.trim();
+        if (!message) return null;
 
-        if (!message) return getFallbackEveningMessage(userName, data);
+        message = message.replace(/^["'“”]|["'“”]$/g, '').trim();
 
-        message = message.replace(/^["'']|["'']$/g, '').trim();
+        const sentences = message.split(/(?<=[.!?])\s+/).filter((s: string) => s.trim().length > 3);
+        // Ceiling raised from 480 to 560: the 3-sentence, two-thread synthesis
+        // this prompt now asks for legitimately runs long, and the old cap was
+        // discarding clean, non-echoing responses into the fallback pool below.
+        if (message.length < 60 || message.length > 560 || sentences.length < 2 || sentences.length > 6) {
+            console.warn('[Palante AI] evening message failed length/structure validation', { len: message.length, sentences: sentences.length });
+            return null;
+        }
+        return message;
+    };
 
-        // Reject outputs that are too short, too long, or structurally broken
-        const sentences = message.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 3);
-        if (message.length < 60 || message.length > 480 || sentences.length < 2 || sentences.length > 6) {
-            console.warn('[Palante AI] evening message failed validation, using fallback', { len: message.length, sentences: sentences.length });
+    const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text) || hasBannedPhrase(text);
+
+    try {
+        let message = await requestOnce();
+
+        if (message && needsRetry(message)) {
+            console.warn('[Palante AI] evening message echoed the user\'s words or used a banned phrase, retrying once');
+            message = await requestOnce('IMPORTANT: your previous attempt either quoted/reproduced the user\'s own words directly, or used a banned word (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, tether, sovereignty). Write it again with zero quotation marks, zero verbatim phrases from what they wrote, and none of those banned words, entirely in your own words.');
+        }
+
+        if (!message || needsRetry(message)) {
             return getFallbackEveningMessage(userName, data);
         }
 
@@ -797,6 +850,13 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
     }
 };
 
+/**
+ * Offline / proxy-failure fallback for the evening message. Same discipline
+ * as the AI path: never quote the user's entry verbatim, no matter how
+ * short. These templates speak to the MEANING of whichever entry is
+ * strongest, in the app's own words, exactly the way the live prompt is
+ * required to.
+ */
 const getFallbackEveningMessage = (_userName: string, data: { gratitude: string; learning: string; accomplishment: string; delight: string }): string => {
     const g = data.gratitude?.trim();
     const l = data.learning?.trim();
@@ -804,10 +864,6 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     const d = data.delight?.trim();
 
     const seed = `${g}${l}${a}${d}`.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0);
-
-    // Only quote short entries inline — long ones get prose that doesn't try to embed the text.
-    const short = (s: string) => s.length <= 80;
-    const q = (s: string) => `"${s}"`;
 
     const ranked = ([
         { field: 'delight', value: d },
@@ -820,17 +876,9 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
         return `You stopped at the end of your day to look at it. That is the whole practice. The kind of attention it takes to do that is not nothing.`;
     }
 
-    const { field, value } = ranked[0];
+    const { field } = ranked[0];
 
     if (field === 'delight') {
-        if (short(value!)) {
-            const pool = [
-                `You noticed ${q(value!)}. Not just that it happened, but that it was worth naming. That is a specific kind of aliveness that most people lose over time, and you have not lost it.`,
-                `${q(value!)} landed on you today, in a day full of things you could have rushed past. The fact that you felt it means you are still paying attention to the good parts of being alive.`,
-                `${q(value!)} opened something up in you today. That is what a life worth living feels like from the inside. You recognized it, and that recognition is the whole thing.`,
-            ];
-            return pool[seed % pool.length];
-        }
         const pool = [
             `Something in your day opened something up in you. You noticed it and named it. That is the kind of attention that keeps a life feeling alive, and not everyone still has it.`,
             `You found a moment of delight in a full day and you held onto it long enough to name it tonight. Most days rush past people. This one did not rush past you.`,
@@ -840,31 +888,15 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     }
 
     if (field === 'accomplishment') {
-        if (short(value!)) {
-            const pool = [
-                `${q(value!)} moved from undone to done today, and you are the one who moved it. Not time. Not circumstance, but you.`,
-                `You got ${q(value!)} done today. The gap between where that stood this morning and where it stands now, you are that gap. You closed it.`,
-                `${q(value!)} happened because you made it happen. That is the story of today, and it is yours.`,
-            ];
-            return pool[seed % pool.length];
-        }
         const pool = [
             `You did something today that needed doing. That gap between undone and done, you are what closed it. Not luck, not time. You.`,
-            `Something moved forward today because you showed up for it. That is the whole story, and it is worth naming.`,
+            `Something moved forward today because you put in the work for it. That is the whole story, and it is worth naming.`,
             `You got it done. Whatever it took to cross that line, you had it. That is yours to carry into tomorrow.`,
         ];
         return pool[seed % pool.length];
     }
 
     if (field === 'learning') {
-        if (short(value!)) {
-            const pool = [
-                `You walked away from today knowing ${q(value!)}. You did not know it this morning. That is a real thing you built today, and no one can take it from you.`,
-                `You figured out ${q(value!)} today, from being inside your own life and paying close enough attention to notice it. That kind of knowing does not expire.`,
-                `${q(value!)} is what the day taught you. You were open enough to receive it. Most people miss that lesson because they are moving too fast, and you were not.`,
-            ];
-            return pool[seed % pool.length];
-        }
         const pool = [
             `You walked away from today knowing something you did not know this morning. That is a real thing you built, and no one can take it from you.`,
             `You were paying close enough attention to your own life today that it taught you something. That kind of knowing does not expire.`,
@@ -874,14 +906,6 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     }
 
     // gratitude anchor
-    if (short(value!)) {
-        const pool = [
-            `You ended this day grateful for ${q(value!)}. That specific thing was still with you at the close of a whole day. That means it mattered, all the way through.`,
-            `${q(value!)} is what you are holding at the end of today. There is something right about closing a day with your attention on the things worth holding.`,
-            `You found ${q(value!)} worth naming at the end of a full day. That kind of noticing is how people stay close to what their life is actually made of.`,
-        ];
-        return pool[seed % pool.length];
-    }
     const pool = [
         `You ended today with something worth being grateful for, and you named it. That specific attention at the close of a full day means it mattered, all the way through.`,
         `There is something right about closing a day with your attention on the things worth holding. You did that tonight.`,
