@@ -22,8 +22,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
 
     if (!isOpen) return null;
 
+    // WebKit reports any failed network request as the opaque "Load failed (host)".
+    // Translate that class of error into something a human can act on.
+    const isNetworkError = (msg: string) =>
+        /load failed|failed to fetch|networkerror|network request failed|timed out|abort/i.test(msg);
+
+    const OFFLINE_MESSAGE = "We couldn't reach the server. You may be offline — check your connection (and airplane mode) and try again. Everything you've done in the app is saved on this device.";
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            setError(OFFLINE_MESSAGE);
+            return;
+        }
+
         setLoading(true);
         setError(null);
 
@@ -35,7 +48,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
             if (authError) {
                 const msg = authError.message || '';
                 // Surface clearer messages for the most common Supabase errors
-                if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) {
+                if (isNetworkError(msg)) {
+                    setError(OFFLINE_MESSAGE);
+                } else if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) {
                     setError('Incorrect email or password. If you signed up with a magic link, use "Forgot Password?" to set a password.');
                 } else if (msg.toLowerCase().includes('email not confirmed')) {
                     setError('Please confirm your email first — check your inbox (and spam folder) for the verification link.');
@@ -54,7 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
             }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Something went wrong';
-            setError(message);
+            setError(isNetworkError(message) ? OFFLINE_MESSAGE : message);
         } finally {
             setLoading(false);
         }
