@@ -82,7 +82,7 @@ const MOMENTUM_GUIDANCE: Record<MomentumState, string> = {
     breakthrough: 'They are in a breakthrough period — deep consistency, high energy, results compounding. Honor the depth of what they are creating.',
     on_a_roll: 'They are building beautiful momentum. Let the message reflect their forward motion and affirm that it is working.',
     recovering: 'They are finding their way back. Let the message be a warm welcome home — gentle, not a push. No pressure.',
-    steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of just showing up.',
+    steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of returning, day after day, without needing it to be dramatic.',
 };
 
 export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountability', string> = {
@@ -279,7 +279,7 @@ const buildFallbackNarrative = (user: UserProfile): string => {
 
     const goalsLine = goals.length
         ? ` Right now you're working toward ${goals.slice(0, 2).join(' and ')}, and every small step you take here is part of that.`
-        : ` Whatever brought you here today, you showed up — and that's always the hardest part.`;
+        : ` Whatever brought you here today, you're here, and that's always the hardest part.`;
 
     return `${streakLine}${gratitudeLine}${goalsLine}`.replace(/\s+/g, ' ').trim();
 };
@@ -2029,11 +2029,37 @@ export const generateWeeklyReflection = async (
 
 ${bulletList}
 
-Write a warm, specific 2-3 sentence reflection that speaks directly to them. Reference 2-3 of their actual wins by paraphrasing them — don't list them, weave them into flowing sentences. End with a short forward-leaning sentence that propels them into the next week (something like "Keep going." or "That's someone keeping their word to themselves.").
+Write a warm, specific 2-3 sentence reflection that speaks directly to them.
+Reference 2-3 of their actual wins, but transform them: say what they MEAN
+about this person, entirely in your own words, never their exact phrasing
+and never in quotation marks. A reflection that just relists their wins
+reads like a receipt, not like being noticed. End with a short forward-leaning
+sentence that propels them into the next week (something like "Keep going."
+or "That's someone keeping their word to themselves.").
 
-Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max 60 words.`;
+Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max 60 words.
+No em dashes (—). Periods and commas only.
+NEVER use: "journey," "intentional," "mindful," "anchor," "show up," "showed up," "showing up," "tapestry," "tether," "sovereignty."
+No quotation marks anywhere in the output. Never quote their own words back to them, even accurately.`;
 
-    try {
+    const hasQuotes = (text: string) => /["“”]/.test(text);
+    const hasVerbatimRun = (text: string) => {
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+        const sourceWords = new Set<string>();
+        accomplishments.forEach(entry => {
+            const words = normalize(entry);
+            for (let i = 0; i <= words.length - 4; i++) sourceWords.add(words.slice(i, i + 4).join(' '));
+        });
+        if (sourceWords.size === 0) return false;
+        const outWords = normalize(text);
+        for (let i = 0; i <= outWords.length - 4; i++) {
+            if (sourceWords.has(outWords.slice(i, i + 4).join(' '))) return true;
+        }
+        return false;
+    };
+    const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text);
+
+    const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
@@ -2041,14 +2067,26 @@ Tone: warm, human, like a trusted friend who genuinely noticed. Second person on
                 model: ANTHROPIC_MODEL,
                 max_tokens: 200,
                 temperature: 0.88,
-                messages: [{ role: 'user', content: prompt }],
+                messages: [{ role: 'user', content: correction ? `${prompt}\n\n${correction}` : prompt }],
             })
         });
-        if (!response.ok) return fallback;
+        if (!response.ok) return null;
         const data = await response.json();
         let text = data.content?.[0]?.text?.trim();
-        if (!text) return fallback;
-        text = text.replace(/^["'']|["'']$/g, '').trim();
+        if (!text) return null;
+        text = text.replace(/^["'“”]|["'“”]$/g, '').trim();
+        return text;
+    };
+
+    try {
+        let text = await requestOnce();
+
+        if (text && needsRetry(text)) {
+            console.warn('[Palante AI] weekly reflection echoed the user\'s own words, retrying once');
+            text = await requestOnce('IMPORTANT: your previous attempt quoted or reproduced the user\'s own words directly. Write it again with zero quotation marks and zero verbatim phrases from their accomplishments, entirely in your own words.');
+        }
+
+        if (!text || needsRetry(text)) return fallback;
         return text;
     } catch {
         return fallback;
@@ -2056,7 +2094,7 @@ Tone: warm, human, like a trusted friend who genuinely noticed. Second person on
 };
 
 const buildWeeklyReflectionFallback = (accomplishments: string[], _firstName: string): string => {
-    if (accomplishments.length === 0) return "You showed up this week. That's the whole game.";
+    if (accomplishments.length === 0) return "You stayed in it this week. That's the whole game.";
     if (accomplishments.length === 1) return `You got it done — ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. One win is enough to build on. Keep going.`;
     return `You held your ground this week, took care of what needed taking care of, and kept moving. Every one of these wins is evidence of someone who follows through. Keep going.`;
 };
@@ -2097,13 +2135,13 @@ const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
     const lines: string[] = [];
 
     if (firstIntention) {
-        lines.push(`${firstName}, you walked in with "${firstIntention}." That was the first thing you named for yourself, and everything that came after grew from that seed.`);
+        lines.push(`${firstName}, you walked in already naming what you wanted this to be about. That was the first thing you gave yourself, and everything after grew from it.`);
     } else {
-        lines.push(`${firstName}, you showed up 90 times when it would have been easier not to. That is the whole story, really — but it deserves to be told properly.`);
+        lines.push(`${firstName}, you did this 90 times when it would have been easier not to. That is the whole story, really, but it deserves to be told properly.`);
     }
 
     if (firstGratitude) {
-        lines.push(`You found ${firstGratitude} worth naming out loud — and you kept finding things. Over and over, you chose to look at what was good.`);
+        lines.push(`From the first day, you were willing to name something good out loud, and you kept finding things worth naming. Over and over, you chose to look at what was working.`);
     }
 
     if (gratitudeCount > 0) {
@@ -2111,11 +2149,11 @@ const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
     }
 
     if (bestDelight) {
-        lines.push(`And there were real delights along the way — like "${bestDelight}." You noticed those. You let them land. That is not small.`);
+        lines.push(`There were real delights along the way too, small moments that could have passed you by. You noticed those. You let them land. That is not small.`);
     }
 
     if (bestAccomplishment) {
-        lines.push(`You moved real things. "${bestAccomplishment}" is one of them. The gap between where that stood before and where it stands now — you are that gap.`);
+        lines.push(`You moved real things this stretch, work that mattered and cost you something to finish. The gap between where that stood before and where it stands now, you are that gap.`);
     }
 
     if (futureLetter) {
@@ -2123,7 +2161,7 @@ const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
     }
 
     if (lastIntention && lastIntention !== firstIntention) {
-        lines.push(`Ninety practices later, you are setting intentions like "${lastIntention}." That is not who walked in. That is who you built.`);
+        lines.push(`Ninety practices later, what you are pointing yourself toward has shifted from where you started. That is not who walked in. That is who you built.`);
     } else {
         lines.push(`Ninety practices. The garden is not a metaphor anymore. It is the life you have been building, one morning at a time. Pa'lante.`);
     }
@@ -2209,17 +2247,51 @@ ${toneGuidance[coachTone]}
 Write a memoir of 5 to 7 sentences. Rules:
 1. Open with their name, then anchor in a real detail from the data (an intention they set, something they were grateful for, or a delight they named). If no real details exist, open with the weight of 90 practices.
 2. Show the arc: who they were at the start versus who they are now. Make the change specific and earned.
-3. Quote their actual words from the data — at least 1-2 quoted phrases. These are the moments that make it feel like their story, not anyone's story.
+3. Reference 1-2 real details from the data as callbacks, entirely in YOUR OWN
+   words, never quoted or copied verbatim. A memoir that recites someone's own
+   sentences back to them reads like a report, not a story. The detail should
+   feel remembered, not retrieved.
 4. If a letter exists, reference it: they wrote something to themselves then, and this is that day arriving.
 5. End with one sentence that looks forward without pressure — it should feel like a completion, not a launchpad.
 6. Speak directly to them ("you", "your"). Never write in third person.
 7. No em dashes. No bullet points. No headers. One flowing paragraph.
-8. Never use these words: journey, intentional, mindful, tapestry, weave, tether, manifested, sovereignty, transformational, incredible.
-9. HARD LIMIT: Under 150 words total.
+8. NEVER use these words: journey, intentional, mindful, anchor, show up, showed up, showing up, tapestry, weave, tether, manifested, sovereignty, transformational, incredible.
+9. No quotation marks anywhere in the output. Never quote the user's own words, even accurately.
+10. HARD LIMIT: Under 150 words total.
 
-Write the memoir now — no quotation marks around the whole thing, no preamble:`;
+Write the memoir now — no preamble:`;
 
-    try {
+    // Same anti-echo guard as the daily practice messages: catch quoting or
+    // verbatim reproduction of the user's own gratitude/delight/accomplishment
+    // sentences and retry once before settling for the fallback.
+    const hasQuotes = (text: string) => /["“”]/.test(text);
+    const hasVerbatimRun = (text: string) => {
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+        const sourceWords = new Set<string>();
+        [
+            ...morningPractices.flatMap(p => p.gratitudes ?? []),
+            ...eveningPractices.flatMap(e => [e.delight, e.accomplishment, e.learning]),
+        ]
+            .filter((s): s is string => !!s && s.trim().length > 0)
+            .forEach(entry => {
+                const words = normalize(entry);
+                for (let i = 0; i <= words.length - 4; i++) sourceWords.add(words.slice(i, i + 4).join(' '));
+            });
+        if (sourceWords.size === 0) return false;
+        const outWords = normalize(text);
+        for (let i = 0; i <= outWords.length - 4; i++) {
+            if (sourceWords.has(outWords.slice(i, i + 4).join(' '))) return true;
+        }
+        return false;
+    };
+    const BANNED_PHRASES = ['journey', 'intentional', 'mindful', 'anchor', 'show up', 'showed up', 'showing up', 'tapestry', 'weave', 'tether', 'manifested', 'sovereignty', 'transformational', 'incredible'];
+    const hasBannedPhrase = (text: string) => BANNED_PHRASES.some(p => text.toLowerCase().includes(p));
+    // Generous buffer over the prompt's 150-word hard limit — this only
+    // catches a genuinely runaway response, not word-count off-by-a-few.
+    const isTooLong = (text: string) => text.split(/\s+/).filter(Boolean).length > 200;
+    const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text) || hasBannedPhrase(text) || isTooLong(text);
+
+    const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
             method: 'POST',
             headers: getProxyHeaders(),
@@ -2227,18 +2299,28 @@ Write the memoir now — no quotation marks around the whole thing, no preamble:
                 model: ANTHROPIC_MODEL,
                 max_tokens: 400,
                 temperature: 0.9,
-                messages: [{ role: 'user', content: prompt }],
+                messages: [{ role: 'user', content: correction ? `${prompt}\n\n${correction}` : prompt }],
             }),
         });
-
-        if (!response.ok) return { memoir: fallbackMemoir, stats };
-
+        if (!response.ok) return null;
         const json = await response.json();
         let memoir = json.content?.[0]?.text?.trim();
-        if (!memoir) return { memoir: fallbackMemoir, stats };
+        if (!memoir) return null;
+        memoir = memoir.replace(/^["'“”]|["'“”]$/g, '').trim();
+        return memoir;
+    };
 
-        // Strip wrapping quotes if model added them
-        memoir = memoir.replace(/^["'']|["'']$/g, '').trim();
+    try {
+        let memoir = await requestOnce();
+
+        if (memoir && needsRetry(memoir)) {
+            console.warn('[Palante AI] growth story memoir echoed the user\'s words, used a banned phrase, or ran too long, retrying once');
+            memoir = await requestOnce('IMPORTANT: your previous attempt quoted/reproduced the user\'s own words, used a banned word (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, weave, tether, manifested, sovereignty, transformational, incredible), or exceeded 150 words. Write it again under 150 words, with zero quotation marks, zero verbatim phrases from their data, and none of those banned words, entirely in your own words.');
+        }
+
+        if (!memoir || needsRetry(memoir)) {
+            return { memoir: fallbackMemoir, stats };
+        }
 
         return { memoir, stats };
     } catch {
