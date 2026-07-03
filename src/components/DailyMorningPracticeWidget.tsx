@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { DailyMorningPractice, Quote } from '../types';
 import type { UserProfile } from '../types';
 import { DashboardQuoteCard } from './DashboardQuoteCard';
-import { generateMorningPracticeMessage, getMomentumState } from '../utils/aiService';
+import { generateMorningPracticeMessage, getFallbackMorningMessage, getMomentumState } from '../utils/aiService';
 import { supabase } from '../lib/supabase';
 import { logMindfulSession, getHealthContext, requestHealthPermissions } from '../utils/healthService';
 import { Capacitor } from '@capacitor/core';
@@ -99,8 +99,11 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
             setIsGenerating(true);
             import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
 
-            // Hard 8-second timeout — on cold-start edge functions this prevents
-            // the user from waiting indefinitely.
+            // Hard timeout so a dead network can't strand the user on the spinner.
+            // 12s (not 8s): a cold-start edge function plus the model call routinely
+            // needs 8-10s, and bailing early was serving users the canned fallback
+            // instead of the personalized message. If the real message still lands
+            // after the timer fired, it replaces the fallback below.
             const fallbackData = {
                 gratitudes: gratitudes.filter(g => g.trim().length > 0),
                 affirmations: affirmations.filter(a => a.trim().length > 0),
@@ -108,13 +111,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 coachTone: user?.coachSettings?.coachTone,
             };
             const fallbackTimer = setTimeout(() => {
-                setGeneratedMessage(
-                    intention.trim()
-                        ? `Today I carry what I named this morning. I move through ${intention.trim()} with everything I brought to this practice.`
-                        : "Today I showed up. That's the whole thing. I carry this forward."
-                );
+                setGeneratedMessage(getFallbackMorningMessage(fallbackData));
                 setIsGenerating(false);
-            }, 8000);
+            }, 12000);
 
             const healthFetch = Capacitor.isNativePlatform()
                 ? getHealthContext()
@@ -136,11 +135,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
             }).catch((err) => {
                 console.error('[Palante] Morning message generation failed:', err);
                 clearTimeout(fallbackTimer);
-                setGeneratedMessage(
-                    intention.trim()
-                        ? `Today I carry what I named this morning. I move through ${intention.trim()} with everything I brought to this practice.`
-                        : "Today I showed up. That's the whole thing. I carry this forward."
-                );
+                setGeneratedMessage(getFallbackMorningMessage(fallbackData));
                 setIsGenerating(false);
             });
         }

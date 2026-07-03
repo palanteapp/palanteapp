@@ -505,30 +505,40 @@ ${data.commitment ? `- One concrete thing they committed to: ${data.commitment}`
 ${data.momentumState ? `\nTheir current momentum: ${MOMENTUM_GUIDANCE[data.momentumState]}` : ''}
 
 YOUR TASK:
-Write 1-2 first-person affirmation sentences as if the user is speaking them.
-Use "I" or "Today I" — they should read this and feel it as their own voice,
-grounded in exactly what they shared this morning.
+Write 2 first-person sentences as if the user is speaking them.
+Use "I" or "Today I" — they should read this and feel it as their own voice.
 
-If they committed to something concrete: make the affirmation point toward that action.
-If they only set an intention word: reflect the feeling of living that word — don't repeat it verbatim.
+This is NOT a generic affirmation. It must be unmistakably THEIRS, woven from what
+they actually wrote this morning:
+- NAME the specific thing they are grateful for: the person, the place, the win.
+  Paraphrase it naturally in everyday language, do not copy their sentence.
+- Reflect the identity in their affirmation: who they said they are.
+- Aim it all at their intention${data.commitment ? ' and the concrete thing they committed to' : ''}.
 
-The user should read this and think: "Yes. That is exactly who I am today."
+The test: a stranger reading this message should be able to guess what this person
+wrote in their practice today. If the message could belong to anyone, start over.
+
+The user should read this and think: "It heard me. That is exactly who I am today."
 
 ABSOLUTE RULES:
-- 30 words MAX (count carefully)
+- 45 words MAX (count carefully)
 - ALWAYS write in first person: "I am," "Today I," "I carry," "I know," etc.
 - NEVER write in second person ("you," "your") — this is the user's own voice
-- NEVER paste their words back. Respond to the MEANING
+- Do NOT copy their sentences word for word. DO name the specific people, places,
+  and things they mentioned. "my daughter," "the pitch," "the morning run" are
+  exactly what belongs here. Specifics are how they know they were heard.
 - NEVER use em dashes (—). Periods and commas only.
 - NEVER use: "journey," "intentional," "mindful," "anchor," "showed up," "tapestry," "sovereignty"
 - No quotation marks around the output
 - Sound grounded and real, not performative
 
-EXAMPLES — study the register, never copy:
-"I already know what this day is for. The strength is in me."
-"Today I carry gratitude and I know who I am. That is enough."
-"I am ready. What I need, I already have."
-"Today I choose this. I move through it with everything I brought this morning."
+EXAMPLES — study how the specifics are woven in, never copy the content:
+(they wrote: grateful for coffee with mom, affirmation I am patient, intention presence)
+"I got that hour with my mom this morning and I am not rushing past it. I am patient today, present for what is actually in front of me."
+(they wrote: grateful the deal closed, affirmation I am a builder, intention momentum)
+"The deal is done because I build things that hold. Today I take that momentum into whatever is next."
+(they wrote: grateful for sleep, affirmation I am calm under pressure, committed to the 9am call)
+"I slept, I am steady, and the 9am call gets the calmest version of me. Pressure does not decide my day. I do."
 
 TONE DIRECTIVE:
 ${toneDirective}
@@ -693,7 +703,7 @@ WHAT THEY REFLECTED ON TODAY (G.L.A.D.):
 ${commitmentBlock}
 
 YOUR TASK:
-Read all of it. Find the MOST ALIVE thread—the thing that feels most real and human about their day.
+Read all of it. Find the MOST ALIVE thread—the thing that feels most real and human about their day. Then connect it to ONE other moment from their reflections, so they can feel the shape of the whole day, not just a fragment of it.
 
 If the morning commitment is present AND they reflected on it: this is often the most alive thread. But only respond if you can do so without shame, scorekeeping, or pep-talk energy.
 - If they did it: witness it plainly, with quiet pride.
@@ -707,16 +717,20 @@ ABSOLUTE RULES — these are non-negotiable:
 1. EXACTLY 3 sentences. Count them. If 4, delete one.
 2. NEVER use em dashes (—). Periods and commas only.
 3. NEVER open with their name.
-4. NEVER paste their exact words back. Respond to the MEANING.
-5. NEVER write something generic. Be specific to what they actually shared.
-6. No pressure toward tomorrow. This is EVENING. They're winding down.
-7. NEVER use: "journey," "intentional," "mindful," "anchor," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "crushed it," "sweet dreams," "rest well," "earned it," "the day is done"
-8. No quotation marks around the output.
+4. Do NOT copy their sentences back word for word. DO name the specific people, moments, and things they wrote about, in plain paraphrase. "your sister's call," "the run you almost skipped," "that bug you finally cracked." Specifics are how they know you actually listened.
+5. Reference at least TWO of the things they shared tonight. One thread leads, the other appears naturally.
+6. NEVER write something generic. If the message could be sent to a stranger, start over.
+7. No pressure toward tomorrow. This is EVENING. They're winding down.
+8. NEVER use: "journey," "intentional," "mindful," "anchor," "tapestry," "tether," "sovereignty," "not a small thing," "well done," "crushed it," "sweet dreams," "rest well," "earned it," "the day is done"
+9. No quotation marks around the output.
 
-EXAMPLES — register, never copy:
-"You figured out something today that you didn't know this morning. That doesn't go away."
-"Someone important got good news and you were there for it. That is a real thing."
-"You got it done. The thing that needed doing. You know what that means."
+EXAMPLES — study how two specifics get woven together, never copy the content:
+(gratitude: sister called / accomplishment: finished the deck)
+"The deck you have been circling for days is finished, and on the same day your sister's voice found you. Some days give you both the work and the people. This was one of them."
+(learning: saying no is allowed / delight: kid's joke at dinner)
+"You learned today that no is a full sentence, and that lesson cost you something to get. Then your kid made you laugh at dinner and the day got lighter. Both of those are yours to keep."
+(commitment: morning run, done / gratitude: cool weather)
+"You said you would run this morning and you ran. The cool air you were grateful for was there because you went out and met it. Quiet follow-through like that adds up to a person you can trust."
 
 Write the message. Three sentences. Make them feel seen, honored, and ready to rest.
 
@@ -795,8 +809,8 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
         }
         const pool = [
             `Something in your day opened something up in you. You noticed it and named it. That is the kind of attention that keeps a life feeling alive, and not everyone still has it.`,
-            `You found a moment of delight in a full day and you held onto it long enough to name it tonight. That is not a small thing.`,
-            `The fact that you can still be delighted — and notice it — says something real about how you move through the world. You stayed close to your life today.`,
+            `You found a moment of delight in a full day and you held onto it long enough to name it tonight. Most days rush past people. This one did not rush past you.`,
+            `The fact that you can still be delighted, and notice it, says something real about how you move through the world. You stayed close to your life today.`,
         ];
         return pool[seed % pool.length];
     }
@@ -1413,93 +1427,64 @@ const getCategoryFromRequest = (request: AIAffirmationRequest): string => {
     return 'Motivation';
 };
 
-const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
-    const hasGratitude = data.gratitudes.some(g => g.trim());
-    const hasAffirmation = data.affirmations.some(a => a.trim());
+/**
+ * Offline / proxy-failure fallback for the morning message. Unlike the AI path
+ * this can't paraphrase, so it embeds the user's own short entries directly —
+ * a message built from their actual words still beats a generic template.
+ * Exported so DailyMorningPracticeWidget can reuse it for its timeout path.
+ */
+export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
+    const gratitude = data.gratitudes.find(g => g.trim())?.trim();
+    const affirmation = data.affirmations.find(a => a.trim())?.trim();
     const intention = data.intention?.trim();
 
-    const hashStr = `${intention ?? ''}|${data.gratitudes[0] ?? ''}|${data.affirmations[0] ?? ''}`;
+    const hashStr = `${intention ?? ''}|${gratitude ?? ''}|${affirmation ?? ''}`;
     const seed = hashStr.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0);
+    const pick = (pool: string[]) => pool[seed % pool.length];
 
-    // Embed intention only when it reads naturally as a phrase (short, doesn't open with "I")
-    const canEmbed = intention && intention.length <= 50 && !/^i\b/i.test(intention);
+    // Embed helpers: strip trailing punctuation, leave the user's casing alone.
+    // Entries are only embedded when short enough to read as a phrase.
+    const frag = (s: string) => s.replace(/[.!?\s]+$/, '');
+    const short = (s?: string): s is string => !!s && s.trim().length > 0 && s.trim().length <= 70;
 
-    if (intention && hasGratitude && hasAffirmation) {
-        const pool = canEmbed ? [
-            `Today I move with ${intention}. I am grateful, I know who I am, and I am ready.`,
-            `I came in with gratitude, belief in myself, and a clear intention. Today I live all three.`,
-            `I am ${intention} today. I carry gratitude and I know exactly what I am made of.`,
-        ] : [
-            `I know what today is for. I am grateful and I know what I am capable of. That is enough.`,
-            `Today I carry gratitude, belief in myself, and a clear intention. I am ready.`,
-            `I started today with everything I need. I am grounded and I am going.`,
-        ];
-        return pool[seed % pool.length];
+    const sentences: string[] = [];
+
+    if (short(gratitude)) {
+        sentences.push(pick([
+            `I woke up already holding something good: ${frag(gratitude)}.`,
+            `Before anything else today, I named what is good: ${frag(gratitude)}.`,
+        ]));
+    } else if (gratitude) {
+        sentences.push(`I started today with gratitude, and I meant every word of it.`);
     }
 
-    if (intention && hasGratitude) {
-        const pool = canEmbed ? [
-            `Today I move with ${intention}. I have gratitude behind me and I am ready.`,
-            `I am grateful and I know what today is for. Those two things carry me.`,
-        ] : [
-            `I started with gratitude and I know what today is for. That is enough to build on.`,
-            `Today I have gratitude and a clear intention. I carry both with me.`,
-        ];
-        return pool[seed % pool.length];
-    }
-
-    if (intention && hasAffirmation) {
-        const pool = canEmbed ? [
-            `Today I am ${intention} and I already know I have what it takes.`,
-            `I know what today is for and I know who I am. Today I use both.`,
-        ] : [
-            `I know what today is for and I know what I am capable of. That is enough.`,
-            `I am clear on my intention and clear on myself. Today I live that.`,
-        ];
-        return pool[seed % pool.length];
+    if (short(affirmation)) {
+        // Most affirmations already read in first person ("I am..."). Use them
+        // as their own sentence; otherwise fold the phrase into one.
+        const a = frag(affirmation);
+        sentences.push(/^i['\s]/i.test(a) ? `${a.charAt(0).toUpperCase()}${a.slice(1)}.` : `I am ${a}.`);
+    } else if (affirmation) {
+        sentences.push(`I said who I am this morning and I meant it.`);
     }
 
     if (intention) {
-        const pool = canEmbed ? [
-            `Today I am ${intention}. I named that before the day had a chance to name itself.`,
-            `I am ${intention}. That is what I am walking toward today.`,
-            `I decided what today is for before anything else could. That is mine now.`,
-        ] : [
-            `I named what today is for before anything else could. I hold onto that.`,
-            `I know what today is for. I am already clear. I am going.`,
-        ];
-        return pool[seed % pool.length];
+        const canEmbed = intention.length <= 50 && !/^i\b/i.test(intention);
+        sentences.push(canEmbed
+            ? pick([
+                `Today, all of it points one direction: ${frag(intention)}.`,
+                `Today I move with ${frag(intention)}, carrying everything I just named.`,
+            ])
+            : `I know exactly what today is for, and I am carrying all of this into it.`);
     }
 
-    if (hasGratitude && hasAffirmation) {
-        const pool = [
-            `Gratitude and belief in yourself in the same morning. Not everyone starts there. Go build on it.`,
-            `You found something worth being grateful for and you know who you are. That's a strong way to start. Go.`,
-        ];
-        return pool[seed % pool.length];
+    if (!sentences.length) {
+        return pick([
+            `I gave myself these minutes before the day could decide anything for me. I carry that steadiness forward.`,
+            `I am here this morning, on purpose, before anything else asked for me. That sets the tone for everything.`,
+        ]);
     }
 
-    if (hasGratitude) {
-        const pool = [
-            `You started with gratitude. That means you're paying attention to what's real. Keep paying attention today.`,
-            `You found something worth being grateful for this morning. Let that tell you something about the day you're capable of having.`,
-        ];
-        return pool[seed % pool.length];
-    }
-
-    if (hasAffirmation) {
-        const pool = [
-            `You know who you are. You said it out loud this morning before the day could say otherwise. Go live it.`,
-            `You showed up for yourself today. That's the first move. Keep moving.`,
-        ];
-        return pool[seed % pool.length];
-    }
-
-    const pool = [
-        `You showed up. That's the move. Go find out what today has for you.`,
-        `You're here doing this. That matters more than it sounds like it does. Go.`,
-    ];
-    return pool[seed % pool.length];
+    return sentences.slice(0, 3).join(' ');
 };
 
 const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals: number; totalGoals: number }): string => {
