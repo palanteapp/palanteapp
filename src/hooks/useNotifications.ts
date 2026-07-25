@@ -346,7 +346,8 @@ export const useNotifications = () => {
             'hourly': 12, // Cap at 12 to avoid overwhelming
             'every-2-hours': 6,
             'every-4-hours': 3,
-            'morning-evening': 2
+            'morning-evening': 2,
+            'morning-only': 1,
         };
         const numNudges = map[nudgeFreqIdx] ?? 0;
         if (numNudges <= 0) return;
@@ -426,8 +427,14 @@ export const useNotifications = () => {
         const totalMinutes = activeWindowEnd - activeWindowStart;
         if (totalMinutes <= 60) return;
 
+        // "Morning only" gets its single nudge placed in the first few hours of the
+        // active window, not spread across the whole day like the other frequencies.
+        const effectiveMinutes = nudgeFreqIdx === 'morning-only'
+            ? Math.min(180, totalMinutes)
+            : totalMinutes;
+
         const notifications = [];
-        const slotDuration = Math.floor(totalMinutes / numNudges);
+        const slotDuration = Math.floor(effectiveMinutes / numNudges);
 
         for (let i = 0; i < numNudges; i++) {
             const slotStart = activeWindowStart + (i * slotDuration);
