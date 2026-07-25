@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Heart, Clock, TrendingUp, BookOpen, Star } from 'lucide-react';
+import { X, Sparkles, Heart, TrendingUp, BookOpen, Star } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -10,7 +10,6 @@ interface Props {
     user: UserProfile;
 }
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const TONE_LABELS: Record<string, string> = {
     nurturing: 'Warm & patient',
     direct: 'Straight & clear',
@@ -21,24 +20,17 @@ export const PartnerMemoryPanel: React.FC<Props> = ({ isOpen, onClose, user }) =
     const { isDarkMode } = useTheme();
 
     const vp = user.userVoiceProfile;
-    const bp = user.behaviorPattern;
     const mp = user.monthlyPattern;
     const narrative = user.userNarrative;
 
     const hasValues = vp && vp.extractedValues.length > 0;
     const hasThemes = vp && vp.coreThemes.length > 0;
-    const hasSkipDays = bp && bp.patterns.skipPatterns.daysOfWeek.length > 0;
-    const hasFrequency = bp && (
-        bp.patterns.practiceFrequency.meditation > 0 ||
-        bp.patterns.practiceFrequency.breathwork > 0 ||
-        bp.patterns.practiceFrequency.reflections > 0
-    );
     const hasNarrative = narrative?.text;
     const hasMonthly = mp && !mp.dismissed && mp.insight;
     const streak = user.streak ?? 0;
     const totalDays = user.practiceData?.totalPractices ?? 0;
 
-    const hasAnyMemory = hasValues || hasThemes || hasSkipDays || hasFrequency || hasNarrative || hasMonthly || streak > 0;
+    const hasAnyMemory = hasValues || hasThemes || hasNarrative || hasMonthly || streak > 0;
 
     const partnerName = user.coachName || 'Your partner';
 
@@ -163,48 +155,6 @@ export const PartnerMemoryPanel: React.FC<Props> = ({ isOpen, onClose, user }) =
                                     <div className="mt-4 pt-4" style={{ borderTop: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(74,93,78,0.08)' }}>
                                         <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${textMuted}`}>How you like to be spoken to</p>
                                         <p className={`text-sm font-medium ${textPrimary}`}>{TONE_LABELS[vp.voiceTone] ?? vp.voiceTone}</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Rhythm */}
-                        {(hasFrequency || hasSkipDays) && (
-                            <div className={`rounded-3xl border p-5 ${cardBg}`}>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Clock size={14} className={isDarkMode ? 'text-[#D4943A]' : 'text-[#B05530]'} />
-                                    <span className={`text-xs font-black uppercase tracking-[0.18em] ${textMuted}`}>Your rhythm</span>
-                                </div>
-                                {hasFrequency && (
-                                    <div className="space-y-2 mb-4">
-                                        {bp!.patterns.practiceFrequency.meditation > 0 && (
-                                            <div className="flex justify-between items-center">
-                                                <span className={`text-sm ${textMuted}`}>Meditation</span>
-                                                <span className={`text-sm font-semibold ${textPrimary}`}>{bp!.patterns.practiceFrequency.meditation}× / week</span>
-                                            </div>
-                                        )}
-                                        {bp!.patterns.practiceFrequency.breathwork > 0 && (
-                                            <div className="flex justify-between items-center">
-                                                <span className={`text-sm ${textMuted}`}>Breathwork</span>
-                                                <span className={`text-sm font-semibold ${textPrimary}`}>{bp!.patterns.practiceFrequency.breathwork}× / week</span>
-                                            </div>
-                                        )}
-                                        {bp!.patterns.practiceFrequency.reflections > 0 && (
-                                            <div className="flex justify-between items-center">
-                                                <span className={`text-sm ${textMuted}`}>Reflections</span>
-                                                <span className={`text-sm font-semibold ${textPrimary}`}>{bp!.patterns.practiceFrequency.reflections}× / week</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {hasSkipDays && (
-                                    <div>
-                                        <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${textMuted}`}>Days you tend to rest</p>
-                                        <div className="flex gap-2">
-                                            {bp!.patterns.skipPatterns.daysOfWeek.map(d => (
-                                                <span key={d} className={`px-3 py-1 rounded-full text-xs font-semibold ${pillBg}`}>{DAY_NAMES[d]}</span>
-                                            ))}
-                                        </div>
                                     </div>
                                 )}
                             </div>

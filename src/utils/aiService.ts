@@ -67,14 +67,10 @@ export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'stead
 
 export const getMomentumState = (user: UserProfile): MomentumState => {
     const streak = user.streak || 0;
-    const pattern = user.behaviorPattern;
-    const consecutiveSkips = pattern?.patterns.skipPatterns.consecutiveSkips ?? 0;
-    const avgEnergy = pattern?.patterns.moodPatterns.averageEnergy ?? 3;
-    const goalRate = pattern?.patterns.goalCompletionRate ?? 0;
 
-    if (streak >= 14 && avgEnergy >= 3.5 && goalRate >= 0.7) return 'breakthrough';
-    if (streak >= 5 && consecutiveSkips === 0 && avgEnergy >= 3) return 'on_a_roll';
-    if (consecutiveSkips >= 2 || streak <= 1) return 'recovering';
+    if (streak >= 14) return 'breakthrough';
+    if (streak >= 5) return 'on_a_roll';
+    if (streak <= 1) return 'recovering';
     return 'steady';
 };
 
@@ -159,31 +155,6 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
     // First name only — extract from full name if needed.
     const firstName = (user.name || '').trim().split(/\s+/)[0] || 'they';
 
-    // Behavior pattern facts (skip days, avg energy, preferred practice time)
-    const pattern = user.behaviorPattern;
-    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const skipDayNames = pattern?.patterns.skipPatterns.daysOfWeek
-        ?.map(d => DAY_NAMES[d])
-        .filter(Boolean) ?? [];
-    const consecutiveSkips = pattern?.patterns.skipPatterns.consecutiveSkips ?? 0;
-    const avgEnergy = pattern?.patterns.moodPatterns.averageEnergy;
-    const lowEnergyDays = pattern?.patterns.moodPatterns.lowEnergyDays
-        ?.map(d => DAY_NAMES[d])
-        .filter(Boolean) ?? [];
-    const preferredMeditationTime = pattern?.patterns.preferredPracticeTime.meditation;
-    const preferredMorningWindow = pattern?.patterns.preferredPracticeTime.morningPractice;
-    const goalRate = pattern?.patterns.goalCompletionRate;
-
-    const behaviorBlock = [
-        skipDayNames.length ? `Days they tend to skip: ${skipDayNames.join(', ')}` : '',
-        consecutiveSkips > 0 ? `Consecutive skip days right now: ${consecutiveSkips}` : '',
-        typeof avgEnergy === 'number' ? `Average energy (rolling): ${avgEnergy.toFixed(1)}/5` : '',
-        lowEnergyDays.length ? `Days their energy typically dips: ${lowEnergyDays.join(', ')}` : '',
-        preferredMeditationTime && preferredMeditationTime !== 'unknown' ? `Preferred meditation time: ${preferredMeditationTime}` : '',
-        preferredMorningWindow && preferredMorningWindow !== 'unknown' ? `Morning practice window: ${preferredMorningWindow.replace('_', ' ')}` : '',
-        typeof goalRate === 'number' ? `Goal completion rate: ${Math.round(goalRate * 100)}%` : '',
-    ].filter(Boolean).join('\n');
-
     const contextBlock = [
         `First name: ${firstName}`,
         user.profession ? `Profession: ${user.profession}` : '',
@@ -216,14 +187,13 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
         recentNoise.length
             ? `Current stressors they've named: ${recentNoise.map(n => n.text).join('; ')}`
             : '',
-        behaviorBlock ? `\nBEHAVIOR PATTERN:\n${behaviorBlock}` : '',
     ].filter(Boolean).join('\n');
 
     const fallback = buildFallbackNarrative(user);
 
     const prompt = `You are Palante, a personal growth companion. Based on the data below, write a warm 4-5 sentence observation of this specific person's pattern. This will appear on their profile as a personal note from Palante.
 
-Tone: supportive, specific, and human — like a trusted friend who has genuinely been paying attention to how this person actually moves through their weeks. Use second person ("you", "your"). Reference what they've actually been grateful for and intending toward. If there is meaningful behavior pattern data (skip days, energy dips, preferred practice time), weave at least one specific observation about it in — but only if it's there. Make it feel like a real read on this person, not a template that could apply to anyone.
+Tone: supportive, specific, and human — like a trusted friend who has genuinely been paying attention to how this person actually moves through their weeks. Use second person ("you", "your"). Reference what they've actually been grateful for and intending toward. Make it feel like a real read on this person, not a template that could apply to anyone.
 
 ABSOLUTE RULES:
 - 4-5 sentences. No more.

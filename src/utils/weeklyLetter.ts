@@ -31,8 +31,6 @@ export const letterIsStale = (user: UserProfile): boolean => {
     return storedWeek !== thisWeek || storedYear !== thisYear;
 };
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
 export const generateWeeklyLetter = async (user: UserProfile): Promise<string> => {
     const firstName = (user.name || '').trim().split(/\s+/)[0] || 'Friend';
     const partnerName = user.coachName || 'Palante';
@@ -63,12 +61,8 @@ export const generateWeeklyLetter = async (user: UserProfile): Promise<string> =
     const practicesThisWeek = morningThisWeek.length;
 
     const vp = user.userVoiceProfile;
-    const bp = user.behaviorPattern;
     const narrative = user.userNarrative;
     const monthlyInsight = user.monthlyPattern?.insight;
-
-    const skipDayNames = bp?.patterns.skipPatterns.daysOfWeek?.map(d => DAY_NAMES[d]) ?? [];
-    const lowEnergyDayNames = bp?.patterns.moodPatterns.lowEnergyDays?.map(d => DAY_NAMES[d]) ?? [];
 
     const contextBlock = [
         `First name: ${firstName}`,
@@ -87,8 +81,6 @@ export const generateWeeklyLetter = async (user: UserProfile): Promise<string> =
         vp?.extractedValues?.length ? `Their core values: ${vp.extractedValues.join(', ')}` : '',
         vp?.coreThemes?.length ? `Recurring themes in their life: ${vp.coreThemes.join(', ')}` : '',
         vp?.voiceTone ? `How they like to be spoken to: ${vp.voiceTone}` : '',
-        skipDayNames.length ? `Days they tend to rest: ${skipDayNames.join(', ')}` : '',
-        lowEnergyDayNames.length ? `Days their energy typically dips: ${lowEnergyDayNames.join(', ')}` : '',
         narrative?.text ? `What I know about their story so far: ${narrative.text}` : '',
         monthlyInsight ? `Pattern I noticed this month: ${monthlyInsight}` : '',
     ].filter(Boolean).join('\n');
