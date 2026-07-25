@@ -18,7 +18,7 @@ interface NotificationSettings {
     lastCallEnabled: boolean;
     lastCallTime: string; // "21:30"
     nudgeEnabled: boolean;
-    nudgeFrequency: 'hourly' | 'every-2-hours' | 'every-4-hours' | 'morning-evening' | 'off';
+    nudgeFrequency: 'hourly' | 'every-2-hours' | 'every-4-hours' | 'morning-evening' | 'morning-only' | 'off';
     waterRemindersEnabled: boolean; // Accountability toggle
 }
 
@@ -616,6 +616,7 @@ export const useNotifications = () => {
         permission,
         settings,
         toggleEnabled,
+        requestPermission,
         updateQuietHours: (start: string, end: string) => {
             const newSettings = { ...settings, quietStart: start, quietEnd: end };
             setSettings(newSettings);
@@ -706,8 +707,7 @@ export const useNotifications = () => {
 
             if (
                 initialDisplay === 'prompt' ||
-                initialDisplay === 'prompt-with-rationale' ||
-                initialDisplay === 'default'
+                initialDisplay === 'prompt-with-rationale'
             ) {
                 permStatus = await LocalNotifications.requestPermissions();
                 // Sync React state so the Settings UI reflects reality
@@ -725,8 +725,7 @@ export const useNotifications = () => {
             // not just prompt, treat as user-disabled.
             const userJustGrantedFromPrompt =
                 initialDisplay === 'prompt' ||
-                initialDisplay === 'prompt-with-rationale' ||
-                initialDisplay === 'default';
+                initialDisplay === 'prompt-with-rationale';
             if (!settings.enabled && !userJustGrantedFromPrompt) return;
 
             // Cancel any existing dispatch notifications (IDs 7000-7009)

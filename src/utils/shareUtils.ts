@@ -745,7 +745,7 @@ export async function saveMilestoneToPhotos(params: {
 }): Promise<void> {
     haptics.light();
     try {
-        const dataUrl = await generateMilestoneShareImage({ ...params, shareText: '' });
+        const dataUrl = await generateMilestoneShareImage(params);
         const base64  = dataUrl.split(',')[1];
         const fileName = `palante_milestone_${Date.now()}.jpg`;
 

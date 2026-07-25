@@ -7,6 +7,7 @@ import { DashboardQuoteCard } from './DashboardQuoteCard';
 import { generateMorningPracticeMessage, getFallbackMorningMessage, getMomentumState } from '../utils/aiService';
 import { supabase } from '../lib/supabase';
 import { logMindfulSession, getHealthContext, requestHealthPermissions } from '../utils/healthService';
+import type { HealthContext } from '../utils/healthService';
 import { Capacitor } from '@capacitor/core';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
@@ -117,7 +118,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
 
             const healthFetch = Capacitor.isNativePlatform()
                 ? getHealthContext()
-                : Promise.resolve({});
+                : Promise.resolve<HealthContext>({});
             healthFetch.then(healthContext => {
                 return generateMorningPracticeMessage(userName || 'Friend', {
                     ...fallbackData,
@@ -558,8 +559,8 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                                         {healthDenied ? (
                                             <button
                                                 onClick={async () => {
-                                                    const { App } = await import('@capacitor/app');
-                                                    await App.openUrl({ url: 'app-settings:' });
+                                                    const { Browser } = await import('@capacitor/browser');
+                                                    await Browser.open({ url: 'app-settings:' });
                                                 }}
                                                 className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
                                                 style={{ background: '#E5D6A7', color: '#2D3E33' }}

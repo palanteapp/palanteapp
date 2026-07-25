@@ -41,7 +41,7 @@ const SettingRow = ({
     id: keyof EnhancementOptions,
     label: string,
     description: string,
-    icon: React.ComponentType<{ size?: number; className?: string }>,
+    icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>,
     options: EnhancementOptions,
     onToggle: (id: keyof EnhancementOptions) => void,
     isDarkMode: boolean

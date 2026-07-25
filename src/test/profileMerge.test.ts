@@ -105,7 +105,7 @@ describe('mergeProfiles', () => {
         const localPractice: PracticeData = {
             totalPractices: 8,
             lastActivityDate: '2026-06-10',
-            milestones: { practices_7: true, practices_30: false, practices_100: false, practices_365: false },
+            milestones: { practices_1: true, practices_3: true, practices_7: true, practices_14: false, practices_30: false, practices_50: false, practices_90: false, practices_100: false, practices_180: false, practices_200: false, practices_365: false },
             activityHistory: [
                 { date: '2026-06-10', practices: ['meditation', 'morning_practice'] },
             ],
@@ -113,7 +113,7 @@ describe('mergeProfiles', () => {
         const cloudPractice: PracticeData = {
             totalPractices: 7,
             lastActivityDate: '2026-06-11',
-            milestones: { practices_7: false, practices_30: true, practices_100: false, practices_365: false },
+            milestones: { practices_1: true, practices_3: false, practices_7: false, practices_14: false, practices_30: true, practices_50: false, practices_90: false, practices_100: false, practices_180: false, practices_200: false, practices_365: false },
             activityHistory: [
                 { date: '2026-06-10', practices: ['breathwork'] },
                 { date: '2026-06-11', practices: ['reflection'] },

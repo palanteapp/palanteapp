@@ -181,6 +181,7 @@ describe('getAIQuote', () => {
             text:     'You are unstoppable',
             author:   'Palante AI',
             category: 'Motivation',
+            isAI:     true,
         });
 
         const result = await getAIQuote(makeUser());

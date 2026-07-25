@@ -71,7 +71,7 @@ export function loadSeamlessBuffer(ctx: AudioContext, src: string): Promise<Audi
             if (bytes > MAX_DECODED_BYTES) return null;
 
             const buffer = ctx.createBuffer(baked.length, baked[0].length, decoded.sampleRate);
-            baked.forEach((ch, c) => buffer.copyToChannel(ch, c));
+            baked.forEach((ch, c) => buffer.copyToChannel(ch as Float32Array<ArrayBuffer>, c));
 
             cache.set(src, { buffer, bytes, lastUsed: Date.now() });
             cacheBytes += bytes;

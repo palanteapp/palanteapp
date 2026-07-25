@@ -177,8 +177,8 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
             }
         };
 
-        window.addEventListener('palante-sounds-changed', handleSoundsChanged);
-        return () => window.removeEventListener('palante-sounds-changed', handleSoundsChanged);
+        window.addEventListener('palante-sounds-changed', handleSoundsChanged as EventListener);
+        return () => window.removeEventListener('palante-sounds-changed', handleSoundsChanged as EventListener);
     }, []);
 
     // Wake Lock functions

@@ -23,7 +23,7 @@ interface Practice {
     id: PracticeId;
     title: string;
     subtitle: string;
-    icon: React.ComponentType<{ size?: number; className?: string }>;
+    icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
     info: string;
     accent: { icon: string; bg: string; glow: string; border: string };
 }

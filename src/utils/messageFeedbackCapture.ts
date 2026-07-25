@@ -432,7 +432,7 @@ export async function analyzeFeedbackPatterns(
                 if (!moodTriggers.has(mood)) {
                     moodTriggers.set(mood, []);
                 }
-                moodTriggers.get(mood)!.push(feedback.resonanceReason || 'other');
+                moodTriggers.get(mood)!.push(feedback.feedback.resonanceReason || 'other');
             }
         });
 

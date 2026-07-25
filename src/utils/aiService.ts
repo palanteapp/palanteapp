@@ -91,7 +91,7 @@ export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountabilit
     accountability: `Be firm and high-standard. You see what they're capable of and you won't let them coast. Acknowledge the work but name the gap. No cruelty — but no excuses either. The coach who pushes because they believe in you more than you believe in yourself right now.`,
 };
 
-import type { ChatMessage, UserProfile, UserBehaviorPattern, CoachIntervention, UserVoiceProfile } from '../types';
+import type { ChatMessage, UserProfile, UserVoiceProfile } from '../types';
 
 export interface AIAffirmationResponse {
     text: string;
@@ -323,7 +323,7 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
     // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
     const coachIdentity = request.coachName?.trim() || 'Palante';
 
-    const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation coach. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
+    const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation partner. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
 
 Generate a single, powerful affirmation or motivational quote for someone with these characteristics:
 - Profession: ${request.profession || 'General'}
@@ -1151,7 +1151,7 @@ FORMATTING:
 - If you want to emphasize a question or idea, do it through phrasing, not punctuation.
 
 MEDICAL SAFETY GUIDE:
-- You are a wellness coach, NOT a doctor.
+- You are a wellness companion, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
 - If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
@@ -1367,7 +1367,7 @@ FORMATTING:
 - If you want to emphasize a question or idea, do it through phrasing, not punctuation.
 
 MEDICAL SAFETY GUIDE:
-- You are a wellness coach, NOT a doctor.
+- You are a wellness companion, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
 - If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
@@ -1791,228 +1791,6 @@ Respond with ONLY a single valid JSON object, no markdown fences, no commentary.
         return fallback;
     }
 };
-
-// ─── Behavior Analysis & Coach Interventions (consolidated from aiCoach) ───────
-
-/** Analyze user behavior patterns from the last 30 days */
-export const analyzeUserBehavior = (user: UserProfile): UserBehaviorPattern => {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-
-    const meditationTimes = user.meditationReflections
-        ?.filter(m => m.date >= thirtyDaysAgoStr)
-        .map(m => {
-            const hour = new Date(m.date).getHours();
-            if (hour < 12) return 'morning';
-            if (hour < 18) return 'afternoon';
-            return 'evening';
-        }) || [];
-
-    const morningPrimingTimes = user.dailyPriming
-        ?.filter(p => p.date >= thirtyDaysAgoStr)
-        .map(p => {
-            const hour = new Date(p.date).getHours();
-            return hour < 9 ? 'early' : 'late_morning';
-        }) || [];
-
-    const meditationCount = user.meditationReflections?.filter(m => m.date >= thirtyDaysAgoStr).length || 0;
-    const breathworkCount = user.activityHistory?.filter(a =>
-        a.type === 'breath' && a.date >= thirtyDaysAgoStr
-    ).reduce((sum, a) => sum + a.count, 0) || 0;
-    const reflectionCount = user.journalEntries?.filter(j => j.date >= thirtyDaysAgoStr).length || 0;
-
-    const weeksInPeriod = 4.3;
-    const practiceFrequency = {
-        meditation: Math.round(meditationCount / weeksInPeriod),
-        breathwork: Math.round(breathworkCount / weeksInPeriod),
-        reflections: Math.round(reflectionCount / weeksInPeriod),
-    };
-
-    const allDates = getLast30Days();
-    const practiceDates = new Set([
-        ...(user.meditationReflections?.map(m => m.date.split('T')[0]) || []),
-        ...(user.dailyPriming?.map(p => p.date) || []),
-        ...(user.journalEntries?.map(j => j.date) || []),
-    ]);
-
-    const skippedDays = allDates.filter(date => !practiceDates.has(date));
-    const skipPatternByDay = countOccurrences(skippedDays.map(date => new Date(date).getDay()));
-
-    let maxConsecutiveSkips = 0;
-    let currentSkips = 0;
-    allDates.forEach(date => {
-        if (!practiceDates.has(date)) {
-            currentSkips++;
-            maxConsecutiveSkips = Math.max(maxConsecutiveSkips, currentSkips);
-        } else {
-            currentSkips = 0;
-        }
-    });
-
-    const energyLogs = user.energyHistory?.filter(e =>
-        new Date(e.timestamp).getTime() >= thirtyDaysAgo.getTime()
-    ) || [];
-
-    const energyByDay: Record<number, number[]> = {};
-    energyLogs.forEach(log => {
-        const day = new Date(log.timestamp).getDay();
-        if (!energyByDay[day]) energyByDay[day] = [];
-        energyByDay[day].push(log.level);
-    });
-
-    const lowEnergyDays: number[] = [];
-    Object.entries(energyByDay).forEach(([day, levels]) => {
-        const avg = levels.reduce((sum, l) => sum + l, 0) / levels.length;
-        if (avg < 2.5) lowEnergyDays.push(parseInt(day));
-    });
-
-    const averageEnergy = energyLogs.length > 0
-        ? energyLogs.reduce((sum, e) => sum + e.level, 0) / energyLogs.length
-        : 3;
-
-    const recentGoals = user.dailyFocuses?.filter(g =>
-        new Date(g.createdAt).getTime() >= thirtyDaysAgo.getTime()
-    ) || [];
-    const goalCompletionRate = recentGoals.length > 0
-        ? recentGoals.filter(g => g.isCompleted).length / recentGoals.length
-        : 0;
-
-    return {
-        userId: user.id,
-        patterns: {
-            preferredPracticeTime: {
-                meditation: (getMostCommonBehavior(meditationTimes) || 'unknown') as string,
-                breathwork: 'unknown',
-                morningPractice: (getMostCommonBehavior(morningPrimingTimes) || 'unknown') as string,
-            },
-            practiceFrequency,
-            skipPatterns: {
-                daysOfWeek: Object.keys(skipPatternByDay)
-                    .filter(day => skipPatternByDay[parseInt(day)] > 2)
-                    .map(d => parseInt(d)),
-                consecutiveSkips: maxConsecutiveSkips,
-            },
-            moodPatterns: {
-                lowEnergyDays,
-                averageEnergy: Math.round(averageEnergy * 10) / 10,
-            },
-            goalCompletionRate: Math.round(goalCompletionRate * 100) / 100,
-            responseToNudges: { morning: 0.7, afternoon: 0.5, evening: 0.6 },
-        },
-        lastAnalyzed: new Date().toISOString(),
-    };
-};
-
-/** Generate coach interventions based on behavior patterns */
-export const generateInterventions = (
-    user: UserProfile,
-    pattern: UserBehaviorPattern
-): CoachIntervention[] => {
-    const interventions: CoachIntervention[] = [];
-    const now = new Date();
-
-    if (pattern.patterns.skipPatterns.consecutiveSkips >= 3) {
-        interventions.push({
-            id: `skip-${Date.now()}`,
-            type: 'alternative',
-            trigger: { condition: 'consecutive_skips_3_days', confidence: 0.9 },
-            message: "It's great to see you again! Whenever you're ready, a quick 2-minute breathing exercise is a perfect way to reconnect with yourself.",
-            action: { type: 'show_breathing' },
-            priority: 'medium',
-            timestamp: now.toISOString(),
-        });
-    }
-
-    if (pattern.patterns.practiceFrequency.meditation < 2) {
-        interventions.push({
-            id: `low-meditation-${Date.now()}`,
-            type: 'suggestion',
-            trigger: { condition: 'low_meditation_frequency', confidence: 0.8 },
-            message: "Building a meditation habit? Start small - even 5 minutes makes a difference. Want to set a goal for 3 sessions this week?",
-            action: { type: 'suggest_goal', data: { title: 'Meditate 3x this week', category: 'Mindfulness' } },
-            priority: 'medium',
-            timestamp: now.toISOString(),
-        });
-    }
-
-    if (pattern.patterns.moodPatterns.averageEnergy < 2.5) {
-        interventions.push({
-            id: `low-energy-${Date.now()}`,
-            type: 'suggestion',
-            trigger: { condition: 'low_energy_pattern', confidence: 0.85 },
-            message: "Your energy has been lower lately. Let's boost it with a morning breathwork session - it can really energize your day!",
-            action: { type: 'show_breathing' },
-            priority: 'medium',
-            timestamp: now.toISOString(),
-        });
-    }
-
-    if (user.streakData?.isGracePeriod) {
-        interventions.push({
-            id: `grace-period-${Date.now()}`,
-            type: 'streak_warning',
-            trigger: { condition: 'streak_grace_period', confidence: 1.0 },
-            message: `Grace period: complete any practice today to keep your ${user.streakData.currentStreak}-day streak alive`,
-            action: { type: 'open_practice' },
-            priority: 'high',
-            timestamp: now.toISOString(),
-        });
-    }
-
-    const daysSinceLastGoal = (user.dailyFocuses && user.dailyFocuses.length > 0)
-        ? Math.floor((now.getTime() - new Date(user.dailyFocuses[user.dailyFocuses.length - 1].createdAt).getTime()) / (1000 * 60 * 60 * 24))
-        : 999;
-
-    if (daysSinceLastGoal > 7) {
-        interventions.push({
-            id: `goal-stagnation-${Date.now()}`,
-            type: 'check_in',
-            trigger: { condition: 'no_goals_7_days', confidence: 0.7 },
-            message: "You haven't set any new goals in a while. Want to set a fresh intention for the week ahead?",
-            action: { type: 'suggest_goal' },
-            priority: 'low',
-            timestamp: now.toISOString(),
-        });
-    }
-
-    if (pattern.patterns.preferredPracticeTime.meditation !== 'unknown') {
-        interventions.push({
-            id: `pattern-${Date.now()}`,
-            type: 'encouragement',
-            trigger: { condition: 'detected_preference', confidence: 0.75 },
-            message: `I noticed you usually meditate in the ${pattern.patterns.preferredPracticeTime.meditation}. Want me to send you a reminder at that time?`,
-            priority: 'low',
-            timestamp: now.toISOString(),
-        });
-    }
-
-    return interventions;
-};
-
-// Private helpers for behavior analysis
-function getMostCommonBehavior<T>(arr: T[]): T | null {
-    if (arr.length === 0) return null;
-    const counts: Record<string, number> = {};
-    arr.forEach(item => { const k = String(item); counts[k] = (counts[k] || 0) + 1; });
-    return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) as T;
-}
-
-function getLast30Days(): string[] {
-    const dates: string[] = [];
-    for (let i = 0; i < 30; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
-    }
-    return dates.reverse();
-}
-
-function countOccurrences(arr: number[]): Record<number, number> {
-    const counts: Record<number, number> = {};
-    arr.forEach(item => { counts[item] = (counts[item] || 0) + 1; });
-    return counts;
-}
 
 // ─── Weekly Reflection Generator ─────────────────────────────────────────────
 

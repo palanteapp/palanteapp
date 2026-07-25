@@ -58,7 +58,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                                 hapticsEnabled: localUser.hapticsEnabled ?? true,
                                 journalPromptsEnabled: localUser.journalPromptsEnabled ?? true,
                                 aiDisabled: localUser.aiDisabled ?? false,
-                                quoteIntensity: (Number(localUser.quoteIntensity) || Number((localUser as Record<string, unknown>).tier) || 2) as 1 | 2 | 3,
+                                quoteIntensity: (Number(localUser.quoteIntensity) || Number((localUser as unknown as Record<string, unknown>).tier) || 2) as 1 | 2 | 3,
                                 // Migrate legacy "Palante Coach" coachName to "Palante" on load.
                                 // Custom user-set names like "Sarah" are preserved as-is.
                                 coachName: (!localUser.coachName || localUser.coachName === 'Palante Coach')

@@ -96,7 +96,7 @@ function makeNoiseLoopBuffer(ctx: BaseAudioContext, color: NoiseColor): AudioBuf
     fillNoise(right, color);
     const baked = bakeSeamlessLoop([left, right], ctx.sampleRate);
     const buffer = ctx.createBuffer(2, baked[0].length, ctx.sampleRate);
-    baked.forEach((ch, c) => buffer.copyToChannel(ch, c));
+    baked.forEach((ch, c) => buffer.copyToChannel(ch as Float32Array<ArrayBuffer>, c));
     return buffer;
 }
 

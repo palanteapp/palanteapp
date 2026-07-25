@@ -269,7 +269,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                     >
                         <div className="w-full max-w-sm">
                             <div className="flex justify-center mb-10">
@@ -280,7 +280,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 className="text-4xl font-display font-bold text-white text-center mb-3 tracking-tight"
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.08 }}
+                                transition={{ delay: 0.04 }}
                             >
                                 One quick thing
                             </motion.h2>
@@ -289,7 +289,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 style={{ color: 'rgba(229,214,167,0.55)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.18 }}
+                                transition={{ delay: 0.09 }}
                             >
                                 Just your birth year — that's all we keep.
                             </motion.p>
@@ -297,7 +297,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.22 }}
+                                transition={{ delay: 0.11 }}
                             >
                                 <select
                                     value={birthYear}
@@ -328,7 +328,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.30 }}
+                                transition={{ delay: 0.15 }}
                                 whileTap={{ scale: 0.97 }}
                             >
                                 Continue →
@@ -340,7 +340,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 style={{ color: 'rgba(229,214,167,0.32)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.48 }}
+                                transition={{ delay: 0.24 }}
                             >
                                 ← Back
                             </motion.button>
@@ -361,7 +361,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                     >
                         <div className="w-full max-w-sm">
                             <div className="flex justify-center mb-10">
@@ -372,7 +372,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 className="text-5xl font-display font-bold text-white text-center mb-3 tracking-tight"
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.08 }}
+                                transition={{ delay: 0.04 }}
                             >
                                 What is your name?
                             </motion.h2>
@@ -381,7 +381,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 style={{ color: 'rgba(229,214,167,0.55)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.18 }}
+                                transition={{ delay: 0.09 }}
                             >
                                 Just your first name is perfect.
                             </motion.p>
@@ -389,7 +389,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.22 }}
+                                transition={{ delay: 0.11 }}
                             >
                                 <input
                                     type="text"
@@ -420,7 +420,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.30 }}
+                                transition={{ delay: 0.15 }}
                                 whileTap={{ scale: 0.97 }}
                             >
                                 Continue →
@@ -432,7 +432,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 style={{ color: 'rgba(229,214,167,0.32)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.48 }}
+                                transition={{ delay: 0.24 }}
                             >
                                 ← Back
                             </motion.button>
@@ -448,7 +448,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                     >
                         <div className="w-full max-w-sm">
                             <div className="flex justify-center mb-10">
@@ -459,7 +459,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 className="text-4xl font-display font-bold text-white text-center mb-2 tracking-tight"
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.08 }}
+                                transition={{ delay: 0.04 }}
                             >
                                 What's bringing you here?
                             </motion.h2>
@@ -468,7 +468,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 style={{ color: 'rgba(229,214,167,0.55)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.18 }}
+                                transition={{ delay: 0.09 }}
                             >
                                 Your answer shapes how Palante shows up for you.
                             </motion.p>
@@ -477,7 +477,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 className="space-y-3"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.22 }}
+                                transition={{ delay: 0.11 }}
                             >
                                 {ORIENTING_OPTIONS.map(opt => (
                                     <button
@@ -507,7 +507,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 }}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.38 }}
+                                transition={{ delay: 0.19 }}
                                 whileTap={{ scale: 0.97 }}
                             >
                                 {isSubmitting ? 'Setting up your practice…' : orientingChoice ? 'Start my practice →' : 'Skip for now →'}
@@ -519,7 +519,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 style={{ color: 'rgba(229,214,167,0.25)' }}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                transition={{ delay: 0.55 }}
+                                transition={{ delay: 0.28 }}
                             >
                                 ← Back
                             </motion.button>

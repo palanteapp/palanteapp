@@ -240,14 +240,15 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     useEffect(() => {
         const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
 
-        if (typeof DOE.requestPermission !== 'function') {
+        const requestPermission = DOE.requestPermission;
+        if (typeof requestPermission !== 'function') {
             // Android, desktop, or older iOS — events fire freely
             setGyroPermitted(true);
             return;
         }
 
         const tryRequestPermission = () => {
-            DOE.requestPermission()
+            requestPermission()
                 .then((result: string) => { if (result === 'granted') setGyroPermitted(true); })
                 .catch(() => { /* denied or unavailable */ });
         };

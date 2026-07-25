@@ -85,8 +85,8 @@ export const analytics = {
         track('evening_practice_started');
     },
 
-    eveningPracticeCompleted() {
-        track('evening_practice_completed');
+    eveningPracticeCompleted(props?: { gratitudeCount: number }) {
+        track('evening_practice_completed', props);
     },
 
     // ─── Quotes & affirmations ───────────────────────────────────────────────
@@ -100,7 +100,7 @@ export const analytics = {
         track('quote_viewed', props);
     },
 
-    quoteFavorited(props: { isAI: boolean; category: string }) {
+    quoteFavorited(props: { isAI: boolean; category: string; quoteId?: string; author?: string }) {
         track('quote_favorited', props);
     },
 
@@ -118,6 +118,7 @@ export const analytics = {
         type: 'breath' | 'meditate' | 'reflect' | 'routine' | 'fasting' | 'pomodoro';
         durationMinutes?: number;
         routineName?: string;
+        streak?: number;
     }) {
         track('practice_completed', props);
     },

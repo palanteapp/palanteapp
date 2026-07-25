@@ -101,6 +101,18 @@ interface FoodPellet {
     isClaimed?: boolean;
 }
 
+interface Particle {
+    x: number;
+    y: number;
+    size: number;
+    speed: number;
+    rotation: number;
+    rotSpeed: number;
+    wiggle: number;
+    wiggleSpeed: number;
+    color: string;
+}
+
 
 
 const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant }) => {
@@ -315,7 +327,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
     // Particle System Refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const particlesRef = useRef<Record<string, unknown>[]>([]);
+    const particlesRef = useRef<Particle[]>([]);
     const gravityRef = useRef({ x: 0, y: 1 }); // Default gravity (down)
 
     // Listen for orientation changes to simulate gravity
@@ -330,7 +342,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             }
         };
 
-        if (window.DeviceOrientationEvent && (window as Record<string, unknown>).DeviceMotionEvent) {
+        if (window.DeviceOrientationEvent && 'DeviceMotionEvent' in window) {
             window.addEventListener('deviceorientation', handleOrientation);
         }
         return () => window.removeEventListener('deviceorientation', handleOrientation);

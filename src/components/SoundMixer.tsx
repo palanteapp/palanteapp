@@ -539,11 +539,13 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
         updateWakeLock();
         PalanteAudioBridge.setPlaying({ playing: isPlaying }).catch(() => {});
         if (isPlaying) {
-            navigator.mediaSession?.setMetadata?.(new MediaMetadata({
-                title: 'Soundscape',
-                artist: 'Palante',
-                album: 'Focus & Rest',
-            }));
+            if (navigator.mediaSession) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'Soundscape',
+                    artist: 'Palante',
+                    album: 'Focus & Rest',
+                });
+            }
             navigator.mediaSession && (navigator.mediaSession.playbackState = 'playing');
         } else {
             navigator.mediaSession && (navigator.mediaSession.playbackState = 'none');
@@ -768,13 +770,14 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
         setVolumes({});
     }, [activeSounds]);
 
-    const loadRecipe = useCallback((recipe: typeof RECIPES[0]) => {
+    const loadRecipe = useCallback((recipe: { id: string; name: string; volumes: Record<string, number | undefined>; color: string }) => {
         stopAll();
         // Small delay to let fades happen
         setTimeout(() => {
             const newActive = new Set<string>();
             const newVols: Record<string, number> = {};
             Object.entries(recipe.volumes).forEach(([id, vol]) => {
+                if (vol === undefined) return;
                 const soundData = SOUNDS.find(s => s.id === id);
                 if (soundData) {
                     newActive.add(id);
@@ -920,79 +923,6 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                     </button>
                 </div>
             </div>
-
-            {/* HELP OVERLAY */}
-            {showHelp && (
-                <div className="absolute inset-0 z-50 bg-sage-mid/95 backdrop-blur-sm flex items-center justify-center p-8 animate-fade-in">
-                    <div className="max-w-2xl bg-sage/95 rounded-3xl p-8 relative border border-white/20 shadow-2xl">
-                        <button
-                            onClick={() => {
-                                setShowHelp(false);
-                                localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true');
-                            }}
-                            aria-label="Close help"
-                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-white hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-3 rounded-full bg-pale-gold/20">
-                                <Info size={24} className="text-pale-gold" />
-                            </div>
-                            <h3 className="text-3xl font-display font-medium text-white">How to Use Soundscape Mixer</h3>
-                        </div>
-
-                        <div className="space-y-4 text-white/90">
-                            <div className="flex gap-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">1</div>
-                                <div>
-                                    <h4 className="font-bold mb-1">Choose Your Sounds</h4>
-                                    <p className="text-sm text-white/70">Start with an <strong>Instant Mood</strong> preset, or explore <strong>Explore Your Sounds</strong> to browse by category (Nature, Focus, Zen, etc.)</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">2</div>
-                                <div>
-                                    <h4 className="font-bold mb-1">Mix Your Atmosphere</h4>
-                                    <p className="text-sm text-white/70"><strong>Tap or drag</strong> on the vertical faders to adjust volume. Each sound blends seamlessly to create your perfect environment.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">3</div>
-                                <div>
-                                    <h4 className="font-bold mb-1">Save Your Mix</h4>
-                                    <p className="text-sm text-white/70">Love your creation? Tap <strong>"+ Save Mix"</strong> at the bottom, name it, and access it anytime from Instant Moods.</p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-pale-gold/20 flex items-center justify-center text-pale-gold font-bold text-sm">i</div>
-                                <div>
-                                    <h4 className="font-bold mb-1">Pro Tips</h4>
-                                    <ul className="text-sm text-white/70 space-y-1 list-disc list-inside">
-                                        <li>Layer 2-4 sounds for rich, immersive atmospheres</li>
-                                        <li>Try binaural beats (Focus category) for deep concentration</li>
-                                        <li>Heritage sounds connect you to cultural roots</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => {
-                                setShowHelp(false);
-                                localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true');
-                            }}
-                            className="mt-6 w-full py-3 rounded-xl bg-pale-gold text-sage-dark font-bold uppercase tracking-widest hover:bg-white transition-colors"
-                        >
-                            Got It!
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 overflow-hidden relative">
@@ -1180,7 +1110,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                 };
                                                 window.addEventListener('mousemove', handleMove);
                                                 window.addEventListener('mouseup', handleUp);
-                                                handleMove(e);
+                                                handleMove(e.nativeEvent);
                                             }}
                                         />
 

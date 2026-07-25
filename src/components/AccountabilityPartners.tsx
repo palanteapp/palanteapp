@@ -280,7 +280,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                         <div className="flex items-center gap-2">
                             <Lightbulb size={14} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                             <span className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>
-                                Coaching Tips
+                                Partner Tips
                             </span>
                         </div>
                         {partnerTipsEnabled

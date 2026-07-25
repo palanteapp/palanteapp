@@ -44,9 +44,16 @@ export interface PracticeData {
     totalPractices: number; // Total number of practices completed (all time)
     lastActivityDate: string; // ISO date (YYYY-MM-DD)
     milestones: {
+        practices_1: boolean;      // 1 total practices
+        practices_3: boolean;      // 3 total practices
         practices_7: boolean;      // 7 total practices
+        practices_14: boolean;     // 14 total practices
         practices_30: boolean;     // 30 total practices
+        practices_50: boolean;     // 50 total practices
+        practices_90: boolean;     // 90 total practices (3-month)
         practices_100: boolean;    // 100 total practices
+        practices_180: boolean;    // 180 total practices (6-month)
+        practices_200: boolean;    // 200 total practices
         practices_365: boolean;    // 365 total practices
     };
     activityHistory: PracticeActivity[];
@@ -168,6 +175,13 @@ export interface UserVoiceProfile {
     // What resonates (for future learning)
     resonantPhrases?: string[]; // phrases that appear in highly-rated messages
     avoidPhrases?: string[]; // phrases that appear in low-rated messages
+
+    // Rating-based learning metrics
+    ratedMessageCount?: number; // how many generated messages the user has rated
+    totalMessagesGenerated?: number; // how many messages have been generated for this user
+    engagementRate?: number; // ratedMessageCount / totalMessagesGenerated
+    averageRating?: number; // mean of all message ratings (1-5)
+    analysisHistory?: { date: string; extractedValuesSnapshot: string[]; coreThemesSnapshot: string[] }[]; // last 12 weekly analyses
 
     // Metadata
     createdAt: string;

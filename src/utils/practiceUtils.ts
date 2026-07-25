@@ -244,8 +244,8 @@ export const getNextMilestone = (totalPractices: number): { target: number; name
  */
 export const migrateStreakToPractice = (user: UserProfile): PracticeData => {
     // If user already has practice data, return it
-    if ((user as Record<string, unknown>).practiceData) {
-        return (user as Record<string, unknown>).practiceData as PracticeData;
+    if (user.practiceData) {
+        return user.practiceData;
     }
 
     // Otherwise, migrate from old streak data

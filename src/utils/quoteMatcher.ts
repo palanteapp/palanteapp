@@ -3,6 +3,7 @@ import { AFFIRMATIONS } from '../data/affirmations';
 import type { UserProfile, Quote, PrimaryIntent } from '../types';
 import { generateAffirmation, isAIAvailable, getMomentumState } from './aiService';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { getTodayDate } from './practiceUtils';
 
 // The onboarding "what's bringing you here?" answer biases content selection so the
 // library leans toward the user's reason for being here — without overriding the
@@ -162,8 +163,8 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         || user.currentMood === 'Anxious';
     const effectiveIntensity = isLowState ? Math.max(1, intensity - 1) as 1 | 2 | 3 : intensity as 1 | 2 | 3;
 
-    // Today's morning intention
-    const todayDate = new Date().toISOString().split('T')[0];
+    // Today's morning intention (local calendar day — daily practice entries are keyed by local date)
+    const todayDate = getTodayDate();
     const todaysPriming = (user.dailyMorningPractice || user.dailyPriming || [])
         .find(p => p.date === todayDate);
     const dailyIntention = todaysPriming?.dailyIntention?.toLowerCase().trim() || '';

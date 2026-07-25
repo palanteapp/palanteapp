@@ -4,8 +4,7 @@ import { haptics } from '../utils/haptics';
 import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
 import { generateWeeklyReport, shouldGenerateWeeklyReport, getWeekDateRange } from '../utils/weeklyReportGenerator';
-import { analyzeUserBehavior, generateInterventions } from '../utils/aiService';
-import type { UserProfile, WeeklyReport, CoachIntervention } from '../types';
+import type { UserProfile, WeeklyReport } from '../types';
 import type { useNotifications } from './useNotifications';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
@@ -16,7 +15,6 @@ interface UseAppProcessProps {
     loadNewQuote: (user: UserProfile) => Promise<void>;
     setCurrentWeeklyReport: (report: WeeklyReport) => void;
     setShowWeeklyReport: (show: boolean) => void;
-    setActiveInterventions: (interventions: CoachIntervention[]) => void;
     notifications: ReturnType<typeof useNotifications>;
 }
 
@@ -27,7 +25,6 @@ export const useAppProcess = ({
     loadNewQuote,
     setCurrentWeeklyReport,
     setShowWeeklyReport,
-    setActiveInterventions,
     notifications
 }: UseAppProcessProps) => {
     const { sendNotification, rescheduleAll } = notifications;
@@ -47,7 +44,6 @@ export const useAppProcess = ({
         toggleFavoriteRef.current = toggleFavorite;
         updateProfileRef.current = updateProfile;
     }, [user, loadNewQuote, toggleFavorite, updateProfile]);
-    const _aiAnalysisDateRef = useRef<string | null>(null);
     const lastNotificationConfigRef = useRef<string>('');
 
     // 1. Weekly Report Generation
@@ -105,69 +101,7 @@ export const useAppProcess = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]); // Only depend on user ID, not the whole user object
 
-    // 2. AI Coach Analysis
-    const _analyzeAndGenerateInterventions = useCallback(() => {
-        if (!user) return;
-
-        // Analyze user behavior
-        const behaviorPattern = analyzeUserBehavior(user);
-
-        // Generate interventions based on patterns
-        const newInterventions = generateInterventions(user, behaviorPattern);
-
-        // Filter out already dismissed interventions
-        const existingDismissed = user.coachInterventions?.filter(i => i.dismissed).map(i => i.trigger.condition) || [];
-        const filteredInterventions = newInterventions.filter(
-            intervention => !existingDismissed.includes(intervention.trigger.condition)
-        );
-
-        // Show only top 2 highest priority interventions
-        const topInterventions = filteredInterventions
-            .sort((a, b) => {
-                const priorityOrder = { high: 3, medium: 2, low: 1 };
-                return priorityOrder[b.priority] - priorityOrder[a.priority];
-            })
-            .slice(0, 2);
-
-        setActiveInterventions(topInterventions);
-
-        setActiveInterventions(topInterventions);
-
-        // Save behavior pattern to user profile ATOMICALLY
-        updateProfile((prev: UserProfile | null) => {
-            if (!prev) return user!; // Should not happen
-            return { ...prev, behaviorPattern };
-        });
-    }, [user, updateProfile, setActiveInterventions]);
-
-    // Run AI coach analysis - Once per day
-    // DISABLED: User requested removal of coach intervention modals
-    /*
-    useEffect(() => {
-        if (!user) return;
-
-        const today = new Date().toISOString().split('T')[0];
-
-        // Skip if already analyzed today in this session
-        if (aiAnalysisDateRef.current === today) return;
-
-        const lastAnalyzed = user.behaviorPattern?.lastAnalyzed?.split('T')[0];
-
-        if (lastAnalyzed !== today) {
-            aiAnalysisDateRef.current = today;
-            analyzeAndGenerateInterventions();
-        } else {
-            // Load existing interventions (only once per session)
-            if (!aiAnalysisDateRef.current) {
-                aiAnalysisDateRef.current = today;
-                const existingInterventions = user.coachInterventions?.filter(i => !i.dismissed && !i.accepted) || [];
-                setActiveInterventions(existingInterventions.slice(0, 2));
-            }
-        }
-    }, [user?.id]); // Only depend on user ID
-    */
-
-    // 3. Global Goal Reordering/Editing Listeners
+    // 2. Global Goal Reordering/Editing Listeners
     useEffect(() => {
         const handleReorder = (e: CustomEvent<{ draggedId: string; targetId: string; side: string }>) => {
             if (!user || !user.dailyFocuses) return;

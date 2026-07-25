@@ -10,6 +10,7 @@ import { WeeklyInsightsCard } from './WeeklyInsightsCard';
 import type { UserProfile, DailyFocus, CoachSettings, EnergyLog } from '../types';
 import { triggerConfetti, triggerHaptic } from '../utils/CelebrationEffects';
 import { haptics } from '../utils/haptics';
+import { getTodayDate } from '../utils/practiceUtils';
 
 import { SlideUpModal } from './SlideUpModal';
 import { CoachGuidanceModal } from './CoachGuidanceModal';
@@ -42,6 +43,13 @@ export const Momentum: React.FC<MomentumProps> = ({
 }) => {
     const { isDarkMode } = useTheme();
     const bellRef = useRef<HTMLAudioElement | null>(null);
+
+    // Today's intention, set during the morning practice
+    const todaysIntention = useMemo(() => {
+        const today = getTodayDate();
+        const todaysPriming = (user.dailyMorningPractice || user.dailyPriming || []).find(p => p.date === today);
+        return todaysPriming?.dailyIntention;
+    }, [user.dailyMorningPractice, user.dailyPriming]);
 
     // Your Year, Forward — only surfaces once a year has enough lived data.
     const yearForwardReady = useMemo(() => {
@@ -202,7 +210,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
                     </div>
                     <p className={`text-xl font-display font-bold leading-tight mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
-                        {user.dailyIntention || '—'}
+                        {todaysIntention || '—'}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         today's word
@@ -317,7 +325,6 @@ export const Momentum: React.FC<MomentumProps> = ({
                             <FocusItem
                                 key={focus.id}
                                 focus={focus}
-                                isDarkMode={isDarkMode}
                                 onToggle={handleToggleFocus}
                                 onDelete={handleDeleteFocus}
                             />
@@ -533,9 +540,8 @@ export const Momentum: React.FC<MomentumProps> = ({
             <CoachSettingsModal
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}
-                settings={user.coachSettings || { tipsEnabled: true, nudgeEnabled: true, nudgeFrequency: 'every-4-hours' }}
+                settings={user.coachSettings || { tipsEnabled: true, nudgeEnabled: true, nudgeFrequency: 'morning-evening' }}
                 onSave={handleSaveSettings}
-                isDarkMode={isDarkMode}
                 onToggleTheme={onToggleTheme || (() => { })}
             />
 

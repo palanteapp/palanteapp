@@ -41,7 +41,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { CoachSettings, WeeklyReport, CoachIntervention, DailyPriming, CoachSession, CoachPillar } from './types';
+import type { CoachSettings, WeeklyReport, DailyPriming, CoachSession, CoachPillar } from './types';
 import { SCIENCE_FACTS, type ScienceFact } from './data/scienceFacts';
 import { generateDailyDispatch, generateRecoveryDispatch, intentToTone } from './utils/dailyDispatch';
 import { isReviewerEmail, REVIEWER_DISPATCH_OFFSETS_MIN } from './constants/reviewer';
@@ -90,7 +90,6 @@ const MilestoneCelebration = lazy(() => import('./components/MilestoneCelebratio
 const RingCeremony = lazy(() => import('./components/RingCeremony').then(m => ({ default: m.RingCeremony })));
 const GrowthStoryModal = lazy(() => import('./components/GrowthStoryModal').then(m => ({ default: m.GrowthStoryModal })));
 const YearForwardModal = lazy(() => import('./components/YearForwardModal').then(m => ({ default: m.YearForwardModal })));
-const CoachInterventionCard = lazy(() => import('./components/CoachInterventionCard').then(m => ({ default: m.CoachInterventionCard })));
 const SlideUpModal = lazy(() => import('./components/SlideUpModal').then(m => ({ default: m.SlideUpModal })));
 const ProfileCompletionCard = lazy(() => import('./components/ProfileCompletionCard').then(m => ({ default: m.ProfileCompletionCard })));
 const RestDayModal = lazy(() => import('./components/RestDayModal').then(m => ({ default: m.RestDayModal })));
@@ -146,7 +145,6 @@ function AppContent() {
     showWelcome, setShowWelcome,
     showSoundMixer, setShowSoundMixer, mixerSource, setMixerSource,
     showMorningPractice, setShowMorningPractice,
-    showStackWizard, setShowStackWizard,
     showMorningMode, setShowMorningMode,
     showLetterWrite, setShowLetterWrite,
     showLetterRead, setShowLetterRead,
@@ -154,7 +152,6 @@ function AppContent() {
     showWelcomeOrientation, setShowWelcomeOrientation,
     showCelebration, setShowCelebration,
     showWeeklyReport, setShowWeeklyReport,
-    showStackRunner, setShowStackRunner,
   } = useModalState();
   const lastScrollY = useRef(0);
   const [isNavVisible, setIsNavVisible] = useState(true);
@@ -396,7 +393,10 @@ function AppContent() {
     if ((isSunday() || isDay7ForNewUser) && letterIsStale(user)) {
       generateWeeklyLetter(user).then(letter => {
         setWeeklyLetterText(letter);
-        updateProfile({ weeklyPartnerLetter: { text: letter, generatedAt: new Date().toISOString(), weekNumber: getISOWeekNumber() } });
+        updateProfile((prev: UserProfile | null) => {
+          if (!prev) return user;
+          return { ...prev, weeklyPartnerLetter: { text: letter, generatedAt: new Date().toISOString(), weekNumber: getISOWeekNumber() } };
+        });
       }).catch(() => {});
     } else if (user.weeklyPartnerLetter?.text) {
       setWeeklyLetterText(user.weeklyPartnerLetter.text);
@@ -482,7 +482,13 @@ function AppContent() {
     primaryIntent?: PrimaryIntent;
     bio?: string;
   }) => {
-    analytics.onboardingCompleted({ profession: userData.profession, quoteIntensity: userData.quoteIntensity });
+    analytics.onboardingCompleted({
+      profession: userData.profession,
+      quoteIntensity: userData.quoteIntensity,
+      interests: userData.interests ? userData.interests.split(',').map(i => i.trim()) : [],
+      contentType: userData.contentType,
+      sourcePreference: userData.sourcePreference,
+    });
 
     // 0. Record the age gate from the intro's age step (COPPA — happens before any practice)
     if (userData.dateOfBirth) {
@@ -613,7 +619,7 @@ function AppContent() {
     localStorage.setItem(STORAGE_KEYS.NOTIF_ASK_SEEN, 'true');
     setShowNotifAsk(false);
     try {
-      await notifications.updateNudgeConfig({ enabled: true, nudgeFrequency: 'morning-evening' });
+      await notifications.updateNudgeConfig(true, 'morning-evening');
     } catch (e) {
       console.error('Notification permission request failed:', e);
     }
@@ -811,9 +817,6 @@ function AppContent() {
     }
   }, [user?.practiceData?.totalPractices]);
 
-  // AI Coach Interventions
-  const [activeInterventions, setActiveInterventions] = useState<CoachIntervention[]>([]);
-
 
   const handleShowTip = (category: string) => {
     // Check user settings - safely nested
@@ -849,7 +852,6 @@ function AppContent() {
     loadNewQuote,
     setCurrentWeeklyReport,
     setShowWeeklyReport,
-    setActiveInterventions,
     notifications
   });
 
@@ -973,7 +975,9 @@ function AppContent() {
     const oldStreak = user.streak || 0;
 
     await logActivity(type);
-    analytics.practiceCompleted({ type, streak: user.streak });
+    if (type === 'breath' || type === 'meditate' || type === 'reflect') {
+      analytics.practiceCompleted({ type, streak: user.streak });
+    }
     
     // We need the updated user state, but since logActivity just fired, 
     // we can calculate what happened.
@@ -1055,7 +1059,7 @@ function AppContent() {
     // Haptic feedback
     if (!isFavorited) {
       haptics.medium();
-      analytics.quoteFavorited({ quoteId: quoteIdStr, author: quote.author });
+      analytics.quoteFavorited({ isAI: !!quote.isAI, category: quote.category, quoteId: quoteIdStr, author: quote.author });
     } else {
       haptics.light();
     }
@@ -1367,7 +1371,11 @@ function AppContent() {
     };
     updateProfile(updatedUser);
     setCompletionIntention(data.dailyIntention?.trim() || '');
-    analytics.morningRitualCompleted({ hasIntention: !!data.dailyIntention, mood: data.mood });
+    analytics.morningRitualCompleted({
+      hadIntention: !!data.dailyIntention,
+      gratitudeCount: data.gratitudes?.length ?? 0,
+      affirmationCount: data.affirmations?.length ?? 0,
+    });
 
     // Mark welcome as seen immediately — no modal chain after first practice.
     // PostPracticeSetup and ProfileNudge are deferred to practice 3+ via useEffect below.
@@ -1399,12 +1407,6 @@ function AppContent() {
         }))
       : dispatchMessages;
     notifications.scheduleDailyDispatch(finalDispatch, user.coachName);
-
-    // After the very first practice, ask for notification permission once the
-    // success overlay has had time to auto-dismiss (2.5s overlay + 1s buffer).
-    if ((updatedUser.practiceData?.totalPractices ?? 0) === 1) {
-      setTimeout(() => maybeShowNotifAsk(), 3500);
-    }
 
     // Regenerate garden affirmation with fresh practice content — don't use stale cache
     localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
@@ -1572,60 +1574,6 @@ function AppContent() {
     const t = setTimeout(() => setShowNotifAsk(true), 2500);
     return () => clearTimeout(t);
   }, [user?.id, user?.practiceData?.totalPractices]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // PRO-ACTIVE COACH SESSION INITIALIZATION
-  const sessionInitialized = useRef(false);
-  useEffect(() => {
-    if (user && !userLoading && !sessionInitialized.current && !showIntroSequence) {
-      sessionInitialized.current = true;
-
-      // Check for meaningful check-in opportunities
-      const coachInterventions: CoachIntervention[] = [];
-      const today = new Date().toISOString().split('T')[0];
-      const goalsCompletedToday = (user.dailyFocuses || []).filter(f => f.isCompleted && f.createdAt?.startsWith(today));
-      const goalsPendingToday = (user.dailyFocuses || []).filter(f => !f.isCompleted);
-      const dailyIntention = todaysPriming?.dailyIntention;
-
-      if (goalsCompletedToday.length > 0) {
-        coachInterventions.push({
-          id: `compliment-${Date.now()}`,
-          type: 'encouragement',
-          priority: 'medium',
-          message: `Good job finishing "${goalsCompletedToday[goalsCompletedToday.length - 1].text}"! You're making real progress today.`,
-          dismissed: false,
-          accepted: false
-        });
-      } else if (goalsPendingToday.length > 0) {
-        coachInterventions.push({
-          id: `nudge-${Date.now()}`,
-          type: 'suggestion',
-          priority: 'medium',
-          message: `How's it going with "${goalsPendingToday[0].text}"? I'm here if you need a quick reset or strategy boost.`,
-          action: { type: 'suggest_goal', label: 'View Goal' },
-          dismissed: false,
-          accepted: false
-        });
-      }
-
-      if (dailyIntention && goalsCompletedToday.length === 0) {
-        coachInterventions.push({
-          id: `intention-${Date.now()}`,
-          type: 'check_in',
-          priority: 'high',
-          message: `Checking in: Are you still feeling aligned with your intention to "${dailyIntention}"?`,
-          dismissed: false,
-          accepted: false
-        });
-      }
-
-      if (coachInterventions.length > 0) {
-        // Add to user's active interventions
-        const existing = user.coachInterventions || [];
-        const updated = [...coachInterventions, ...existing].slice(0, 5); // Keep recent 5
-        updateProfile({ ...user, coachInterventions: updated });
-      }
-    }
-  }, [user, userLoading, showIntroSequence, todaysPriming?.dailyIntention, updateProfile]);
 
   const handleRemoveJournalEntry = (entryId: string) => {
     if (!user) return;
@@ -1847,7 +1795,7 @@ function AppContent() {
 {/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
-        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && !isInEveningInputFlow && activeTab !== 'breath' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
+        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && !isInEveningInputFlow && activeTab !== 'breath' && activeTab !== 'coach' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
       >
 
         {/* Top: Tagline & Logo */}
@@ -2006,7 +1954,7 @@ function AppContent() {
                       userName={user.name || "Friend"}
                       onComplete={handlePrimingComplete}
                       onFinish={() => setShowMorningSuccess(true)}
-                      skipIntro={!!(user.practiceData && user.practiceData.totalPractices > 0)}
+                      isFirstEver={!(user.practiceData && user.practiceData.totalPractices > 0)}
                       onRefresh={() => {
                         const updatedPriming = (user.dailyPriming || []).filter(p => p.date !== todayDate);
                         updateProfile({ ...user, dailyPriming: updatedPriming });
@@ -2158,8 +2106,7 @@ function AppContent() {
                 return null;
               }
             })();
-            const coachLine = activeInterventions[0]?.message
-              ?? lastCoachData?.sentence
+            const coachLine = lastCoachData?.sentence
               ?? (todaysPriming?.commitment?.trim() ? `"${todaysPriming.commitment.trim()}"` : null)
               ?? 'Ask me anything — I\'m here.';
 
@@ -3530,7 +3477,7 @@ function AppContent() {
           onClose={() => setGardenShareOpen(false)}
           isDarkMode={isDarkMode}
           streakData={{
-            streak: user.practiceData?.currentStreak ?? user.streak ?? 0,
+            streak: user.streak ?? 0,
             totalPractices: user.practiceData?.totalPractices ?? 0,
             colorCycle: user.mandalaColorCycle ?? 0,
             firstName: user.name?.split(' ')[0] || undefined,
@@ -3540,7 +3487,7 @@ function AppContent() {
             try {
               const { shareStreakCard } = await import('./utils/shareUtils');
               await shareStreakCard({
-                streak:         user.practiceData?.currentStreak ?? user.streak ?? 0,
+                streak:         user.streak ?? 0,
                 colorCycle:     user.mandalaColorCycle ?? 0,
                 totalPractices: user.practiceData?.totalPractices ?? 0,
                 firstName:      user.name?.split(' ')[0] || undefined,
@@ -3573,7 +3520,7 @@ function AppContent() {
           onClose={() => { setShowDay1ShareModal(false); dismissShareDayOne(); }}
           isDarkMode={isDarkMode}
           streakData={{
-            streak: user.practiceData?.currentStreak ?? user.streak ?? 0,
+            streak: user.streak ?? 0,
             totalPractices: user.practiceData?.totalPractices ?? 0,
             colorCycle: user.mandalaColorCycle ?? 0,
             firstName: user.name?.split(' ')[0] || undefined,
@@ -3583,7 +3530,7 @@ function AppContent() {
             try {
               const { shareStreakCard } = await import('./utils/shareUtils');
               await shareStreakCard({
-                streak:         user.practiceData?.currentStreak ?? user.streak ?? 0,
+                streak:         user.streak ?? 0,
                 colorCycle:     user.mandalaColorCycle ?? 0,
                 totalPractices: user.practiceData?.totalPractices ?? 0,
                 firstName:      user.name?.split(' ')[0] || undefined,
@@ -3638,7 +3585,7 @@ function AppContent() {
             isOpen={showHomeCoachSettings}
             onClose={() => setShowHomeCoachSettings(false)}
             settings={(() => {
-              const s = user.coachSettings || {};
+              const s: Partial<CoachSettings> = user.coachSettings || {};
               const validFreqs = ['morning-only', 'morning-evening', 'off'] as const;
               return {
                 ...s,
@@ -3762,7 +3709,7 @@ function AppContent() {
 
       <ErrorBoundary name="KoiPond" onReset={() => setShowKoiPond(false)}>
         <Suspense fallback={null}>
-          {showKoiPond && (
+          {showKoiPond && user && (
             <KoiPond
               isDarkMode={isDarkMode}
               onClose={() => setShowKoiPond(false)}

@@ -38,6 +38,7 @@ interface CoachViewProps {
     user: UserProfile;
     onBack?: () => void;
     onNavigate?: (tab: string) => void;
+    onFirstAIResponse?: () => void;
 }
 
 // ── Pillar config ─────────────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ const formatDate = (ms: number): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate }) => {
+export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate, onFirstAIResponse }) => {
     const { isDarkMode } = useTheme();
     type ViewMode = 'home' | 'chat' | 'history';
     const [view, setView] = useState<ViewMode>('home');
@@ -441,6 +442,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             setActiveSession(finalSession);
             upsertSession(finalSession);
             haptics.medium();
+            if (isFirstUserMsg) onFirstAIResponse?.();
 
         } catch (error) {
             console.error('Chat error:', error);
@@ -848,7 +850,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                         <div ref={messagesEndRef} className="h-4" />
                     </div>
 
-                    <div className="relative z-20 flex-shrink-0 px-6 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
+                    <div className="relative z-20 flex-shrink-0 px-6 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)' }}>
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">
                             <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
                                 <input

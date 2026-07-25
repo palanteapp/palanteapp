@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, Map, Compass, User, Maximize2, Sun, Sparkles, TrendingUp, Timer, Wind, Headphones, Flower2, Fish, Moon, MessageCircle, Mail, Users } from 'lucide-react';
+import { Heart, Map, Compass, User, Maximize2, Sun, Sparkles, TrendingUp, Wind, Headphones, Flower2, Fish, Moon, MessageCircle, Mail, Users } from 'lucide-react';
 import { SlideUpModal } from './SlideUpModal';
 
 interface WelcomeOrientationModalProps {
@@ -70,7 +70,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     Your partner in forward motion.
                                 </h3>
                                 <p className={`text-base leading-relaxed ${textSecondary}`}>
-                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Small actions, taken daily — and being met exactly where you are.
+                                    Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Small actions, taken daily, and being met exactly where you are.
                                 </p>
                             </div>
 
@@ -84,7 +84,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         <div>
                                             <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Morning sets the tone</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                A few minutes of gratitude, affirmation, and intention in the morning isn't a ritual for its own sake — it literally shapes how your brain processes the rest of the day.
+                                                A few minutes of gratitude, affirmation, and intention in the morning isn't a ritual for its own sake. It literally shapes how your brain processes the rest of the day.
                                             </p>
                                         </div>
                                     </div>
@@ -98,7 +98,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         <div>
                                             <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Progress over perfection</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                There is no "falling behind" here. Your 90-day Mandala grows one practice at a time. Every day you show up counts — regardless of what else happened.
+                                                There is no "falling behind" here. Your 90-day Mandala grows one practice at a time. Every day you show up counts, regardless of what else happened.
                                             </p>
                                         </div>
                                     </div>
@@ -112,7 +112,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         <div>
                                             <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>You already have what it takes</h4>
                                             <p className={`text-sm ${textSecondary}`}>
-                                                Palante doesn't add pressure. It helps you hear what you already know — and stay close to it.
+                                                Palante doesn't add pressure. It helps you hear what you already know and stay close to it.
                                             </p>
                                         </div>
                                     </div>
@@ -231,19 +231,11 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => { onNavigate('breathing'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
+                                        className={`text-left p-3 rounded-xl border col-span-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Wind size={24} className={`mb-2 ${accentColor}`} />
                                         <h4 className={`font-medium text-sm ${textPrimary}`}>Breathwork</h4>
                                         <p className={`text-xs ${textSecondary} mt-1`}>Energy · relax · balance</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('focus'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <Timer size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Focus Timer</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Pomodoro deep work</p>
                                     </button>
                                     <button
                                         onClick={() => { onNavigate('meditate'); onClose(); }}

@@ -149,7 +149,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                 coachSettings: {
                     ...prevUser.coachSettings,
                     nudgeEnabled: settings.nudgeEnabled,
-                    nudgeFrequency: settings.nudgeFrequency,
+                    nudgeFrequency: (['morning-only', 'morning-evening', 'off'] as const).includes(settings.nudgeFrequency as 'morning-only' | 'morning-evening' | 'off')
+                        ? settings.nudgeFrequency as 'morning-only' | 'morning-evening' | 'off'
+                        : 'morning-evening',
                     waterRemindersEnabled: settings.waterRemindersEnabled
                 }
             };
@@ -286,7 +288,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                     quietHoursStart: '22:00',
                     quietHoursEnd: '07:00',
                     goals: [],
-                    coachSettings: { nudgeEnabled: true, nudgeFrequency: 'every-2-hours' },
+                    coachSettings: { nudgeEnabled: true, nudgeFrequency: 'morning-evening' },
                     activityHistory: [],
                     journalEntries: [],
                     meditationReflections: [],
@@ -495,7 +497,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     {[
                                         { label: 'Day Streak', value: user.streak || 0 },
                                         { label: 'Practices', value: user.practiceData?.totalPractices ?? 0 },
-                                        { label: 'Letters', value: user.letters?.length ?? 0 },
+                                        { label: 'Letters', value: user.futureLetters?.length ?? 0 },
                                     ].map(stat => (
                                         <div key={stat.label} className="text-center p-3 rounded-2xl bg-white/5">
                                             <div className="text-xl font-display font-medium text-pale-gold">{stat.value}</div>
