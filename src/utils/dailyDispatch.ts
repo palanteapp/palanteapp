@@ -1,5 +1,5 @@
 /**
- * Daily Dispatch — Proactive coach notification generator.
+ * Daily Dispatch: Proactive coach notification generator.
  *
  * After a user completes their morning practice, this generates 3
  * personalized notifications spaced through the day that reference
@@ -20,7 +20,7 @@ type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
 
 // Map the onboarding "what's bringing you here?" answer to the partner's default voice,
 // so a person who came to "manage stress" is met with a calmer tone than someone here
-// to "build consistency." Used only as the default — an explicit tone in settings wins.
+// to "build consistency." Used only as the default, an explicit tone in settings wins.
 const INTENT_TONE: Record<PrimaryIntent, CoachTone> = {
     consistency: 'accountability',
     clarity:     'direct',
@@ -36,9 +36,9 @@ export function intentToTone(intent?: PrimaryIntent | null): CoachTone | undefin
 // (e.g. their first days, or a quick practice) so the dispatch still speaks to their "why."
 const INTENT_OPENER: Record<PrimaryIntent, string[]> = {
     consistency: [
-        '{name}, showing up today is the whole game. You came here to be consistent — this is it.',
+        '{name}, showing up today is the whole game. You came here to be consistent. This is it.',
         'Consistency is just today, repeated. You already did today. Keep it going, {name}.',
-        'The streak isn\'t the point, {name} — the showing-up is. And you showed up.',
+        'The streak isn\'t the point, {name}. The showing-up is. And you showed up.',
     ],
     clarity: [
         '{name}, you came here for clarity. Take one minute now to name the single thing that matters most today.',
@@ -46,14 +46,14 @@ const INTENT_OPENER: Record<PrimaryIntent, string[]> = {
         'A clear afternoon beats a busy one. What\'s the one thing, {name}?',
     ],
     stress: [
-        '{name}, one slow breath right now. You came here to feel steadier — this is the moment to practice it.',
+        '{name}, one slow breath right now. You came here to feel steadier. This is the moment to practice it.',
         'Whatever the afternoon holds, {name}, your shoulders can come down an inch. Try it now.',
         'You don\'t have to carry it all at once, {name}. Just the next thing.',
     ],
     purpose: [
         '{name}, you\'re here to make your days mean something. Does this afternoon point that direction?',
         'Purpose lives in small choices, {name}. Pick one that matters in the next hour.',
-        'Before the day runs out, {name} — one act that feels like the person you\'re becoming.',
+        'Before the day runs out, {name}, one act that feels like the person you\'re becoming.',
     ],
 };
 
@@ -65,17 +65,17 @@ const INTENT_OPENER: Record<PrimaryIntent, string[]> = {
 const INTENTION_MIDDAY: Record<CoachTone, string[]> = {
     nurturing: [
         'You set "{intention}" as your intention this morning. How is it sitting with you now?',
-        '"{intention}" — the morning was yours. The afternoon still is.',
+        '"{intention}". The morning was yours. The afternoon still is.',
         'Halfway through the day. Is "{intention}" still what today is about?',
     ],
     direct: [
-        '"{intention}". Midday checkpoint — are you living it?',
+        '"{intention}". Midday checkpoint. Are you living it?',
         'Your intention was "{intention}". The afternoon is where it gets real.',
         'You said "{intention}" this morning. Mid-day audit: how are you doing?',
     ],
     accountability: [
         'You committed to "{intention}" this morning. The afternoon is where commitments get tested.',
-        '"{intention}" — you put that into the world today. Are you honoring it?',
+        '"{intention}". You put that into the world today. Are you honoring it?',
         'Midday. "{intention}". No excuses. Just honest check-in.',
     ],
 };
@@ -83,17 +83,17 @@ const INTENTION_MIDDAY: Record<CoachTone, string[]> = {
 const GRATITUDE_AFTERNOON: Record<CoachTone, string[]> = {
     nurturing: [
         'You said you\'re grateful for "{gratitude}" today. Let that anchor you through the rest of the afternoon.',
-        '"{gratitude}" — you named that this morning. Hold it close as the day winds down.',
+        '"{gratitude}". You named that this morning. Hold it close as the day winds down.',
         'The thing you\'re most grateful for today: "{gratitude}". Don\'t lose sight of it.',
     ],
     direct: [
-        '"{gratitude}" — you wrote that this morning. Use that energy now.',
+        '"{gratitude}". You wrote that this morning. Use that energy now.',
         'You named "{gratitude}" as something that matters. Keep that in mind.',
         'Gratitude on deck: "{gratitude}". Let that fuel the last push of your day.',
     ],
     accountability: [
         'You said "{gratitude}" is worth being grateful for. Are you acting like it?',
-        '"{gratitude}" — you named that. Make your afternoon worthy of it.',
+        '"{gratitude}". You named that. Make your afternoon worthy of it.',
         'Your gratitude was "{gratitude}". What are you doing with that right now?',
     ],
 };
@@ -101,11 +101,11 @@ const GRATITUDE_AFTERNOON: Record<CoachTone, string[]> = {
 const SUNSET_INTENTIONS: Record<CoachTone, string[]> = {
     nurturing: [
         'The day is almost done. How did "{intention}" feel? Your evening reflection is waiting.',
-        'Before you close out — you set "{intention}" this morning. How did today honor that?',
+        'Before you close out, you set "{intention}" this morning. How did today honor that?',
         'One last check-in on "{intention}". Then take a moment to close it out.',
     ],
     direct: [
-        '"{intention}" — how did today go? Your evening reflection takes 3 minutes.',
+        '"{intention}". How did today go? Your evening reflection takes 3 minutes.',
         'End-of-day audit: "{intention}". Did the day match the intention?',
         'The sun is setting on your intention: "{intention}". Time to reflect.',
     ],
@@ -155,7 +155,7 @@ const AFTERNOON_FALLBACK: Record<CoachTone, string[]> = {
 
 const SUNSET_FALLBACK: Record<CoachTone, string[]> = {
     nurturing: [
-        '{name}, the day is winding down. Your evening reflection is waiting — just 3 minutes.',
+        '{name}, the day is winding down. Your evening reflection is waiting. Just 3 minutes.',
         'Before you close out: what are you grateful for right now? Your reflection is ready.',
         'One honest evening reflection tonight compounds into clarity tomorrow.',
     ],
@@ -236,7 +236,7 @@ export function generateDailyDispatch(params: {
     } else if (intention && intention.trim().length > 2) {
         middayBody = fill(pick(INTENTION_MIDDAY[tone]), firstName, intention, gratitude);
     } else if (intent) {
-        // No typed intention to reference — fall back to their onboarding "why" instead of a generic nudge.
+        // No typed intention to reference: fall back to their onboarding "why" instead of a generic nudge.
         middayBody = fill(pick(INTENT_OPENER[intent]), firstName, intention, gratitude);
     } else {
         middayBody = fill(pick(MIDDAY_FALLBACK[tone]), firstName, intention, gratitude);
@@ -266,7 +266,7 @@ export function generateDailyDispatch(params: {
 }
 
 /**
- * Recovery dispatch — sent when user returns after 2+ days away.
+ * Recovery dispatch: sent when user returns after 2+ days away.
  * Called from App.tsx open-app detection, not post-practice.
  */
 export function generateRecoveryDispatch(params: {

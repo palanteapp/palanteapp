@@ -16,7 +16,7 @@ export const persistProfile = (user: UserProfile): void => {
         data: JSON.stringify(user),
         directory: Directory.Documents,
         encoding: Encoding.UTF8,
-    }).catch(() => {}); // localStorage is already written — native backup is best-effort
+    }).catch(() => {}); // localStorage is already written, native backup is best-effort
 };
 
 // Removes the native backup so a deleted account cannot be resurrected by
@@ -30,7 +30,7 @@ export const clearProfileBackup = async (): Promise<void> => {
             directory: Directory.Documents,
         });
     } catch {
-        // File may not exist — nothing to clear
+        // File may not exist: nothing to clear
     }
 };
 

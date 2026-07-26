@@ -113,7 +113,7 @@ export const SharedReflectionPreview: React.FC<SharedReflectionPreviewProps> = (
                     </div>
 
                     <h4 style={{ fontSize: '7px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B4A4A', opacity: 0.5, marginBottom: '6px', paddingTop: '4px' }}>
-                        Daily Reflection — {formattedDate}
+                        Daily Reflection, {formattedDate}
                     </h4>
 
                     {energyLevel && (
@@ -162,7 +162,7 @@ export const SharedReflectionPreview: React.FC<SharedReflectionPreviewProps> = (
                         color: '#556054',
                         whiteSpace: 'nowrap'
                     }}>
-                        FORWARD, TOGETHER — EVERY SINGLE DAY
+                        FORWARD, TOGETHER. EVERY SINGLE DAY.
                     </p>
                     <p style={{
                         fontSize: '5px',

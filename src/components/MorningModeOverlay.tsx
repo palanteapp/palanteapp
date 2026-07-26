@@ -70,7 +70,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
                                 "{quote.text}"
                             </p>
                             <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                                — {quote.author}
+                                {quote.author}
                             </p>
                         </div>
                     )}

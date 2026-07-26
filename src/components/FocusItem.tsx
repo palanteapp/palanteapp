@@ -19,9 +19,6 @@ export const FocusItem: React.FC<FocusItemProps> = ({
     const { isDarkMode } = useTheme();
     const bgClass = isDarkMode ? 'glass-surface' : 'bg-white/60 border-sage/20';
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
-    const roundedClass = 'rounded-card-premium';
-
-    // Editing State
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState(focus.text);
     const inputRef = useRef<HTMLInputElement>(null);

@@ -22,11 +22,22 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
 }) => {
     if (!isOpen) return null;
 
-    // Enhance favorite objects with actual quote data
+    // Resolve each favorite against the current library, falling back to the text stored
+    // on the favorite itself. Without that fallback a line leaving the library takes the
+    // user's saved copy with it, which is how the old id-only lookup behaved.
     const favoriteQuotes = favorites
         .map(fav => {
             const quote = allQuotes.find(q => q.id === fav.quoteId);
-            return quote ? { ...quote, savedAt: fav.savedAt } : null;
+            if (quote) return { ...quote, savedAt: fav.savedAt };
+            if (!fav.text) return null;
+            return {
+                id: fav.quoteId,
+                text: fav.text,
+                author: fav.author || 'Palante',
+                category: '',
+                intensity: 2 as const,
+                savedAt: fav.savedAt,
+            };
         })
         .filter((q): q is Quote & { savedAt: string } => q !== null)
         .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
@@ -46,7 +57,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                 {favoriteQuotes.length === 0 ? (
                     <div className={`text-center py-20 opacity-50 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
                         <Heart size={48} className="mx-auto mb-4 opacity-20" />
-                        <p>No favorites yet. <br />Save quotes you love!</p>
+                        <p>No favorites yet. <br />Save the lines that stay with you.</p>
                     </div>
                 ) : (
                     favoriteQuotes.map((quote) => (
@@ -65,7 +76,7 @@ export const HistoryModal: React.FC<HistoryModalProps> = ({
                             <div className="flex items-center justify-between">
                                 <p className={`text-sm font-body ${isDarkMode ? 'text-white' : 'text-sage/60'
                                     }`}>
-                                    — {quote.author}
+                                    {quote.author}
                                 </p>
 
                                 <div className="flex items-center gap-3">

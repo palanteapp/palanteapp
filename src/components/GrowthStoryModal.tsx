@@ -101,7 +101,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
                                             <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
                                         </radialGradient>
                                     </defs>
-                                    {/* Full 4 rings — completed */}
+                                    {/* Full 4 rings: completed */}
                                     {[14, 22, 30, 38].map((r, i) => (
                                         <motion.circle
                                             key={r}

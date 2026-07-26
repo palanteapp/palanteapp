@@ -4,7 +4,7 @@ import { useRef, useEffect } from 'react';
  * Hook that auto-centers scrollable content when container is larger than viewport
  * Useful for modals and pages that should show their content centered instead of top-aligned
  */
-export const useAutoScroll = (trigger?: any) => {
+export const useAutoScroll = (trigger?: unknown) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {

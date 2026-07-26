@@ -34,7 +34,7 @@ const PRACTICES: Practice[] = [
         title: 'Breathwork',
         subtitle: 'Regulate your nervous system',
         icon: Wind,
-        info: 'Guided breathing patterns that activate your parasympathetic nervous system — easing anxiety, sharpening focus, and bringing you back to center in minutes. Choose from Energy, Relax, or Balance breathing.',
+        info: 'Guided breathing patterns that activate your parasympathetic nervous system, easing anxiety, sharpening focus, and bringing you back to center in minutes. Choose from Energy, Relax, or Balance breathing.',
         accent: { icon: '#E5D6A7', bg: 'rgba(229,214,167,0.13)', glow: 'rgba(229,214,167,0.08)', border: 'rgba(229,214,167,0.30)' },
     },
     {
@@ -42,7 +42,7 @@ const PRACTICES: Practice[] = [
         title: 'Meditation',
         subtitle: 'Find calm with guided sessions',
         icon: Flower,
-        info: 'Short, guided sessions designed to quiet mental noise and build presence. Whether you have 5 minutes or 20, each session is crafted to meet you where you are — no experience needed.',
+        info: 'Short, guided sessions designed to quiet mental noise and build presence. Whether you have 5 minutes or 20, each session is crafted to meet you where you are. No experience needed.',
         accent: { icon: '#E5D6A7', bg: 'rgba(229,214,167,0.13)', glow: 'rgba(229,214,167,0.08)', border: 'rgba(229,214,167,0.30)' },
     },
     {
@@ -50,7 +50,7 @@ const PRACTICES: Practice[] = [
         title: 'Sonic Canvas',
         subtitle: 'Immersive audio for focus or rest',
         icon: Music,
-        info: 'Layer ambient sounds — rain, forest, white noise, binaural tones — to create your ideal sonic environment. Use it for deep work, sleep, meditation, or just blocking out the world for a moment.',
+        info: 'Layer ambient sounds (rain, forest, white noise, binaural tones) to create your ideal sonic environment. Use it for deep work, sleep, meditation, or just blocking out the world for a moment.',
         accent: { icon: '#E5D6A7', bg: 'rgba(229,214,167,0.13)', glow: 'rgba(229,214,167,0.08)', border: 'rgba(229,214,167,0.30)' },
     },
 ];
@@ -104,7 +104,7 @@ const SortablePracticeCard: React.FC<{
                     <Icon size={22} style={{ color: isDarkMode ? accent.icon : accent.icon }} />
                 </div>
 
-                {/* Text — tappable to navigate */}
+                {/* Text: tappable to navigate */}
                 <button
                     className="flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
                     onClick={() => { haptics.medium(); onNavigate(practice.id); }}
@@ -197,7 +197,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                 Hold <GripVertical size={10} className="inline" /> to reorder
             </p>
 
-            {/* Info modal — portal */}
+            {/* Info modal: portal */}
             {createPortal(
                 <AnimatePresence>
                     {infoTarget && (

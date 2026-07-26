@@ -44,7 +44,6 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
     const textPrimary = 'text-white';
     const textSecondary = 'text-white'; // Full opacity for readability
     const accentColor = 'text-white font-black text-[12px]'; // Darker, bolder Terracotta
-    const accentBg = 'bg-[#E5D6A7]'; // Solid Pale Gold
     const tabActiveBg = 'bg-[#E5D6A7] shadow-sm border-[#E5D6A7] text-[#1B4332]';
     const tabInactiveBg = 'bg-transparent border-white/10 text-white';
 

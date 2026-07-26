@@ -4,7 +4,7 @@ import { Share2, Heart, Clock, Settings, RefreshCw, Pin } from 'lucide-react';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import type { Quote } from '../types';
 import { ShareModal } from './ShareModal';
-// html2canvas removed — image generation now uses Canvas 2D API via shareUtils
+// html2canvas removed: image generation now uses Canvas 2D API via shareUtils
 
 interface DashboardQuoteCardProps {
     quote: Quote;
@@ -32,7 +32,7 @@ const DynamicArtBackground = ({ seed }: { seed: string }) => {
         const x = Math.sin(hash + i) * 10000;
         return x - Math.floor(x);
     };
-    // Earthy palette — matches SharedQuotePreview exactly so home card = share card
+    // Earthy palette: matches SharedQuotePreview exactly so home card = share card
     const colors = ['#F59E0B', '#E5D6A7', '#C96A3A', '#415D43', '#879582'];
     return (
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520"
@@ -62,7 +62,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     onRefresh,
 }) => {
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    // Optimistic local state — iOS preserve-3d containers can drop click events;
+    // Optimistic local state: iOS preserve-3d containers can drop click events;
     // showing feedback instantly prevents the heart feeling "broken".
     const [localFavorited, setLocalFavorited] = useState<boolean | null>(null);
     const effectiveFavorited = localFavorited !== null ? localFavorited : (isFavorited ?? false);
@@ -94,7 +94,10 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
         try { localStorage.setItem(getTodayKey(), n.toString()); } catch { /* ignore */ }
     };
 
-    const isTierQuote = quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' || quote.author === 'Palante' || quote.author === 'Palante Coach' || quote.isAI;
+    // Every line in the library is Palante-authored now that the third-party quotes are
+    // gone, so there is no longer an external attribution to distinguish. Kept as a named
+    // constant so the branches below stay readable.
+    const isTierQuote = true;
     const quoteText   = quote?.text   || 'Keep moving forward.';
     const quoteAuthor = quote?.author || 'Palante';
     const seed = `${quote.id}-${new Date().toLocaleDateString()}-${refreshCount}`;
@@ -131,8 +134,8 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                 await Share.share({
                     title: 'Inspiration from Palante',
                     text: isTierQuote
-                        ? `"${quoteText}"\n\n— @palante.app`
-                        : `"${quoteText}" — ${quoteAuthor}\n\n@palante.app`,
+                        ? `"${quoteText}"\n\n@palante.app`
+                        : `"${quoteText}"\n${quoteAuthor}\n\n@palante.app`,
                 });
             } catch { /* share cancelled */ }
         } finally {
@@ -202,12 +205,12 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     const rawX = useMotionValue(0);
     const rawY = useMotionValue(0);
 
-    // Fluid spring — low stiffness + high damping = heavy card that settles without bounce
+    // Fluid spring: low stiffness + high damping = heavy card that settles without bounce
     const springCfg = { stiffness: 50, damping: 22, mass: 0.85 };
     const springX = useSpring(rawX, springCfg);
     const springY = useSpring(rawY, springCfg);
 
-    // 1. Card 3D tilt — perspective is on the wrapper div below
+    // 1. Card 3D tilt: perspective is on the wrapper div below
     //    Reduced to ±7° so the tilt reads as depth, not spinning
     const rotateY = useTransform(springX, [-0.5, 0.5], [-7,  7]);
     const rotateX = useTransform(springY, [-0.5, 0.5], [ 5, -5]);
@@ -216,7 +219,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     const bgX = useTransform(springX, [-0.5, 0.5], ['-10%', '10%']);
     const bgY = useTransform(springY, [-0.5, 0.5], [ '-7%',  '7%']);
 
-    // 3. Quote box counter-drifts AGAINST tilt — feels like it floats above the card
+    // 3. Quote box counter-drifts AGAINST tilt, feels like it floats above the card
     const boxX = useTransform(springX, [-0.5, 0.5], [ 6, -6]);
     const boxY = useTransform(springY, [-0.5, 0.5], [ 4, -4]);
 
@@ -229,20 +232,20 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
             `${sx}px ${sy}px 56px -8px rgba(0,0,0,0.32), 0 4px 16px rgba(0,0,0,0.10)`,
     );
 
-    // 5. Specular gloss — a soft highlight that sweeps left→right as card tilts
+    // 5. Specular gloss: a soft highlight that sweeps left→right as card tilts
     const glossLeft  = useTransform(springX, [-0.5, 0.5], ['-20%', '120%']);
     const glossOpacity = useTransform(springX, [-0.5, 0.5], [0.20, 0.04]);
 
     // Gyroscope (device) input
     // iOS 13+ silently blocks deviceorientation until requestPermission() is called.
-    // It MUST be invoked directly from a native (non-React) touchend handler — async
+    // It MUST be invoked directly from a native (non-React) touchend handler, async
     // React synthetic events are outside the gesture boundary iOS enforces.
     useEffect(() => {
         const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
 
         const requestPermission = DOE.requestPermission;
         if (typeof requestPermission !== 'function') {
-            // Android, desktop, or older iOS — events fire freely
+            // Android, desktop, or older iOS, events fire freely
             setGyroPermitted(true);
             return;
         }
@@ -264,10 +267,10 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
             window.removeEventListener('touchend', tryRequestPermission);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, []);
 
-    // Idle breathing animation — slow sine oscillation until gyro takes over
+    // Idle breathing animation: slow sine oscillation until gyro takes over
     useEffect(() => {
         let raf: number;
         let gyroActive = false;
@@ -276,7 +279,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
         const tick = (now: number) => {
             if (!gyroActive) {
                 const t = (now - start) / 1000;
-                // Slower, gentler breathing (0.22/0.16 Hz) — feels like the card is alive, not jittery
+                // Slower, gentler breathing (0.22/0.16 Hz), feels like the card is alive, not jittery
                 rawX.set(Math.sin(t * 0.22) * 0.26);
                 rawY.set(Math.sin(t * 0.16 + 1.2) * 0.18);
             }
@@ -333,12 +336,12 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                     exit={{ opacity: 0, y: -12, scale: 0.97 }}
                     transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
                     className="w-full"
-                    /* perspective on the WRAPPER — smaller value = more dramatic 3D */
+                    /* perspective on the WRAPPER: smaller value = more dramatic 3D */
                     style={{ perspective: '1100px', perspectiveOrigin: '50% 45%' }}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
                 >
-                    {/* ── 3D tilting card — preserve-3d lets children use translateZ for real depth ── */}
+                    {/* ── 3D tilting card, preserve-3d lets children use translateZ for real depth ── */}
                     <motion.div
                         style={{
                             rotateX,
@@ -354,7 +357,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             transformStyle: 'preserve-3d',
                         }}
                     >
-                        {/* ── Background art — pushed back in Z so it reads as a distant layer ── */}
+                        {/* ── Background art, pushed back in Z so it reads as a distant layer ── */}
                         <motion.div
                             style={{
                                 position: 'absolute',
@@ -375,7 +378,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`,
                         }} />
 
-                        {/* ── Specular gloss sweep — moves with tilt ── */}
+                        {/* ── Specular gloss sweep, moves with tilt ── */}
                         <motion.div
                             aria-hidden="true"
                             style={{
@@ -387,7 +390,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
                             }}
                         />
 
-                        {/* ── Quote box — counter-drifts AGAINST tilt, floats forward in Z ── */}
+                        {/* ── Quote box, counter-drifts AGAINST tilt, floats forward in Z ── */}
                         <motion.div
                             style={{
                                 position: 'relative',

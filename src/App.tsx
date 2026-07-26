@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { STORAGE_KEYS, SESSION_KEYS } from './constants/storageKeys';
+import { hasAcknowledgedAIDisclosure, recordAIDisclosureAcknowledgment } from './data/aiDisclosure';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -10,10 +11,10 @@ import { UserProvider, useUser } from './contexts/UserContext';
 
 
 import { getAIQuote, pickAndMarkQuote } from './utils/quoteMatcher';
-import { generateUserNarrative, generateWeeklyReflection, generatePalanteQuote } from './utils/aiService';
+import { generateUserNarrative, generateWeeklyReflection } from './utils/aiService';
 import { analytics, identifyUser } from './utils/analytics';
 import { AFFIRMATIONS } from './data/affirmations';
-import type { UserProfile, Quote, DailyFocus, JournalEntry, ActivityType, ContentType, QuoteSource, SoundMix, PrimaryIntent } from './types';
+import type { UserProfile, Quote, DailyFocus, ActivityType, ContentType, QuoteSource, SoundMix, PrimaryIntent } from './types';
 import { haptics } from './utils/haptics';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
@@ -26,7 +27,7 @@ import { triggerConfetti } from './utils/CelebrationEffects';
 import { WidgetDataSync } from './utils/widgetDataSync';
 import { DebugErrorBoundary } from './components/DebugErrorBoundary';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { Settings2, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { computeWeeklyHighlights } from './utils/weeklyHighlights';
 import { generateWeeklyLetter, isSunday, letterIsStale, getISOWeekNumber } from './utils/weeklyLetter';
 import type { EssentialToolId } from './components/HomeEssentialTools';
@@ -35,13 +36,13 @@ import type { GrowthStoryData } from './utils/aiService';
 import type { YearForwardData } from './utils/yearForward';
 import { Logo } from './components/Logo';
 import {
-  Home, TrendingUp, User as UserIcon, Moon, Sun,
-  Music, MessageCircle, Bell, ChevronDown, Check,
-  Target, Sparkles, ChevronRight, Fish, Mic, Layers, Heart,
+  Home, TrendingUp, User as UserIcon,
+  Music, MessageCircle,
+  Target, Fish, Layers,
   CheckCircle2
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { CoachSettings, WeeklyReport, DailyPriming, CoachSession, CoachPillar } from './types';
+import type { CoachSettings, WeeklyReport, DailyPriming } from './types';
 import { SCIENCE_FACTS, type ScienceFact } from './data/scienceFacts';
 import { generateDailyDispatch, generateRecoveryDispatch, intentToTone } from './utils/dailyDispatch';
 import { isReviewerEmail, REVIEWER_DISPATCH_OFFSETS_MIN } from './constants/reviewer';
@@ -64,7 +65,6 @@ const MorningPractice = lazy(() => import('./components/MorningPractice').then(m
 const KoiPond = lazy(() => import('./components/KoiPond').then(m => ({ default: m.KoiPond })));
 const DidYouKnowModal = lazy(() => import('./components/DidYouKnowModal').then(m => ({ default: m.DidYouKnowModal })));
 const CinematicIntro = lazy(() => import('./components/CinematicIntro').then(m => ({ default: m.CinematicIntro })));
-const MorningMessageCard = lazy(() => import('./components/MorningMessageCard').then(m => ({ default: m.MorningMessageCard })));
 const EveningMessageCard = lazy(() => import('./components/EveningMessageCard').then(m => ({ default: m.EveningMessageCard })));
 const GardenLegendModal = lazy(() => import('./components/GardenLegendModal').then(m => ({ default: m.GardenLegendModal })));
 const DashboardQuoteCard = lazy(() => import('./components/DashboardQuoteCard').then(m => ({ default: m.DashboardQuoteCard })));
@@ -73,6 +73,7 @@ const NotificationAskModal = lazy(() => import('./components/NotificationAskModa
 const AgeVerificationModal = lazy(() => import('./components/AgeVerificationModal').then(m => ({ default: m.AgeVerificationModal })));
 const CelebrationModal = lazy(() => import('./components/CelebrationModal').then(m => ({ default: m.CelebrationModal })));
 const DisclaimerModal = lazy(() => import('./components/DisclaimerModal').then(m => ({ default: m.DisclaimerModal })));
+const AIDisclosureModal = lazy(() => import('./components/AIDisclosureModal').then(m => ({ default: m.AIDisclosureModal })));
 const HistoryModal = lazy(() => import('./components/HistoryModal').then(m => ({ default: m.HistoryModal })));
 const SoundMixer = lazy(() => import('./components/SoundMixer'));
 const EveningPractice = lazy(() => import('./components/EveningPractice').then(m => ({ default: m.EveningPractice })));
@@ -94,7 +95,6 @@ const SlideUpModal = lazy(() => import('./components/SlideUpModal').then(m => ({
 const ProfileCompletionCard = lazy(() => import('./components/ProfileCompletionCard').then(m => ({ default: m.ProfileCompletionCard })));
 const RestDayModal = lazy(() => import('./components/RestDayModal').then(m => ({ default: m.RestDayModal })));
 const MorningModeOverlay = lazy(() => import('./components/MorningModeOverlay').then(m => ({ default: m.MorningModeOverlay })));
-const CoachGuidanceModal = lazy(() => import('./components/CoachGuidanceModal').then(m => ({ default: m.CoachGuidanceModal })));
 const LetterWriteModal = lazy(() => import('./components/LetterWriteModal').then(m => ({ default: m.LetterWriteModal })));
 const LetterReadModal = lazy(() => import('./components/LetterReadModal').then(m => ({ default: m.LetterReadModal })));
 const ShareModal = lazy(() => import('./components/ShareModal').then(m => ({ default: m.ShareModal })));
@@ -104,14 +104,14 @@ import { useTheme } from './contexts/ThemeContext';
 
 function AppContent() {
 
-  const { loading: authLoading, user: authUser, session } = useAuth();
+  const { loading: authLoading, user: authUser } = useAuth();
   const { user, loading: userLoading, updateProfile, logActivity, saveReflection, toggleFavorite } = useUser();
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
 
   // Memory-aware continuity callback, precomputed app-wide so the home card can
   // surface it even when the user has not opened the partner chat. Shares the
-  // per-day cache with CoachView — generation happens at most once a day across both.
+  // per-day cache with CoachView, generation happens at most once a day across both.
   const { continuityOpener } = useContinuityOpener(user);
   const [memoryCallbackDismissed, setMemoryCallbackDismissed] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEYS.MEMORY_CALLBACK_DISMISSED) === new Date().toISOString().slice(0, 10); }
@@ -129,20 +129,12 @@ function AppContent() {
 
 
   const { isDarkMode } = useTheme();
-  const [isGoalsExpanded, setIsGoalsExpanded] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.GOALS_EXPANDED);
-      return saved === null ? true : JSON.parse(saved);
-    } catch {
-      return true;
-    }
-  });
   const [newFocusText, setNewFocusText] = useState('');
   const [goalsExpanded, setGoalsExpanded] = useState(false);
   const {
     showProfile, setShowProfile, showKoiPond, setShowKoiPond,
     showHistory, setShowHistory,
-    showWelcome, setShowWelcome,
+    setShowWelcome,
     showSoundMixer, setShowSoundMixer, mixerSource, setMixerSource,
     showMorningPractice, setShowMorningPractice,
     showMorningMode, setShowMorningMode,
@@ -168,24 +160,15 @@ function AppContent() {
   const [weeklyReflectionMessage, setWeeklyReflectionMessage] = useState('');
 
   // Time-based UI modes
-  const { shouldShowMorningMode, shouldShowEveningMode, hour, timeOfDay } = useTimeOfDay();
+  const { shouldShowEveningMode, hour } = useTimeOfDay();
 
   // Transient Success States for Practices
   const [showMorningSuccess, setShowMorningSuccess] = useState(false);
-  const [showEveningSuccess, setShowEveningSuccess] = useState(false);
-  const [showFirstTimeWelcome, setShowFirstTimeWelcome] = useState(false);
-  const dismissFirstTimeWelcome = () => {
-    localStorage.setItem(STORAGE_KEYS.WELCOME_SHOWN, 'true');
-    setShowFirstTimeWelcome(false);
-    if (localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN)
-        && !localStorage.getItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED)) {
-      setTimeout(() => setShowProfileNudge(true), 800);
-    }
-  };
+  const [_showEveningSuccess, setShowEveningSuccess] = useState(false);
+  const [_showFirstTimeWelcome, setShowFirstTimeWelcome] = useState(false);
   const [eveningSkipped, setEveningSkipped] = useState(false);
   const [morningSkipped, setMorningSkipped] = useState(false);
-  const [morningSkipReminderSent, setMorningSkipReminderSent] = useState(false);
-  const [showEveningPracticeInline, setShowEveningPracticeInline] = useState(false);
+  const [_morningSkipReminderSent, setMorningSkipReminderSent] = useState(false);
 
   // Dev unlock: triple-tap the greeting on the home screen to force evening mode any hour.
   // Resets on app launch so there's nothing to clean up before shipping.
@@ -207,14 +190,10 @@ function AppContent() {
     }
   }, []);
   const [dailyQuote, setDailyQuote] = useState<Quote | null>(null);
-  const [gardenAffirmation, setGardenAffirmation] = useState<string | null>(null);
-  const [gardenAffirmationLoading, setGardenAffirmationLoading] = useState(false);
-  const [gardenAffirmationRefreshCount, setGardenAffirmationRefreshCount] = useState(0);
-  const [showTodayStory, setShowTodayStory] = useState(false);
   const [showGardenLegend, setShowGardenLegend] = useState(false);
   const [showPostPracticeSetup, setShowPostPracticeSetup] = useState(false);
   const [showNotifAsk, setShowNotifAsk] = useState(false);
-  // Interests/content setup — was a blocking first-run modal, now a dismissible home card (opt-in).
+  // Interests/content setup: was a blocking first-run modal, now a dismissible home card (opt-in).
   const [showInterestsCard, setShowInterestsCard] = useState(() => !localStorage.getItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN));
   const dismissInterestsCard = () => {
     localStorage.setItem(STORAGE_KEYS.POST_PRACTICE_SETUP_SEEN, 'true');
@@ -271,7 +250,7 @@ function AppContent() {
     saveQuote(pickAndMarkQuote(activeUser, excludeId));
   }, [user, dailyQuote]);
 
-  // Load daily quote on mount — restore cached quote from today or pick a fresh one
+  // Load daily quote on mount: restore cached quote from today or pick a fresh one
   useEffect(() => {
     if (!user) return;
     const today = new Date().toISOString().split('T')[0];
@@ -286,59 +265,12 @@ function AppContent() {
     refreshDailyQuote();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Garden affirmation — generate once per day, anchored in today's actual morning practice content
-  const generateGardenAffirmation = useCallback((force = false, practiceOverride?: {
-    gratitudes: string[];
-    affirmations: string[];
-    intention: string;
-    commitment?: string;
-  }) => {
-    if (!user) return;
-    const _d = new Date();
-    const today = `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, '0')}-${String(_d.getDate()).padStart(2, '0')}`;
-    if (!force) {
-      const cachedDate = localStorage.getItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
-      const cached = localStorage.getItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
-      if (cachedDate === today && cached) {
-        setGardenAffirmation(cached);
-        return;
-      }
-    }
-    const todayPriming = ([...(user.dailyMorningPractice || []), ...(user.dailyPriming || [])])
-      .find(p => p.date === today);
-    const gratitudes = practiceOverride?.gratitudes ?? (todayPriming?.gratitudes || []).filter(Boolean);
-    const affirmations = practiceOverride?.affirmations ?? (todayPriming?.affirmations || []).filter(Boolean);
-    const intention = practiceOverride?.intention ?? (todayPriming?.dailyIntention?.trim() || '');
-    const commitment = practiceOverride?.commitment ?? (todayPriming?.commitment?.trim() || '');
-
-    // Only generate if there's real practice content to anchor to
-    if (!gratitudes.length && !affirmations.length && !intention) {
-      setGardenAffirmation(null);
-      return;
-    }
-
-    setGardenAffirmationLoading(true);
-    generatePalanteQuote({
-      gratitudes,
-      affirmations,
-      intention,
-      commitment: commitment || undefined,
-      coachTone: user.coachSettings?.coachTone,
-      streak: user.streak || 0,
-    })
-      .then(text => {
-        if (!text) { setGardenAffirmation(null); return; }
-        setGardenAffirmation(text);
-        localStorage.setItem(STORAGE_KEYS.GARDEN_AFFIRMATION, text);
-        localStorage.setItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE, today);
-      })
-      .catch(() => setGardenAffirmation(null))
-      .finally(() => setGardenAffirmationLoading(false));
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    generateGardenAffirmation();
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Removed July 2026: the garden affirmation generator. It called Anthropic on mount and
+  // again, cache-busted, after every practice completion, then stored the result in
+  // localStorage where nothing read it. The render site had been removed at some point and
+  // left the generator behind, so it was billing on the same event you most want users
+  // repeating. Restoring the line means choosing where it renders first; the generation
+  // itself is one revert away (utils/aiService generatePalanteQuote went with it).
 
   // Keep screen awake globally per user request
   useEffect(() => {
@@ -364,7 +296,7 @@ function AppContent() {
   const [letterContextDetails, setLetterContextDetails] = useState<string>('');
   const [currentLetter, setCurrentLetter] = useState<FutureLetter | null>(null);
 
-  // Weekly Highlights — badge on Journey tab, modal shown when user navigates there
+  // Weekly Highlights: badge on Journey tab, modal shown when user navigates there
   useEffect(() => {
     if (!user) return;
     const trigger = computeWeeklyHighlights(
@@ -382,7 +314,7 @@ function AppContent() {
       ).then(msg => setWeeklyReflectionMessage(msg)).catch(() => {});
     }
 
-    // Weekly partner letter — generate on Sunday, OR on day 7 of the trial for new users
+    // Weekly partner letter: generate on Sunday, OR on day 7 of the trial for new users
     // who may never reach a Sunday before the paywall (e.g. installs Monday → paywall day 8).
     const firstPracticeDate = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE);
     const daysSinceFirst = firstPracticeDate
@@ -415,7 +347,7 @@ function AppContent() {
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // One-time cleanup: earlier onboarding saved the orienting answer as a raw id
-  // ("purpose") instead of a label. Relabel any such goals in place. Idempotent —
+  // ("purpose") instead of a label. Relabel any such goals in place. Idempotent
   // once relabeled the text no longer matches an id, so it won't run again.
   useEffect(() => {
     if (!user?.dailyFocuses?.length) return;
@@ -467,6 +399,23 @@ function AppContent() {
     setShowAgeGate(false);
   };
 
+  // AI disclosure: shown once, and again whenever AI_DISCLOSURE_VERSION changes, so a
+  // material change to what we send or who receives it is surfaced rather than buried.
+  const [showAIDisclosure, setShowAIDisclosure] = useState(() => !hasAcknowledgedAIDisclosure());
+
+  const handleAIDisclosureAcknowledged = (aiEnabled: boolean) => {
+    recordAIDisclosureAcknowledgment();
+    setShowAIDisclosure(false);
+    // Write the profile only when the choice differs from what's already stored. The
+    // default is aiDisabled: false, so acknowledging without touching the toggle should
+    // not churn the profile: but a user re-enabling AI on a later version bump must
+    // still be persisted, which a one-way "only on opt-out" check would miss.
+    const wantsDisabled = !aiEnabled;
+    if (user && (user.aiDisabled ?? false) !== wantsDisabled) {
+      updateProfile({ ...user, aiDisabled: wantsDisabled });
+    }
+  };
+
   const [showIntroSequence, setShowIntroSequence] = useState(() => !localStorage.getItem(STORAGE_KEYS.INTRO_SEEN));
 
   const handleIntroComplete = async (userData: {
@@ -490,7 +439,7 @@ function AppContent() {
       sourcePreference: userData.sourcePreference,
     });
 
-    // 0. Record the age gate from the intro's age step (COPPA — happens before any practice)
+    // 0. Record the age gate from the intro's age step (COPPA, happens before any practice)
     if (userData.dateOfBirth) {
       localStorage.setItem(STORAGE_KEYS.AGE_GATE_PASSED, userData.dateOfBirth);
     }
@@ -511,7 +460,7 @@ function AppContent() {
 
     // 6. Create/Update User Profile with all data (AFTER dismissing intro)
     if (user) {
-      // Their onboarding answer sets the partner's default voice — unless they've already
+      // Their onboarding answer sets the partner's default voice, unless they've already
       // chosen one explicitly. (intentToTone returns undefined when no intent was picked.)
       const defaultedTone = user.coachSettings?.coachTone ?? intentToTone(userData.primaryIntent) ?? 'nurturing';
       const updatedUser = {
@@ -553,7 +502,7 @@ function AppContent() {
       const seedMemories: string[] = [];
       const firstName = userData.name.trim().split(/\s+/)[0] || userData.name.trim();
       const INTENT_MEMORY: Partial<Record<string, string>> = {
-        consistency: `${firstName} came to Palante because they want to build more consistency — returning to the practice every day, regardless of how they feel.`,
+        consistency: `${firstName} came to Palante because they want to build more consistency, returning to the practice every day, regardless of how they feel.`,
         clarity: `${firstName} is looking for clarity and focus. They feel scattered and want to know what truly matters so they can cut through the noise.`,
         stress: `${firstName} is dealing with real stress and came to Palante to stay grounded. Life has felt heavy and they need support managing it.`,
         purpose: `${firstName} wants their days to feel meaningful. They came to Palante to reconnect with purpose and make their life more intentional.`,
@@ -693,7 +642,7 @@ function AppContent() {
   const [gardenShareOpen, setGardenShareOpen] = useState(false);
   const [isGeneratingStreakCard, setIsGeneratingStreakCard] = useState(false);
 
-  // Day 1 share modal — shows beautiful quote card instead of plain text
+  // Day 1 share modal: shows beautiful quote card instead of plain text
   const [showDay1ShareModal, setShowDay1ShareModal] = useState(false);
   const [isGeneratingDay1Card, setIsGeneratingDay1Card] = useState(false);
 
@@ -757,7 +706,7 @@ function AppContent() {
     setCurrentLetter(null);
   };
 
-  // Check for letter delivery — scheduled (90-day) or on low-energy days
+  // Check for letter delivery: scheduled (90-day) or on low-energy days
   useEffect(() => {
     if (!user || !user.futureLetters || user.futureLetters.length === 0) return;
     if (showLetterRead) return; // Don't show multiple letters at once
@@ -768,7 +717,7 @@ function AppContent() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Priority 1: Scheduled delivery (90-day letters) — show regardless of energy
+    // Priority 1: Scheduled delivery (90-day letters), show regardless of energy
     const scheduledDue = user.futureLetters
       .filter(l => !l.hasBeenDelivered && l.scheduledDeliveryDate && new Date(l.scheduledDeliveryDate) <= today)
       .sort((a, b) => new Date(a.scheduledDeliveryDate!).getTime() - new Date(b.scheduledDeliveryDate!).getTime());
@@ -791,7 +740,7 @@ function AppContent() {
     }
   }, []);
 
-  // Ring ceremony — fires once per ring threshold crossing
+  // Ring ceremony: fires once per ring threshold crossing
   useEffect(() => {
     if (!user || ringCeremony.isOpen) return;
     const total = user.practiceData?.totalPractices ?? 0;
@@ -834,8 +783,8 @@ function AppContent() {
     setGlobalTip(prev => ({ ...prev, isOpen: false }));
   };
 
-  // loadNewQuote stub — kept for useAppProcess compatibility (daily quote uses refreshDailyQuote instead)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // loadNewQuote stub: kept for useAppProcess compatibility (daily quote uses refreshDailyQuote instead)
+   
   const loadNewQuote = useCallback(async (_userProfile: UserProfile) => {
     // no-op: daily quote refresh handled by refreshDailyQuote
   }, []);
@@ -870,7 +819,7 @@ function AppContent() {
   }, []);
 
 
-  // Recovery check — grace day modal (1 missed day) or background nudge (3+ days)
+  // Recovery check: grace day modal (1 missed day) or background nudge (3+ days)
   useEffect(() => {
     if (!user || !user.practiceData?.lastActivityDate) return;
     const checkedToday = sessionStorage.getItem(SESSION_KEYS.REST_DAY_CHECKED);
@@ -882,9 +831,9 @@ function AppContent() {
 
     // daysSince === 1 means the last practice was YESTERDAY: the user is on track and
     // simply hasn't practiced yet today, so nothing should fire. The grace-day modal is
-    // for returning after a real gap — daysSince === 2 means exactly yesterday was missed.
+    // for returning after a real gap: daysSince === 2 means exactly yesterday was missed.
     if (daysSince === 2 && (user.streak ?? 0) >= 2) {
-      // Missed exactly yesterday and has a real streak worth protecting — show grace day modal.
+      // Missed exactly yesterday and has a real streak worth protecting, show grace day modal.
       // Build the date with LOCAL parts (not toISOString, which is UTC and can be off by one).
       const yd = new Date();
       yd.setDate(yd.getDate() - 1);
@@ -1007,7 +956,7 @@ function AppContent() {
       }
     }
 
-    // After the 3rd practice — invite to write a letter to your future self (earned, once-only)
+    // After the 3rd practice: invite to write a letter to your future self (earned, once-only)
     if (updatedCount === 3 && (user.futureLetters ?? []).length === 0 && !localStorage.getItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN)) {
       setTimeout(() => {
         localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
@@ -1064,7 +1013,7 @@ function AppContent() {
       haptics.light();
     }
 
-    toggleFavorite(quoteIdStr, !isFavorited);
+    toggleFavorite(quoteIdStr, !isFavorited, { text: quote.text, author: quote.author });
   };
 
   const handleRemoveFavorite = async (quoteId: string) => {
@@ -1168,42 +1117,24 @@ function AppContent() {
 
 
 
-  // Speech Recognition Hook
-  const {
-    isListening: isWebSpeechListening,
-    transcript,
-    startListening,
-    stopListening,
-    resetTranscript
-  } = useSpeechRecognition();
+  // Dictation for the focus field. useSpeechRecognition is a stub in this build
+  // (isSupported is hard-coded false and startListening is a no-op), so transcript never
+  // arrives and nothing here can fire. Kept as the single seam to re-enable it: the UI
+  // that called it is already gone, so wiring dictation back up means adding a control,
+  // not rebuilding this.
+  const { transcript } = useSpeechRecognition();
+  const [baseFocusText] = useState('');
 
-  // Combine listening states if you have other logic, or just use the hook's
-  const isListeningFocus = isWebSpeechListening; // Remap for existing UI compatibility
-
-  // Manage text updates from dictation
-  const [baseFocusText, setBaseFocusText] = useState('');
-
-  // Update focus text when transcript changes
   useEffect(() => {
     if (transcript) {
       setNewFocusText((baseFocusText ? baseFocusText + ' ' : '') + transcript);
     }
   }, [transcript, baseFocusText]);
 
-  const toggleFocusDictation = () => {
-    if (isListeningFocus) {
-      stopListening();
-    } else {
-      setBaseFocusText(newFocusText);
-      resetTranscript();
-      startListening();
-    }
-  };
-
   const handleQuickAddFocus = async () => {
     if (!user || !newFocusText.trim()) return;
     if ((user.dailyFocuses || []).length >= 5) {
-      setToastMessage("5 goals set — focus on what matters most");
+      setToastMessage("5 goals set. Focus on what matters most");
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
       return;
@@ -1301,7 +1232,7 @@ function AppContent() {
         const name = milestoneMap[milestone] || 'week';
         const earlyToasts: Partial<Record<typeof name, string>> = {
           first: "First practice. Pa'lante.",
-          three: "3 practices — you're building something.",
+          three: "3 practices. You're building something.",
           week:  "7 practices. One week in.",
         };
         if (earlyToasts[name]) {
@@ -1322,7 +1253,7 @@ function AppContent() {
     if (!user) return;
 
     // Mark that the user has genuinely completed a practice (gates the paywall on next open).
-    // Intentionally here — on completion — not on modal close, so abandoners don't get locked out.
+    // Intentionally here (on completion) not on modal close, so abandoners don't get locked out.
     localStorage.setItem(STORAGE_KEYS.APP_USED, 'true');
     setAppUsed(true);
     // Record date of very first practice so the evening prompt is suppressed on Day 1.
@@ -1348,7 +1279,7 @@ function AppContent() {
       updatedPriming.push(data);
     }
 
-    // Calculate streak the same way logActivity does — morning priming is the primary
+    // Calculate streak the same way logActivity does, morning priming is the primary
     // daily practice so it must update user.streak, not just practiceData.
     const todayStr = getTodayDate();
     const yd = new Date(); yd.setDate(yd.getDate() - 1);
@@ -1377,7 +1308,7 @@ function AppContent() {
       affirmationCount: data.affirmations?.length ?? 0,
     });
 
-    // Mark welcome as seen immediately — no modal chain after first practice.
+    // Mark welcome as seen immediately: no modal chain after first practice.
     // PostPracticeSetup and ProfileNudge are deferred to practice 3+ via useEffect below.
     if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
       pendingWelcome.current = true;
@@ -1407,17 +1338,6 @@ function AppContent() {
         }))
       : dispatchMessages;
     notifications.scheduleDailyDispatch(finalDispatch, user.coachName);
-
-    // Regenerate garden affirmation with fresh practice content — don't use stale cache
-    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
-    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
-    setGardenAffirmation(null);
-    generateGardenAffirmation(true, {
-      gratitudes: (data.gratitudes || []).filter(Boolean),
-      affirmations: (data.affirmations || []).filter(Boolean),
-      intention: data.dailyIntention?.trim() || '',
-      commitment: data.commitment?.trim(),
-    });
   };
 
   // Removed handleSmartRollover - goals now persist until manually deleted
@@ -1479,7 +1399,7 @@ function AppContent() {
     setShowPartnerDiscovery(false);
   };
 
-  // Day 1 share card — dismissed via X or after sharing
+  // Day 1 share card: dismissed via X or after sharing
   const [shareDayOneDismissed, setShareDayOneDismissed] = useState(
     () => !!localStorage.getItem(STORAGE_KEYS.SHARE_DAY1_DISMISSED)
   );
@@ -1488,7 +1408,7 @@ function AppContent() {
     setShareDayOneDismissed(true);
   };
 
-  // Quick Tour card — shown after first practice, dismissed forever on tap or X
+  // Quick Tour card: shown after first practice, dismissed forever on tap or X
   const [quickTourDismissed, setQuickTourDismissed] = useState(
     () => !!localStorage.getItem(STORAGE_KEYS.QUICK_TOUR_DISMISSED)
   );
@@ -1497,14 +1417,14 @@ function AppContent() {
     setQuickTourDismissed(true);
   };
 
-  // Profile nudge — shown once after first practice completes
+  // Profile nudge: shown once after first practice completes
   const [showProfileNudge, setShowProfileNudge] = useState(false);
   const dismissProfileNudge = () => {
     setShowProfileNudge(false);
     localStorage.setItem(STORAGE_KEYS.PROFILE_NUDGE_DISMISSED, 'true');
   };
 
-  // Sign-in nudge — shown to guest users after 2+ practices so they know their data isn't backed up
+  // Sign-in nudge, shown to guest users after 2+ practices so they know their data isn't backed up
   const [showSignInNudge, setShowSignInNudge] = useState(false);
   const dismissSignInNudge = () => {
     setShowSignInNudge(false);
@@ -1523,7 +1443,7 @@ function AppContent() {
     }
   }, [showMorningSuccess]);
 
-  // After practice 3, surface PostPracticeSetup and ProfileNudge — one at a time.
+  // After practice 3, surface PostPracticeSetup and ProfileNudge, one at a time.
   useEffect(() => {
     if (!user) return;
     const totalPractices = user.practiceData?.totalPractices ?? 0;
@@ -1538,11 +1458,11 @@ function AppContent() {
   }, [user?.practiceData?.totalPractices]);
 
   // Welcome screen is triggered only from practice completion handlers
-  // (handlePrimingComplete / evening onComplete) — never on app open,
+  // (handlePrimingComplete / evening onComplete): never on app open,
   // which caused the welcome overlay to block the morning practice flow.
 
   // Sign-in nudge: fires for guest users with 2+ practices.
-  // Dismissal stores the date — re-surfaces after 3 days so data-loss risk stays visible
+  // Dismissal stores the date: re-surfaces after 3 days so data-loss risk stays visible
   // through the trial window without being permanently ignorable.
   useEffect(() => {
     if (authLoading) return; // wait for Supabase auth to resolve before showing nudge
@@ -1559,7 +1479,7 @@ function AppContent() {
     return () => clearTimeout(t);
   }, [authLoading, authUser, user?.practiceData?.totalPractices, user?.streak]);
 
-  // Notification permission ask — deferred off the first-practice day to a return session, after
+  // Notification permission ask: deferred off the first-practice day to a return session, after
   // the user has had a chance to feel a daily dispatch's value. (Day 1 ends on the welcome letter.)
   const notifAskCheckedRef = useRef(false);
   useEffect(() => {
@@ -1569,25 +1489,11 @@ function AppContent() {
     if (notifications.permission === 'granted') return;
     if ((user.practiceData?.totalPractices ?? 0) < 1) return;
     const firstPracticeDate = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE);
-    if (!firstPracticeDate || firstPracticeDate === getTodayDate()) return; // still day 1 — wait
+    if (!firstPracticeDate || firstPracticeDate === getTodayDate()) return; // still day 1, wait
     notifAskCheckedRef.current = true;
     const t = setTimeout(() => setShowNotifAsk(true), 2500);
     return () => clearTimeout(t);
   }, [user?.id, user?.practiceData?.totalPractices]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleRemoveJournalEntry = (entryId: string) => {
-    if (!user) return;
-    const updatedUser = { ...user };
-    if (updatedUser.journalEntries) {
-      updatedUser.journalEntries = updatedUser.journalEntries.filter(e => e.id !== entryId);
-      // Remove from individual localStorage if exists
-      const entryToRemove = user.journalEntries?.find(e => e.id === entryId);
-      if (entryToRemove) {
-        localStorage.removeItem(`${STORAGE_KEYS.JOURNAL_ENTRY}_${entryToRemove.date}`);
-      }
-      updateProfile(updatedUser);
-    }
-  };
 
   // Force Widget Bootstrap on Mount + reload quote on every foreground
   useEffect(() => {
@@ -1606,18 +1512,17 @@ function AppContent() {
     const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) return;
       if (user) WidgetDataSync.refreshQuotes(user);
-      // Detect day rollover — refresh date-sensitive content when the user returns on a new day
+      // Detect day rollover: refresh date-sensitive content when the user returns on a new day
       const today = getTodayDate();
       if (today !== lastSeenDateRef.current) {
         lastSeenDateRef.current = today;
         refreshDailyQuote(false);
-        generateGardenAffirmation(false);
       }
     });
     return () => { listener.then(h => h.remove()); };
-  }, [user, refreshDailyQuote, generateGardenAffirmation]);
+  }, [user, refreshDailyQuote]);
 
-  // Deep-link handler — captures palante://auth-callback URLs from Supabase email links on device
+  // Deep-link handler, captures palante://auth-callback URLs from Supabase email links on device
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     const listener = CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
@@ -1654,7 +1559,7 @@ function AppContent() {
     );
   }
 
-  // PAYWALL — show when the 7-day free trial has expired and the user hasn't subscribed.
+  // PAYWALL: show when the 7-day free trial has expired and the user hasn't subscribed.
   // New users get through their first morning practice and 7 free days before we ask for money.
   if (trialExpired) {
     const gratitudeCount = (user?.dailyMorningPractice || user?.dailyPriming || [])
@@ -1690,8 +1595,8 @@ function AppContent() {
 
       {/* Global Koi Trigger (Appears after 60s) */}
 
-      {/* Free-trial ribbon — shown on days 5, 6, 7 of the 7-day app trial (pre-subscription).
-          Tappable — opens the paywall so users can subscribe early without waiting for the hard gate. */}
+      {/* Free-trial ribbon, shown on days 5, 6, 7 of the 7-day app trial (pre-subscription).
+          Tappable, opens the paywall so users can subscribe early without waiting for the hard gate. */}
       {appUsed && !isPro && trialDaysLeft > 0 && trialDaysLeft <= 3 && (
         <button
           onClick={() => setShowPaywallEarly(true)}
@@ -1700,18 +1605,18 @@ function AppContent() {
         >
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
             {trialDaysLeft === 1
-              ? 'Your free trial ends tomorrow — tap to subscribe.'
+              ? 'Your free trial ends tomorrow. Tap to subscribe.'
               : `${trialDaysLeft} days left in your free trial. Tap to subscribe.`}
           </span>
         </button>
       )}
 
-      {/* Trial banner — shown days 5, 6, 7 of an active Apple IAP trial */}
+      {/* Trial banner: shown days 5, 6, 7 of an active Apple IAP trial */}
       {isTrialing && trialDaysRemaining <= 3 && (
         <div className="fixed top-0 left-0 right-0 z-[60] py-2 px-4 text-center" style={{ background: '#C96A3A' }}>
           <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, color: '#FAF7F3', fontSize: '13px' }}>
             {trialDaysRemaining === 1
-              ? 'Your free trial ends tomorrow — subscribe to keep your practice.'
+              ? 'Your free trial ends tomorrow. Subscribe to keep your practice.'
               : `${trialDaysRemaining} days left in your free trial. Keep going.`}
           </span>
         </div>
@@ -1756,7 +1661,7 @@ function AppContent() {
               height: '40%',
               background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.12) 0%, transparent 70%)',
             }} />
-            {/* Seed of Life — sacred geometry background */}
+            {/* Seed of Life: sacred geometry background */}
             <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
               <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
                 <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
@@ -1775,7 +1680,7 @@ function AppContent() {
             <div className="fixed inset-0 pointer-events-none z-0" style={{
               background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(180,155,110,0.18) 0%, transparent 65%)',
             }} />
-            {/* Seed of Life — sacred geometry background */}
+            {/* Seed of Life: sacred geometry background */}
             <svg aria-hidden className="fixed inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
               <g fill="none" stroke="#415D43" strokeWidth="0.65" opacity="0.10">
                 <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
@@ -1857,7 +1762,7 @@ function AppContent() {
             <Music size={16} />
           </button>
 
-          {/* 5. Partner — quiet entry to the partner, one tap away (for the moments between practices) */}
+          {/* 5. Partner: quiet entry to the partner, one tap away (for the moments between practices) */}
           <button
             onClick={() => { haptics.selection(); practiceOriginRef.current = activeTab; setActiveTab('coach'); }}
             className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${activeTab === 'coach'
@@ -1903,14 +1808,14 @@ function AppContent() {
               const timeSub = (() => {
                 if (earlyStreak === 2) return 'Day 2. You came back.';
                 if (earlyStreak === 3) return 'Three days. The habit is forming.';
-                if (earlyStreak >= 4 && earlyStreak <= 6) return `Day ${earlyStreak}. This is how it happens.`;
+                if (earlyStreak >= 4 && earlyStreak <= 6) return `Day ${earlyStreak}. You are worth this much attention.`;
                 if (earlyStreak >= 7 && earlyStreak <= 9) return "One week in. Don't stop now.";
                 return hour < 12 ? "Keep moving forward." : 'A moment for yourself.';
               })();
               const isIntroStep = beat1Step === 'intro';
               const isMessageStep = beat1Step === 'message';
 
-              // ── Single container — widget never unmounts ──────────────────────────
+              // ── Single container, widget never unmounts ──────────────────────────
               // Two-branch layouts caused React to unmount/remount the widget on every
               // step transition, resetting local state and snapping back to 'intro'.
               // One container with changing CSS properties avoids that entirely.
@@ -1925,7 +1830,7 @@ function AppContent() {
                     height: '100dvh',
                     overflowY: isCentered ? 'hidden' : 'auto',
                     // Center ALL children as a group on intro/message steps.
-                    // flex-start for scroll steps — content stacks from top.
+                    // flex-start for scroll steps, content stacks from top.
                     justifyContent: isCentered ? 'center' : 'flex-start',
                     paddingTop: isCentered
                       ? 'calc(env(safe-area-inset-top) + 1.5rem)'
@@ -1935,7 +1840,7 @@ function AppContent() {
                       : 'calc(6rem + env(safe-area-inset-bottom))',
                   }}
                 >
-                  {/* Greeting — false-renders when not intro, keeping widget at stable DOM position */}
+                  {/* Greeting: false-renders when not intro, keeping widget at stable DOM position */}
                   {isIntroStep && (
                     <div className="w-full mb-5 text-center animate-fade-in-slow">
                       <h1
@@ -1948,7 +1853,7 @@ function AppContent() {
                     </div>
                   )}
 
-                  {/* Widget — always position 1. React never unmounts it across step transitions. */}
+                  {/* Widget: always position 1. React never unmounts it across step transitions. */}
                   <div className="w-full">
                     <DailyMorningPracticeWidget
                       userName={user.name || "Friend"}
@@ -1988,14 +1893,14 @@ function AppContent() {
                             setMorningSkipReminderSent(true);
                           }
                         } catch {
-                          // Notifications unavailable on web or denied — skip silently
+                          // Notifications unavailable on web or denied: skip silently
                         }
                         setMorningSkipped(true);
                       }}
                     />
                   </div>
 
-                  {/* Evening shortcut — false-renders when not applicable */}
+                  {/* Evening shortcut: false-renders when not applicable */}
                   {hour >= 18 && !eveningDoneToday && isIntroStep && (
                     <button
                       onClick={() => { haptics.light(); setForcedEvening(true); }}
@@ -2010,7 +1915,7 @@ function AppContent() {
 
             // ── BEAT 1 · EVENING ARRIVAL ────────────────────────────────────────
             // On Day 1, shouldShowEveningMode is suppressed so new users can explore.
-            // forcedEvening (night-signup onboarding) bypasses this — it's intentional.
+            // forcedEvening (night-signup onboarding) bypasses this, it's intentional.
             if (((shouldShowEveningMode && !isFirstPracticeDay) || forcedEvening) && !eveningDoneToday && !eveningSkipped && user) {
               return (
                 <div
@@ -2039,7 +1944,7 @@ function AppContent() {
                         const otherEntries = existingEntries.filter(p => p.date !== todayDate);
                         // Register the evening GLAD practice as a REAL practice: log it into
                         // activityHistory + practiceData (totalPractices, lastActivityDate) AND
-                        // advance the streak — mirroring the morning path. Previously it only set
+                        // advance the streak: mirroring the morning path. Previously it only set
                         // lastActivityDate, so evening-only days never counted toward practices,
                         // milestones, or streak, and the recovery nudge kept false-firing.
                         const yd = new Date(); yd.setDate(yd.getDate() - 1);
@@ -2055,7 +1960,7 @@ function AppContent() {
                         const updatedPracticeData = logPractice(user.practiceData || migrateStreakToPractice(user), 'evening_glad');
                         updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data], practiceData: updatedPracticeData, streak: newStreak });
                         analytics.eveningPracticeCompleted({ gratitudeCount: data.gratitude?.length ?? 0 });
-                        // Cancel tonight's last-call notification — they finished the practice
+                        // Cancel tonight's last-call notification: they finished the practice
                         cancelEveningLastCall();
                         triggerConfetti();
                         setShowEveningSuccess(true);
@@ -2086,30 +1991,6 @@ function AppContent() {
             {/* Derived helpers for Beat 3 */}
             const hasPendingGoals = (user?.dailyFocuses || []).some(f => !f.isCompleted);
             const hasAnyGoals = (user?.dailyFocuses || []).length > 0;
-            const lastCoachData = (() => {
-              try {
-                const raw = localStorage.getItem(STORAGE_KEYS.COACH_SESSIONS);
-                const sessions: CoachSession[] = raw ? JSON.parse(raw) : [];
-                if (!sessions.length) return null;
-                const latest = sessions.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
-                const lastMsg = [...latest.messages].reverse().find(m => m.role === 'assistant');
-                if (!lastMsg) return null;
-                const sentence = lastMsg.text.match(/^[^.!?\n]+[.!?]?/)?.[0]?.trim() ?? lastMsg.text.slice(0, 90);
-                const diff = Date.now() - latest.updatedAt;
-                const hours = Math.floor(diff / 3600000);
-                const days = Math.floor(diff / 86400000);
-                const recency = hours < 1 ? 'Just now' : hours < 24 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? `${days} days ago` : `${Math.floor(days / 7)}w ago`;
-                const pillarLabelMap: Record<CoachPillar, string> = { anxiety: 'Anxiety', focus: 'Focus', motivation: 'Motivation', setbacks: 'Setbacks', open: 'General' };
-                const pillarLabel = pillarLabelMap[latest.pillar] ?? '';
-                return { sentence, recency, pillarLabel };
-              } catch {
-                return null;
-              }
-            })();
-            const coachLine = lastCoachData?.sentence
-              ?? (todaysPriming?.commitment?.trim() ? `"${todaysPriming.commitment.trim()}"` : null)
-              ?? 'Ask me anything — I\'m here.';
-
             return (
               <div className="min-h-screen px-6 pb-12 max-w-md mx-auto">
 
@@ -2173,7 +2054,7 @@ function AppContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.08 }}
                   >
-                    {/* Intention pill — wraps to 2 lines for longer phrases */}
+                    {/* Intention pill: wraps to 2 lines for longer phrases */}
                     <div className={`rounded-2xl px-5 py-3 flex flex-col gap-1 ${isDarkMode ? 'bg-white/[0.07] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/15 shadow-sm'}`}>
                       <p className={`text-xs font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-white/60' : 'text-[#C96A3A]'}`}>
                         Today's Intention
@@ -2185,7 +2066,7 @@ function AppContent() {
                   </motion.div>
                 )}
 
-                {/* ── Day 1 evening nudge — morning done, evening not yet unlocked ── */}
+                {/* ── Day 1 evening nudge, morning done, evening not yet unlocked ── */}
                 {shouldShowEveningMode && isFirstPracticeDay && ritualDoneToday && !eveningDoneToday && (
                   <motion.div
                     className="mb-5"
@@ -2207,7 +2088,7 @@ function AppContent() {
                   </motion.div>
                 )}
 
-                {/* ── Evening message card — shown after evening practice completes ── */}
+                {/* ── Evening message card, shown after evening practice completes ── */}
                 {eveningDoneToday && (() => {
                   const todayEveningPractice = (user?.dailyEveningPractice || []).find(p => p.date === todayDate);
                   if (!todayEveningPractice?.reflectionMessage) return null;
@@ -2230,7 +2111,7 @@ function AppContent() {
                   );
                 })()}
 
-                {/* ── Day 1 warm state — only for brand new users ── */}
+                {/* ── Day 1 warm state, only for brand new users ── */}
                 {(user?.practiceData?.totalPractices ?? 0) === 0 && !ritualDoneToday && (
                   <motion.div
                     className="mb-5"
@@ -2255,13 +2136,13 @@ function AppContent() {
                         Your garden is ready to grow.
                       </p>
                       <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                        Start your first morning practice — everything begins there.
+                        Start your first morning practice. Everything begins there.
                       </p>
                     </div>
                   </motion.div>
                 )}
 
-                {/* ── Share Day 1 card — shown once after first practice ── */}
+                {/* ── Share Day 1 card, shown once after first practice ── */}
                 <AnimatePresence>
                   {(user?.practiceData?.totalPractices ?? 0) === 1
                     && !shareDayOneDismissed && (
@@ -2309,7 +2190,7 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Quick Tour card — shown after practice 1 until dismissed ── */}
+                {/* ── Quick Tour card, shown after practice 1 until dismissed ── */}
                 <AnimatePresence>
                   {(user?.practiceData?.totalPractices ?? 0) >= 1
                     && !quickTourDismissed && (
@@ -2327,7 +2208,7 @@ function AppContent() {
                             Here's what's inside
                           </p>
                           <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                            Partner, garden, dispatch messages, and more — a quick look at everything available to you.
+                            Partner, garden, dispatch messages, and more. A quick look at everything available to you.
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -2392,7 +2273,7 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Personalize-your-content card — replaces the old first-run interests modal.
+                {/* ── Personalize-your-content card, replaces the old first-run interests modal.
                     Deferred until partner discovery card is dismissed to avoid setup-card pile-up. ── */}
                 <AnimatePresence>
                   {showInterestsCard && !showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
@@ -2434,7 +2315,7 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Partner chat discovery — shown once after first practice to surface the Coach tab ── */}
+                {/* ── Partner chat discovery, shown once after first practice to surface the Coach tab ── */}
                 <AnimatePresence>
                   {showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
                     <motion.div
@@ -2484,7 +2365,7 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Memory callback card — surfaces the partner's continuity opener
+                {/* ── Memory callback card, surfaces the partner's continuity opener
                     (the same memory-aware line it greets you with in chat) right on
                     home, so the remembering is visible in the daily loop instead of
                     being locked in the chat tab. Only appears when there's a real
@@ -2532,7 +2413,7 @@ function AppContent() {
                   </motion.div>
                 )}
 
-                {/* ── Profile completion card — persistent until 90% complete or dismissed 3x.
+                {/* ── Profile completion card, persistent until 90% complete or dismissed 3x.
                     Suppressed while partner discovery or sign-in nudge is active. ── */}
                 {user && (user.practiceData?.totalPractices ?? 0) >= 1 && !showPartnerDiscovery && !showSignInNudge && (
                   <Suspense fallback={null}>
@@ -2544,7 +2425,7 @@ function AppContent() {
                   </Suspense>
                 )}
 
-                {/* ── Sign-in nudge — shown after 2+ sessions with no account ── */}
+                {/* ── Sign-in nudge, shown after 2+ sessions with no account ── */}
                 <AnimatePresence>
                   {showSignInNudge && user && (
                     <motion.div
@@ -2565,7 +2446,7 @@ function AppContent() {
                               Your progress isn't backed up yet
                             </p>
                             <p className={`text-xs leading-snug mb-3 ${isDarkMode ? 'text-white/70' : 'text-sage/70'}`}>
-                              You've logged {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}. Create a free account to keep it safe across devices — your settings and history come with you.
+                              You've logged {user.practiceData?.totalPractices ?? 0} practice{(user.practiceData?.totalPractices ?? 0) !== 1 ? 's' : ''}. Create a free account to keep it safe across devices. Your settings and history come with you.
                             </p>
                             <div className="flex items-center gap-2">
                               <button
@@ -2615,7 +2496,7 @@ function AppContent() {
                           : undefined}
                       />
                     </div>
-                    {/* First-time tooltip — shown until 3rd practice */}
+                    {/* First-time tooltip, shown until 3rd practice */}
                     {(user.practiceData?.totalPractices ?? 0) < 3 && (
                       <p className={`text-sm text-center mt-3 leading-relaxed px-4 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
                         Each practice blooms a petal.<br />90 practices to full bloom.
@@ -2629,6 +2510,22 @@ function AppContent() {
                   const todayMessage =
                     (user?.dailyMorningPractice || []).find(p => p.date === todayDate)?.messageOfTheDay ||
                     (user?.dailyPriming || []).find(p => p.date === todayDate)?.messageOfTheDay;
+                  // Hoisted so the same object reaches both the card and the favorite
+                  // handler. DashboardQuoteCard only renders its heart when it is handed
+                  // an onToggleFavorite, and nothing used to pass one, so favoriting was
+                  // unreachable app-wide and the Favorites list in HistoryModal could
+                  // never fill up.
+                  const todayQuote: Quote = {
+                    id: `message-of-day-${todayDate}`,
+                    text: todayMessage ?? '',
+                    author: user?.coachName || 'Your Partner',
+                    intensity: (user?.quoteIntensity as 1 | 2 | 3) || 2,
+                    category: 'morning-practice',
+                    isAI: true,
+                    isAffirmation: true,
+                  };
+                  const todayQuoteFavorited = (user?.favoriteQuotes || [])
+                    .some(fav => String(fav.quoteId) === todayQuote.id);
                   return todayMessage ? (
                   <motion.div
                     className="mb-5 relative"
@@ -2638,16 +2535,10 @@ function AppContent() {
                   >
                     <Suspense fallback={<div className={`rounded-[2rem] h-20 animate-pulse ${isDarkMode ? 'bg-white/5' : 'bg-sage/8'}`} />}>
                       <DashboardQuoteCard
-                        quote={{
-                          id: `message-of-day-${todayDate}`,
-                          text: todayMessage,
-                          author: user?.coachName || 'Your Partner',
-                          intensity: (user?.quoteIntensity as 1 | 2 | 3) || 2,
-                          category: 'morning-practice',
-                          isAI: true,
-                          isAffirmation: true,
-                        }}
+                        quote={todayQuote}
                         isDarkMode={isDarkMode}
+                        isFavorited={todayQuoteFavorited}
+                        onToggleFavorite={() => handleToggleFavorite(todayQuote)}
                       />
                     </Suspense>
                   </motion.div>
@@ -2719,7 +2610,7 @@ function AppContent() {
                       </span>
                     </div>
 
-                    {/* Goal list — capped at 3 */}
+                    {/* Goal list: capped at 3 */}
                     <div className="px-5 pb-3 space-y-2">
                       {(user.dailyFocuses || []).slice(0, goalsExpanded ? undefined : 3).map((focus) => (
                         <FocusItem
@@ -3023,12 +2914,12 @@ function AppContent() {
       {activeTab === 'breath' && (
         <ErrorBoundary name="Breathing">
           <div className="fixed inset-0 z-[45] flex flex-col" style={{ background: '#415D43' }}>
-            {/* Rings — same pattern as all other practice pages */}
+            {/* Rings: same pattern as all other practice pages */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
               <Target className="absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 text-white opacity-[0.06]" />
               <Target className="absolute bottom-0 left-0 w-[90vmin] h-[90vmin] -translate-x-1/2 translate-y-1/2 text-white opacity-[0.06]" />
             </div>
-            {/* Safe-area spacer — pushes idle header below status bar */}
+            {/* Safe-area spacer, pushes idle header below status bar */}
             <div style={{ height: 'calc(env(safe-area-inset-top) + 1rem)' }} />
             <Breathing
               isDarkMode={isDarkMode}
@@ -3079,7 +2970,7 @@ function AppContent() {
 
       {/* Premium Bottom Navigation - Scroll Aware */}
       {/* z-[55]: above page content (z-20) but BELOW every modal/sheet layer (z-60+).
-          Overlays must cover the nav — a nav floating above an open modal accepts taps
+          Overlays must cover the nav, a nav floating above an open modal accepts taps
           that switch the tab underneath while the modal stays put, which reads as a
           dead nav bar. pointer-events-none while hidden keeps the offscreen nav from
           swallowing taps mid-transition. */}
@@ -3153,7 +3044,7 @@ function AppContent() {
         </Suspense>
       )}
 
-      {/* Weekly Highlights modal — opened only when user taps the home card */}
+      {/* Weekly Highlights modal: opened only when user taps the home card */}
       <WeeklyHighlightsModal
         isOpen={showWeeklyHighlightsModal}
         accomplishments={weeklyAccomplishments}
@@ -3271,7 +3162,7 @@ function AppContent() {
         isDarkMode={isDarkMode}
         onClose={() => {
           setRingCeremony(prev => ({ ...prev, isOpen: false }));
-          // High-emotion moment — ask for an App Store review after a short delay.
+          // High-emotion moment, ask for an App Store review after a short delay.
           setTimeout(requestAppReview, 800);
           // After fullbloom: advance color cycle so the mandala refreshes next round,
           // and clear the shown flag so the ceremony can fire again at the next multiple of 90.
@@ -3311,10 +3202,10 @@ function AppContent() {
         onShare={async () => {
           const { shareMilestoneAsImage } = await import('./utils/shareUtils');
           const labels: Record<RingCeremonyType, string> = {
-            ring1: '10 Practices — Ring One Complete',
-            ring2: '28 Practices — Ring Two Complete',
-            ring3: '55 Practices — Ring Three Complete',
-            fullbloom: '90 Days — Full Bloom',
+            ring1: '10 Practices: Ring One Complete',
+            ring2: '28 Practices: Ring Two Complete',
+            ring3: '55 Practices: Ring Three Complete',
+            fullbloom: '90 Days: Full Bloom',
           };
           await shareMilestoneAsImage({
             title: labels[ringCeremony.type],
@@ -3322,13 +3213,13 @@ function AppContent() {
             count: user?.practiceData?.totalPractices ?? 0,
             message: "My garden is growing. Pa'lante.",
             iconName: 'Trophy',
-            shareText: `${labels[ringCeremony.type]} — Pa'lante. #PalanteApp`,
+            shareText: `${labels[ringCeremony.type]}. Pa'lante. #PalanteApp`,
           });
         }}
         onSave={async () => {
           const { saveMilestoneToPhotos } = await import('./utils/shareUtils');
           await saveMilestoneToPhotos({
-            title: '90 Days — Full Bloom',
+            title: '90 Days: Full Bloom',
             label: 'Mandala of Growth',
             count: user?.practiceData?.totalPractices ?? 90,
             message: "My garden is in full bloom. Pa'lante.",
@@ -3346,7 +3237,7 @@ function AppContent() {
         onShare={async (memoir) => {
           const { shareMilestoneAsImage } = await import('./utils/shareUtils');
           await shareMilestoneAsImage({
-            title: 'Full Bloom — 90 Days',
+            title: 'Full Bloom: 90 Days',
             label: 'My Growth Story',
             count: user?.practiceData?.totalPractices ?? 90,
             message: memoir.slice(0, 120) + (memoir.length > 120 ? '...' : ''),
@@ -3356,7 +3247,7 @@ function AppContent() {
         }}
       />
 
-      {/* Your Year, Forward — annual memoir */}
+      {/* Your Year, Forward, annual memoir */}
       <Suspense fallback={null}>
         <YearForwardModal
           isOpen={yearForward.isOpen}
@@ -3365,7 +3256,7 @@ function AppContent() {
           onShare={async (letter) => {
             const { shareMilestoneAsImage } = await import('./utils/shareUtils');
             await shareMilestoneAsImage({
-              title: `My Year, Forward — ${yearForward.data?.year ?? new Date().getFullYear()}`,
+              title: `My Year, Forward: ${yearForward.data?.year ?? new Date().getFullYear()}`,
               label: 'Your Year, Forward',
               count: yearForward.data?.daysPracticed ?? 0,
               message: letter.slice(0, 120) + (letter.length > 120 ? '...' : ''),
@@ -3389,7 +3280,7 @@ function AppContent() {
         />
       </Suspense>
 
-      {/* Notification permission ask — deferred to a return session (not the first-practice day) */}
+      {/* Notification permission ask: deferred to a return session (not the first-practice day) */}
       <Suspense fallback={null}>
         <NotificationAskModal
           isOpen={showNotifAsk}
@@ -3417,7 +3308,7 @@ function AppContent() {
 
 
 
-      {/* Rest day grace modal — shown when user missed exactly yesterday with a real streak */}
+      {/* Rest day grace modal: shown when user missed exactly yesterday with a real streak */}
       <Suspense fallback={null}>
         {restDayMissedDate && (
           <RestDayModal
@@ -3513,7 +3404,7 @@ function AppContent() {
         />
       )}
 
-      {/* Day 1 share modal — uses the existing beautiful quote card */}
+      {/* Day 1 share modal: uses the existing beautiful quote card */}
       {showDay1ShareModal && user && (
         <ShareModal
           isOpen={showDay1ShareModal}
@@ -3666,34 +3557,13 @@ function AppContent() {
                   if (!prev) return prev!;
                   return { ...prev, ...updates };
                 });
-                // When morning practice saves, immediately generate the garden affirmation
-                // with the fresh practice data — don't wait for the next user?.id re-mount
-                if (updates.dailyMorningPractice) {
-                  const _td = new Date();
-                  const today = `${_td.getFullYear()}-${String(_td.getMonth() + 1).padStart(2, '0')}-${String(_td.getDate()).padStart(2, '0')}`;
-                  const todayPractice = updates.dailyMorningPractice.find((p) => p.date === today);
-                  if (todayPractice && (
-                    (todayPractice.gratitudes || []).some(Boolean) ||
-                    (todayPractice.affirmations || []).some(Boolean) ||
-                    todayPractice.dailyIntention?.trim()
-                  )) {
-                    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION);
-                    localStorage.removeItem(STORAGE_KEYS.GARDEN_AFFIRMATION_DATE);
-                    generateGardenAffirmation(true, {
-                      gratitudes: (todayPractice.gratitudes || []).filter(Boolean),
-                      affirmations: (todayPractice.affirmations || []).filter(Boolean),
-                      intention: todayPractice.dailyIntention?.trim() || '',
-                      commitment: todayPractice.commitment?.trim(),
-                    });
-                  }
-                }
               }}
             />
           )
         }
       </Suspense>
 
-      {/* CheckIn is now a home card via HomeNudgeCards — no modal */}
+      {/* CheckIn is now a home card via HomeNudgeCards: no modal */}
 
 
       {/* Global Did You Know Modal */}
@@ -3722,7 +3592,7 @@ function AppContent() {
         </Suspense>
       </ErrorBoundary>
 
-      {/* Early paywall — user tapped the trial ribbon to subscribe before the trial expires */}
+      {/* Early paywall: user tapped the trial ribbon to subscribe before the trial expires */}
       {showPaywallEarly && (
         <Suspense fallback={null}>
           <PaywallScreen
@@ -3793,8 +3663,28 @@ function AppContent() {
     );
   }
 
-  // Go directly to app (marketing landing page removed)
-  return <Suspense fallback={null}>{appJsx}</Suspense>;
+  // AI disclosure gates the app itself rather than the intro, so it covers both a fresh
+  // install and everyone already past onboarding when this shipped. It comes after the
+  // age gate on purpose: we tell someone what we send to a model only once we know
+  // they're old enough to be sending anything.
+  return (
+    <Suspense fallback={null}>
+      {appJsx}
+      {/* Wait for the profile before showing it: the screen reads the current AI setting
+          for its toggle, and acknowledging writes back to that same profile. */}
+      {showAIDisclosure && user && (
+        <Suspense fallback={null}>
+          <AIDisclosureModal
+            isOpen={true}
+            isDarkMode={isDarkMode}
+            required={true}
+            initialAIEnabled={!user.aiDisabled}
+            onAcknowledge={handleAIDisclosureAcknowledged}
+          />
+        </Suspense>
+      )}
+    </Suspense>
+  );
 }
 
 function SubscriptionBridge({ children }: { children: React.ReactNode }) {

@@ -37,7 +37,7 @@ const morningPractice = (date: string): DailyMorningPractice => ({
 });
 
 describe('mergeProfiles', () => {
-    it('unions journal entries from both devices — nothing is lost', () => {
+    it('unions journal entries from both devices, nothing is lost', () => {
         const deviceA = baseProfile({
             journalEntries: [journalEntry('a1', 'wrote on phone'), journalEntry('shared', 'common')],
         });
@@ -101,7 +101,7 @@ describe('mergeProfiles', () => {
         expect(meditate!.count).toBe(3);
     });
 
-    it('merges practiceData — union days, OR milestones, monotonic total', () => {
+    it('merges practiceData, union days, OR milestones, monotonic total', () => {
         const localPractice: PracticeData = {
             totalPractices: 8,
             lastActivityDate: '2026-06-10',

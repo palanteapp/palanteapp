@@ -27,7 +27,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
     const isNetworkError = (msg: string) =>
         /load failed|failed to fetch|networkerror|network request failed|timed out|abort/i.test(msg);
 
-    const OFFLINE_MESSAGE = "We couldn't reach the server. You may be offline — check your connection (and airplane mode) and try again. Everything you've done in the app is saved on this device.";
+    const OFFLINE_MESSAGE = "We couldn't reach the server. You may be offline. Check your connection (and airplane mode) and try again. Everything you've done in the app is saved on this device.";
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -53,7 +53,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, isDarkMod
                 } else if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) {
                     setError('Incorrect email or password. If you signed up with a magic link, use "Forgot Password?" to set a password.');
                 } else if (msg.toLowerCase().includes('email not confirmed')) {
-                    setError('Please confirm your email first — check your inbox (and spam folder) for the verification link.');
+                    setError('Please confirm your email first. Check your inbox (and spam folder) for the verification link.');
                 } else if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many')) {
                     setError('Too many attempts. Please wait a few minutes and try again.');
                 } else {

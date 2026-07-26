@@ -1,7 +1,7 @@
 // Web Audio side of seamless looping: fetch + decode a sound, bake the loop
 // seam into an AudioBuffer (see seamlessLoop.ts), and cache decoded buffers
 // under a memory budget. Long tracks return null and the caller falls back
-// to streaming playback — decoded PCM is roughly 20× the compressed size,
+// to streaming playback: decoded PCM is roughly 20× the compressed size,
 // and a 10+ minute track only loops once in a long while anyway.
 
 import { bakeSeamlessLoop, isDualMono } from './seamlessLoop';
@@ -11,7 +11,7 @@ export const MAX_SEAMLESS_COMPRESSED_BYTES = 6_500_000;
 // Hard ceiling per decoded sound (≈ 3.5 min of stereo 48kHz float32).
 const MAX_DECODED_BYTES = 80_000_000;
 // Total budget for cached buffers; least-recently-used entries are evicted.
-// Eviction never interrupts playback — a playing sound holds its own
+// Eviction never interrupts playback: a playing sound holds its own
 // reference to the buffer; eviction only means a later replay re-decodes.
 const CACHE_BUDGET_BYTES = 160_000_000;
 

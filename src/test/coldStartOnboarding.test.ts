@@ -1,8 +1,8 @@
 /**
  * Tests for the three cold-start / onboarding improvements:
- *   1. Bio step in CinematicIntro — onComplete shape includes bio
- *   2. Apple Health integration — platform guard, seed storage key
- *   3. Cold start memory — intent-to-seed-narrative mapping, seed memory generation
+ *   1. Bio step in CinematicIntro: onComplete shape includes bio
+ *   2. Apple Health integration: platform guard, seed storage key
+ *   3. Cold start memory: intent-to-seed-narrative mapping, seed memory generation
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -10,7 +10,7 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // ─── 1. Bio step ──────────────────────────────────────────────────────────────
 
-describe('CinematicIntro — bio field', () => {
+describe('CinematicIntro, bio field', () => {
     it('onComplete payload type includes optional bio field', () => {
         // The shape is validated by TypeScript; here we confirm the runtime object
         // can carry a bio string or be undefined (both are valid).
@@ -40,7 +40,7 @@ describe('CinematicIntro — bio field', () => {
             sourcePreference: 'mix' as const,
         };
         expect(payloadNoBio).not.toHaveProperty('bio');
-        // bio is optional — absence should not break anything
+        // bio is optional: absence should not break anything
         const bio = (payloadNoBio as { bio?: string }).bio;
         expect(bio).toBeUndefined();
     });
@@ -95,9 +95,9 @@ describe('Apple Health integration', () => {
     });
 });
 
-// ─── 3. Cold start — seed memory generation ───────────────────────────────────
+// ─── 3. Cold start, seed memory generation ───────────────────────────────────
 
-describe('Cold start — intent seed memories', () => {
+describe('Cold start, intent seed memories', () => {
     beforeEach(() => {
         localStorage.clear();
     });
@@ -162,9 +162,9 @@ describe('Cold start — intent seed memories', () => {
 
 // ─── 4. Intent-seeded greeting strings ────────────────────────────────────────
 
-describe('Cold start — intent-seeded greeting content', () => {
+describe('Cold start, intent-seeded greeting content', () => {
     const INTENT_GREETINGS: Record<string, string> = {
-        consistency: 'Building a daily practice is one of the most powerful things you can do. Tell me — what\'s been getting in the way of showing up consistently?',
+        consistency: 'Building a daily practice is one of the most powerful things you can do. Tell me, what\'s been getting in the way of showing up consistently?',
         clarity: 'You said you\'re looking for more clarity and focus. What\'s feeling most scattered or overwhelming right now?',
         stress: 'Life has been heavy lately. I\'m right here. What\'s been weighing on you the most?',
         purpose: 'You want your days to mean something more. I love that you\'re here for that reason. What would a life with more purpose actually feel like to you?',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Info, Target } from 'lucide-react';
+import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
@@ -160,7 +160,7 @@ class CrossfadingSound {
         if (!ctx) return;
 
         // Both elements loop forever; crossfading is purely gain-based, so no
-        // async play() call is ever needed inside the polling callback — seek
+        // async play() call is ever needed inside the polling callback, seek
         // the incoming element to 0 and adjust gains immediately.
         this.audio1 = new Audio(this.src);
         this.audio1.loop = true;
@@ -196,7 +196,7 @@ class CrossfadingSound {
             this.isCrossfading = false;
             this.activeIndex = 1;
 
-            // Start both elements now — audio2 plays silently so it is
+            // Start both elements now: audio2 plays silently so it is
             // already running when a crossfade is needed. This eliminates
             // the async play() latency gap that was audible at the loop point.
             this.audio1.currentTime = 0;
@@ -235,7 +235,7 @@ class CrossfadingSound {
 
                     this.isCrossfading = true;
 
-                    // Seek next to start — already playing silently, so this is
+                    // Seek next to start: already playing silently, so this is
                     // synchronous: no play() call, no async latency, no gap.
                     nextAudio.currentTime = 0;
 
@@ -331,7 +331,7 @@ class CrossfadingSound {
 
 // Gapless looping for decoded sounds: the loop seam is baked into the buffer
 // (see seamlessLoop.ts) and AudioBufferSourceNode wraps sample-accurately on
-// the audio thread — no timers, no element handoff, nothing to hear.
+// the audio thread: no timers, no element handoff, nothing to hear.
 class BufferLoopSound {
     private sourceNode: AudioBufferSourceNode | null = null;
     private gainNode: GainNode | null = null;
@@ -389,10 +389,10 @@ class BufferLoopSound {
 }
 
 // Facade choosing the playback strategy per sound:
-//   • synth  — colored noise / binaural beats are generated procedurally and
+//   • synth, colored noise / binaural beats are generated procedurally and
 //              have no loop point at all (see synthSounds.ts);
-//   • buffer — short files are decoded into a seamless-loop buffer;
-//   • stream — files over the size gate in seamlessAudio.ts stream through the
+//   • buffer, short files are decoded into a seamless-loop buffer;
+//   • stream, files over the size gate in seamlessAudio.ts stream through the
 //              dual-element crossfader.
 class MixerSound {
     private mode: 'undecided' | 'synth' | 'buffer' | 'stream' = 'undecided';
@@ -435,7 +435,7 @@ class MixerSound {
                 }
             }
         }
-        // Toggled off (or re-played) while decoding — don't start a stale voice.
+        // Toggled off (or re-played) while decoding, don't start a stale voice.
         if (token !== this.playToken) return;
 
         if (this.mode === 'synth' && this.synthSound) {
@@ -477,7 +477,7 @@ class MixerSound {
         if (!this.isPlaying) return;
         const clamped = Math.min(1, Math.max(0, vol));
 
-        // Synth sounds have no file — render/reuse a seamless loop blob instead.
+        // Synth sounds have no file: render/reuse a seamless loop blob instead.
         const spec = SYNTH_SOUNDS[this.id];
         if (spec) {
             const sr = getAudioContext()?.sampleRate || 48000;
@@ -517,7 +517,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
     const [isSavingMix, setIsSavingMix] = useState(false);
     const [newMixName, setNewMixName] = useState('');
-    const [activeTab, setActiveTab] = useState<'mixer' | 'library' | 'presets'>('mixer');
+    const [_activeTab, _setActiveTab] = useState<'mixer' | 'library' | 'presets'>('mixer');
     const [showHelp, setShowHelp] = useState(() => {
         const hasSeenHelp = localStorage.getItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN);
         return !hasSeenHelp;
@@ -546,9 +546,9 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                     album: 'Focus & Rest',
                 });
             }
-            navigator.mediaSession && (navigator.mediaSession.playbackState = 'playing');
+            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'playing';
         } else {
-            navigator.mediaSession && (navigator.mediaSession.playbackState = 'none');
+            if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
         }
     }, [activeSounds.size]);
 
@@ -1282,7 +1282,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         <div className="space-y-6 mb-8 text-sm text-white/70 leading-relaxed font-body">
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Binaural Beats</h4>
-                                <p className="text-sm opacity-70">By playing slightly different frequencies in each ear, we encourage 'brainwave entrainment' — naturally shifting your mind into Alpha (focus) or Theta (meditation).</p>
+                                <p className="text-sm opacity-70">By playing slightly different frequencies in each ear, we encourage 'brainwave entrainment', naturally shifting your mind into Alpha (focus) or Theta (meditation).</p>
                             </div>
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Pink & Brown Noise</h4>

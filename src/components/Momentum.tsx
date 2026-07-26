@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
 import { buildYearForwardData, hasEnoughForYearForward } from '../utils/yearForward';
@@ -51,7 +51,7 @@ export const Momentum: React.FC<MomentumProps> = ({
         return todaysPriming?.dailyIntention;
     }, [user.dailyMorningPractice, user.dailyPriming]);
 
-    // Your Year, Forward — only surfaces once a year has enough lived data.
+    // Your Year, Forward, only surfaces once a year has enough lived data.
     const yearForwardReady = useMemo(() => {
         const data = buildYearForwardData(user);
         return hasEnoughForYearForward(data);
@@ -125,7 +125,7 @@ export const Momentum: React.FC<MomentumProps> = ({
         if (isCompleting) {
             const allCompleted = updatedFocuses.length > 0 && updatedFocuses.every(f => f.isCompleted);
             if (allCompleted) {
-                // A gentle "you lived your intention today" moment — once per day, no streaks or badges.
+                // A gentle "you lived your intention today" moment, once per day, no streaks or badges.
                 const today = new Date().toISOString().split('T')[0];
                 if (user.lastGoalCompletionDate !== today) {
                     updatedUser.lastGoalCompletionDate = today;
@@ -210,7 +210,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
                     </div>
                     <p className={`text-xl font-display font-bold leading-tight mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
-                        {todaysIntention || '—'}
+                        {todaysIntention || 'Not set'}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         today's word

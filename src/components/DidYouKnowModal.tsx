@@ -11,7 +11,7 @@ interface DidYouKnowModalProps {
     fullScreen?: boolean;
 }
 
-export const DidYouKnowModal: React.FC<DidYouKnowModalProps> = ({ isOpen, onClose, fact, isDarkMode, fullScreen = false }) => {
+export const DidYouKnowModal: React.FC<DidYouKnowModalProps> = ({ isOpen, onClose, fact, fullScreen = false }) => {
     if (!isOpen || !fact) return null;
 
     // Defensive close handler with error catching

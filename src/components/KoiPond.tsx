@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { readJSON } from '../utils/safeStorage';
 import { Settings, X, Volume2, VolumeX, Eye, EyeOff } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { haptics } from '../utils/haptics';
@@ -22,7 +23,7 @@ interface KoiPondProps {
     savedMixes?: SoundMix[];
 }
 
-/** How many koi to spawn — takes the higher of streak-based or practices-based milestones.
+/** How many koi to spawn: takes the higher of streak-based or practices-based milestones.
  *  Thresholds are intentionally high so the pond grows over months, not days. */
 function getFishCount(streak: number, totalPractices: number): number {
     // ~2 weeks of daily practice = 2 fish, ~1 year = 7 fish
@@ -216,7 +217,7 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
 
 const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
 
-export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points = 0, totalPractices = 0, savedMixes = [] }) => {
+export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points: _points = 0, totalPractices = 0, savedMixes = [] }) => {
     const fishCount = getFishCount(streak, totalPractices);
     const earnedKoi = fishCount > 1; // earned a second fish via streak or practices
 
@@ -303,9 +304,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     const [showBabyLotus, setShowBabyLotus] = useState(true);
     const [showRain, setShowRain] = useState(false); // Rain Toggle
     const [showParticles, setShowParticles] = useState(() => {
-        const saved = localStorage.getItem(STORAGE_KEYS.ENHANCEMENTS);
-        if (saved) {
-            const parsed = JSON.parse(saved);
+        const parsed = readJSON<{ natureParticles?: boolean } | null>(STORAGE_KEYS.ENHANCEMENTS, null);
+        if (parsed) {
             return parsed.natureParticles ?? false;
         }
         return false;
@@ -540,11 +540,11 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 const distFromEdge = Math.min(x, width - x, y, height - y);
                 let speedMultiplier: number;
                 if (distFromEdge < 0) {
-                    speedMultiplier = 2.0; // offscreen — swim back in briskly
+                    speedMultiplier = 2.0; // offscreen, swim back in briskly
                 } else if (distFromEdge < 100) {
                     speedMultiplier = 1.0 + (1 - distFromEdge / 100) * 1.0; // ramp up near edge
                 } else {
-                    speedMultiplier = 0.6; // open water — slow, meditative glide
+                    speedMultiplier = 0.6; // open water, slow, meditative glide
                 }
                 const moveSpeed = speed * dt * speedMultiplier;
 
@@ -854,7 +854,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showRain]); // Depend on showRain to restart if toggled, or keep Ref updated
 
-    // 3. Pond audio — plays the user's saved "koi pond vibes" mix (multiple looping
+    // 3. Pond audio: plays the user's saved "koi pond vibes" mix (multiple looping
     //    layers at 40% master volume). Each layer loops seamlessly (baked files or
     //    procedurally-rendered synth blobs). Falls back to a single river track if the
     //    mix isn't found, so the pond is never silent.
@@ -868,7 +868,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         let cancelled = false;
 
         // Resolve the saved mix into a list of {src, vol}. Synth ids (noise/binaural)
-        // have no file — render them to a seamless WAV blob; file ids map via SOUND_SOURCES.
+        // have no file: render them to a seamless WAV blob; file ids map via SOUND_SOURCES.
         const buildTracks = async (): Promise<Array<{ src: string; vol: number }>> => {
             const mix = (savedMixes || []).find(
                 m => m.name?.trim().toLowerCase() === POND_MIX_NAME
@@ -895,7 +895,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         const created: HTMLAudioElement[] = [];
         buildTracks().then(tracks => {
             if (cancelled) {
-                // Effect was torn down mid-build — don't start anything.
+                // Effect was torn down mid-build, don't start anything.
                 return;
             }
             tracks.forEach(({ src, vol }) => {
@@ -1194,7 +1194,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             position: 'absolute',
                             left: 0,
                             top: 0,
-                            // Matches the loop format exactly — no jump on first frame
+                            // Matches the loop format exactly: no jump on first frame
                             transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: l.opacity * 0.9,
                             pointerEvents: 'none',
@@ -1253,7 +1253,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             position: 'absolute',
                             left: 0,
                             top: 0,
-                            // Matches the loop format exactly — no jump on first frame
+                            // Matches the loop format exactly: no jump on first frame
                             transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: 0.95,
                             zIndex: 20,
@@ -1277,7 +1277,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     </div>
                 ))}
 
-                {/* 6. Sakura Particles & Food Canvas — below fish so food sits under them */}
+                {/* 6. Sakura Particles & Food Canvas, below fish so food sits under them */}
                 <canvas
                     ref={canvasRef}
                     width={window.innerWidth}
@@ -1409,7 +1409,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 </p>
             </div>
 
-            {/* ── EMPTY STATE — ambient bottom hint, fades in then auto-hides ── */}
+            {/* ── EMPTY STATE, ambient bottom hint, fades in then auto-hides ── */}
             {!earnedKoi && (
                 <div
                     className="fixed bottom-28 inset-x-0 z-[45] flex justify-center pointer-events-none px-8"

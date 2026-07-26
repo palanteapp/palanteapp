@@ -82,7 +82,7 @@ export const NotificationAskModal: React.FC<NotificationAskModalProps> = ({
                                 Wake you up tomorrow?
                             </h2>
                             <p className="text-sm text-center mb-8 leading-relaxed" style={{ color: goldDim }}>
-                                {firstName}, people who get a morning reminder are 3× more likely to still be here 30 days from now. One tap — that's it.
+                                {firstName}, people who get a morning reminder are 3× more likely to still be here 30 days from now. One tap. That's it.
                             </p>
 
                             {/* CTAs */}

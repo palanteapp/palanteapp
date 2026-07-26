@@ -3,7 +3,6 @@ import { Award, CalendarCheck, ChevronRight, X, Star, Upload, Moon, FlaskConical
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import type { DailyEveningPractice } from '../types';
 import { getISOWeek } from '../utils/weeklyHighlights';
 import { ShareModal } from './ShareModal';
 import { generateWeeklyReflectionShareImage } from '../utils/shareUtils';
@@ -25,41 +24,27 @@ const formatDay = (iso: string): string => {
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 };
 
+/**
+ * Palante-authored, like every other line in the app. This block previously held twelve
+ * quotes from named third parties (Aristotle, Twain, Clear, and others). It survived the
+ * July 2026 quote purge because it lived in a component rather than in src/data, which is
+ * where the sweep and its tests were pointed. See src/data/affirmations.ts for the rules
+ * these follow: original, no em dashes, no emojis, specific over inspirational.
+ */
 const WEEKLY_QUOTES = [
-    { text: "You don't rise to the level of your goals. You fall to the level of your systems.", author: "James Clear" },
-    { text: "Small disciplines repeated with consistency every day lead to great achievements gained slowly over time.", author: "John Maxwell" },
-    { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-    { text: "What you do every day matters more than what you do once in a while.", author: "Gretchen Rubin" },
-    { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
-    { text: "We are what we repeatedly do. Excellence, then, is not an act, but a habit.", author: "Aristotle" },
-    { text: "We cannot become what we want to be by remaining what we are.", author: "Max DePree" },
-    { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-    { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
-    { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
-    { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
-    { text: "Hardships often prepare ordinary people for an extraordinary destiny.", author: "C.S. Lewis" },
+    { text: "Systems are just promises you made easy to keep.", author: "Palante" },
+    { text: "A week is long enough to show you a pattern and short enough to change one.", author: "Palante" },
+    { text: "You did not need a perfect week. You needed a week you showed up for.", author: "Palante" },
+    { text: "Consistency is not intensity repeated. It is intensity you can survive.", author: "Palante" },
+    { text: "Repetition is quiet. That is why it works.", author: "Palante" },
+    { text: "The days that felt like nothing are the ones holding this up.", author: "Palante" },
+    { text: "Progress hides in the middle of the week, where nobody looks.", author: "Palante" },
+    { text: "Starting again is a skill, and you practiced it this week.", author: "Palante" },
+    { text: "Nothing here is late. You are seven days further in than you were.", author: "Palante" },
+    { text: "Small work done badly still beats big work not done.", author: "Palante" },
+    { text: "The week you almost skipped is the one that proves it.", author: "Palante" },
+    { text: "Look back once a week so you can stop looking back every day.", author: "Palante" },
 ];
-
-function wrapCanvasText(
-    ctx: CanvasRenderingContext2D,
-    text: string,
-    maxWidth: number
-): string[] {
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let line = '';
-    for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (ctx.measureText(test).width > maxWidth && line) {
-            lines.push(line);
-            line = word;
-        } else {
-            line = test;
-        }
-    }
-    if (line) lines.push(line);
-    return lines;
-}
 
 export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
     isOpen,
@@ -82,7 +67,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
     // Derive the weekly quote by ISO week number
     const isoWeek = getISOWeek(new Date());
     const weekNum = parseInt(isoWeek.split('-W')[1], 10) || 0;
-    const weeklyQuote = WEEKLY_QUOTES[weekNum % 12];
+    const weeklyQuote = WEEKLY_QUOTES[weekNum % WEEKLY_QUOTES.length];
 
     // Initialize edited texts from accomplishments
     useEffect(() => {
@@ -129,14 +114,14 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                 directory: Directory.Cache,
             });
             await Share.share({
-                title: 'My Week, Reflected — Palante',
+                title: 'My Week, Reflected, Palante',
                 files: [saved.uri],
                 dialogTitle: 'Share your reflection',
             });
         } catch {
             try {
                 await Share.share({
-                    title: 'My Week, Reflected — Palante',
+                    title: 'My Week, Reflected, Palante',
                     text: reflectionMessage,
                 });
             } catch { /* silence */ }
@@ -160,7 +145,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                         background: 'linear-gradient(160deg, #C96A3A 0%, #B05530 45%, #8C3E1E 100%)',
                     }}
                 >
-                    {/* Seed of Life SVG — full-height background */}
+                    {/* Seed of Life SVG: full-height background */}
                     <svg
                         className="absolute inset-0 w-full h-full pointer-events-none"
                         style={{ opacity: 0.06, zIndex: 0 }}
@@ -334,7 +319,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                                         />
                                                         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, lineHeight: 1.55 }}>
                                                             <span style={{ color: '#E2CF9F', fontWeight: 700 }}>{item.title}</span>
-                                                            {item.src ? ` (${item.src})` : ''} — {item.body}
+                                                            {item.src ? ` (${item.src})` : ''}: {item.body}
                                                         </p>
                                                     </li>
                                                 ))}
@@ -535,7 +520,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
             )}
         </AnimatePresence>
 
-        {/* Share Modal — same component used by the quote card */}
+        {/* Share Modal: same component used by the quote card */}
         <ShareModal
             isOpen={showShareModal}
             onClose={() => setShowShareModal(false)}

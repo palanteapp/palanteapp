@@ -12,7 +12,7 @@ export const PRODUCT_MONTHLY = 'palante_monthly';
 export const PRODUCT_ANNUAL = 'palante_annual';
 
 export interface SubscriptionPrices {
-  monthly?: string;        // e.g. "$9.99" — localized priceString from the store
+  monthly?: string;        // e.g. "$9.99", localized priceString from the store
   annual?: string;         // e.g. "$59.99"
   annualPerMonth?: string; // annual price / 12, formatted in the store currency
 }
@@ -59,7 +59,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
       });
     } catch (e) {
       console.error('RevenueCat price fetch failed:', e);
-      // prices stay empty — paywall falls back to USD copy
+      // prices stay empty: paywall falls back to USD copy
     }
   }, []);
 

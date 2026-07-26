@@ -95,7 +95,7 @@ export const MonthlyPatternCard: React.FC<MonthlyPatternCardProps> = ({
                         </button>
                     </div>
 
-                    {/* The data point — large and ornamental */}
+                    {/* The data point: large and ornamental */}
                     <div className="mb-4 text-center">
                         <span className="text-5xl font-display font-medium text-pale-gold tracking-tight leading-none">
                             {dataPoint}

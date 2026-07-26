@@ -94,7 +94,7 @@ export const SharedWeeklyReflectionPreview: React.FC<SharedWeeklyReflectionPrevi
                     position: 'relative',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                 }}>
-                    {/* Logo badge — same as SharedQuotePreview */}
+                    {/* Logo badge: same as SharedQuotePreview */}
                     <div style={{
                         position: 'absolute',
                         top: '-10px',
@@ -160,7 +160,7 @@ export const SharedWeeklyReflectionPreview: React.FC<SharedWeeklyReflectionPrevi
                     </p>
                 </div>
 
-                {/* Footer branding — identical to SharedQuotePreview */}
+                {/* Footer branding: identical to SharedQuotePreview */}
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -175,7 +175,7 @@ export const SharedWeeklyReflectionPreview: React.FC<SharedWeeklyReflectionPrevi
                         color: '#FDFBF7',
                         whiteSpace: 'nowrap',
                     }}>
-                        FORWARD, TOGETHER — EVERY SINGLE DAY
+                        FORWARD, TOGETHER. EVERY SINGLE DAY.
                     </p>
                     <p style={{
                         fontSize: '7px',

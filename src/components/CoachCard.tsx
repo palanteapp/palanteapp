@@ -34,7 +34,7 @@ const MESSAGES = {
     ],
     eveningReflect: [
         "Day's winding down. What went right?",
-        "Before you close out — what are you taking from today?",
+        "Before you close out, what are you taking from today?",
     ],
     noGoals: [
         "What are you working toward today?",
@@ -61,7 +61,7 @@ const MESSAGES = {
         "You're here. That's what matters.",
     ],
     longAbsence: [
-        "You're back. No explanation needed — let's go.",
+        "You're back. No explanation needed. Let's go.",
         "Good to have you here. Pick up where you want.",
         "Starting again is still starting.",
     ],
@@ -157,6 +157,15 @@ export const CoachCard: React.FC<CoachCardProps> = ({
     const [now] = useState(() => Date.now());
     const greeting = getGreeting(now);
 
+    /**
+     * `icon` is a function of the theme rather than a finished element, because the
+     * message and the icon have different lifetimes. The message is picked at random and
+     * must stay put, so the memo is keyed only on the things that should change it. The
+     * icon's color has to follow the theme immediately. Baking `isDarkMode` into the
+     * element left the icon on the previous theme's color until an unrelated dep changed;
+     * adding `isDarkMode` to the dep array instead would have re-rolled the random message
+     * every time the user toggled dark mode.
+     */
     const coachContent = useMemo(() => {
         const timeOfDay = getTimeOfDay(now);
         const daysSinceActivity = lastActivityDate
@@ -167,7 +176,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (daysSinceActivity >= 3) {
             return {
                 message: getRandomMessage('longAbsence'),
-                icon: <Target size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
+                icon: (dark: boolean) => <Target size={16} className={dark ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -175,7 +184,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (daysSinceActivity >= 1 && daysSinceActivity < 3) {
             return {
                 message: getRandomMessage('welcomeBack'),
-                icon: <Target size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
+                icon: (dark: boolean) => <Target size={16} className={dark ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -183,7 +192,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (focusCount > 0 && completedCount === focusCount) {
             return {
                 message: getRandomMessage('allComplete'),
-                icon: <Star size={16} className={isDarkMode ? "text-pale-gold" : "text-pale-gold-400"} />
+                icon: (dark: boolean) => <Star size={16} className={dark ? "text-pale-gold" : "text-pale-gold-400"} />
             };
         }
 
@@ -191,7 +200,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (totalPractices >= 7) {
             return {
                 message: getRandomMessage('practiceCelebration', { practices: totalPractices.toString() }),
-                icon: <Sparkles size={16} className="text-pale-gold" />
+                icon: () => <Sparkles size={16} className="text-pale-gold" />
             };
         }
 
@@ -199,7 +208,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (focusCount > 0 && completedCount < focusCount) {
             return {
                 message: getRandomMessage('inProgress'),
-                icon: <Target size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
+                icon: (dark: boolean) => <Target size={16} className={dark ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -207,14 +216,14 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (timeOfDay === 'morning') {
             return {
                 message: getRandomMessage('morningMotivation'),
-                icon: <Sunrise size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
+                icon: (dark: boolean) => <Sunrise size={16} className={dark ? "text-pale-gold" : "text-sage"} />
             };
         }
 
         if (timeOfDay === 'night') {
             return {
                 message: getRandomMessage('eveningReflection'),
-                icon: <Moon size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
+                icon: (dark: boolean) => <Moon size={16} className={dark ? "text-pale-gold" : "text-sage"} />
             };
         }
 
@@ -222,17 +231,18 @@ export const CoachCard: React.FC<CoachCardProps> = ({
         if (focusCount === 0) {
             return {
                 message: getRandomMessage('noGoals'),
-                icon: getTimeIcon(now, isDarkMode)
+                icon: (dark: boolean) => getTimeIcon(now, dark)
             };
         }
 
         return {
             message: getRandomMessage('generalCoaching'),
-            icon: <Coffee size={16} className={isDarkMode ? "text-pale-gold" : "text-sage"} />
+            icon: (dark: boolean) => <Coffee size={16} className={dark ? "text-pale-gold" : "text-sage"} />
         };
     }, [lastActivityDate, totalPractices, focusCount, completedCount, now]);
 
-    const { message, icon: actionIcon } = coachContent;
+    const message = coachContent.message;
+    const actionIcon = coachContent.icon(isDarkMode);
 
     // --- Visual Styling - Ethereal & Minimal ---
     const bgClass = isDarkMode
@@ -255,7 +265,7 @@ export const CoachCard: React.FC<CoachCardProps> = ({
             onClick={onClick || onShowTip}
             className={`w-full ${isCompactMode ? 'p-5' : 'p-7'} rounded-[2.5rem] relative overflow-hidden [transform:translateZ(0)] transition-all duration-700 border shadow-lg ${bgClass} ${(onClick || onShowTip) ? 'cursor-pointer hover:bg-white/[0.05] active:scale-[0.99]' : ''}`}
         >
-            {/* Minimal Ambient Glow — kept inset so overflow-hidden clips cleanly */}
+            {/* Minimal Ambient Glow: kept inset so overflow-hidden clips cleanly */}
             {!isCompactMode && (
                 <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-[80px] opacity-15 pointer-events-none ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
             )}

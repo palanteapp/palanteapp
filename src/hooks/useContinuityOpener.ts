@@ -32,7 +32,7 @@ let inflightDay: string | null = null;
 /**
  * Loads the user's cross-session memories and precomputes the memory-aware
  * continuity opener once per local day (cached in localStorage). Safe to mount
- * from multiple components — memory loading is per-instance, but generation is
+ * from multiple components: memory loading is per-instance, but generation is
  * de-duped across callers via the module-level guard above.
  *
  * Returns both the raw memories (for chat context) and the ready callback line.
@@ -72,7 +72,7 @@ export function useContinuityOpener(
                     return;
                 }
             }
-        } catch { /* corrupt cache — fall through and regenerate */ }
+        } catch { /* corrupt cache, fall through and regenerate */ }
 
         let cancelled = false;
         if (!inflight || inflightDay !== today) {

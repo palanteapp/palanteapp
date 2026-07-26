@@ -8,7 +8,7 @@ interface SharedStreakCardProps {
     firstName?: string;
 }
 
-// Palette bg colors per cycle — matches GardenDemoFinal
+// Palette bg colors per cycle: matches GardenDemoFinal
 const BG_COLORS = [
     { bg0: '#1A3320', bg1: '#243D2A', T: '#C96A3A', G: '#E5D6A7', S: '#415D43' },
     { bg0: '#12103A', bg1: '#1A1B42', T: '#6B4FBB', G: '#C5C0F0', S: '#2D3E6B' },
@@ -36,7 +36,7 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
         : `${outerPetals} petal${outerPetals !== 1 ? 's' : ''} earned · ${remaining} to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`;
 
     return (
-        // NOTE: explicit px dimensions — html2canvas requires fixed sizes
+        // NOTE: explicit px dimensions, html2canvas requires fixed sizes
         <div id="streak-share-card" style={{
             width: '200px',
             height: '356px',
@@ -54,7 +54,7 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
                 pointerEvents: 'none',
             }} />
 
-            {/* ── Streak badge — ghost pill ─────────────── */}
+            {/* ── Streak badge, ghost pill ─────────────── */}
             <div style={{
                 position: 'absolute',
                 top: 12, left: 0, right: 0,
@@ -158,7 +158,7 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
                     opacity: 0.65,
                     letterSpacing: '0.6px',
                     textTransform: 'uppercase',
-                }}>Forward, Together — Every Single Day</span>
+                }}>Forward, Together. Every Single Day.</span>
             </div>
         </div>
     );

@@ -60,7 +60,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                     url: savedFile.uri,
                 });
             } catch {
-                // Web fallback only — iOS ignores link.download
+                // Web fallback only: iOS ignores link.download
                 const { Capacitor } = await import('@capacitor/core');
                 if (!Capacitor.isNativePlatform()) {
                     const link = document.createElement('a');
@@ -152,7 +152,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                     </div>
                 </div>
 
-                {/* The message — the hero */}
+                {/* The message: the hero */}
                 <AnimatePresence mode="wait">
                     {message ? (
                         <motion.p

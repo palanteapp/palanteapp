@@ -195,7 +195,7 @@ describe('generateWeeklyReport', () => {
             energyHistory: [
                 { level: 4 as const, timestamp: '2024-01-09T08:00:00Z' },
                 { level: 2 as const, timestamp: '2024-01-11T08:00:00Z' },
-                // outside week — should not affect average
+                // outside week: should not affect average
                 { level: 1 as const, timestamp: '2023-12-01T08:00:00Z' },
             ],
         });

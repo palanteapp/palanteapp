@@ -1,12 +1,12 @@
 /**
  * Text-to-Speech for the Palante partner.
  *
- * DESIGN — three cost-control layers, all invisible to the user:
+ * DESIGN: three cost-control layers, all invisible to the user:
  *   1. On-demand only. Audio is synthesized when the user taps to hear a reply,
  *      never automatically. No tap, no cost.
  *   2. Session cache. Re-tapping the same message replays cached audio for free.
  *   3. Monthly backstop. Past TTS_MONTHLY_MINUTE_LIMIT (see aiUsageBudget), paid
- *      synthesis stops and we fall back to the free on-device iOS voice — the
+ *      synthesis stops and we fall back to the free on-device iOS voice, the
  *      partner still speaks, the metered OpenAI bill does not grow.
  *
  * The free on-device voice is also the fallback for any error (offline, proxy
@@ -14,6 +14,7 @@
  */
 
 import { isTtsLimitReached, recordTtsUsage } from './aiUsageBudget';
+import { isAIEnabled } from './aiGate';
 
 const TTS_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-proxy`;
 
@@ -21,7 +22,7 @@ const TTS_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-pro
 export const PARTNER_VOICE = 'nova';
 
 const VOICE_INSTRUCTIONS =
-  'You are a warm, caring friend. Speak naturally and conversationally — vary your intonation the way a real person does, pause slightly between thoughts, and never sound flat or mechanical. Tone: supportive, genuine, unhurried. No robotic cadence.';
+  'You are a warm, caring friend. Speak naturally and conversationally. Vary your intonation the way a real person does, pause slightly between thoughts, and never sound flat or mechanical. Tone: supportive, genuine, unhurried. No robotic cadence.';
 
 export interface SpeakCallbacks {
   onStart?: () => void;
@@ -38,14 +39,15 @@ const audioCache = new Map<string, string>();
 
 /**
  * iOS WKWebView blocks audio.play() after any await (the gesture context expires).
- * Calling this synchronously inside a user-gesture handler — before the first await —
+ * Calling this synchronously inside a user-gesture handler, before the first await
  * plays a silent 1-sample buffer through AudioContext, which permanently unlocks
  * HTMLAudioElement playback for the rest of the session.
  */
 function unlockAudio(): void {
   if (audioUnlocked || typeof window === 'undefined') return;
   try {
-    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const Ctx = window.AudioContext
+      || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx() as AudioContext;
     const buf = ctx.createBuffer(1, 1, 22050);
@@ -57,14 +59,18 @@ function unlockAudio(): void {
   } catch { /* ignore */ }
 }
 
-/** djb2 — cheap stable hash so identical replies reuse cached audio. */
+/** djb2: cheap stable hash so identical replies reuse cached audio. */
 function hashText(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
 
+// Returning null routes speak() to the free on-device voice. That is also how the
+// AI opt-out is honored here: cloud synthesis sends the partner's text to OpenAI,
+// so a user who turned AI off gets the device voice instead, nothing leaves the phone.
 function getProxyHeaders(): HeadersInit | null {
+  if (!isAIEnabled()) return null;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   if (!anonKey) return null;
   return { 'content-type': 'application/json', apikey: anonKey };
@@ -88,7 +94,7 @@ export function stopSpeaking(): void {
   }
 }
 
-/** Free on-device voice — the fallback path. Uses Web Speech API with the best
+/** Free on-device voice, the fallback path. Uses Web Speech API with the best
  *  available enhanced voice on iOS (sounds far more natural than Capacitor TTS). */
 async function speakOnDevice(text: string, cb?: SpeakCallbacks): Promise<void> {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
@@ -130,7 +136,7 @@ async function speakOnDevice(text: string, cb?: SpeakCallbacks): Promise<void> {
     });
   }
 
-  // Last-resort: Capacitor TTS (most robotic — only if Web Speech is unavailable)
+  // Last-resort: Capacitor TTS (most robotic, only if Web Speech is unavailable)
   try {
     const { TextToSpeech } = await import('@capacitor-community/text-to-speech');
     deviceSpeaking = true;
@@ -178,10 +184,10 @@ function playUrl(url: string, meter: boolean, cb?: SpeakCallbacks): Promise<void
 
 /**
  * Speak a partner reply aloud. Resolves when playback finishes.
- * Only one utterance plays at a time — a new call interrupts the previous.
+ * Only one utterance plays at a time: a new call interrupts the previous.
  */
 export async function speak(text: string, cb?: SpeakCallbacks): Promise<void> {
-  // Must be called before any await — unlocks audio.play() on iOS WKWebView.
+  // Must be called before any await: unlocks audio.play() on iOS WKWebView.
   unlockAudio();
   stopSpeaking();
   const clean = text.trim();

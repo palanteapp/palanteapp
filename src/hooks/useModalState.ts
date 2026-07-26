@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 /**
  * Centralizes all boolean modal open/close state from AppContent.
- * Each modal has a show flag and a setter — consumed via destructuring.
+ * Each modal has a show flag and a setter: consumed via destructuring.
  */
 export const useModalState = () => {
     const [showProfile, setShowProfile] = useState(false);

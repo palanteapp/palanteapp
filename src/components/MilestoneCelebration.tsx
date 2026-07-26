@@ -27,25 +27,36 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
     isOpen,
     onClose
 }) => {
-    // Return early if not open
+    // Every hook must run before any early return, or React sees a different number of
+    // hooks between the open and closed renders and throws. The parent currently mounts
+    // this only while open, which hides the problem; rendering it unconditionally anywhere
+    // would have crashed the celebration.
+    useEffect(() => {
+        if (!isOpen) return;
+        triggerConfetti();
+        haptics.success();
+        // Optional: Play success sound
+        const audio = new Audio('/success.mp3');
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
-    const finalDetails = streakDays 
+    // getMilestoneDetails has no fallback for an unknown key, so it returns undefined for a
+    // missing milestone and the first property read below would throw. That is reachable:
+    // App.tsx fires { milestone: null, streakDays } for streaks, and a streakDays of 0 is
+    // falsy, which drops through to the milestone branch with nothing to look up.
+    const finalDetails = streakDays
         ? getStreakMilestoneDetails(streakDays)
-        : getMilestoneDetails(milestone!);
-        
-    const displayDays = streakDays || finalDetails.days;
+        : milestone && getMilestoneDetails(milestone);
 
-    useEffect(() => {
-        if (isOpen) {
-            triggerConfetti();
-            haptics.success();
-            // Optional: Play success sound
-            const audio = new Audio('/success.mp3');
-            audio.volume = 0.3;
-            audio.play().catch(() => {});
-        }
-    }, [isOpen]);
+    if (!finalDetails) return null;
+
+    // Streak milestones carry their count in streakDays; practice milestones carry it in
+    // details.days. Exactly one of the two is set on any given branch, and the `|| 0` is
+    // only there to satisfy the type, not because a zero is reachable.
+    const displayDays = streakDays || finalDetails.days || 0;
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">

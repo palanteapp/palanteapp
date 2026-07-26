@@ -14,7 +14,7 @@ const getRand = (s: string, i: number): number => {
     return x - Math.floor(x);
 };
 
-// Earthy palette — identical to DashboardQuoteCard so home card = share card
+// Earthy palette: identical to DashboardQuoteCard so home card = share card
 const COLORS = ['#F59E0B', '#E5D6A7', '#C96A3A', '#355E3B', '#879582'];
 
 // Card dimensions (9:16)
@@ -22,9 +22,9 @@ const W = 200;
 const H = 356;
 
 export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, seed }) => {
-    const isTierQuote =
-        quote.author === 'Muse' || quote.author === 'Focus' || quote.author === 'Fire' ||
-        quote.author === 'Palante' || quote.author === 'Palante Coach' || quote.isAI;
+    // Constant now: the library is entirely Palante-authored, so a shared card never has
+    // an external author to attribute. See DashboardQuoteCard for the same reasoning.
+    const isTierQuote = true;
 
     const finalSeed = seed || `${quote.id}-${new Date().toLocaleDateString()}`;
 
@@ -41,7 +41,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
     }));
 
     return (
-        // NOTE: explicit px dimensions — html2canvas/WKWebView cannot resolve
+        // NOTE: explicit px dimensions, html2canvas/WKWebView cannot resolve
         // `aspectRatio`, `min()`, or CSS `inset` shorthand correctly.
         <div style={{
             width: `${W}px`,
@@ -63,7 +63,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                 pointerEvents: 'none',
             }} />
 
-            {/* Art blobs — plain divs, no SVG, no mixBlendMode → html2canvas safe */}
+            {/* Art blobs: plain divs, no SVG, no mixBlendMode → html2canvas safe */}
             {blobs.map((b, i) => (
                 <div key={i} style={{
                     position: 'absolute',
@@ -79,7 +79,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                 }} />
             ))}
 
-            {/* Content — relative so it sits above the absolute blobs */}
+            {/* Content: relative so it sits above the absolute blobs */}
             <div style={{
                 position: 'relative',
                 zIndex: 10,
@@ -99,7 +99,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                     position: 'relative',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                 }}>
-                    {/* Logo badge — always dark bg so it's never light-on-light */}
+                    {/* Logo badge: always dark bg so it's never light-on-light */}
                     <div style={{
                         position: 'absolute',
                         top: '-10px',
@@ -141,7 +141,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                             opacity: 0.9,
                             fontFamily: '"Inter", sans-serif',
                         }}>
-                            — {quote.author}
+                            {quote.author}
                         </p>
                     )}
                 </div>
@@ -161,7 +161,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                         color: '#FDFBF7',
                         whiteSpace: 'nowrap',
                     }}>
-                        FORWARD, TOGETHER — EVERY SINGLE DAY
+                        FORWARD, TOGETHER. EVERY SINGLE DAY.
                     </p>
                     <p style={{
                         fontSize: '7px',

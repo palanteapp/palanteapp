@@ -19,7 +19,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
     isOpen,
     onClose,
     user,
-    isDarkMode,
+    isDarkMode: _isDarkMode,
     onAdjustGoals,
     onUpdateSettings
 }) => {

@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef, useMemo } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { haptics } from '../utils/haptics';
-import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
 import { generateWeeklyReport, shouldGenerateWeeklyReport, getWeekDateRange } from '../utils/weeklyReportGenerator';
 import type { UserProfile, WeeklyReport } from '../types';
@@ -11,7 +10,7 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 interface UseAppProcessProps {
     user: UserProfile | null;
     updateProfile: (updatedUser: UserProfile | ((prev: UserProfile | null) => UserProfile)) => Promise<void>;
-    toggleFavorite: (id: string, val: boolean) => Promise<void>;
+    toggleFavorite: (id: string, val: boolean, meta?: { text?: string; author?: string }) => Promise<void>;
     loadNewQuote: (user: UserProfile) => Promise<void>;
     setCurrentWeeklyReport: (report: WeeklyReport) => void;
     setShowWeeklyReport: (show: boolean) => void;
@@ -65,7 +64,7 @@ export const useAppProcess = ({
 
             if (!hasReportForThisWeek) {
                 // Generate new report
-                const report = generateWeeklyReport(currentUser, [...QUOTES, ...AFFIRMATIONS]);
+                const report = generateWeeklyReport(currentUser, AFFIRMATIONS);
 
                 // Save to user profile
                 const updatedReports = [...(currentUser.weeklyReports || []), report];
@@ -226,12 +225,12 @@ export const useAppProcess = ({
                     const quoteText = notification.extra.quote;
 
                     if (currentUser) {
-                        const match = [...QUOTES, ...AFFIRMATIONS].find(q => q.text === quoteText);
+                        const match = AFFIRMATIONS.find(q => q.text === quoteText);
                         const quoteIdStr = match ? String(match.id) : `spirit-${btoa(quoteText.slice(0, 10))}`;
 
                         const favorites = currentUser.favoriteQuotes || [];
                         if (!favorites.some(f => String(f.quoteId) === quoteIdStr)) {
-                            toggleFavoriteRef.current(quoteIdStr, true);
+                            toggleFavoriteRef.current(quoteIdStr, true, { text: quoteText, author: match?.author });
                             haptics.success();
                         }
                     }

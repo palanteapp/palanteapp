@@ -154,7 +154,7 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
                 <div className="flex items-center gap-2 mb-3">
                   <Flame size={14} className="text-orange-400" />
                   <h3 className={`text-xs font-bold uppercase tracking-widest ${textMid}`}>
-                    Streak Milestones — Living Things
+                    Streak Milestones: Living Things
                   </h3>
                 </div>
                 <div className="space-y-2">
@@ -228,11 +228,11 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles size={14} className="text-pale-gold" />
                   <h3 className={`text-xs font-bold uppercase tracking-widest ${textMid}`}>
-                    Points Milestones — Atmosphere &amp; Color
+                    Points Milestones: Atmosphere &amp; Color
                   </h3>
                 </div>
                 <p className={`text-xs mb-4 leading-relaxed ${textDim}`}>
-                  Points never expire and are never spent — they're a permanent record of everything you've put in. Morning practice: +5. Journal: +10. Goals: +2 each.
+                  Points never expire and are never spent. They're a permanent record of everything you've put in. Morning practice: +5. Journal: +10. Goals: +2 each.
                 </p>
                 <div className="space-y-2">
                   {POINTS_MILESTONES.map((m, i) => {
@@ -300,7 +300,7 @@ export const GardenLegendModal: React.FC<GardenLegendModalProps> = ({
               {/* Grace day note */}
               <div className={`mx-6 mt-6 p-4 rounded-2xl border ${border} ${isDarkMode ? 'bg-white/3' : 'bg-[#FAF7F3]'}`}>
                 <p className={`text-xs leading-relaxed text-center ${textDim}`}>
-                  Life happens. You have one grace day per month — your streak is protected if you miss a day. Your garden never forgets who you are.
+                  Life happens. You have one grace day per month. Your streak is protected if you miss a day. Your garden never forgets who you are.
                 </p>
               </div>
 

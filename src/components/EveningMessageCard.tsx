@@ -108,7 +108,7 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
                     url: savedFile.uri,
                 });
             } catch {
-                // Web fallback only — iOS ignores link.download
+                // Web fallback only: iOS ignores link.download
                 const { Capacitor } = await import('@capacitor/core');
                 if (!Capacitor.isNativePlatform()) {
                     const link = document.createElement('a');
@@ -135,7 +135,7 @@ export const EveningMessageCard: React.FC<EveningMessageCardProps> = ({
 
     return (
         <div className={`w-full p-5 rounded-3xl border transition-all duration-300 relative overflow-hidden ${bgPrimary} shadow-lg group`}>
-            {/* Background Decor — unified with morning's pale-gold/sage palette. */}
+            {/* Background Decor: unified with morning's pale-gold/sage palette. */}
             <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-10 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
 
             {/* Header (Always Visible) */}

@@ -3,22 +3,21 @@ import type { Quote, UserProfile } from '../types';
 
 // ── Hoisted mock data (avoids the "cannot access before initialization" error
 //    that occurs when vi.mock factories reference module-level variables) ────────
-const { MOCK_QUOTES, MOCK_AFFIRMATIONS } = vi.hoisted(() => {
-    const MOCK_QUOTES: Quote[] = [
-        { id: 'q1', text: 'Keep pushing forward',  author: 'A', category: 'Motivation', intensity: 2 },
-        { id: 'q2', text: 'Rest is productive',     author: 'B', category: 'Wellness',   intensity: 1 },
-        { id: 'q3', text: 'Code your destiny',      author: 'C', category: 'Tech',       intensity: 2, profession: 'tech' },
-        { id: 'q4', text: 'Bold moves win',         author: 'D', category: 'Motivation', intensity: 3 },
-        { id: 'q5', text: 'AI wisdom speaks',       author: 'E', category: 'Motivation', intensity: 2, isAI: true },
-    ];
+const { MOCK_AFFIRMATIONS } = vi.hoisted(() => {
+    // One pool. The imported-quotes module was deleted, so AFFIRMATIONS is the entire
+    // library; these entries stand in for its range of intensity/profession/type.
     const MOCK_AFFIRMATIONS: Quote[] = [
-        { id: 'a1', text: 'I am capable',       author: 'Self', category: 'Confidence', intensity: 2, isAffirmation: true },
-        { id: 'a2', text: 'I embrace challenge', author: 'Self', category: 'Growth',     intensity: 2, isAffirmation: true },
+        { id: 'q1', text: 'Keep pushing forward',   author: 'Palante', category: 'Motivation', intensity: 2 },
+        { id: 'q2', text: 'Rest is productive',     author: 'Palante', category: 'Wellness',   intensity: 1 },
+        { id: 'q3', text: 'Code your destiny',      author: 'Palante', category: 'Tech',       intensity: 2, profession: 'tech' },
+        { id: 'q4', text: 'Bold moves win',         author: 'Palante', category: 'Motivation', intensity: 3 },
+        { id: 'q5', text: 'AI wisdom speaks',       author: 'Palante', category: 'Motivation', intensity: 2, isAI: true },
+        { id: 'a1', text: 'I am capable',           author: 'Palante', category: 'Confidence', intensity: 2, isAffirmation: true },
+        { id: 'a2', text: 'I embrace challenge',    author: 'Palante', category: 'Growth',     intensity: 2, isAffirmation: true },
     ];
-    return { MOCK_QUOTES, MOCK_AFFIRMATIONS };
+    return { MOCK_AFFIRMATIONS };
 });
 
-vi.mock('../data/quotes',       () => ({ QUOTES:       MOCK_QUOTES }));
 vi.mock('../data/affirmations', () => ({ AFFIRMATIONS: MOCK_AFFIRMATIONS }));
 vi.mock('../utils/aiService',   () => ({
     generateAffirmation: vi.fn(),
@@ -88,28 +87,32 @@ describe('getRelevantQuotes', () => {
         result.forEach(q => expect(q.intensity).toBe(3));
     });
 
-    it('excludes affirmations when contentTypePreference is "quotes"', () => {
+    // contentTypePreference and sourcePreference used to split a mixed library. With a
+    // single Palante-written library they select nothing, and filtering on them would
+    // hand the user an empty pool. These tests pin the replacement behavior: the
+    // preferences are inert, and every setting still returns real lines.
+    it('still returns lines when contentTypePreference is the legacy "quotes"', () => {
         const result = getRelevantQuotes(makeUser({ contentTypePreference: 'quotes' }));
-        result.forEach(q => expect(q.isAffirmation).toBeFalsy());
+        expect(result.length).toBeGreaterThan(0);
     });
 
-    it('only returns affirmations when contentTypePreference is "affirmations"', () => {
+    it('still returns lines when contentTypePreference is "affirmations"', () => {
         const result = getRelevantQuotes(makeUser({ contentTypePreference: 'affirmations' }));
-        result.forEach(q => expect(q.isAffirmation).toBe(true));
+        expect(result.length).toBeGreaterThan(0);
     });
 
-    it('excludes AI quotes when sourcePreference is "human"', () => {
+    it('still returns lines when sourcePreference is "human"', () => {
         const result = getRelevantQuotes(makeUser({ sourcePreference: 'human' }));
-        result.forEach(q => expect(q.isAI).toBeFalsy());
+        expect(result.length).toBeGreaterThan(0);
     });
 
-    it('only returns AI quotes when sourcePreference is "ai"', () => {
+    it('does not strand a legacy "ai" sourcePreference with an empty pool', () => {
         const result = getRelevantQuotes(makeUser({ sourcePreference: 'ai', quoteIntensity: 2 }));
-        result.forEach(q => expect(q.isAI).toBe(true));
+        expect(result.length).toBeGreaterThan(0);
     });
 
     it('boosts quotes whose profession matches the user profession', () => {
-        // q3 has profession: 'tech', user profession is 'tech' — should rank first (+150 pts)
+        // q3 has profession: 'tech', user profession is 'tech', should rank first (+150 pts)
         const result = getRelevantQuotes(makeUser({ profession: 'tech', quoteIntensity: 2 }));
         const ids = result.map(q => q.id);
         expect(ids).toContain('q3');
@@ -120,7 +123,7 @@ describe('getRelevantQuotes', () => {
         // Mark all intensity-2 quotes as seen via seenHistory module state.
         // The simplest way: call getRelevantQuotes once to mark the first quote,
         // then again repeatedly until the cooldown recycling path fires.
-        // Instead — test that the function always returns at least 1 quote even
+        // Instead: test that the function always returns at least 1 quote even
         // when seenHistory is populated.
         const result = getRelevantQuotes(makeUser({ quoteIntensity: 2 }));
         expect(result.length).toBeGreaterThan(0);
@@ -131,7 +134,7 @@ describe('getRelevantQuotes', () => {
         const result = getRelevantQuotes(user);
         expect(Array.isArray(result)).toBe(true);
         // With invalid intensity, the filter matches nothing at the normal path,
-        // so the ultimate fallback returns all content — still non-empty
+        // so the ultimate fallback returns all content: still non-empty
         expect(result.length).toBeGreaterThan(0);
     });
 
@@ -143,7 +146,7 @@ describe('getRelevantQuotes', () => {
             ],
         });
         const result = getRelevantQuotes(user);
-        // Quotes with 'motivation' in category/text should score higher —
+        // Quotes with 'motivation' in category/text should score higher
         // at minimum the result should be a non-empty array.
         expect(result.length).toBeGreaterThan(0);
     });
@@ -167,12 +170,13 @@ describe('getAIQuote', () => {
         vi.resetAllMocks();
     });
 
-    it('returns a fallback AI quote from the QUOTES pool when AI is unavailable', async () => {
+    it('falls back to a library line at the right intensity when AI is unavailable', async () => {
         vi.mocked(isAIAvailable).mockReturnValue(false);
-        // q5 is the only isAI quote in our mock set at intensity 2
+        // The fallback now draws from the whole Palante library rather than the handful
+        // of isAI entries that used to live in the imported quotes file.
         const result = await getAIQuote(makeUser({ quoteIntensity: 2 }));
-        expect(result.isAI).toBe(true);
-        expect(result.id).toBe('q5');
+        expect(result.intensity).toBe(2);
+        expect(MOCK_AFFIRMATIONS.map(q => q.id)).toContain(result.id);
     });
 
     it('returns a properly shaped quote when AI generates successfully', async () => {
@@ -191,21 +195,21 @@ describe('getAIQuote', () => {
         expect(result.id).toMatch(/^ai_\d+$/);
     });
 
-    it('falls back to pool when AI call throws (intensity 2 has q5)', async () => {
+    it('falls back to the library when the AI call throws', async () => {
         vi.mocked(isAIAvailable).mockReturnValue(true);
         vi.mocked(generateAffirmation).mockRejectedValue(new Error('Network error'));
 
         const result = await getAIQuote(makeUser({ quoteIntensity: 2 }));
-        expect(result.isAI).toBe(true);
         expect(typeof result.text).toBe('string');
+        expect(result.text.length).toBeGreaterThan(0);
     });
 
     it('uses hardcoded fallback text when pool is empty and AI throws', async () => {
         vi.mocked(isAIAvailable).mockReturnValue(true);
         vi.mocked(generateAffirmation).mockRejectedValue(new Error('fail'));
 
-        // Intensity 3 has no AI quotes in the mock QUOTES set
-        const result = await getAIQuote(makeUser({ quoteIntensity: 3 }));
+        // Intensity 4 matches nothing in the library, forcing the hardcoded fallback.
+        const result = await getAIQuote(makeUser({ quoteIntensity: 4 as never }));
         expect(result.text).toBe('Your potential is limitless. Keep moving forward.');
         expect(result.id).toMatch(/^ai_fallback_/);
     });

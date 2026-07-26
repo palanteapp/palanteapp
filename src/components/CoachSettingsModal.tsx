@@ -30,7 +30,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
     };
 
     const frequencies = [
-        { value: 'morning-evening' as const, label: 'Morning & Evening', description: 'One to open the day, one to close it — the most effective rhythm.' },
+        { value: 'morning-evening' as const, label: 'Morning & Evening', description: 'One to open the day, one to close it. The most effective rhythm.' },
         { value: 'morning-only' as const, label: 'Morning only', description: 'A single nudge to set the tone. Simple and clean.' },
         { value: 'off' as const, label: 'Off', description: 'No automatic nudges.' },
     ];
@@ -70,7 +70,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'nurturing' as CoachTone,
                                     label: 'Nurturing',
                                     sub: 'Warm, poetic, patient',
-                                    desc: 'No agenda, no pressure. Your partner listens first — meeting you where you are before going anywhere.',
+                                    desc: 'No agenda, no pressure. Your partner listens first, meeting you where you are before going anywhere.',
                                     accent: 'rgba(229,214,167,0.85)',
                                     bg: 'rgba(229,214,167,0.08)',
                                 },
@@ -86,7 +86,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'accountability' as CoachTone,
                                     label: 'Accountability',
                                     sub: 'Firm, high-standard, in your corner',
-                                    desc: "Sees what you're capable of and holds you to it. High standard, zero cruelty — rooted in the belief that you've got more in you.",
+                                    desc: "Sees what you're capable of and holds you to it. High standard, zero cruelty, rooted in the belief that you've got more in you.",
                                     accent: 'rgba(201,106,58,0.9)',
                                     bg: 'rgba(201,106,58,0.10)',
                                 },

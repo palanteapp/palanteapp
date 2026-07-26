@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { readJSON } from '../utils/safeStorage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { Play, Pause, X, Info, Lightbulb, Target, HelpCircle, Settings } from 'lucide-react';
 import { haptics, useHaptics } from '../utils/haptics';
 import { SlideUpModal } from './SlideUpModal';
 import { FeatureInfoModal } from './FeatureInfoModal';
-import { EnhancementSettings, type EnhancementOptions } from './EnhancementSettings';
+import { EnhancementSettings, DEFAULT_OPTIONS as DEFAULT_ENHANCEMENTS, type EnhancementOptions } from './EnhancementSettings';
 import { FEATURE_INFO } from '../data/featureInfo';
 
 // --- Types & Config ---
@@ -135,12 +137,12 @@ const SakuraPetals = memo(({ isDarkMode }: { isDarkMode: boolean }) => {
     );
 });
 
-// ── Breathwork Visuals — CSS transitions only, zero per-frame JS ─────────────
+// ── Breathwork Visuals. CSS transitions only, zero per-frame JS ─────────────
 // All animation runs on the GPU compositor via transform + opacity.
 // Each component receives the current phase name and its duration (seconds);
-// a CSS transition fires once per phase boundary — no rAF, no SVG math.
+// a CSS transition fires once per phase boundary, no rAF, no SVG math.
 
-/** Sacred geometry background layer — static, one per technique */
+/** Sacred geometry background layer: static, one per technique */
 const SacredGeo = memo(({ technique }: { technique: Technique }) => {
     const cx = 100, cy = 100;
     const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -150,7 +152,7 @@ const SacredGeo = memo(({ technique }: { technique: Technique }) => {
     ];
 
     if (technique === 'Box') {
-        // Metatron's Cube — Fruit of Life (13 circles) + all 78 connecting lines
+        // Metatron's Cube: Fruit of Life (13 circles) + all 78 connecting lines
         const d = 22;
         const centers: [number, number][] = [
             [cx, cy],
@@ -174,7 +176,7 @@ const SacredGeo = memo(({ technique }: { technique: Technique }) => {
     }
 
     if (technique === '4-7-8') {
-        // Golden Spiral — logarithmic spiral, grows by φ per quarter turn, 1.5 revolutions
+        // Golden Spiral: logarithmic spiral, grows by φ per quarter turn, 1.5 revolutions
         const phi = 1.6180339887;
         const N = 300, tMax = 3 * Math.PI;
         const pts = Array.from({ length: N }, (_, i) => {
@@ -209,7 +211,7 @@ const SacredGeo = memo(({ technique }: { technique: Technique }) => {
     );
 });
 
-/** Unified ring visual — one ring track for all three techniques.
+/** Unified ring visual: one ring track for all three techniques.
  *  Orb orbits the ring in one cycle. Tangential tick marks at phase transitions.
  *  Inner circle breathes with the phase. */
 const RingVisual = memo(({ phase, duration, technique }: {
@@ -220,7 +222,7 @@ const RingVisual = memo(({ phase, duration, technique }: {
     const config       = TECHNIQUES[technique];
     const cycleDuration = config.phases.reduce((sum, p) => sum + p.duration, 0);
 
-    // Angle from top (−90°), clockwise — mark every phase transition
+    // Angle from top (−90°), clockwise, mark every phase transition
     let acc = 0;
     const markerAngles: number[] = [];
     config.phases.forEach(p => {
@@ -237,7 +239,7 @@ const RingVisual = memo(({ phase, duration, technique }: {
     return (
         <div className="relative flex items-center justify-center" style={{ width: 200, height: 200 }}>
             <svg width="200" height="200" style={{ position: 'absolute', overflow: 'visible' }}>
-                {/* Sacred geometry — bottom layer */}
+                {/* Sacred geometry: bottom layer */}
                 <SacredGeo technique={technique} />
                 {/* Track ring */}
                 <circle cx={cx} cy={cy} r={R}
@@ -277,7 +279,7 @@ const RingVisual = memo(({ phase, duration, technique }: {
                 background: 'rgba(229,214,167,0.45)',
                 boxShadow: '0 0 4px rgba(229,214,167,0.3)',
             }} />
-            {/* Orbiting bead — starts at 12 o'clock, travels clockwise */}
+            {/* Orbiting bead: starts at 12 o'clock, travels clockwise */}
             <div style={{
                 position: 'absolute',
                 top: '50%', left: '50%',
@@ -306,7 +308,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
 
 
 
-    // Phase state drives CSS transitions — updates only at phase boundaries, not per-frame
+    // Phase state drives CSS transitions: updates only at phase boundaries, not per-frame
     const [phaseState, setPhaseState] = useState<{ phase: string; duration: number }>({ phase: '', duration: 4 });
 
     // Safety Refs
@@ -326,28 +328,19 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
 
     const [countdownVal, setCountdownVal] = useState(5);
     const [showInfo, setShowInfo] = useState(false);
-    const [showControls, setShowControls] = useState(true);
+    const [_showControls, setShowControls] = useState(true);
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
-    const [enhancements, setEnhancements] = useState<EnhancementOptions>(() => {
-        const saved = localStorage.getItem('palante_enhancements');
-        return saved ? JSON.parse(saved) : {
-            immersiveHaptics: false,
-            dynamicBackgrounds: false,
-            smoothTransitions: false,
-            natureParticles: false,
-            hapticDarkMode: false
-        };
-    });
+    const [enhancements, setEnhancements] = useState<EnhancementOptions>(() => readJSON<EnhancementOptions>(STORAGE_KEYS.ENHANCEMENTS, DEFAULT_ENHANCEMENTS));
 
     const [isTransitioning, setIsTransitioning] = useState(false);
-    const [nextTechnique, setNextTechnique] = useState<Technique | null>(null);
+    const [_nextTechnique, setNextTechnique] = useState<Technique | null>(null);
 
     // Listen for setting changes
     useEffect(() => {
         const handleSettingsUpdate = () => {
-            const saved = localStorage.getItem('palante_enhancements');
-            if (saved) setEnhancements(JSON.parse(saved));
+            const saved = readJSON<EnhancementOptions | null>(STORAGE_KEYS.ENHANCEMENTS, null);
+            if (saved) setEnhancements(saved);
         };
         window.addEventListener('storage', handleSettingsUpdate);
         return () => window.removeEventListener('storage', handleSettingsUpdate);
@@ -357,7 +350,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
 
 
     const [phaseName, setPhaseName] = useState('Ready');
-    const [phaseProgress, setPhaseProgress] = useState(0);
+    const [_phaseProgress, setPhaseProgress] = useState(0);
     const [currentPhaseSimple, setCurrentPhaseSimple] = useState('Inhale');
     const [timeLeftInPhase, setTimeLeftInPhase] = useState(0);
     const [totalSecondsLeft, setTotalSecondsLeft] = useState(300);
@@ -605,7 +598,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
             onMouseMove={() => { setShowControls(true); setTimeout(() => setShowControls(false), 3000); }}
             onTouchStart={() => setShowControls(true)}
         >
-            {/* Dark Sensory Mode Overlay — screen goes black, haptics only */}
+            {/* Dark Sensory Mode Overlay: screen goes black, haptics only */}
             {enhancements.hapticDarkMode && status === 'active' && (
                 <div
                     className="fixed inset-0 z-[500] bg-black flex flex-col items-center justify-center select-none"
@@ -626,7 +619,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                     </div>
                 </div>
             )}
-            {/* Dynamic background — warm gold on inhale, cool sage on exhale */}
+            {/* Dynamic background: warm gold on inhale, cool sage on exhale */}
             {enhancements.dynamicBackgrounds && status === 'active' && (
                 <div
                     className="absolute inset-0 z-0 pointer-events-none"
@@ -637,14 +630,14 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                 />
             )}
             {enhancements.natureParticles && (status === 'active' || status === 'countdown') && <SakuraPetals isDarkMode={isDarkMode} />}
-            {/* Session controls — only rendered (and take layout space) when session is running */}
+            {/* Session controls: only rendered (and take layout space) when session is running */}
             {status !== 'idle' && (
                 <div className="relative z-50 w-full px-6 flex items-center justify-between mb-2"
                   style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
                 >
                     {/* Left: Exit */}
                     <button
-                        onClick={() => { reset(); onExit ? onExit() : onComplete?.(); }}
+                        onClick={() => { reset(); if (onExit) onExit(); else onComplete?.(); }}
                         className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:text-white hover:bg-white/10 transition-all active:scale-90"
                     >
                         <X size={16} />
@@ -673,11 +666,11 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
 
             <div className="relative z-10 flex-1 w-full flex flex-col items-center">
 
-                {/* Description Text & Landing UI — collapses when session is running */}
+                {/* Description Text & Landing UI, collapses when session is running */}
                 <div className={`w-full px-6 transition-all duration-700 ease-in-out overflow-hidden ${
                     status === 'idle' ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
                 }`}>
-                    {/* Header — same pattern as Meditation */}
+                    {/* Header: same pattern as Meditation */}
                     <div className="pt-6 mb-5">
                         <h1 className="font-display font-medium text-3xl text-white">Breathwork</h1>
                         <p className="text-xs uppercase tracking-[0.25em] font-black mt-1 text-white">Regulate your breath</p>
@@ -691,7 +684,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                             {activeConfig.intro}
                         </p>
                     </div>
-                    {/* Action buttons — two pills + exit, no overflow */}
+                    {/* Action buttons: two pills + exit, no overflow */}
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => { haptics.light(); setShowFeatureInfo(true); }}
@@ -708,7 +701,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                             <span className="whitespace-nowrap">Enhancements</span>
                         </button>
                         <button
-                            onClick={() => { haptics.light(); onExit ? onExit() : onComplete?.(); }}
+                            onClick={() => { haptics.light(); if (onExit) onExit(); else onComplete?.(); }}
                             className="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white active:scale-90 transition-all"
                         >
                             <X size={13} strokeWidth={2.5} />
@@ -716,7 +709,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                     </div>
                 </div>
 
-                {/* Visual Area — grows to fill available space, animation scales up when active */}
+                {/* Visual Area: grows to fill available space, animation scales up when active */}
                 <div
                     className={`relative flex-1 flex items-center justify-center w-full ${
                         status === 'idle' ? 'animate-breathe-idle' : ''

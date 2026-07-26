@@ -23,17 +23,6 @@ interface CinematicIntroProps {
 }
 
 // Slow breathing animation for the center rings
-const breathe = {
-    animate: {
-        scale: [1, 1.06, 1],
-        opacity: [0.8, 1, 0.8],
-    },
-    transition: {
-        duration: 6,
-        repeat: Infinity,
-        ease: 'easeInOut' as const,
-    },
-};
 
 const ORIENTING_OPTIONS: { id: PrimaryIntent; label: string; sub: string }[] = [
     { id: 'consistency', label: 'Build consistency', sub: 'Show up every day, no matter what' },
@@ -112,7 +101,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
         <div
             className="fixed inset-0 z-[100] overflow-hidden bg-[#415D43]"
         >
-            {/* ── Background — matches app seed-of-life system exactly ── */}
+            {/* ── Background, matches app seed-of-life system exactly ── */}
 
             {/* Central luminosity bloom */}
             <div
@@ -136,7 +125,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                     background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.16) 0%, transparent 70%)',
                 }}
             />
-            {/* Seed of Life — sacred geometry */}
+            {/* Seed of Life: sacred geometry */}
             <svg
                 aria-hidden
                 className="absolute inset-0 w-full h-full pointer-events-none"
@@ -291,7 +280,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: 0.09 }}
                             >
-                                Just your birth year — that's all we keep.
+                                Just your birth year. That's all we keep.
                             </motion.p>
 
                             <motion.div
@@ -528,7 +517,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                 )}
             </AnimatePresence>
 
-            {/* Progress dots — 4 steps: 0 splash · 1 age · 2 name · 3 intent */}
+            {/* Progress dots: 4 steps: 0 splash · 1 age · 2 name · 3 intent */}
             <div className="absolute bottom-10 inset-x-0 flex justify-center gap-2 pointer-events-none">
                 {[0, 1, 2, 3].map(i => (
                     <div

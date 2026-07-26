@@ -45,7 +45,7 @@ export const STREAK_MILESTONES: GardenMilestone[] = [
     threshold: 14,
     label: 'Lotus',
     description: '14-day streak',
-    detail: 'Two weeks. The lotus blooms from still water — so do you.',
+    detail: 'Two weeks. The lotus blooms from still water. So do you.',
     plantType: 'lotus',
   },
   {
@@ -54,7 +54,7 @@ export const STREAK_MILESTONES: GardenMilestone[] = [
     threshold: 21,
     label: 'Butterfly',
     description: '21-day streak',
-    detail: 'Three weeks — science says habits form here. Something beautiful arrived.',
+    detail: 'Three weeks. Science says habits form here. Something beautiful arrived.',
     plantType: 'butterfly',
   },
   {
@@ -63,7 +63,7 @@ export const STREAK_MILESTONES: GardenMilestone[] = [
     threshold: 30,
     label: 'Koi Pond',
     description: '30-day streak',
-    detail: 'A full month. Koi appear in your garden — symbols of perseverance and good fortune.',
+    detail: 'A full month. Koi appear in your garden, symbols of perseverance and good fortune.',
     plantType: 'koi',
   },
   {
@@ -93,7 +93,7 @@ export const POINTS_MILESTONES: GardenMilestone[] = [
     threshold: 100,
     label: 'Fireflies',
     description: '100 points',
-    detail: 'Little lights appear in your garden at night — one for every practice.',
+    detail: 'Little lights appear in your garden at night, one for every practice.',
     plantType: null,
   },
   {
@@ -102,7 +102,7 @@ export const POINTS_MILESTONES: GardenMilestone[] = [
     threshold: 250,
     label: 'Terracotta Blooms',
     description: '250 points',
-    detail: 'Your flowers take on the warm color of Palante — earthy, alive, yours.',
+    detail: 'Your flowers take on the warm color of Palante: earthy, alive, yours.',
     plantType: null,
   },
   {

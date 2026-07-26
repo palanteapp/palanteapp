@@ -20,7 +20,7 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
     breathwork: {
         howToUse: {
             title: "Master Your Breath, Master Your State",
-            description: "Breathwork Station offers scientifically-designed breathing patterns to help you energize, relax, or find balance - all through the power of controlled breathing.",
+            description: "Breathwork Station offers structured breathing patterns to help you energize, relax, or find balance, all through the pace and ratio of your own breath.",
             steps: [
                 "Choose your desired state: Energy, Relax, or Balance",
                 "Find a comfortable seated or lying position",
@@ -37,23 +37,23 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
         },
         theScience: {
             title: "How Breath Controls Your Nervous System",
-            overview: "Controlled breathing directly influences your autonomic nervous system, allowing you to consciously shift between states of alertness and relaxation through vagal nerve stimulation.",
+            overview: "Controlled breathing is one of the few levers you have on your own autonomic nervous system. Changing the pace and ratio of your breath can shift you toward alertness or toward calm.",
             benefits: [
-                "Rapid stress reduction through parasympathetic activation",
-                "Improved focus and mental clarity via increased oxygen delivery",
-                "Better sleep quality through relaxation response triggering",
-                "Reduced anxiety and cortisol levels",
-                "Enhanced emotional regulation and resilience",
-                "Improved cardiovascular health and HRV (heart rate variability)"
+                "A body that settles faster than you can talk yourself calm",
+                "Attention that sharpens once the breathing steadies",
+                "An easier landing at the end of the day, for many people",
+                "Less of the keyed-up feeling, without needing a reason for it",
+                "A pause you can take anywhere, in front of anyone",
+                "A steadier rhythm you can sometimes feel in your chest"
             ],
-            research: "Research from Stanford's Huberman Lab shows that specific breathing patterns can rapidly shift physiological states. Box breathing is used by Navy SEALs for stress management, while 4-7-8 breathing activates the parasympathetic nervous system for deep relaxation."
+            research: "Paced breathing is among the more consistently studied self-regulation practices. Making your exhale longer than your inhale is associated with greater parasympathetic activity (the 'rest and digest' side of the nervous system), which is why slow-breathing protocols appear in both clinical anxiety work and high-stress occupational training. Effects differ from person to person, and this is not a treatment for any condition."
         }
     },
 
     koiPond: {
         howToUse: {
             title: "Your Digital Oasis",
-            description: "Koi Pond is a meditative micro-break tool designed to calm your mind and reset your nervous system through gentle interaction and natural beauty.",
+            description: "Koi Pond is a meditative micro-break: somewhere to put your attention for a minute, with gentle interaction and something pleasant to look at.",
             steps: [
                 "Tap the Koi Pond icon whenever you need a mental reset",
                 "Watch the koi swim peacefully across the pond",
@@ -65,21 +65,21 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
                 "Use between deep work sessions as a 'palate cleanser' for your mind",
                 "Combine with slow breathing for maximum relaxation",
                 "Enable soundscapes for an immersive experience",
-                "Even 60 seconds can significantly reduce stress hormones"
+                "Even a minute of genuine pause is worth more than none"
             ]
         },
         theScience: {
-            title: "The Neuroscience of Micro-Breaks",
-            overview: "Brief visual meditation and nature exposure trigger measurable reductions in cortisol and activation of the default mode network, essential for creativity and mental restoration.",
+            title: "Why Micro-Breaks Work",
+            overview: "Short, deliberate pauses give attention a chance to recover. Nature imagery is one of the more reliable ways to make a brief pause feel restorative rather than like more screen time.",
             benefits: [
-                "Rapid cortisol reduction (stress hormone) within 60 seconds",
-                "Activation of the parasympathetic 'rest and digest' system",
-                "Improved focus and cognitive performance after breaks",
-                "Enhanced creativity through default mode network activation",
-                "Reduced mental fatigue and decision exhaustion",
-                "Improved mood through dopamine and serotonin regulation"
+                "A deliberate pause in a stretch of focused work",
+                "Slower breathing and a settled body, if you let it",
+                "Attention that recovers instead of grinding down",
+                "Less of the fatigue that builds across a long day",
+                "A moment that is genuinely yours",
+                "A gentler transition between demanding tasks"
             ],
-            research: "Studies from the University of Michigan show that even brief nature exposure (including digital nature scenes) significantly reduces stress markers. Research on micro-breaks demonstrates that 60-second mental resets improve sustained attention and reduce cognitive fatigue."
+            research: "Attention-restoration research links brief exposure to natural scenes (including images and video, not only time outdoors) with lower self-reported stress and better sustained attention afterward. Work on micro-breaks points the same direction: short pauses during demanding tasks tend to help more than pushing straight through. Reported effects are modest and vary by person."
         }
     },
 
@@ -105,14 +105,14 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
             title: "The Power of Reflective Practice",
             overview: "Structured reflection activates metacognition and consolidates learning, turning experiences into wisdom through deliberate processing and meaning-making.",
             benefits: [
-                "Enhanced learning and memory consolidation",
-                "Improved emotional regulation and self-awareness",
-                "Greater sense of progress and accomplishment",
-                "Reduced rumination and anxiety through structured processing",
-                "Better decision-making through pattern recognition",
-                "Increased gratitude and life satisfaction"
+                "The day sorted into something you can actually recall",
+                "A clearer read on what you were feeling at the time",
+                "Evidence of progress you would otherwise forget",
+                "Fewer loops, because the thought is on the page instead of circling",
+                "Patterns you only see once they are written down",
+                "More of the good days noticed while they are still happening"
             ],
-            research: "Harvard Business School research shows that 15 minutes of daily reflection improves performance by 23%. Journaling has been shown to reduce intrusive thoughts, improve working memory, and enhance psychological well-being in numerous clinical studies."
+            research: "Reflective writing is one of the better-supported practices in this space. Expressive-writing studies associate it with fewer intrusive thoughts and freed-up working memory, and structured end-of-day reflection is linked to better consolidation of what you learned. Findings vary in strength, and none of this is a treatment for any condition."
         }
     },
 
@@ -137,23 +137,23 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
         },
         theScience: {
             title: "The Psychology of Progress & Accountability",
-            overview: "Combining energy awareness, goal tracking, and external accountability creates a powerful system for behavior change. Research shows that tracking progress and having an accountability partner significantly increases goal completion rates.",
+            overview: "Energy awareness, visible progress, and another person who knows what you committed to are three of the most dependable ingredients in behavior change. None of them is complicated. Together they hold better than motivation does.",
             benefits: [
-                "23% higher goal achievement with daily progress tracking",
-                "Energy-matched task selection improves completion rates by 40%",
-                "Accountability partnerships double your chances of success",
-                "Visual progress tracking activates reward circuits in the brain",
-                "Streak tracking leverages loss aversion to maintain consistency",
-                "Weekly insights enable data-driven habit optimization"
+                "Progress you can see instead of guess at",
+                "Tasks matched to the energy you actually have today",
+                "A commitment someone else knows about",
+                "Consistency that survives low-motivation days",
+                "Patterns you would not notice week to week",
+                "A record of showing up, not just intending to"
             ],
-            research: "Studies from the American Society of Training and Development show that having an accountability partner increases your chance of success by 95%. Research on energy management demonstrates that matching task difficulty to energy levels significantly improves both productivity and well-being."
+            research: "Making progress visible and sharing a goal with another person are both long-standing findings in behavior-change research: people follow through more often when they track and when someone else is aware of the commitment. How large that effect is depends heavily on the person, the goal, and the relationship. The specific percentages that circulate online are not well sourced, so we do not repeat them."
         }
     },
 
     meditation: {
         howToUse: {
             title: "Guided Meditation Practice",
-            description: "Meditation helps you cultivate inner stillness, reduce stress, and develop mindfulness through focused attention and intentional breathing.",
+            description: "Meditation is practice at holding your attention where you put it, and at noticing when it has wandered off, through focused attention and intentional breathing.",
             steps: [
                 "Set a clear intention for your practice (peace, clarity, focus, etc.)",
                 "Choose your meditation duration (5-60 minutes)",
@@ -170,17 +170,17 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
             ]
         },
         theScience: {
-            title: "The Neuroscience of Meditation",
-            overview: "Regular meditation practice physically changes your brain structure, increasing gray matter density in areas associated with learning, memory, emotional regulation, and perspective-taking.",
+            title: "What Meditation Practice Does",
+            overview: "Meditation is attention training. You practice noticing where your mind went and bringing it back, and over weeks that noticing gets easier, in practice and outside of it.",
             benefits: [
-                "Reduces activity in the default mode network (reduces mind-wandering)",
-                "Increases gray matter in the prefrontal cortex (better decision-making)",
-                "Strengthens the hippocampus (improved memory and learning)",
-                "Decreases amygdala size (reduced stress and anxiety responses)",
-                "Enhances connectivity between brain regions (better emotional regulation)",
-                "Increases GABA and serotonin production (improved mood)"
+                "Attention that wanders less, and returns faster when it does",
+                "More space between a feeling and your reaction to it",
+                "A calmer baseline on ordinary days",
+                "Practice at noticing your own thoughts as thoughts",
+                "Sleep that comes more easily for many people",
+                "A reliable way to interrupt a spiraling day"
             ],
-            research: "Harvard neuroscientist Sara Lazar's research shows that just 8 weeks of meditation practice can measurably change brain structure. Studies from MIT and Stanford demonstrate that meditation improves attention span, reduces cortisol levels, and enhances overall well-being."
+            research: "Mindfulness and meditation training have been studied extensively. Consistent practice over a period of weeks is associated with measurable gains in attention and emotional regulation, and some imaging work reports differences in brain regions tied to memory and stress response. The strength of these findings varies across studies, and meditation is not a substitute for professional care."
         }
     }
 };

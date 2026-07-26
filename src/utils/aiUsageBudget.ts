@@ -1,5 +1,5 @@
 /**
- * AI Usage Budget — per-user daily cap on open-ended partner chat.
+ * AI Usage Budget: per-user daily cap on open-ended partner chat.
  *
  * WHY THIS EXISTS
  * Partner chat is the only *unbounded* AI cost vector in the app. The daily
@@ -16,7 +16,7 @@
  *   30/day → ~$0.12/day → ~$44/yr if a user maxed it every single day, 365 days.
  * Against ~$51 net revenue under Apple's Small Business Program (15% cut), even
  * that mythical everyday-maxer stays profitable. Real heavy users average well
- * under 30/day on active days, so this never touches a genuine user — it only
+ * under 30/day on active days, so this never touches a genuine user. It only
  * caps the pathological tail. Tune the single constant below to trade headroom
  * against safety; see the in-app unit-economics model for the full curve.
  */
@@ -39,7 +39,7 @@ interface UsageRecord {
 
 /**
  * Max PAID text-to-speech minutes per user per local month. Past this, voice
- * silently falls back to the free on-device iOS voice — so the user keeps a
+ * silently falls back to the free on-device iOS voice, so the user keeps a
  * speaking partner, but the metered OpenAI bill stops. Bounds the one new cost
  * voice introduces.
  *
@@ -62,7 +62,7 @@ function todayKey(): string {
 
 /**
  * Read today's usage. Returns a zeroed record for a new day (or on any storage
- * error) — the cap is a safety net, so when in doubt we fail *open* rather than
+ * error): the cap is a safety net, so when in doubt we fail *open* rather than
  * block a paying user's chat over a tracking glitch.
  */
 function readUsage(): UsageRecord {
@@ -85,7 +85,7 @@ function writeUsage(rec: UsageRecord): void {
   try {
     localStorage.setItem(STORAGE_KEYS.AI_USAGE, JSON.stringify(rec));
   } catch {
-    // Storage full / unavailable — tracking degrades but chat keeps working.
+    // Storage full / unavailable: tracking degrades but chat keeps working.
   }
 }
 
@@ -147,7 +147,7 @@ function writeTtsUsage(rec: TtsUsageRecord): void {
   try {
     localStorage.setItem(STORAGE_KEYS.TTS_USAGE, JSON.stringify(rec));
   } catch {
-    // Storage unavailable — voice still works, tracking degrades.
+    // Storage unavailable: voice still works, tracking degrades.
   }
 }
 
@@ -177,5 +177,5 @@ export function recordTtsUsage(seconds: number): void {
  */
 export function getDailyLimitMessage(name?: string): string {
   const who = name?.trim() ? `, ${name.trim()}` : '';
-  return `I've loved being here with you today${who}. Let's pick this back up tomorrow so I can show up fully rested and present for you. Rest well — I'm not going anywhere, and I'll be right here when you return.`;
+  return `I've loved being here with you today${who}. Let's pick this back up tomorrow so I can show up fully rested and present for you. Rest well. I'm not going anywhere, and I'll be right here when you return.`;
 }

@@ -112,7 +112,7 @@ describe('checkMilestone', () => {
     });
 
     it('prioritizes higher milestones first', () => {
-        // 365 reached but not yet flagged — should return 365, not 100 or 30
+        // 365 reached but not yet flagged: should return 365, not 100 or 30
         const result = checkMilestone(365, freshMilestones);
         expect(result.milestone).toBe('practices_365');
     });

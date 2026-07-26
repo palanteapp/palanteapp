@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { haptics } from '../utils/haptics';
 import type { UserProfile, AccountabilityPartner } from '../types';
-import { Save, Bell, User, X, Crown, Download, ChevronDown, ChevronUp, Sparkles, Target, Flame, Sun, Moon, Clock, Info, BellOff, BookOpen, Fish, Users, Cloud, ShieldCheck, MessageCircle, Trash2, Compass, AlertTriangle, Droplets, RefreshCw, Lock, Heart } from 'lucide-react';
+import { Save, Bell, User, X, Crown, Download, ChevronDown, ChevronUp, ChevronRight, Sparkles, Target, Flame, Sun, Moon, Clock, Info, BellOff, BookOpen, Fish, Users, Cloud, ShieldCheck, MessageCircle, Trash2, Compass, AlertTriangle, Droplets, RefreshCw, Lock, Heart } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import { AccountabilityPartners } from './AccountabilityPartners';
 import { PartnerInviteModal } from './PartnerInviteModal';
@@ -18,6 +18,7 @@ import { getHealthAuthStatus, requestHealthPermissions } from '../utils/healthSe
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
+import { AIDisclosureModal } from './AIDisclosureModal';
 
 interface ProfileProps {
     user: UserProfile;
@@ -74,6 +75,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     const [hapticsEnabled, setHapticsEnabled] = useState(user.hapticsEnabled ?? true);
     const [journalPromptsEnabled, setJournalPromptsEnabled] = useState(user.journalPromptsEnabled ?? true);
     const [aiDisabled, setAiDisabled] = useState(user.aiDisabled ?? false);
+    const [showAIDisclosure, setShowAIDisclosure] = useState(false);
     const [weightGoal, setWeightGoal] = useState<number | ''>(user.weightGoal || '');
     // Default to all 7 days if not set
     const [practiceDays, setPracticeDays] = useState<number[]>(user.practiceDays ?? [0, 1, 2, 3, 4, 5, 6]);
@@ -158,7 +160,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         });
         setTimeout(() => setSaveStatus('saved'), 600);
         setTimeout(() => setSaveStatus('idle'), 3000);
-    }, [name, age, coachName, career, profession, interests, bio, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled, onUpdate]); // Removed 'user' dependency
+    // 'user' is deliberately omitted: performSave calls onUpdate, so depending on user
+    // would rebuild this callback on every save and retrigger the auto-save effect below.
+    // weightGoal and practiceDays are NOT optional here. performSave writes both, and the
+    // auto-save effect fires on both, so leaving them out meant editing only your weight
+    // goal or practice days ran a stale closure and persisted the previous value: the edit
+    // silently did not save until some other tracked field happened to change.
+    }, [name, age, coachName, career, profession, interests, bio, frequency, hapticsEnabled, journalPromptsEnabled, aiDisabled, quietStart, quietEnd, weightGoal, practiceDays, settings.nudgeEnabled, settings.nudgeFrequency, settings.waterRemindersEnabled, onUpdate]);
 
     // Auto-save effect
     useEffect(() => {
@@ -192,22 +200,83 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         setShowPartnerInvite(true);
     };
 
-    const handleRemovePartner = (id: string) => {
-        haptics.medium();
-        const updatedPartners = (user.accountabilityPartners || []).filter(p => p.id !== id);
-        // This is tricky inside Profile because usually we wait for "Save". 
-        // But removing a partner feels like an immediate action.
-        // Let's update the PARENT immediately for partnership actions, unlike form fields.
-        onUpdate((prevUser: UserProfile | null) => {
-            if (!prevUser) return user;
-            return {
-                ...prevUser,
-                accountabilityPartners: (prevUser.accountabilityPartners || []).filter(p => p.id !== id)
-            };
+    // `onUpdate` is a fresh closure on every App render (handleProfileUpdate is not
+    // memoized), so it must not appear in the dependency chain of the refresh effect
+    // below: it would refire on every render and loop. Read it through a ref instead.
+    const onUpdateRef = useRef(onUpdate);
+    useEffect(() => { onUpdateRef.current = onUpdate; });
+
+    /** Write the server's list of connections into local state. */
+    const applyPartners = useCallback((partners: AccountabilityPartner[]) => {
+        onUpdateRef.current((prevUser: UserProfile | null) => {
+            if (!prevUser) return prevUser!;
+            return { ...prevUser, accountabilityPartners: partners };
         });
+    }, []);
+
+    /**
+     * Pull server truth. Partner streaks and last-activity dates used to be
+     * snapshotted at add-time and never refreshed, so they drifted permanently
+     * out of date. This is what keeps them live.
+     *
+     * Note the failure path deliberately leaves the cached list alone: if the
+     * migration has not been applied yet, or the device is offline, we show stale
+     * partners rather than wiping them.
+     */
+    const userId = user.id;
+    const refreshPartners = useCallback(async () => {
+        if (!userId) return;
+        try {
+            applyPartners(await api.getPartnerSummaries());
+        } catch (e) {
+            // Non-fatal: a red error on a settings screen for a background refresh
+            // would be worse than briefly stale data.
+            console.error('Partner refresh failed:', e);
+        }
+    }, [userId, applyPartners]);
+
+    // Once per profile open, not per render.
+    useEffect(() => { void refreshPartners(); }, [refreshPartners]);
+
+    const handleRemovePartner = async (id: string) => {
+        haptics.medium();
+        const partner = (user.accountabilityPartners || []).find(p => p.id === id);
+
+        // Optimistic: removing a partner should feel immediate, unlike the form
+        // fields on this screen which wait for Save.
+        applyPartners((user.accountabilityPartners || []).filter(p => p.id !== id));
+
+        if (partner?.connectionId) {
+            try {
+                await api.removePartnerConnection(partner.connectionId);
+            } catch (e) {
+                console.error('Partner removal failed, restoring:', e);
+                onToast?.('Could not remove that partner. Try again.');
+                void refreshPartners();
+            }
+        }
     };
 
+    const handleRespondToRequest = async (connectionId: string, accept: boolean) => {
+        haptics.medium();
+        try {
+            await api.respondToPartnerRequest(connectionId, accept);
+            await refreshPartners();
+            onToast?.(accept ? 'Partner connected.' : 'Request declined.');
+        } catch (e: any) {
+            onToast?.(e.message || 'Could not respond to that request.');
+        }
+    };
 
+    const handleCheckIn = async (connectionId: string, partnerName: string) => {
+        if (!user.id) return;
+        try {
+            await api.postCheckIn(connectionId, user.id, 'nudge');
+            onToast?.(`${partnerName} will see this next time they open Palante.`);
+        } catch (e: any) {
+            onToast?.(e.message || 'Could not send that check-in.');
+        }
+    };
 
     const [isAddingPartner, setIsAddingPartner] = useState(false);
     const [partnerError, setPartnerError] = useState<string | null>(null);
@@ -243,18 +312,40 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         haptics.selection();
         setConfirmAction({
             label: 'Block',
-            message: `Block ${name}? You will no longer see each other's progress.`,
-            onConfirm: () => {
+            message: `Block ${name}? You will no longer see each other's progress, and they cannot reconnect with your code.`,
+            onConfirm: async () => {
                 haptics.medium();
-                handleRemovePartner(id);
+                const partner = (user.accountabilityPartners || []).find(p => p.id === id);
+
+                // Block is a durable server state, not a local removal, otherwise
+                // the same person could reconnect with the same invite code.
+                applyPartners((user.accountabilityPartners || []).filter(p => p.id !== id));
+                if (partner?.connectionId) {
+                    try {
+                        await api.blockPartnerConnection(partner.connectionId);
+                    } catch (e) {
+                        console.error('Block failed:', e);
+                        onToast?.('Could not block that partner. Try again.');
+                        void refreshPartners();
+                        return;
+                    }
+                }
                 onToast?.(`${name} has been blocked.`);
             },
         });
     };
 
-    const handleAddPartnerByCode = async (partnerName: string, code: string) => {
+    /**
+     * Redeem an invite code. The server opens a PENDING request that the other
+     * person has to accept: a connection is never created unilaterally.
+     *
+     * There is no local fallback here on purpose. The previous version fabricated
+     * a `provisional-{timestamp}` partner whenever the lookup failed, so a typo'd
+     * code produced a partnership with someone who had never been contacted.
+     */
+    const handleAddPartnerByCode = async (_partnerName: string, code: string) => {
         if (!user.id) {
-            setPartnerError("You must be signed in to add partners.");
+            setPartnerError('You must be signed in to add partners.');
             return;
         }
 
@@ -262,83 +353,22 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         setPartnerError(null);
 
         try {
-            // Clean code - handle spaces/dashes
-            const cleanCode = code.trim().toUpperCase();
+            const result = await api.requestPartnerConnection(code);
 
-            // 1. Find the partner in the cloud
-            let partnerProfile = await api.findUserByInviteCode(cleanCode);
-
-            // 2. FALLBACK: If not found, create a provisional profile to ensure 100% success for the user.
-            // This allows them to "add" the partner locally even if the cloud lookup fails or RLS blocks it.
-            if (!partnerProfile) {
-                partnerProfile = {
-                    id: `provisional-${Date.now()}`,
-                    name: partnerName,
-                    streak: 0,
-                    points: 0,
-                    quoteIntensity: 1, // Default to Gentle
-                    subscriptionTier: 'free',
-                    career: '',
-                    profession: '',
-                    interests: [],
-                    dailyFocuses: [],
-                    sourcePreference: 'human',
-                    contentTypePreference: 'mix',
-                    notificationFrequency: 3,
-                    quietHoursStart: '22:00',
-                    quietHoursEnd: '07:00',
-                    goals: [],
-                    coachSettings: { nudgeEnabled: true, nudgeFrequency: 'morning-evening' },
-                    activityHistory: [],
-                    journalEntries: [],
-                    meditationReflections: [],
-                    favoriteQuotes: [],
-                    dashboardOrder: [],
-                    hapticsEnabled: true
-                } as UserProfile;
-            }
-
-            if (partnerProfile.id === user.id) {
-                setPartnerError("You cannot invite yourself!");
-                setIsAddingPartner(false);
+            if (user.accountabilityPartners?.some(p => p.id === result.partnerId)) {
+                setPartnerError(`${result.partnerName} is already in your partners.`);
                 return;
             }
 
-            // 2. check if already added
-            // Use non-null assertion or optional chaining safely
-            const pid = partnerProfile.id;
-            if (user.accountabilityPartners?.some(p => p.id === pid)) {
-                setPartnerError(`${partnerProfile.name || 'This user'} is already in your squad.`);
-                setIsAddingPartner(false);
-                return;
-            }
-
-            // 3. Connect them (will fall back to local-only if RPC fails)
-            await api.addPartnerConnection(user.id, partnerProfile);
-
-            // 4. Update local state to reflect the new partner immediately
-            const newPartner: AccountabilityPartner = {
-                id: partnerProfile.id,
-                name: partnerProfile.name || partnerName,
-                currentStreak: partnerProfile.streak || 0,
-                lastActivityDate: new Date().toISOString(),
-                inviteStatus: 'accepted',
-                addedDate: new Date().toISOString()
-            };
-
-            onUpdate((prevUser: UserProfile | null) => {
-                if (!prevUser) return user;
-                return {
-                    ...prevUser,
-                    accountabilityPartners: [...(prevUser.accountabilityPartners || []), newPartner]
-                };
-            });
-
+            await refreshPartners();
             setShowPartnerInvite(false);
-
+            onToast?.(
+                result.status === 'accepted'
+                    ? `You and ${result.partnerName} are connected.`
+                    : `Request sent to ${result.partnerName}.`
+            );
         } catch (error: any) {
-            console.error('Add partner failure:', error);
-            setPartnerError(error.message || "Failed to connect. Please try again later.");
+            setPartnerError(error.message || 'Could not connect. Please try again.');
         } finally {
             setIsAddingPartner(false);
         }
@@ -429,7 +459,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <span className={`text-xs uppercase tracking-widest font-medium ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>About Palante</span>
                             </div>
                             <p className={`text-base font-semibold mt-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                Forward, together — every single day.
+                                Forward, together. Every single day.
                             </p>
                         </button>
                         <div className={`grid transition-all duration-300 ease-in-out ${showAbout ? 'grid-rows-[1fr] opacity-100 pb-6' : 'grid-rows-[0fr] opacity-0'}`}>
@@ -629,6 +659,19 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${!aiDisabled ? 'translate-x-6' : 'translate-x-0'}`} />
                             </button>
                         </div>
+
+                        {/* The disclosure shown on first launch stays reachable here. A one-time
+                            popup someone tapped through months ago is not a standing explanation. */}
+                        <button
+                            onClick={() => setShowAIDisclosure(true)}
+                            className={`w-full mt-3 pt-3 border-t flex items-center justify-between text-sm transition-colors ${isDarkMode
+                                ? 'border-white/10 text-white/70 hover:text-white'
+                                : 'border-sage/10 text-sage-dark/70 hover:text-sage-dark'
+                                }`}
+                        >
+                            <span>How Palante uses AI</span>
+                            <ChevronRight size={16} />
+                        </button>
                     </div>
 
 
@@ -744,7 +787,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             <div>
                                 <label className={labelClasses}>About me</label>
                                 <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
-                                    Share anything you want your partner to know — your situation, what you're working through, what matters most right now.
+                                    Share anything you want your partner to know: your situation, what you're working through, what matters most right now.
                                 </p>
                                 <textarea
                                     value={bio}
@@ -810,6 +853,8 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             onRemovePartner={handleRemovePartner}
                             onReportPartner={handleReportPartner}
                             onBlockPartner={handleBlockPartner}
+                            onCheckIn={handleCheckIn}
+                            onRespondToRequest={handleRespondToRequest}
                             onTogglePartnerTips={(enabled) => {
                                 onUpdate((prev: UserProfile | null) => {
                                     if (!prev) return user;
@@ -878,9 +923,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     </div>
                                     <p className={`text-xs mt-2.5 text-center ${isDarkMode ? 'text-white' : 'text-sage/35'}`}>
                                         {practiceDays.length === 7
-                                            ? 'Every day — full cycle'
+                                            ? 'Every day, full cycle'
                                             : practiceDays.length === 0
-                                                ? 'No days selected — pick at least one'
+                                                ? 'No days selected, pick at least one'
                                                 : `${practiceDays.length} day${practiceDays.length > 1 ? 's' : ''} per week`}
                                     </p>
                                 </div>
@@ -1260,7 +1305,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
-                    {/* Apple Health — only shown on native */}
+                    {/* Apple Health: only shown on native */}
                     {healthStatus !== 'unavailable' && (
                         <div className={`rounded-3xl border p-5 mb-4 ${isDarkMode ? 'bg-white/5 border-white/8' : 'bg-white border-sage/10 shadow-spa'}`}>
                             <div className="flex items-center justify-between">
@@ -1271,9 +1316,9 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div>
                                         <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Apple Health</p>
                                         <p className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
-                                            {healthStatus === 'authorized' && 'Connected — your partner reads sleep & heart rate'}
+                                            {healthStatus === 'authorized' && 'Connected. Your partner reads sleep & heart rate'}
                                             {healthStatus === 'notDetermined' && 'Not connected yet'}
-                                            {healthStatus === 'denied' && 'Permission denied — update in iOS Settings'}
+                                            {healthStatus === 'denied' && 'Permission denied. Update in iOS Settings'}
                                             {healthStatus === 'loading' && 'Checking…'}
                                         </p>
                                     </div>
@@ -1517,7 +1562,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                 isDarkMode={isDarkMode}
             />
 
-            {/* Inline confirmation dialog — replaces window.confirm() */}
+            {/* Inline confirmation dialog: replaces window.confirm() */}
             {confirmAction && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center px-6" style={{ background: 'rgba(0,0,0,0.55)' }}>
                     <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl ${isDarkMode ? 'bg-[#1E2B1F] border border-white/10' : 'bg-white border border-sage/10'}`}>
@@ -1539,6 +1584,19 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                     </div>
                 </div>
             )}
+
+            {/* Re-readable AI disclosure. Not a consent prompt here, the toggle inside it
+                writes straight to the same setting the card above shows. */}
+            <AIDisclosureModal
+                isOpen={showAIDisclosure}
+                isDarkMode={isDarkMode}
+                required={false}
+                initialAIEnabled={!aiDisabled}
+                onAcknowledge={(aiEnabled) => {
+                    setAiDisabled(!aiEnabled);
+                    setShowAIDisclosure(false);
+                }}
+            />
         </div>
     );
 };

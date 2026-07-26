@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, HelpCircle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { recordMessageFeedback, getFeedbackQuestion } from '../utils/messageFeedbackCapture';
 import type { MessageFeedback } from '../utils/messageFeedbackCapture';
 

@@ -7,7 +7,7 @@
       "runtimeArgs": ["run", "dev"],
       "cwd": ".",
       "port": 5201,
-      "autoPort": false
+      "autoPort": true
     },
     {
       "name": "Vite Preview",

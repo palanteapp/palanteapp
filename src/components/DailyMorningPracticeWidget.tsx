@@ -5,7 +5,7 @@ import type { DailyMorningPractice, Quote } from '../types';
 import type { UserProfile } from '../types';
 import { DashboardQuoteCard } from './DashboardQuoteCard';
 import { generateMorningPracticeMessage, getFallbackMorningMessage, getMomentumState } from '../utils/aiService';
-import { supabase } from '../lib/supabase';
+
 import { logMindfulSession, getHealthContext, requestHealthPermissions } from '../utils/healthService';
 import type { HealthContext } from '../utils/healthService';
 import { Capacitor } from '@capacitor/core';
@@ -33,9 +33,9 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     const [intention, setIntention] = useState<string>('');
     const [generatedMessage, setGeneratedMessage] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isAnimating, setIsAnimating] = useState(false);
+    const [_isAnimating, setIsAnimating] = useState(false);
     const [hasRefreshed, setHasRefreshed] = useState(false);
-    // One-time Apple Health connect prompt — only shown on native, once ever
+    // One-time Apple Health connect prompt, only shown on native, once ever
     const [showHealthPrompt, setShowHealthPrompt] = useState(false);
     const [healthDenied, setHealthDenied] = useState(false);
 
@@ -95,7 +95,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
 
     const handleNext = () => {
         // Fire the API call BEFORE the animation delay so the request is in-flight
-        // during the 300ms step transition — shaves ~300ms off perceived wait time.
+        // during the 300ms step transition: shaves ~300ms off perceived wait time.
         if (step === 'intention') {
             setIsGenerating(true);
             import('../utils/CelebrationEffects').then(({ triggerHaptic }) => triggerHaptic());
@@ -190,17 +190,13 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
     // --- RENDER HELPERS ---
 
     const INTENT_FIRST_PRACTICE: Record<string, string> = {
-        consistency: 'Three minutes, every morning. You made the decision to be here — and that is the whole practice.',
+        consistency: 'Three minutes, every morning. Consistency is built on ordinary mornings, not inspired ones.',
         clarity:     'Start with what you\'re grateful for. Everything else gets clearer from there.',
-        stress:      'Take a breath. This is your three minutes — no pressure, just presence.',
+        stress:      'Take a breath. This is your three minutes. No pressure, just presence.',
         purpose:     'This is your daily moment to reconnect to what matters most.',
     };
 
     const renderIntro = () => {
-        const streak = user?.streak || 0;
-        const hour = new Date().getHours();
-        const timeLabel = hour < 12 ? 'Start your morning.' : hour < 18 ? 'Take a moment.' : 'Close the day right.';
-
         if (isFirstEver) {
             const intentSub = user?.primaryIntent
                 ? INTENT_FIRST_PRACTICE[user.primaryIntent]
@@ -553,7 +549,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                                     <p className="text-xs leading-relaxed" style={{ color: 'rgba(229,214,167,0.60)' }}>
                                         {healthDenied
                                             ? 'Tap Open Settings, then go to Privacy & Security → Health → Palante to enable access.'
-                                            : 'Connect Apple Health so your partner can gently acknowledge your sleep and energy — never used for anything else.'}
+                                            : 'Connect Apple Health so your partner can gently acknowledge your sleep and energy. Never used for anything else.'}
                                     </p>
                                     <div className="flex gap-2 mt-3">
                                         {healthDenied ? (
@@ -674,7 +670,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                     Before you go
                 </p>
                 <p className="text-base leading-relaxed text-white/70">
-                    Five slow belly breaths — in through your nose.{' '}
+                    Five slow belly breaths, in through your nose.{' '}
                     <span className="font-semibold text-white/90">Inhale:</span>{' '}
                     <span className="font-medium text-white/90">I love you.</span>{' '}
                     <span className="font-semibold text-white/90">Exhale:</span>{' '}

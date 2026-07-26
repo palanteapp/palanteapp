@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import type { ContentType } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { readJSON } from '../utils/safeStorage';
 import type { DispatchMessage } from '../utils/dailyDispatch';
 
 type PermissionState = 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied' | 'default';
@@ -25,9 +26,11 @@ interface NotificationSettings {
 export const useNotifications = () => {
     const [permission, setPermission] = useState<PermissionState>('prompt');
     const [settings, setSettings] = useState<NotificationSettings>(() => {
-        const saved = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
-        if (saved) {
-            const parsed = JSON.parse(saved);
+        // readJSON, not JSON.parse: this runs during the first render of AppContent, so an
+        // unparseable value here used to throw straight into the error boundary and brick
+        // the app on every subsequent launch. See src/utils/safeStorage.ts.
+        const parsed = readJSON<NotificationSettings | null>(STORAGE_KEYS.NOTIFICATIONS, null);
+        if (parsed) {
             return {
                 ...parsed,
                 morningReminderEnabled: parsed.morningReminderEnabled ?? false,
@@ -227,7 +230,7 @@ export const useNotifications = () => {
         const first = userName?.split(' ')[0];
         const morningBodies = first ? [
             `Morning, ${first}. Your practice is ready.`,
-            `${first} — five minutes to set the tone before the day sets it for you.`,
+            `${first}, five minutes to set the tone before the day sets it for you.`,
             `Start before the noise does, ${first}. Your practice is open.`,
             `${first}, gratitude, intention, a message written for exactly where you are. Let's go.`,
         ] : [
@@ -265,10 +268,10 @@ export const useNotifications = () => {
         const isFriday = new Date().getDay() === 5;
         const streakLine = streak > 1 ? ` ${streak} days in a row.` : '';
 
-        // Main reminder — personal, G.L.A.D.-aware, streak-aware
+        // Main reminder: personal, G.L.A.D.-aware, streak-aware
         const mainBodies = first ? [
             `${first}, how did today go? Your evening reflection is waiting.${streakLine}`,
-            `Before ${dayName} closes, ${first} — what are you grateful for tonight?`,
+            `Before ${dayName} closes, ${first}, what are you grateful for tonight?`,
             `${first}, three minutes of reflection tonight makes tomorrow clearer.${streakLine}`,
             `${isFriday ? `End the week with intention, ${first}.` : `${first}, how did ${dayName} feel?`} Your reflection is open.`,
             `What did today teach you, ${first}? Take a moment before you rest.`,
@@ -282,7 +285,7 @@ export const useNotifications = () => {
         ];
         const mainBody = mainBodies[Math.floor(Math.random() * mainBodies.length)];
 
-        // Last-call reminder at 9:30pm — softer, zero pressure
+        // Last-call reminder at 9:30pm, softer, zero pressure
         const lastCallBodies = first ? [
             `Still here, ${first}. Close the day before you close your eyes.`,
             `One last check-in before tomorrow, ${first}.`,
@@ -448,7 +451,7 @@ export const useNotifications = () => {
                 const goal = activeFocuses[Math.floor(Math.random() * activeFocuses.length)];
                 const first = userName?.split(' ')[0];
                 const n = first ? `${first}, ` : '';
-                const nCap = first ? `${first} — ` : '';
+                const nCap = first ? `${first}: ` : '';
 
                 const templatesByIntensity: Record<number, string[]> = {
                     1: [ // Gentle & Reflective
@@ -468,7 +471,7 @@ export const useNotifications = () => {
                     3: [ // Bold & Empowered
                         `${n}step into it: ${goal}`,
                         `${nCap}you said ${goal}. Honor that.`,
-                        `Your word to yourself: ${goal} — make it count.`,
+                        `Your word to yourself: ${goal}. Make it count.`,
                         `${n}the gap between who you are and who you want to be closes here: ${goal}`,
                         `Now. ${goal}. Go.`,
                     ]
@@ -524,7 +527,7 @@ export const useNotifications = () => {
         // Distribution logic
         const [startH, startM] = quietStart.split(':').map(Number);
         const [endH, endM] = quietEnd.split(':').map(Number);
-        let activeStart = endH * 60 + endM;
+        const activeStart = endH * 60 + endM;
         let activeEnd = startH * 60 + startM;
         if (activeEnd < activeStart) activeEnd += 24 * 60;
         const totalMin = activeEnd - activeStart;
@@ -553,7 +556,7 @@ export const useNotifications = () => {
         }
     };
 
-    const rescheduleAll = useCallback(async (targetSettings: NotificationSettings = settings, currentFocuses: string[] = [], intensity: number = 2, contentType: ContentType = 'mix', coachName?: string, userName?: string) => {
+    const rescheduleAll = useCallback(async (targetSettings: NotificationSettings = settings, currentFocuses: string[] = [], intensity: number = 2, _contentType: ContentType = 'mix', coachName?: string, userName?: string) => {
         if (permission !== 'granted' || !targetSettings.enabled) {
             // Cancel everything just in case
             const allIds = [
@@ -610,7 +613,7 @@ export const useNotifications = () => {
                         actionTypeId: 'QUOTE_ACTIONS'
                     }]
                 });
-                // Notification will appear in ~1s — no alert needed
+                // Notification will appear in ~1s, no alert needed
             } else {
                 console.warn('Test notification: permission denied.');
             }
@@ -708,7 +711,7 @@ export const useNotifications = () => {
         //  - Any individual dispatch message whose fire time falls inside the
         //    user's quiet hours window is dropped, so we never wake people at 3am.
         scheduleDailyDispatch: async (messages: DispatchMessage[], coachName?: string) => {
-            // Check permission directly via Capacitor — our React state may be stale.
+            // Check permission directly via Capacitor: our React state may be stale.
             let permStatus = await LocalNotifications.checkPermissions();
             const initialDisplay = permStatus.display;
 

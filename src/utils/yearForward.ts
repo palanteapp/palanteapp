@@ -1,10 +1,10 @@
 /**
- * Your Year, Forward — the annual growth memoir.
+ * Your Year, Forward, the annual growth memoir.
  *
  * Composes a full calendar year of practice data into a story dataset and a
  * letter to the user's forward self, written in their own words. Distinct from
  * the 90-day Growth Story (one-time, ring ceremony) and the weekly partner
- * letter — this is the yearly, Wrapped-for-the-inner-life moment.
+ * letter: this is the yearly, Wrapped-for-the-inner-life moment.
  *
  * buildYearForwardData() is pure and deterministic so it can be unit-tested;
  * generateYearForwardLetter() layers the AI call on top with a graceful,
@@ -12,14 +12,19 @@
  */
 import type { UserProfile, CoachTone } from '../types';
 import { fetchWithTimeout } from './fetchWithTimeout';
+import { assertAIEnabled } from './aiGate';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
-const getProxyHeaders = (): HeadersInit => ({
-    'content-type': 'application/json',
-    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
-});
+// Choke point for the AI opt-out, see aiGate.ts.
+const getProxyHeaders = (): HeadersInit => {
+    assertAIEnabled();
+    return {
+        'content-type': 'application/json',
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+    };
+};
 
 export interface YearForwardData {
     firstName: string;
@@ -58,7 +63,7 @@ export interface YearForwardResult {
     data: YearForwardData;
 }
 
-// Words too common to count as a theme — kept tight and intentional.
+// Words too common to count as a theme: kept tight and intentional.
 const STOPWORDS = new Set([
     'the', 'and', 'for', 'that', 'this', 'with', 'have', 'has', 'had', 'was', 'were',
     'are', 'being', 'been', 'from', 'they', 'them', 'their', 'there', 'here', 'what',
@@ -137,7 +142,7 @@ const longest = (entries: (string | undefined)[]): string | undefined =>
 
 /**
  * Aggregate one calendar year of practice into a story dataset. Pure and
- * deterministic — no clock reads beyond the optional `now` parameter.
+ * deterministic: no clock reads beyond the optional `now` parameter.
  */
 export const buildYearForwardData = (user: UserProfile, now: Date = new Date()): YearForwardData => {
     const year = now.getFullYear();
@@ -220,7 +225,7 @@ export const hasEnoughForYearForward = (data: YearForwardData): boolean =>
     data.totalPractices >= 20;
 
 /**
- * Deterministic letter — always returns a complete, warm letter from the data
+ * Deterministic letter: always returns a complete, warm letter from the data
  * alone. Used as the offline/error fallback and as the seed the AI elevates.
  */
 export const buildYearForwardFallback = (data: YearForwardData): string => {
@@ -257,7 +262,7 @@ export const buildYearForwardFallback = (data: YearForwardData): string => {
     }
 
     if (longestStreak >= 3) {
-        lines.push(`Your longest unbroken run was ${longestStreak} days — proof that consistency is something you are capable of, not something you wish for.`);
+        lines.push(`Your longest unbroken run was ${longestStreak} days. Proof that consistency is something you are capable of, not something you wish for.`);
     }
 
     if (eveningsCount > 0) {
@@ -288,13 +293,13 @@ const TONE_GUIDANCE: Record<CoachTone, string> = {
 };
 
 /**
- * Generate the year-in-review letter — AI when reachable, deterministic
+ * Generate the year-in-review letter. AI when reachable, deterministic
  * fallback otherwise. Never throws; always returns a complete letter.
  */
 export const generateYearForwardLetter = async (data: YearForwardData): Promise<string> => {
     const fallback = buildYearForwardFallback(data);
 
-    const prompt = `You are writing a year-in-review letter for someone who practiced with a growth app called Palante across ${data.windowLabel}. They will read this as the centerpiece of their "Your Year, Forward" — a quiet, literary year-in-review. It should feel like a letter written by someone who watched their whole year and is now handing it back to them, then pointing gently toward the year ahead.
+    const prompt = `You are writing a year-in-review letter for someone who practiced with a growth app called Palante across ${data.windowLabel}. They will read this as the centerpiece of their "Your Year, Forward": a quiet, literary year-in-review. It should feel like a letter written by someone who watched their whole year and is now handing it back to them, then pointing gently toward the year ahead.
 
 THEIR YEAR, IN DATA:
 Name: ${data.firstName}
@@ -319,16 +324,16 @@ ${TONE_GUIDANCE[data.coachTone]}
 
 Write the letter. Rules:
 1. Open with their name and the year, anchored in a real detail from the data.
-2. Tell the arc of the year using their actual words — quote at least two of the phrases above verbatim, in quotation marks.
+2. Tell the arc of the year using their actual words: quote at least two of the phrases above verbatim, in quotation marks.
 3. Name one or two of their recurring themes if present, as the through-line of who they were this year.
 4. If they wrote a letter to themselves, reference it as a quiet callback.
-5. End by turning toward the year ahead — forward-looking but never pressuring. It should feel like permission and proof, not a to-do list. You may end on "Pa'lante."
+5. End by turning toward the year ahead, forward-looking but never pressuring. It should feel like permission and proof, not a to-do list. You may end on "Pa'lante."
 6. Speak directly to them ("you", "your"). Never third person.
 7. No em dashes. No bullet points. No headers. Flowing prose, 2 to 3 short paragraphs.
 8. Never use these words: journey, intentional, mindful, tapestry, weave, manifested, transformational, incredible, unleash.
 9. HARD LIMIT: under 220 words.
 
-Write the letter now — no preamble, no quotation marks around the whole thing:`;
+Write the letter now, with no preamble, no quotation marks around the whole thing:`;
 
     try {
         const response = await fetchWithTimeout(PROXY_URL, {

@@ -1,6 +1,6 @@
 // Procedural synthesis for the sounds that never needed to be files: colored
-// noise and binaural beats. Synthesized sources have NO loop point — they are
-// generated continuously on the audio thread — so they are seam-free by
+// noise and binaural beats. Synthesized sources have NO loop point: they are
+// generated continuously on the audio thread: so they are seam-free by
 // construction, weigh nothing in the bundle, and cost almost no CPU.
 //
 // Noise runs in an AudioWorklet (see public/audio/noise-processor.js) with a

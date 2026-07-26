@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { readJSON } from '../utils/safeStorage';
 import { Check, X, ShieldCheck, Sparkles, Zap, Heart, Leaf, EyeOff } from 'lucide-react';
 import { haptics } from '../utils/haptics';
 import { SlideUpModal } from './SlideUpModal';
@@ -13,7 +14,13 @@ export interface EnhancementOptions {
     hapticDarkMode: boolean;
 }
 
-const DEFAULT_OPTIONS: EnhancementOptions = {
+/**
+ * The one set of defaults. Breathing and Meditation each used to inline their own literal,
+ * and both had drifted: Meditation's was missing hapticDarkMode and Breathing's was missing
+ * groundingHeartbeat. Nothing caught it because the old `JSON.parse(saved)` returned `any`,
+ * which widened the whole conditional and turned off checking on the fallback branch.
+ */
+export const DEFAULT_OPTIONS: EnhancementOptions = {
     immersiveHaptics: false,
     dynamicBackgrounds: false,
     smoothTransitions: false,
@@ -85,10 +92,7 @@ const SettingRow = ({
 );
 
 export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen, onClose, isDarkMode, onUpdate, exclude = [] }) => {
-    const [options, setOptions] = useState<EnhancementOptions>(() => {
-        const saved = localStorage.getItem(STORAGE_KEYS.ENHANCEMENTS);
-        return saved ? JSON.parse(saved) : DEFAULT_OPTIONS;
-    });
+    const [options, setOptions] = useState<EnhancementOptions>(() => readJSON<EnhancementOptions>(STORAGE_KEYS.ENHANCEMENTS, DEFAULT_OPTIONS));
 
     useEffect(() => {
         localStorage.setItem(STORAGE_KEYS.ENHANCEMENTS, JSON.stringify(options));

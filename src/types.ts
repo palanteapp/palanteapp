@@ -121,28 +121,28 @@ export interface UserProfile {
     aiDisabled?: boolean; // Master switch to disable all AI features (default: false)
     bio?: string; // Free-text intro the user shares with their AI partner
     focusAreas?: ('stress' | 'focus' | 'sleep' | 'confidence' | 'relationships' | 'productivity')[]; // What user is working on
-    primaryIntent?: PrimaryIntent; // "What's bringing you here?" — chosen in onboarding, drives partner tone + dispatch flavor
+    primaryIntent?: PrimaryIntent; // "What's bringing you here?", chosen in onboarding, drives partner tone + dispatch flavor
     restDays?: string[]; // ISO date strings of intentional rest days (preserves streak)
-    practiceDays?: number[]; // 0=Sun, 1=Mon … 6=Sat — days user intends to practice each week
+    practiceDays?: number[]; // 0=Sun, 1=Mon … 6=Sat, days user intends to practice each week
     futureLetters?: FutureLetter[]; // Letters written to future self for tough days
     mandalaColorCycle?: number; // Which color palette the mandala is currently on (increments each 90-day completion)
     weightGoal?: number; // Target weight in lbs
     weightHistory?: { date: string; weight: number }[]; // History of weight logs
     userNarrative?: {
         text: string;        // 4-5 sentence synthesized growth memoir
-        generatedAt: string; // ISO timestamp — refreshed weekly
+        generatedAt: string; // ISO timestamp, refreshed weekly
     };
     monthlyPattern?: {
         insight: string;     // The warm discovery sentence
         dataPoint: string;   // The specific number or fact that grounds it
-        generatedAt: string; // ISO timestamp — refreshed monthly
+        generatedAt: string; // ISO timestamp, refreshed monthly
         dismissed: boolean;  // User has acknowledged it
     };
     userVoiceProfile?: UserVoiceProfile; // How they want to be spoken to and what matters to them
     weeklyPartnerLetter?: {
         text: string;        // The full letter text
         generatedAt: string; // ISO timestamp
-        weekNumber: number;  // ISO week number — prevents re-generating the same week
+        weekNumber: number;  // ISO week number, prevents re-generating the same week
     };
 }
 
@@ -159,7 +159,7 @@ export interface DailyEveningPractice {
     messageRating?: 1 | 2 | 3 | 4 | 5; // How well the message resonated (1=missed, 5=perfect)
 }
 
-// User Voice Profile — how they want to be spoken to and what matters to them
+// User Voice Profile: how they want to be spoken to and what matters to them
 export interface UserVoiceProfile {
     userId: string;
     // How they want to be spoken to
@@ -198,7 +198,7 @@ export interface FutureLetter {
     contextDetails?: string; // e.g., "7-day streak", "Completed morning meditation"
     hasBeenDelivered: boolean; // Has this letter been shown to the user yet?
     deliveredDate?: string; // ISO date string when letter was delivered
-    scheduledDeliveryDate?: string; // ISO date — deliver on/after this date regardless of energy level
+    scheduledDeliveryDate?: string; // ISO date, deliver on/after this date regardless of energy level
 }
 
 
@@ -364,12 +364,31 @@ export interface NoiseEntry {
 }
 
 export interface AccountabilityPartner {
-    id: string;
+    id: string;                  // The partner's user id
     name: string;
     currentStreak: number;
     lastActivityDate: string;
     inviteStatus: 'pending' | 'accepted';
     addedDate: string;
+    /**
+     * partner_connections.id: the shared row both users see. Required to post a
+     * check-in. Absent only on legacy entries written before the connections table
+     * existed; those are read-only and get replaced on the next server refresh.
+     */
+    connectionId?: string;
+    /** True when they invited us and we have not responded yet. */
+    isIncoming?: boolean;
+}
+
+export type PartnerCheckInKind = 'nudge' | 'practice' | 'note';
+
+export interface PartnerCheckIn {
+    id: string;
+    connectionId: string;
+    authorId: string;
+    kind: PartnerCheckInKind;
+    body?: string;
+    createdAt: string;
 }
 
 // Activity Feed for Social Layer
@@ -395,7 +414,7 @@ export interface CoachSettings {
     partnerTipsEnabled?: boolean; // Show time-management & habit tips in accountability section
     waterRemindersEnabled?: boolean;
     lastNudgeTime?: string;
-    coachTone?: CoachTone; // How the coach shows up — defaults to 'nurturing'
+    coachTone?: CoachTone; // How the coach shows up, defaults to 'nurturing'
 }
 
 export interface DailyFocus {
@@ -459,6 +478,15 @@ export interface Milestone {
 export interface FavoriteQuote {
     quoteId: string;
     savedAt: string;
+    /**
+     * The line itself, copied in at save time so a favorite survives the line later
+     * leaving the library. Favorites used to store only `quoteId` and were resolved by
+     * lookup, which meant anything removed from the library silently vanished from the
+     * user's Favorites screen. Optional because records saved before this change do not
+     * have it; render via the id lookup and fall back to these.
+     */
+    text?: string;
+    author?: string;
 }
 
 // Routine Stacks
@@ -551,12 +579,12 @@ export const canUseAI = (user: UserProfile | null | undefined): boolean => {
     if (!user) return false;
     if (user.aiDisabled) return false;
     if (AI_REQUIRES_SUBSCRIPTION && user.subscriptionTier === 'free') return false;
-    if (!user.dateOfBirth) return true; // backward compat — no DOB means adult assumed
+    if (!user.dateOfBirth) return true; // backward compat, no DOB means adult assumed
     const age = calculateAge(user.dateOfBirth);
     return age >= 13; // COPPA compliance
 };
 
-// Ready-to-use premium check — wire into any feature that should be behind paywall.
+// Ready-to-use premium check, wire into any feature that should be behind paywall.
 export const isPremiumUser = (user: UserProfile | null | undefined): boolean => {
     if (!user) return false;
     return user.subscriptionTier === 'premium' || user.subscriptionTier === 'pro';

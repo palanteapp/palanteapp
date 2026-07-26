@@ -6,7 +6,7 @@
 /**
  * Bump this string with each TestFlight / App Store release to re-surface
  * the welcome letter and profile nudge for returning users who install the
- * new build. Format: 'MAJOR.MINOR' — no patch needed.
+ * new build. Format: 'MAJOR.MINOR', no patch needed.
  */
 export const WELCOME_VERSION = '1.1';
 
@@ -66,7 +66,7 @@ export const STORAGE_KEYS = {
   // Misc
   LAST_RESET_DATE: 'palante_last_reset_date',
 
-  // Cloud sync — the profiles.updated_at value from our last successful
+  // Cloud sync: the profiles.updated_at value from our last successful
   // read/write. If the cloud stamp differs, another device wrote in between
   // and we merge instead of overwriting.
   CLOUD_SYNC_STAMP: 'palante_cloud_sync_stamp',
@@ -86,8 +86,6 @@ export const STORAGE_KEYS = {
   EVENING_PRACTICE: 'palante_evening_practice', // Suffix with date string
 
   // Garden affirmation (AI-generated, aligned with daily intention)
-  GARDEN_AFFIRMATION: 'palante_garden_affirmation',
-  GARDEN_AFFIRMATION_DATE: 'palante_garden_affirmation_date',
 
   // Midday Check-in
   CHECKIN_LAST_SHOWN: 'palante_checkin_last_shown', // ISO date string e.g. "2026-04-29"
@@ -95,26 +93,26 @@ export const STORAGE_KEYS = {
   // Day-3 letter prompt (shown once after 3rd practice)
   LETTER_PROMPT_SHOWN: 'palante_letter_prompt_shown',
 
-  // Notification permission ask — shown once after first practice
+  // Notification permission ask: shown once after first practice
   NOTIF_ASK_SEEN: 'palante_notif_ask_seen',
 
-  // Share Day 1 card — shown once after first practice is completed
+  // Share Day 1 card: shown once after first practice is completed
   SHARE_DAY1_DISMISSED: 'palante_share_day1_dismissed',
 
   // Date of the user's very first completed practice (ISO date, e.g. "2026-06-11").
   // Used to suppress the automatic evening prompt on Day 1 so new users can explore first.
   FIRST_PRACTICE_DATE: 'palante_first_practice_date',
 
-  // Sign-in nudge — stores ISO date last dismissed (re-surfaces after 3 days)
+  // Sign-in nudge, stores ISO date last dismissed (re-surfaces after 3 days)
   SIGNIN_NUDGE_DISMISSED: 'palante_signin_nudge_dismissed',
 
-  // Partner/chat discovery card — shown once after first practice to surface the Coach tab
+  // Partner/chat discovery card: shown once after first practice to surface the Coach tab
   PARTNER_CHAT_DISCOVERY_SHOWN: 'palante_partner_chat_discovery_shown',
 
-  // Age gate — COPPA compliance (must pass before intro sequence)
+  // Age gate: COPPA compliance (must pass before intro sequence)
   AGE_GATE_PASSED: 'palante_age_gate_passed',
 
-  // Quick Tour card — shown on home after practice 1, dismissed by user
+  // Quick Tour card: shown on home after practice 1, dismissed by user
   QUICK_TOUR_DISMISSED: 'palante_quick_tour_dismissed',
 
   // Ring ceremony flags (shown once per ring completion)
@@ -123,29 +121,35 @@ export const STORAGE_KEYS = {
   RING3_CEREMONY_SHOWN: 'palante_ring3_ceremony_shown',
   FULLBLOOM_CEREMONY_SHOWN: 'palante_fullbloom_ceremony_shown',
 
-  // Apple Health — tracks whether the one-time connect prompt has been shown
+  // Apple Health: tracks whether the one-time connect prompt has been shown
   HEALTH_ASKED: 'palante_health_asked',
 
-  // Cold start — seed memories written from onboarding data, loaded into partner chat
+  // Cold start: seed memories written from onboarding data, loaded into partner chat
   SEED_MEMORIES: 'palante_seed_memories',
 
-  // Continuity opener — the memory-aware greeting the partner opens a new session
+  // Continuity opener: the memory-aware greeting the partner opens a new session
   // with. Cached per local day { date, text } so it costs at most one AI call/day;
   // empty text means "computed today, nothing worth recalling" (don't regenerate).
   CONTINUITY_OPENER: 'palante_continuity_opener',
 
-  // Home memory-callback card — ISO date the user last dismissed it, so the card
+  // Home memory-callback card. ISO date the user last dismissed it, so the card
   // stays hidden for the rest of that day instead of nagging on every home visit.
   MEMORY_CALLBACK_DISMISSED: 'palante_memory_callback_dismissed',
 
-  // AI usage budget — per-user daily partner-chat call count { date, count }.
+  // AI usage budget: per-user daily partner-chat call count { date, count }.
   // Caps the only unbounded AI cost vector so a single heavy user can't run
   // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.
   AI_USAGE: 'palante_ai_usage',
 
-  // Voice (TTS) monthly backstop — paid synth seconds { month, seconds }.
+  // Voice (TTS) monthly backstop: paid synth seconds { month, seconds }.
   // Past the monthly cap, voice falls back to the free on-device iOS voice.
   TTS_USAGE: 'palante_tts_usage',
+
+  // AI disclosure: record of the user acknowledging how Palante uses AI, stored as
+  // { acknowledged, timestamp, version }. Version is AI_DISCLOSURE_VERSION; bumping it
+  // re-shows the screen so a material change to what we send or who we send it to is
+  // surfaced rather than buried in a policy update. See data/aiDisclosure.ts.
+  AI_DISCLOSURE_ACKNOWLEDGED: 'palante_ai_disclosure_acknowledged',
 } as const;
 
 /** sessionStorage keys (not persisted across sessions) */

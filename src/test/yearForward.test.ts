@@ -126,7 +126,7 @@ describe('buildYearForwardData', () => {
             ],
         });
         const data = buildYearForwardData(user, NOW);
-        // "courage" appears 3x, "family" 2x — both clear the >=2 threshold
+        // "courage" appears 3x, "family" 2x, both clear the >=2 threshold
         expect(data.topThemes).toContain('courage');
         expect(data.topThemes).toContain('family');
         // stopwords like "the"/"good"/"morning"/"time" must not surface

@@ -11,7 +11,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import type { UserVoiceProfile } from '../types';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -277,11 +277,11 @@ export function getContextCapture(): {
                 type: 'select',
                 question: 'How\'d you describe where you are?',
                 options: [
-                    'In a breakthrough — momentum, clarity',
-                    'In the struggle — working through something',
-                    'In a steady rhythm — consistent',
-                    'Recovering — finding my way back',
-                    'Starting something new — undefined energy'
+                    'In a breakthrough: momentum, clarity',
+                    'In the struggle: working through something',
+                    'In a steady rhythm: consistent',
+                    'Recovering: finding my way back',
+                    'Starting something new: undefined energy'
                 ]
             }
         ]
@@ -416,7 +416,7 @@ export async function analyzeFeedbackPatterns(
         }
 
         if (missReasons.has('too-generic') && (missReasons.get('too-generic') || 0) > 1) {
-            recommendations.push('Generic messages don\'t land. We\'re learning your specific triggers — rate more for better personalization.');
+            recommendations.push('Generic messages don\'t land. We\'re learning your specific triggers. Rate more for better personalization.');
         }
 
         if (resonanceReasons.has('called-me-out') && (resonanceReasons.get('called-me-out') || 0) > 0) {
@@ -461,7 +461,7 @@ export async function analyzeFeedbackPatterns(
             },
             contextAwareness: {
                 moodTriggers: Array.from(moodTriggers.entries())
-                    .map(([mood, triggers]) => ({
+                    .map(([mood]) => ({
                         mood,
                         bestMessage: 'Message type TBD'
                     })),

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FEATURES, AI_DISCLOSURE, SUBSCRIPTION_TERMS } from '../components/PaywallScreen';
 
-describe('PaywallScreen — Apple compliance constants', () => {
+describe('PaywallScreen. Apple compliance constants', () => {
     describe('FEATURES list', () => {
         it('is non-empty', () => {
             expect(FEATURES.length).toBeGreaterThan(0);
@@ -20,7 +20,7 @@ describe('PaywallScreen — Apple compliance constants', () => {
         });
     });
 
-    describe('AI_DISCLOSURE — Guideline 2.5 / AI content transparency', () => {
+    describe('AI_DISCLOSURE. Guideline 2.5 / AI content transparency', () => {
         it('is a non-empty string', () => {
             expect(typeof AI_DISCLOSURE).toBe('string');
             expect(AI_DISCLOSURE.trim().length).toBeGreaterThan(0);
@@ -35,7 +35,7 @@ describe('PaywallScreen — Apple compliance constants', () => {
         });
     });
 
-    describe('SUBSCRIPTION_TERMS — Guideline 3.1.2 / 5.1.1(v)', () => {
+    describe('SUBSCRIPTION_TERMS. Guideline 3.1.2 / 5.1.1(v)', () => {
         it('is a non-empty string', () => {
             expect(typeof SUBSCRIPTION_TERMS).toBe('string');
             expect(SUBSCRIPTION_TERMS.trim().length).toBeGreaterThan(0);

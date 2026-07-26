@@ -18,7 +18,7 @@ export function initAnalytics() {
         person_profiles: 'identified_only',
         capture_pageview: false,      // We fire screen_viewed manually
         capture_pageleave: true,
-        autocapture: false,           // Explicit events only — no noise
+        autocapture: false,           // Explicit events only, no noise
         persistence: 'localStorage',
         loaded: (ph) => {
             if (import.meta.env.DEV) ph.debug();

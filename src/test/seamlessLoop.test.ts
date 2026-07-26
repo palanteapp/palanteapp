@@ -58,7 +58,7 @@ describe('isDualMono', () => {
 
 describe('bakeSeamlessLoop', () => {
     it('produces a sample-exact seam: last sample flows into first', () => {
-        // 8 seconds — long enough that the fade is not clamped to length/4
+        // 8 seconds: long enough that the fade is not clamped to length/4
         const input = noise(RATE * 8);
         const [out] = bakeSeamlessLoop([input], RATE, 1.5);
         const fade = 1.5 * RATE;
@@ -66,7 +66,7 @@ describe('bakeSeamlessLoop', () => {
         expect(out.length).toBe(outLength);
 
         // At the wrap point the output continues the original waveform exactly:
-        // out[last] is input[outLength - 1] and out[0] is input[outLength] —
+        // out[last] is input[outLength - 1] and out[0] is input[outLength]
         // consecutive samples of the source. No discontinuity exists to hear.
         expect(out[out.length - 1]).toBe(input[outLength - 1]);
         expect(out[0]).toBe(input[outLength]);
@@ -77,7 +77,7 @@ describe('bakeSeamlessLoop', () => {
         const [out] = bakeSeamlessLoop([input], RATE, 1.5);
         const fade = 1.5 * RATE;
         for (let i = 0; i < fade; i += 100) {
-            // Equal-power sums sin+cos ∈ [1, √2] — never below unity gain,
+            // Equal-power sums sin+cos ∈ [1, √2], never below unity gain,
             // unlike a linear crossfade which dips to 0.5 at the midpoint.
             expect(out[i]).toBeGreaterThanOrEqual(0.5 - 1e-6);
             expect(out[i]).toBeLessThanOrEqual(0.5 * Math.SQRT2 + 1e-6);

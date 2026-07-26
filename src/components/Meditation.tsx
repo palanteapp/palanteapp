@@ -1,4 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
+import { readJSON } from '../utils/safeStorage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { createPortal } from 'react-dom';
 import { Play, Pause, RotateCcw, Sparkles, X, Mic, HelpCircle, Music, Settings, Waves, CloudRain, Leaf, Wind } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -8,7 +10,7 @@ import { FEATURE_INFO } from '../data/featureInfo';
 import { SoundMixer } from './SoundMixer';
 import { haptics } from '../utils/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EnhancementSettings, type EnhancementOptions } from './EnhancementSettings';
+import { EnhancementSettings, DEFAULT_OPTIONS as DEFAULT_ENHANCEMENTS, type EnhancementOptions } from './EnhancementSettings';
 import type { UserProfile, SoundMix } from '../types';
 import { Capacitor } from '@capacitor/core';
 
@@ -142,16 +144,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
     const [isCountingDown, setIsCountingDown] = useState(false);
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
-    const [enhancements, setEnhancements] = useState<EnhancementOptions>(() => {
-        const saved = localStorage.getItem('palante_enhancements');
-        return saved ? JSON.parse(saved) : {
-            immersiveHaptics: false,
-            dynamicBackgrounds: false,
-            smoothTransitions: false,
-            groundingHeartbeat: false,
-            natureParticles: false
-        };
-    });
+    const [enhancements, setEnhancements] = useState<EnhancementOptions>(() => readJSON<EnhancementOptions>(STORAGE_KEYS.ENHANCEMENTS, DEFAULT_ENHANCEMENTS));
 
     // Soundscape integration
     const [_activeSoundIds, setActiveSoundIds] = useState<Set<string>>(new Set());
@@ -160,8 +153,8 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
     // Listen for setting changes
     useEffect(() => {
         const handleSettingsUpdate = () => {
-            const saved = localStorage.getItem('palante_enhancements');
-            if (saved) setEnhancements(JSON.parse(saved));
+            const saved = readJSON<EnhancementOptions | null>(STORAGE_KEYS.ENHANCEMENTS, null);
+            if (saved) setEnhancements(saved);
         };
         window.addEventListener('storage', handleSettingsUpdate);
         return () => window.removeEventListener('storage', handleSettingsUpdate);
@@ -374,7 +367,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                 )}
             </AnimatePresence>
 
-            {/* Reflection Modal — portalled to body so Framer Motion transforms don't offset fixed positioning */}
+            {/* Reflection Modal: portalled to body so Framer Motion transforms don't offset fixed positioning */}
             {showReflectionModal && createPortal(
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/20 backdrop-blur-md animate-fade-in">
                     <div className="w-full max-w-lg p-8 rounded-2xl shadow-2xl bg-sage-mid border border-white/10">

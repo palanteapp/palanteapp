@@ -1,5 +1,5 @@
 import React from 'react';
-import { Share2, Instagram, Facebook, Music, Download } from 'lucide-react';
+import { Share2, Instagram, Facebook, Download } from 'lucide-react';
 import { SharedQuotePreview } from './SharedQuotePreview';
 import { SharedReflectionPreview } from './SharedReflectionPreview';
 import { SharedWeeklyReflectionPreview } from './SharedWeeklyReflectionPreview';
@@ -59,7 +59,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     return (
         <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode} position="center">
             <div className="p-6 flex flex-col items-center w-full">
-                {/* Content Preview — ID used as html2canvas capture target */}
+                {/* Content Preview: ID used as html2canvas capture target */}
                 <div id="share-preview-container"
                      className="mb-8 flex justify-center rounded-3xl overflow-hidden animate-slide-up shadow-2xl"
                 >
@@ -120,7 +120,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                                 )}
                             </button>
 
-                            {/* Direct Social Row — Now with TikTok and deep shadows */}
+                            {/* Direct Social Row: Now with TikTok and deep shadows */}
                             <div className="flex justify-between gap-4 mb-4">
                                 <button 
                                     onClick={onGenerateImage}

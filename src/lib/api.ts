@@ -1,9 +1,41 @@
 // Local and Cloud storage API for Palante
-import type { UserProfile, JournalEntry, DailyFocus, ActivityLog, MeditationReflection } from '../types';
+import { readJSON } from '../utils/safeStorage';
+import type {
+    UserProfile, JournalEntry, DailyFocus, ActivityLog, MeditationReflection,
+    AccountabilityPartner, PartnerCheckIn, PartnerCheckInKind,
+} from '../types';
 import { supabase } from './supabase';
 import { clearProfileBackup } from '../utils/nativeStorage';
 import { mergeProfiles } from '../utils/profileMerge';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+
+/**
+ * Turn a Postgres error into something worth showing a person.
+ * The codes correspond to the RAISE EXCEPTION calls in
+ * supabase/migrations/20260725_partner_connections.sql.
+ */
+export function translatePartnerError(error: { code?: string; message?: string }): string {
+    switch (error.code) {
+        case '28000': return 'You need to be signed in to connect with a partner.';
+        case 'P0002': return 'No one found with that invite code.';
+        case '22023': return error.message?.includes('your own')
+            ? 'That is your own invite code.'
+            : 'That invite code does not look right.';
+        case '42501': return 'This connection is unavailable.';
+        case '23505': return 'You are already connected with this person.';
+        // The RPCs live in a migration that has to be run by hand. PostgREST reports
+        // a missing function as PGRST202 (schema cache miss) rather than surfacing
+        // Postgres's own 42883, so both are mapped here.
+        case 'PGRST202':
+        case '42883': return 'Partner connections are not set up on the server yet.';
+        // Table missing entirely: same cause, different symptom.
+        case 'PGRST205':
+        case '42P01': return 'Partner connections are not set up on the server yet.';
+        default:
+            console.error('Partner operation failed:', error);
+            return error.message || 'Could not complete that. Check your connection and try again.';
+    }
+}
 
 export const api = {
     // Helper to check if we should use Supabase (user is logged in)
@@ -15,8 +47,8 @@ export const api = {
     // User profile operations
     async getProfile(userId: string): Promise<UserProfile | null> {
         // Always check local first for speed
-        const stored = localStorage.getItem(`palante_profile_${userId}`);
-        const localData: UserProfile | null = stored ? JSON.parse(stored) : null;
+        // A corrupt cached profile must not take down profile loading at boot.
+        const localData = readJSON<UserProfile | null>(`palante_profile_${userId}`, null);
 
         // If cloud sync is enabled, try to fetch from Supabase
         const { data: { session } } = await supabase.auth.getSession();
@@ -59,11 +91,10 @@ export const api = {
     },
 
     async updateProfile(userId: string, profile: Partial<UserProfile>): Promise<void> {
-        const stored = localStorage.getItem(`palante_profile_${userId}`);
-        const existing: UserProfile | null = stored ? JSON.parse(stored) : null;
+        const existing = readJSON<UserProfile | null>(`palante_profile_${userId}`, null);
         let updated = { ...existing, ...profile } as UserProfile;
 
-        // Save local immediately — cloud round-trips below must never delay
+        // Save local immediately: cloud round-trips below must never delay
         // or block persistence. Re-saved after a conflict merge if one occurs.
         localStorage.setItem(`palante_profile_${userId}`, JSON.stringify(updated));
 
@@ -115,7 +146,7 @@ export const api = {
     // Journal entries
     async saveJournalEntry(userId: string, entry: JournalEntry): Promise<void> {
         const profile = await this.getProfile(userId);
-        if (!profile) throw new Error('Profile not found — cannot save journal entry.');
+        if (!profile) throw new Error('Profile not found. Cannot save journal entry.');
 
         const entries = profile.journalEntries || [];
         const existingIndex = entries.findIndex(e => e.id === entry.id);
@@ -131,7 +162,7 @@ export const api = {
 
     async saveMeditationReflection(userId: string, reflection: MeditationReflection): Promise<void> {
         const profile = await this.getProfile(userId);
-        if (!profile) throw new Error('Profile not found — cannot save meditation reflection.');
+        if (!profile) throw new Error('Profile not found. Cannot save meditation reflection.');
 
         const reflections = profile.meditationReflections || [];
         reflections.unshift(reflection);
@@ -142,7 +173,7 @@ export const api = {
     // Daily focus
     async saveDailyFocus(userId: string, focus: DailyFocus): Promise<void> {
         const profile = await this.getProfile(userId);
-        if (!profile) throw new Error('Profile not found — cannot save daily focus.');
+        if (!profile) throw new Error('Profile not found. Cannot save daily focus.');
 
         const focuses = profile.dailyFocuses || [];
         const existingIndex = focuses.findIndex(f => f.id === focus.id);
@@ -169,7 +200,7 @@ export const api = {
 
     async deleteGoal(userId: string, focusId: string): Promise<void> {
         const profile = await this.getProfile(userId);
-        if (!profile) throw new Error('Profile not found — cannot delete goal.');
+        if (!profile) throw new Error('Profile not found. Cannot delete goal.');
 
         const focuses = profile.dailyFocuses || [];
         const updatedFocuses = focuses.filter(f => f.id !== focusId);
@@ -179,7 +210,7 @@ export const api = {
     // Activity tracking
     async logActivity(userId: string, activity: ActivityLog): Promise<void> {
         const profile = await this.getProfile(userId);
-        if (!profile) throw new Error('Profile not found — cannot log activity.');
+        if (!profile) throw new Error('Profile not found. Cannot log activity.');
 
         const history = profile.activityHistory || [];
         const existingIndex = history.findIndex(h => h.date === activity.date && h.type === activity.type);
@@ -198,97 +229,116 @@ export const api = {
         // Optimistically handled in UI or via specific implementations
     },
 
-    // Accountability
-    async findUserByInviteCode(code: string): Promise<UserProfile | null> {
-        // 1. Try RPC first (Secure & Fast)
-        try {
-            const { data, error } = await supabase
-                .rpc('find_user_by_invite_code', { invite_code: code });
+    // ── Accountability partners ──────────────────────────────────────────────
+    //
+    // These all go through partner_connections / partner_check_ins. There is
+    // deliberately no local fallback: a partner connection either exists on the
+    // server, where both people can see it, or it does not exist. The previous
+    // implementation fabricated a local "provisional" partner whenever the lookup
+    // failed, which meant the UI could show an accepted partnership with someone
+    // who had never been contacted. Failing honestly is the whole point here.
 
-            if (!error && data) {
-                return data as unknown as UserProfile;
-            }
-            if (error) {
-                console.error('RPC find_user call failed, attempting direct query fallback:', error);
-            }
-        } catch (e) {
-            console.error('RPC find_user call crashed, attempting direct query fallback:', e);
-        }
+    /** Redeem an invite code. Opens a PENDING request the other person must accept. */
+    async requestPartnerConnection(code: string): Promise<{ connectionId: string; partnerId: string; partnerName: string; status: string }> {
+        const { data, error } = await supabase
+            .rpc('request_partner_connection', { invite_code: code.trim().toUpperCase() });
 
-        // 2. Fallback: Direct Query (Depends on RLS permitting read)
-        try {
-            // We search for the specific JSON key in the 'data' column
-            const { data: fallbackData, error: fallbackError } = await supabase
-                .from('profiles')
-                .select('id, data')
-                // This syntax works for checking if the JSONB 'data' object contains the key-value pair
-                .contains('data', { partnerInviteCode: code })
-                .maybeSingle();
+        if (error) throw new Error(translatePartnerError(error));
 
-            if (fallbackError) {
-                console.error('Direct query fallback failed:', fallbackError);
-                return null;
-            }
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) throw new Error('No one found with that invite code.');
 
-            if (fallbackData && fallbackData.data) {
-                const profile = fallbackData.data as UserProfile;
-                profile.id = fallbackData.id; // Ensure top-level ID is preserved
-                return profile;
-            }
-        } catch (e) {
-            console.error('Overall findUser failure:', e);
-        }
-
-        return null;
+        return {
+            connectionId: row.connection_id,
+            partnerId: row.partner_id,
+            partnerName: row.partner_name || 'Partner',
+            status: row.status,
+        };
     },
 
-    async addPartnerConnection(userId: string, partnerProfile: UserProfile): Promise<void> {
-        // 1. Try RPC for mutual connection
-        try {
-            const { error } = await supabase.rpc('add_partner_connection', {
-                user_id_1: userId,
-                user_id_2: partnerProfile.id
-            });
+    /**
+     * Server truth for every connection, in both directions. This is what keeps
+     * partner streaks live: they used to be snapshotted at add-time and never
+     * refreshed, so every partner drifted toward a frozen number.
+     */
+    async getPartnerSummaries(): Promise<AccountabilityPartner[]> {
+        const { data, error } = await supabase.rpc('get_partner_summaries');
+        if (error) throw new Error(translatePartnerError(error));
 
-            if (!error) return; // Success
-            console.error('RPC add_partner failed, attempting manual update fallback:', error);
-        } catch (e) {
-            console.error('RPC add_partner call crashed, attempting manual update fallback:', e);
-        }
+        return (data ?? []).map((row: {
+            connection_id: string;
+            partner_id: string;
+            partner_name: string;
+            current_streak: number;
+            last_activity_date: string | null;
+            status: string;
+            is_incoming: boolean;
+            created_at: string;
+        }): AccountabilityPartner => ({
+            id: row.partner_id,
+            name: row.partner_name || 'Partner',
+            currentStreak: row.current_streak ?? 0,
+            lastActivityDate: row.last_activity_date ?? row.created_at,
+            inviteStatus: row.status === 'accepted' ? 'accepted' : 'pending',
+            addedDate: row.created_at,
+            connectionId: row.connection_id,
+            isIncoming: row.is_incoming,
+        }));
+    },
 
-        // 2. Fallback: Manual Update (At least add to MY list)
-        // If the backend function is missing, we likely can't update the *other* user due to RLS.
-        // But we can definitely update our own profile so the flow doesn't break for the current user.
-        try {
-            const myProfile = await this.getProfile(userId);
-            if (myProfile) {
-                const newPartner = {
-                    id: partnerProfile.id,
-                    name: partnerProfile.name || 'Partner',
-                    currentStreak: partnerProfile.streak || 0,
-                    lastActivityDate: new Date().toISOString(),
-                    inviteStatus: 'accepted' as const,
-                    addedDate: new Date().toISOString()
-                };
+    async respondToPartnerRequest(connectionId: string, accept: boolean): Promise<void> {
+        const { error } = await supabase
+            .rpc('respond_to_partner_request', { target_connection: connectionId, accept });
+        if (error) throw new Error(translatePartnerError(error));
+    },
 
-                const currentPartners = myProfile.accountabilityPartners || [];
+    async removePartnerConnection(connectionId: string): Promise<void> {
+        const { error } = await supabase
+            .from('partner_connections')
+            .delete()
+            .eq('id', connectionId);
+        if (error) throw new Error(translatePartnerError(error));
+    },
 
-                // Prevent duplicates
-                if (!currentPartners.some(p => p.id === partnerProfile.id)) {
-                    await this.updateProfile(userId, {
-                        accountabilityPartners: [...currentPartners, newPartner]
-                    });
-                }
-            }
-        } catch (e) {
-            console.error('Manual partner add failed:', e);
-            throw new Error('Could not add partner. Please check your connection.');
-        }
+    async blockPartnerConnection(connectionId: string): Promise<void> {
+        const { error } = await supabase
+            .from('partner_connections')
+            .update({ status: 'blocked', responded_at: new Date().toISOString() })
+            .eq('id', connectionId);
+        if (error) throw new Error(translatePartnerError(error));
+    },
+
+    /** Post a check-in the partner will actually see when they next open the app. */
+    async postCheckIn(connectionId: string, authorId: string, kind: PartnerCheckInKind, body?: string): Promise<void> {
+        const { error } = await supabase
+            .from('partner_check_ins')
+            .insert({ connection_id: connectionId, author_id: authorId, kind, body: body ?? null });
+        if (error) throw new Error(translatePartnerError(error));
+    },
+
+    async getCheckIns(sinceIso: string): Promise<PartnerCheckIn[]> {
+        const { data, error } = await supabase
+            .from('partner_check_ins')
+            .select('id, connection_id, author_id, kind, body, created_at')
+            .gte('created_at', sinceIso)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (error) throw new Error(translatePartnerError(error));
+
+        return (data ?? []).map(row => ({
+            id: row.id,
+            connectionId: row.connection_id,
+            authorId: row.author_id,
+            kind: row.kind as PartnerCheckInKind,
+            body: row.body ?? undefined,
+            createdAt: row.created_at,
+        }));
     },
 
     // Account Deletion (Mandatory for App Store)
     async deleteUserAccount(userId: string): Promise<{ error: { message: string } | null }> {
-        // 1. Clear local data — including the native filesystem backup, otherwise
+        // 1. Clear local data: including the native filesystem backup, otherwise
         // loadProfileWithFallback resurrects the deleted profile on next launch
         localStorage.removeItem(`palante_profile_${userId}`);
         localStorage.removeItem(STORAGE_KEYS.CLOUD_SYNC_STAMP);

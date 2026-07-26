@@ -50,9 +50,6 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
     };
 
     const gold = '#E5D6A7';
-    const goldDim = 'rgba(229,214,167,0.75)';
-    const goldFaint = 'rgba(229,214,167,0.45)';
-
     return (
         <AnimatePresence>
             {isOpen && (
@@ -75,7 +72,7 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', stiffness: 280, damping: 30 }}
                     >
-                        {/* Seed of Life — subtle sacred geometry */}
+                        {/* Seed of Life: subtle sacred geometry */}
                         <svg
                             aria-hidden
                             className="absolute inset-0 w-full h-full pointer-events-none"

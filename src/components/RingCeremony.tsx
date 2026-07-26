@@ -32,7 +32,7 @@ const CEREMONIES: Record<RingCeremonyType, {
         phase: 'THE SEED HAS TAKEN ROOT',
         title: 'Ring One',
         subtitle: 'Ten Practices',
-        coachMessage: 'Ten practices. Your roots are in the ground. Most people never make it here — but you did. The garden is beginning to wake.',
+        coachMessage: 'Ten practices. Your roots are in the ground. Most people never make it here, but you did. The garden is beginning to wake.',
         koi: 'Your first koi joins the pond.',
         accentColor: '#C96A3A',
         glowColor: 'rgba(201,106,58,0.35)',
@@ -43,7 +43,7 @@ const CEREMONIES: Record<RingCeremonyType, {
         phase: 'THE BLOOM BEGINS',
         title: 'Ring Two',
         subtitle: 'Twenty-Eight Practices',
-        coachMessage: 'Twenty-eight practices. Something has shifted — you may not be able to name it yet, but your body knows it. This is the feeling of becoming.',
+        coachMessage: 'Twenty-eight practices. Something has shifted. You may not be able to name it yet, but your body knows it. This is the feeling of becoming.',
         koi: 'A second koi joins your pond.',
         accentColor: '#E5D6A7',
         glowColor: 'rgba(229,214,167,0.30)',
@@ -54,7 +54,7 @@ const CEREMONIES: Record<RingCeremonyType, {
         phase: 'YOUR CANOPY IS FORMING',
         title: 'Ring Three',
         subtitle: 'Fifty-Five Practices',
-        coachMessage: 'Fifty-five practices in. What started as intention has become instinct. Most habits are just now forming for others — yours are already roots.',
+        coachMessage: 'Fifty-five practices in. What started as intention has become instinct. Most habits are just now forming for others. Yours are already roots.',
         koi: 'A third koi enters the water.',
         accentColor: '#415D43',
         glowColor: 'rgba(65,93,67,0.45)',
@@ -65,15 +65,15 @@ const CEREMONIES: Record<RingCeremonyType, {
         phase: 'THE MANDALA IS COMPLETE',
         title: 'Full Bloom',
         subtitle: '90 Days',
-        coachMessage: '90 days. You came back every time it was hard. Every time it would have been easier not to. Your mandala is complete — and so is this chapter. A letter is waiting for you.',
+        coachMessage: '90 days. You came back every time it was hard. Every time it would have been easier not to. Your mandala is complete, and so is this chapter. A letter is waiting for you.',
         accentColor: '#C96A3A',
         glowColor: 'rgba(201,106,58,0.40)',
     },
 };
 
-// Concentric ring SVG — shows which rings are filled
+// Concentric ring SVG: shows which rings are filled
 const MandalaRings: React.FC<{ ringsComplete: number; totalRings: number; accentColor: string; glowColor: string }> = ({
-    ringsComplete, totalRings, accentColor, glowColor
+    ringsComplete, totalRings, accentColor, glowColor: _glowColor
 }) => {
     const cx = 110;
     const cy = 110;

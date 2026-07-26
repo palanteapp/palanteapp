@@ -2,7 +2,7 @@ import type { UserProfile } from '../types';
 
 /**
  * The single source of truth for a brand-new profile. Used for both guest
- * sessions and freshly authenticated users — pass the id to stamp it with.
+ * sessions and freshly authenticated users: pass the id to stamp it with.
  */
 export const createDefaultProfile = (id: string): UserProfile => ({
     id,

@@ -81,7 +81,7 @@ export const PartnerMemoryPanel: React.FC<Props> = ({ isOpen, onClose, user }) =
                         {!hasAnyMemory && (
                             <div className={`rounded-3xl border p-6 text-center ${cardBg}`}>
                                 <p className={`text-sm leading-relaxed ${textMuted}`}>
-                                    {partnerName} is still getting to know you. Keep talking — after a few sessions this will come alive.
+                                    {partnerName} is still getting to know you. Keep talking. After a few sessions this will come alive.
                                 </p>
                             </div>
                         )}

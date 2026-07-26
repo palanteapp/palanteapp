@@ -7,6 +7,7 @@ import { logPractice, migrateStreakToPractice, getTodayDate } from '../utils/pra
 import { generateUserNarrative, generateMonthlyPatternInsight } from '../utils/aiService';
 import { persistProfile, loadProfileWithFallback } from '../utils/nativeStorage';
 import { createDefaultProfile } from '../utils/defaultProfile';
+import { setAIEnabled } from '../utils/aiGate';
 
 const getLocalYesterdayDate = (): string => {
     const d = new Date();
@@ -21,7 +22,7 @@ interface UserContextType {
     updateProfile: (updatedUser: UserProfile | ((prev: UserProfile | null) => UserProfile)) => Promise<void>;
     logActivity: (type: ActivityType) => Promise<void>;
     saveReflection: (data: { intention: string; duration: number; reflection: string; mantra: string }) => Promise<void>;
-    toggleFavorite: (quoteId: string, isFavorite: boolean) => Promise<void>;
+    toggleFavorite: (quoteId: string, isFavorite: boolean, meta?: { text?: string; author?: string }) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -88,16 +89,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         );
 
                         if (cloudProfile && !(localIsGuest && localHasContent)) {
-                            // Cloud takes precedence — returning user with cloud data, no local guest content to preserve
+                            // Cloud takes precedence: returning user with cloud data, no local guest content to preserve
                             setUser(cloudProfile);
                             userRef.current = cloudProfile;
                             persistProfile(cloudProfile);
                             // Sync Widgets
                             WidgetDataSync.syncAll(cloudProfile).catch(e => console.error('Initial cloud widget sync failed', e));
                         } else if (localUser) {
-                            // Guest just signed up / signed in — migrate their local data to this account.
+                            // Guest just signed up / signed in: migrate their local data to this account.
                             // Re-stamp the ID so future loads match on localUser.id === authUser.id.
-                            // If cloud has progress data (streak, points), merge it in — local profile fields win.
+                            // If cloud has progress data (streak, points), merge it in, local profile fields win.
                             const migratedUser: UserProfile = cloudProfile
                                 ? { ...cloudProfile, ...localUser, id: authUser.id }
                                 : { ...localUser, id: authUser.id };
@@ -108,7 +109,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                             // Sync Widgets
                             WidgetDataSync.syncAll(migratedUser).catch(e => console.error('Initial guest-migration widget sync failed', e));
                         } else {
-                            // Truly new user with no local data — start fresh
+                            // Truly new user with no local data: start fresh
                             const guestUser = createDefaultProfile(authUser.id);
                             setUser(guestUser);
                             userRef.current = guestUser;
@@ -150,7 +151,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         loadProfile();
     }, [authUser]);
 
-    // Narrative Engine — silently regenerates the user's growth memoir weekly
+    // Narrative Engine: silently regenerates the user's growth memoir weekly
     useEffect(() => {
         const currentUser = userRef.current;
         if (!currentUser || currentUser.aiDisabled) return;
@@ -178,7 +179,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
-    // Monthly Pattern Engine — generates one specific behavioral insight after 30+ days
+    // Monthly Pattern Engine: generates one specific behavioral insight after 30+ days
     useEffect(() => {
         const currentUser = userRef.current;
         if (!currentUser || currentUser.aiDisabled) return;
@@ -264,7 +265,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                 updatedActivityHistory.push({ date: today, type, count: 1 });
             }
 
-            // Accurate Daily Streak Logic — uses local date to avoid midnight UTC boundary resets
+            // Accurate Daily Streak Logic: uses local date to avoid midnight UTC boundary resets
             const yesterdayStr = getLocalYesterdayDate();
             
             // Was there activity before this call today?
@@ -321,7 +322,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [authUser, updateProfile]);
 
-    const toggleFavorite = useCallback(async (quoteId: string, isFavorite: boolean) => {
+    const toggleFavorite = useCallback(async (quoteId: string, isFavorite: boolean, meta?: { text?: string; author?: string }) => {
         // Fully atomic functional update
         await updateProfile(prevUser => {
             if (!prevUser) return prevUser!;
@@ -332,7 +333,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             if (isFavorite) {
                 // Add if not exists
                 if (!favorites.some(f => String(f.quoteId) === String(quoteId))) {
-                    updatedFavorites = [...favorites, { quoteId: String(quoteId), savedAt: new Date().toISOString() }];
+                    // Copy the text in so the favorite outlives the library entry.
+                    updatedFavorites = [...favorites, {
+                        quoteId: String(quoteId),
+                        savedAt: new Date().toISOString(),
+                        text: meta?.text,
+                        author: meta?.author,
+                    }];
                 } else {
                     updatedFavorites = favorites;
                 }
@@ -366,6 +373,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             persistProfile(profile);
         }
     }, [authUser]);
+
+    // Publish the AI opt-out to the module-level gate that every model request checks
+    // (see aiGate.ts). Done during render rather than in an effect on purpose: child
+    // effects run before parent effects, so an effect here would leave a window on the
+    // first commit where a child could fire an AI call against a stale flag. The gate
+    // defaults to off, so that window would suppress a legitimate call rather than leak
+    // a disabled one: still wrong, and setting it during render closes it entirely.
+    setAIEnabled(!!user && !user.aiDisabled);
 
     return (
         <UserContext.Provider value={{

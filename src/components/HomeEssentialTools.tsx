@@ -116,7 +116,7 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
         return saved?.length === 3 ? saved : [...DEFAULT_TOOLS];
     })();
 
-    // @dnd-kit sensors — support both mouse and touch
+    // @dnd-kit sensors, support both mouse and touch
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
         useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -171,7 +171,7 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                 </button>
             </div>
 
-            {/* 3 tool cards — equal width, no overflow */}
+            {/* 3 tool cards: equal width, no overflow */}
             <div className="w-full flex gap-3">
                 {active.map((id, i) => {
                     const tool = ALL_TOOLS.find(t => t.id === id)!;
@@ -208,7 +208,7 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                 })}
             </div>
 
-            {/* Customize modal — portal to escape any parent transforms */}
+            {/* Customize modal: portal to escape any parent transforms */}
             {createPortal(
                 <AnimatePresence>
                     {editing && (
@@ -229,7 +229,7 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                 style={{ background: '#415D43', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}
                                 onClick={(e) => e.stopPropagation()}
                             >
-                                {/* Seed-of-life background — matches SlideUpModal */}
+                                {/* Seed-of-life background, matches SlideUpModal */}
                                 <svg aria-hidden viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice"
                                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}>
                                     <defs>

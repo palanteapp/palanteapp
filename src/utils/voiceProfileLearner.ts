@@ -106,7 +106,7 @@ function extractNGrams(text: string, minN: number = 1, maxN: number = 3): Set<st
  * Score phrases based on their appearance in messages
  * High-rated messages contribute positive signals, low-rated messages negative signals
  */
-function scorePhrase(
+function _scorePhrase(
     phrase: string,
     ratedMessages: RatedMessage[]
 ): { score: number; frequency: number; avgRating: number } {
@@ -405,7 +405,7 @@ export class VoiceProfileLearner {
         // Core values injection
         if (extractedValues.length > 0) {
             parts.push(`\nThis person deeply values: ${extractedValues.join(', ')}.`);
-            parts.push('Weave these naturally into the message—not as a list, but as genuine connections.');
+            parts.push('Weave these naturally into the message, not as a list, but as genuine connections.');
         }
 
         // Resonant phrases

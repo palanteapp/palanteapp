@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { calculateAge, canUseAI, getAgeGroup } from '../types';
+import type { UserProfile } from '../types';
+
+// These tests only ever set the one or two fields the function under test reads. `profile`
+// keeps that intent explicit and confines the cast to a single place, instead of an `as any`
+// on every literal that would also silence real mistakes in the field names.
+const profile = (fields: Partial<UserProfile>): UserProfile => fields as UserProfile;
 
 const dob = (yearsAgo: number, monthOffset = 0): string => {
     const d = new Date();
@@ -35,29 +41,29 @@ describe('calculateAge', () => {
     });
 });
 
-describe('COPPA age gate — under-13 rejection', () => {
+describe('COPPA age gate, under-13 rejection', () => {
     it('blocks a 12-year-old from using AI', () => {
-        const user = { dateOfBirth: dob(12), aiDisabled: false } as any;
+        const user = profile({ dateOfBirth: dob(12), aiDisabled: false });
         expect(canUseAI(user)).toBe(false);
     });
 
     it('blocks a 10-year-old from using AI', () => {
-        const user = { dateOfBirth: dob(10), aiDisabled: false } as any;
+        const user = profile({ dateOfBirth: dob(10), aiDisabled: false });
         expect(canUseAI(user)).toBe(false);
     });
 
     it('allows a 13-year-old to use AI', () => {
-        const user = { dateOfBirth: dob(13), aiDisabled: false } as any;
+        const user = profile({ dateOfBirth: dob(13), aiDisabled: false });
         expect(canUseAI(user)).toBe(true);
     });
 
     it('allows an adult to use AI', () => {
-        const user = { dateOfBirth: dob(30), aiDisabled: false } as any;
+        const user = profile({ dateOfBirth: dob(30), aiDisabled: false });
         expect(canUseAI(user)).toBe(true);
     });
 
     it('blocks when aiDisabled is true regardless of age', () => {
-        const user = { dateOfBirth: dob(25), aiDisabled: true } as any;
+        const user = profile({ dateOfBirth: dob(25), aiDisabled: true });
         expect(canUseAI(user)).toBe(false);
     });
 
@@ -65,26 +71,26 @@ describe('COPPA age gate — under-13 rejection', () => {
         expect(canUseAI(null)).toBe(false);
     });
 
-    it('returns false for user with no dateOfBirth — backward compat allows access', () => {
-        const user = { aiDisabled: false } as any;
+    it('returns false for user with no dateOfBirth, backward compat allows access', () => {
+        const user = profile({ aiDisabled: false });
         expect(canUseAI(user)).toBe(true);
     });
 });
 
 describe('getAgeGroup', () => {
     it('classifies under-13 as child', () => {
-        expect(getAgeGroup({ dateOfBirth: dob(10) } as any)).toBe('child');
+        expect(getAgeGroup(profile({ dateOfBirth: dob(10) }))).toBe('child');
     });
 
     it('classifies 13-17 as teen', () => {
-        expect(getAgeGroup({ dateOfBirth: dob(15) } as any)).toBe('teen');
+        expect(getAgeGroup(profile({ dateOfBirth: dob(15) }))).toBe('teen');
     });
 
     it('classifies 18+ as adult', () => {
-        expect(getAgeGroup({ dateOfBirth: dob(25) } as any)).toBe('adult');
+        expect(getAgeGroup(profile({ dateOfBirth: dob(25) }))).toBe('adult');
     });
 
     it('returns unknown for missing DOB', () => {
-        expect(getAgeGroup({} as any)).toBe('unknown');
+        expect(getAgeGroup(profile({}))).toBe('unknown');
     });
 });

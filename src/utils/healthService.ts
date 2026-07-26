@@ -31,7 +31,7 @@ export async function logMindfulSession(startTime: number, endTime: number): Pro
     try {
         await PalanteHealthBridge.logMindfulSession({ startTime, endTime });
     } catch {
-        // Silently fail — never block the user's flow for a health write
+        // Silently fail: never block the user's flow for a health write
     }
 }
 
@@ -56,5 +56,5 @@ export function buildHealthPromptBlock(health: HealthContext): string {
 
     if (lines.length === 0) return '';
 
-    return `BIOMETRIC CONTEXT (from Apple Health — use with care, not as diagnosis):\n${lines.join('\n')}\nIf sleep is notably low or HR is elevated, you may gently acknowledge it — but never lead with health data unprompted. Only reference it if relevant to what they share.\n`;
+    return `BIOMETRIC CONTEXT (from Apple Health, use with care, not as diagnosis):\n${lines.join('\n')}\nIf sleep is notably low or HR is elevated, you may gently acknowledge it, but never lead with health data unprompted. Only reference it if relevant to what they share.\n`;
 }

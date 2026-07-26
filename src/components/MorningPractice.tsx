@@ -114,7 +114,7 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
                     background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.12) 0%, transparent 70%)',
                 }}
             />
-            {/* Seed of Life — sacred geometry */}
+            {/* Seed of Life: sacred geometry */}
             <svg
                 aria-hidden
                 className="absolute inset-0 w-full h-full pointer-events-none"
@@ -135,7 +135,7 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
             {/* Safe Area Top Spacer */}
             <div className="w-full h-[env(safe-area-inset-top)] bg-transparent" />
 
-            {/* Close button — intro step only */}
+            {/* Close button: intro step only */}
             {currentStep === 'intro' && !isExiting && (
                 <button
                     onClick={onClose}
@@ -152,7 +152,7 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
                 </button>
             )}
 
-            {/* Content Area — input steps (gratitude/affirmation/intention) align to top so
+            {/* Content Area: input steps (gratitude/affirmation/intention) align to top so
                  5-row lists don't push title off screen; all other steps stay centered. */}
             <div ref={contentRef} className={`flex-1 flex flex-col items-center px-6 pb-8 overflow-y-auto relative z-10 ${['gratitude', 'affirmation', 'intention'].includes(currentStep) ? 'justify-start pt-10' : 'justify-center pt-4'}`}>
                 <div className="w-full max-w-lg">

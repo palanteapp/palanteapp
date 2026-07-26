@@ -1,4 +1,3 @@
-import { QUOTES } from '../data/quotes';
 import { AFFIRMATIONS } from '../data/affirmations';
 import type { UserProfile, Quote, PrimaryIntent } from '../types';
 import { generateAffirmation, isAIAvailable, getMomentumState } from './aiService';
@@ -6,7 +5,7 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 import { getTodayDate } from './practiceUtils';
 
 // The onboarding "what's bringing you here?" answer biases content selection so the
-// library leans toward the user's reason for being here — without overriding the
+// library leans toward the user's reason for being here, without overriding the
 // stronger signals (today's intention, active focus) scored above.
 const INTENT_THEMES: Record<PrimaryIntent, string[]> = {
     consistency: ['consistency', 'discipline', 'habit', 'commitment', 'routine', 'persistence', 'showing up', 'practice', 'daily', 'momentum'],
@@ -33,7 +32,7 @@ const MOOD_THEMES: Record<string, string[]> = {
     Calm:      ['wisdom', 'presence', 'mindfulness', 'gratitude', 'depth', 'stillness'],
 };
 
-// Words that signal a quote is about rivalry/revenge — penalize unless user profile warrants it
+// Words that signal a quote is about rivalry/revenge, penalize unless user profile warrants it
 const ADVERSARIAL_WORDS = ['revenge', 'enemy', 'beat them', 'prove them wrong', 'haters', 'doubters', 'show them'];
 
 // key: quoteId, value: timestamp (ms)
@@ -95,7 +94,7 @@ const pushRecentQuote = (id: string) => {
     saveRecentQuotes();
 };
 
-// ── Author cooldown (14 days — prevents same author from repeating too soon) ──
+// ── Author cooldown (14 days, prevents same author from repeating too soon) ──
 
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -112,7 +111,7 @@ const loadAuthorHistory = (): AuthorHistory => {
     }
 };
 
-let authorHistory: AuthorHistory = loadAuthorHistory();
+const authorHistory: AuthorHistory = loadAuthorHistory();
 
 const saveAuthorHistory = () => {
     localStorage.setItem(STORAGE_KEYS.SEEN_AUTHORS, JSON.stringify(authorHistory));
@@ -120,7 +119,7 @@ const saveAuthorHistory = () => {
 
 const markAuthorSeen = (author: string) => {
     // Skip Palante-branded attributions. Includes legacy "Palante Coach" / "AI Coach" / "Coach Sarah" data
-    // saved on existing devices before the rename — we don't want to log those as if they were real authors.
+    // saved on existing devices before the rename: we don't want to log those as if they were real authors.
     if (!author || author === 'Palante' || author === 'Palante Coach' || author === 'AI Coach' || author.startsWith('Coach')) return;
     authorHistory[author] = Date.now();
     saveAuthorHistory();
@@ -148,7 +147,9 @@ const extractKeywords = (text: string): string[] => {
 // ── Main scoring function ─────────────────────────────────────────────────────
 
 export const getRelevantQuotes = (user: UserProfile): Quote[] => {
-    const allContent = [...QUOTES, ...AFFIRMATIONS];
+    // AFFIRMATIONS is the whole library now. The imported third-party quotes it used
+    // to be merged with were removed; see src/data/affirmations.ts.
+    const allContent = [...AFFIRMATIONS];
     const now = Date.now();
 
     // Parse intensity
@@ -163,7 +164,7 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         || user.currentMood === 'Anxious';
     const effectiveIntensity = isLowState ? Math.max(1, intensity - 1) as 1 | 2 | 3 : intensity as 1 | 2 | 3;
 
-    // Today's morning intention (local calendar day — daily practice entries are keyed by local date)
+    // Today's morning intention (local calendar day: daily practice entries are keyed by local date)
     const todayDate = getTodayDate();
     const todaysPriming = (user.dailyMorningPractice || user.dailyPriming || [])
         .find(p => p.date === todayDate);
@@ -190,18 +191,13 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         return true;
     });
 
-    // 2. Apply source & content type preferences
-    const filteredQuotes = availableQuotes.filter((q) => {
-        let sourceMatch = true;
-        if (user.sourcePreference === 'human') sourceMatch = !q.isAI;
-        else if (user.sourcePreference === 'ai') sourceMatch = !!q.isAI;
-
-        let contentTypeMatch = true;
-        if (user.contentTypePreference === 'quotes') contentTypeMatch = !q.isAffirmation;
-        else if (user.contentTypePreference === 'affirmations') contentTypeMatch = !!q.isAffirmation;
-
-        return sourceMatch && contentTypeMatch;
-    });
+    // 2. `sourcePreference` and `contentTypePreference` no longer filter anything.
+    // They existed to split a mixed library: human-written third-party quotes vs
+    // AI-written lines, and quotes vs affirmations. That library is gone. Every line is
+    // now a Palante-written affirmation, so 'ai' and 'quotes' would each match zero
+    // entries and hand every user the empty-pool fallback. Left unfiltered rather than
+    // silently narrowing to nothing; the fields stay on the profile for older clients.
+    const filteredQuotes = availableQuotes;
 
     // 3. Exclude recently shown quotes (short-term dedup)
     //    Progressively relax the recency window if the pool gets too small
@@ -224,7 +220,7 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
         let score = 0;
         const quoteSearchText = `${quote.text} ${quote.category} ${quote.tags?.join(' ') || ''}`.toLowerCase();
 
-        // PRIORITY 0: Today's morning intention — strongest signal
+        // PRIORITY 0: Today's morning intention, strongest signal
         if (dailyIntention && dailyIntention.length > 2) {
             if (quoteSearchText.includes(dailyIntention)) score += 400;
             const intentionRoot = dailyIntention.slice(0, Math.max(4, dailyIntention.length - 2));
@@ -274,7 +270,7 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
             }
         }
 
-        // PRIORITY 2: User narrative match — what the user wrote about themselves
+        // PRIORITY 2: User narrative match, what the user wrote about themselves
         if (narrativeKeywords.length > 0) {
             let narrativeHits = 0;
             narrativeKeywords.forEach(kw => {
@@ -312,7 +308,7 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
             if (quoteSearchText.includes(keyword)) score += 60;
         });
 
-        // PRIORITY 6.5: Primary intent ("what's bringing you here?") — a persistent backdrop
+        // PRIORITY 6.5: Primary intent ("what's bringing you here?"), a persistent backdrop
         // preference. Weighted below today's intention/focus so it never overrides them.
         if (user.primaryIntent && INTENT_THEMES[user.primaryIntent]) {
             let intentHits = 0;
@@ -354,7 +350,7 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
             score -= 350;
         }
 
-        // Small random factor — variety without overriding real matches
+        // Small random factor: variety without overriding real matches
         score += Math.random() * 15;
 
         return { quote, score };
@@ -364,19 +360,13 @@ export const getRelevantQuotes = (user: UserProfile): Quote[] => {
     scoredQuotes.sort((a, b) => b.score - a.score);
     const quotes = scoredQuotes.map(item => item.quote);
 
-    // 6. Handle empty results — relax cooldown if needed
+    // 6. Handle empty results: relax cooldown if needed
     if (quotes.length === 0 && Object.keys(seenHistory).length > 0) {
         console.warn('All quotes in cooldown. Recycling seen history.');
-        const recycledQuotes = allContent.filter(q => {
-            if (q.intensity !== intensity) return false;
-            let sourceMatch = true;
-            if (user.sourcePreference === 'human') sourceMatch = !q.isAI;
-            else if (user.sourcePreference === 'ai') sourceMatch = !!q.isAI;
-            let contentTypeMatch = true;
-            if (user.contentTypePreference === 'quotes') contentTypeMatch = !q.isAffirmation;
-            else if (user.contentTypePreference === 'affirmations') contentTypeMatch = !!q.isAffirmation;
-            return sourceMatch && contentTypeMatch;
-        }).sort(() => Math.random() - 0.5);
+        // Same reasoning as the filter above: intensity is the only real dimension left.
+        const recycledQuotes = allContent
+            .filter(q => q.intensity === intensity)
+            .sort(() => Math.random() - 0.5);
 
         seenHistory = {};
         if (recycledQuotes.length > 0) seenHistory[recycledQuotes[0].id] = Date.now();
@@ -409,7 +399,7 @@ export const pickAndMarkQuote = (user: UserProfile, excludeId?: string): Quote |
     const pool = filtered.length > 0 ? filtered : candidates;
     if (pool.length === 0) return null;
 
-    // Pick from the top 5 (or fewer if the pool is smaller) — scores are already sorted descending
+    // Pick from the top 5 (or fewer if the pool is smaller), scores are already sorted descending
     const topN = Math.min(5, pool.length);
     const selected = pool[Math.floor(Math.random() * topN)];
 
@@ -426,7 +416,7 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
     const timeOfDay = getTimeOfDay();
 
     if (!isAIAvailable()) {
-        const aiQuotes = QUOTES.filter(q => q.isAI && q.intensity === user.quoteIntensity);
+        const aiQuotes = AFFIRMATIONS.filter(q => q.intensity === user.quoteIntensity);
         if (aiQuotes.length > 0) return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
     }
 
@@ -460,7 +450,7 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
         };
     } catch (error) {
         console.error('Error generating AI quote:', error);
-        const aiQuotes = QUOTES.filter(q => q.isAI && q.intensity === user.quoteIntensity);
+        const aiQuotes = AFFIRMATIONS.filter(q => q.intensity === user.quoteIntensity);
         if (aiQuotes.length > 0) return aiQuotes[Math.floor(Math.random() * aiQuotes.length)];
         return {
             id: `ai_fallback_${Date.now()}`,

@@ -8,7 +8,7 @@ const COLORS = {
     warmGray: '#A3A3A3'
 };
 
-// Honor the OS Reduce Motion setting — celebrate with haptics only.
+// Honor the OS Reduce Motion setting: celebrate with haptics only.
 const prefersReducedMotion = () =>
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;

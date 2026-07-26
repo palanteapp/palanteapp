@@ -9,7 +9,7 @@
  *  - Collections (journal entries, practices, reflections…) are unioned by
  *    their natural key, so nothing either device wrote is ever dropped.
  *  - Monotonic counters (points, xp, totalPractices…) take the max.
- *  - Milestone flags OR together — once earned, never un-earned.
+ *  - Milestone flags OR together, once earned, never un-earned.
  *  - Every other field comes from `preferred` (the side the caller trusts
  *    as fresher: local on write conflicts, cloud on read conflicts).
  */
@@ -20,7 +20,7 @@ import type {
     PracticeActivity,
 } from '../types';
 
-/** Union two arrays by key — preferred's version wins on collisions, extras from other are appended. */
+/** Union two arrays by key: preferred's version wins on collisions, extras from other are appended. */
 const unionBy = <T>(
     preferred: T[] | undefined,
     other: T[] | undefined,
@@ -93,7 +93,7 @@ const mergePracticeData = (
     }
     const activityHistory = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 
-    // Never let a merge lower the lifetime count — take the largest of either
+    // Never let a merge lower the lifetime count: take the largest of either
     // side's counter and the recomputed union.
     const recomputed = activityHistory.reduce((sum, d) => sum + d.practices.length, 0);
     const totalPractices = Math.max(preferred.totalPractices, other.totalPractices, recomputed);

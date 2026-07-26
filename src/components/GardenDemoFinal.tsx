@@ -1,5 +1,5 @@
 /**
- * Garden of Growth — accumulative lotus mandala.
+ * Garden of Growth: accumulative lotus mandala.
  * 90 single petal slots arranged in 4 interlocking rings.
  * One completed practice day = one petal placed.
  * Ghost outlines show the full mandala waiting to be earned.
@@ -14,22 +14,22 @@ interface Props {
   onShare?: () => void;
 }
 
-// ─── Color palettes — one per 90-day cycle ────────────────────
+// ─── Color palettes, one per 90-day cycle ────────────────────
 // Each palette: [primary, deep, sage/secondary, sage-mid, accent, accent2]
 const PALETTES = [
-  // 0 — Terracotta (original)
+  // 0: Terracotta (original)
   { T: '#C96A3A', T2: '#B85030', S: '#415D43', S2: '#576355', G: '#E5D6A7', G2: '#D4B87A',
     bg0: '#2A1508', bg1: '#1C2D1E', bg2: '#142018',
     bgL0: '#EDD9BC', bgL1: '#C6D1C3', bgL2: '#B8CAB8' },
-  // 1 — Indigo bloom
+  // 1: Indigo bloom
   { T: '#6B4FBB', T2: '#5A3FA0', S: '#2D3E6B', S2: '#4A5580', G: '#C5C0F0', G2: '#A89FD8',
     bg0: '#12103A', bg1: '#1A1B42', bg2: '#0F0D30',
     bgL0: '#DDD8F5', bgL1: '#C0C4E8', bgL2: '#B2B6DC' },
-  // 2 — Amber gold
+  // 2: Amber gold
   { T: '#C89030', T2: '#A87020', S: '#5C4A10', S2: '#7A6030', G: '#F5E8B0', G2: '#E8CF80',
     bg0: '#2A1E04', bg1: '#2C220A', bg2: '#1E1604',
     bgL0: '#F5EDD0', bgL1: '#E8DFB0', bgL2: '#DDD5A0' },
-  // 3 — Rose quartz
+  // 3: Rose quartz
   { T: '#C95080', T2: '#A83860', S: '#6B2A3A', S2: '#884455', G: '#F0C8D8', G2: '#D8A0B8',
     bg0: '#2A0A14', bg1: '#2C101A', bg2: '#200810',
     bgL0: '#F5D8E8', bgL1: '#E8C0D0', bgL2: '#DDB0C0' },
@@ -37,12 +37,9 @@ const PALETTES = [
 
 // Default palette constants (used in module-level helpers that need them before render)
 const T  = PALETTES[0].T;
-const T2 = PALETTES[0].T2;
 const S  = PALETTES[0].S;
 const S2 = PALETTES[0].S2;
 const G  = PALETTES[0].G;
-const G2 = PALETTES[0].G2;
-
 const CX = 108, CY = 108;
 
 // ─── Ring geometry ───────────────────────────────────────────
@@ -119,13 +116,13 @@ function petalInner(h: number, w: number) {
   const w2 = w * 0.52, h2 = h * 0.88;
   return `M0,${-h * 0.06} C${w2},${-h * 0.10} ${w2 * 0.9},-${h * 0.48} 0,-${h2} C-${w2 * 0.9},-${h * 0.48} -${w2},-${h * 0.10} 0,${-h * 0.06}`;
 }
-// Lens/almond petal — pointed at BOTH ends (r1=outer tip, r2=inner tip, w=half-width)
+// Lens/almond petal: pointed at BOTH ends (r1=outer tip, r2=inner tip, w=half-width)
 function lensPath(r1: number, r2: number, w: number) {
   const m1 = r1 * 0.72 + r2 * 0.28;
   const m2 = r1 * 0.28 + r2 * 0.72;
   return `M0,${-r1} C${w},${-m1} ${w},${-m2} 0,${-r2} C${-w},${-m2} ${-w},${-m1} 0,${-r1}`;
 }
-// 8-pointed star (octagram) — alternates R (outer) and r (inner) every 22.5°
+// 8-pointed star (octagram), alternates R (outer) and r (inner) every 22.5°
 function octagramPath(R: number, r: number) {
   const pts: string[] = [];
   for (let i = 0; i < 16; i++) {
@@ -150,7 +147,7 @@ function GhostPetal({ h, w, isDarkMode }: { h: number; w: number; isDarkMode: bo
   );
 }
 
-// ─── Ghost center — rosette outline waiting to bloom ──────────
+// ─── Ghost center, rosette outline waiting to bloom ──────────
 function GhostCenter({ isDarkMode }: { isDarkMode: boolean }) {
   const stroke = isDarkMode ? G : S;
   const fill = isDarkMode ? 'rgba(229,214,167,0.03)' : 'rgba(65,93,67,0.04)';
@@ -194,7 +191,7 @@ function FilledPetal({ h, w, fill, accent, delay }: {
   );
 }
 
-// ─── Center piece — 8-petal lotus rosette with octagram heart ─
+// ─── Center piece, 8-petal lotus rosette with octagram heart ─
 function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; delay: number }) {
   return (
     <motion.g
@@ -203,7 +200,7 @@ function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; de
       transition={{ duration: 1.4, delay, ease: 'easeOut' }}
       style={{ originX: '0px', originY: '0px' }}
     >
-      {/* ── Ripple waves — 3 staggered rings that pulse outward from center ── */}
+      {/* ── Ripple waves, 3 staggered rings that pulse outward from center ── */}
       {[0, 1, 2].map((i) => (
         <motion.circle
           key={`ripple-${i}`}
@@ -270,7 +267,7 @@ function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; de
 
 // ─── Main component ───────────────────────────────────────────
 export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 90, colorCycle = 0, onShare }) => {
-  // Pick palette from cycle — wraps around every 4 completions
+  // Pick palette from cycle: wraps around every 4 completions
   const pal = PALETTES[colorCycle % PALETTES.length];
   // Rebuild positions only when palette changes
   const positions = useMemo(
@@ -296,7 +293,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
   else if (completedDays < 55) ringLabel = 'Ring 2 done';
   else if (completedDays < 90) ringLabel = 'Ring 3 done';
 
-  // Flower of Life circles — same coordinate space as the mandala (center at CX, CY)
+  // Flower of Life circles: same coordinate space as the mandala (center at CX, CY)
   // r = lattice constant = circle radius → each circle passes through its 6 neighbours' centers
   // bound = 90 = mandala outer ring radius → FoL bounding circle matches mandala edge exactly
   const FOL_R = 29;  // reduced 10% from 32
@@ -335,7 +332,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
           : '0 12px 40px rgba(65,93,67,0.16)',
       }}
     >
-      {/* Ambient center glow — aligned to mandala center (~44% from top of 380px card) */}
+      {/* Ambient center glow: aligned to mandala center (~44% from top of 380px card) */}
       <div style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
         background: isDarkMode
@@ -343,7 +340,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
           : `radial-gradient(ellipse 70% 60% at 50% 44%, ${hexAlpha(pal.T, 0.13)} 0%, transparent 68%)`,
       }} />
 
-      {/* Mandala SVG — outer ring centered between card top and streak pill */}
+      {/* Mandala SVG: outer ring centered between card top and streak pill */}
       <div style={{
         position: 'absolute', top: 23, left: 0, right: 0, bottom: 69,
       }}>
@@ -397,7 +394,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
 
           {/* ── Center piece ───────────────────────────────── */}
           <g transform={`translate(${CX},${CY})`}>
-            {/* Subtle glow disc behind the petals — not on top */}
+            {/* Subtle glow disc behind the petals: not on top */}
             <motion.circle
               cx={0} cy={0} r={16}
               fill="url(#cgMain)" fillOpacity={0.35}
@@ -417,7 +414,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
             transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
           />
 
-          {/* ── Ripple waves — Framer Motion for reliable cross-platform looping ── */}
+          {/* ── Ripple waves. Framer Motion for reliable cross-platform looping ── */}
           {/* 4 rings, each 4 s apart in a 16 s cycle. delay < 0 not supported by  */}
           {/* Framer Motion, so we pre-offset with repeatDelay + initial delay.     */}
           {[0, 1, 2, 3].map((i) => (
@@ -508,7 +505,7 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
   );
 };
 
-// ─── Standalone mandala SVG — for share cards ─────────────────────────────
+// ─── Standalone mandala SVG, for share cards ─────────────────────────────
 // Renders only the SVG content with no card chrome, background, or HUD.
 // Caller provides the wrapping div and layout.
 export interface MandalaOnlySVGProps {

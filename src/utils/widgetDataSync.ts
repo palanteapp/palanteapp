@@ -5,7 +5,7 @@ import { AFFIRMATIONS } from '../data/affirmations';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // Deterministic start index so the widget begins at the right position in the
-// shuffled batch — advances every hour so the first quote changes each hour.
+// shuffled batch: advances every hour so the first quote changes each hour.
 const hourlyStartIndex = (poolSize: number): number =>
     Math.floor(Date.now() / 3_600_000) % poolSize;
 
@@ -29,7 +29,7 @@ const isPracticeCompleteToday = (user: UserProfile): boolean => {
     return Boolean(morning);
 };
 
-// Seeded LCG random — same seed → same sequence, so each day produces a unique
+// Seeded LCG random: same seed → same sequence, so each day produces a unique
 // but deterministic quote batch. Advancing the seed daily ensures no cross-day repeats.
 function seededRandom(seed: number): () => number {
     let s = (seed ^ 0xDEADBEEF) >>> 0;
@@ -42,14 +42,14 @@ function seededRandom(seed: number): () => number {
 }
 
 function sampleQuotes(count: number, _preference?: string): Array<{ text: string; author: string }> {
-    // Widgets always show Palante affirmations — never external quotes
+    // Widgets always show Palante affirmations: never external quotes
     const pool = [...AFFIRMATIONS];
 
     // Use today's day-number as seed so each day gets a unique, deterministic batch
     const daySeed = Math.floor(Date.now() / 86_400_000);
     const rand = seededRandom(daySeed);
 
-    // Fisher-Yates with seeded random — no repeats across the batch, and
+    // Fisher-Yates with seeded random, no repeats across the batch, and
     // a different order each calendar day
     for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(rand() * (i + 1));

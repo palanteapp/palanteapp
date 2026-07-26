@@ -6,17 +6,23 @@
 
 import { fetchWithTimeout } from './fetchWithTimeout';
 import { isChatLimitReached, recordChatCall, getDailyLimitMessage } from './aiUsageBudget';
+import { assertAIEnabled, isAIDisabledError } from './aiGate';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
-// The proxy validates via the project anon key — no user session needed.
+// The proxy validates via the project anon key: no user session needed.
 // This avoids Capacitor WKWebView issues where getSession() returns null
 // during background/foreground cycles even when the user is authenticated.
+//
+// Every proxy call in this file routes through here, which makes it the choke point
+// for the AI opt-out: assertAIEnabled() throws before any user text leaves the device.
+// Callers already fall back on throw, so opting out degrades to the written content.
 function getProxyHeaders(): HeadersInit {
+    assertAIEnabled();
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (!anonKey) {
-        console.error('[Palante AI] VITE_SUPABASE_ANON_KEY not set — API calls will fail');
+        console.error('[Palante AI] VITE_SUPABASE_ANON_KEY not set. API calls will fail');
         throw new Error('Missing VITE_SUPABASE_ANON_KEY');
     }
     return {
@@ -24,6 +30,37 @@ function getProxyHeaders(): HeadersInit {
         'apikey': anonKey,
     };
 }
+
+/**
+ * Phrases the partner never says, checked against every generated message before it
+ * reaches the user (a hit triggers one retry with an explicit correction).
+ *
+ * Two kinds of entry live here. Most are wellness-industry filler, words that sound
+ * like meaning without carrying any. "the whole practice" is the other kind: a lazy
+ * construction that *asserts* significance instead of showing it, and spends a line
+ * that could have said something true. If a sentence needs to tell the reader that
+ * what they did mattered, it has not yet earned the claim. Say what it did instead.
+ *
+ * Add to this list rather than fixing occurrences one at a time, copy that has been
+ * written once tends to get written again.
+ */
+export const BANNED_PHRASES = [
+    'journey', 'intentional', 'mindful', 'anchor',
+    'show up', 'showed up', 'showing up',
+    'tapestry', 'tether', 'sovereignty',
+    'the whole practice',
+] as const;
+
+/** Growth-story memoirs run longer and drift into brochure language, so they ban more. */
+export const MEMOIR_BANNED_PHRASES = [
+    ...BANNED_PHRASES,
+    'weave', 'manifested', 'transformational', 'incredible',
+] as const;
+
+export const containsBannedPhrase = (text: string, list: readonly string[] = BANNED_PHRASES): boolean => {
+    const lower = text.toLowerCase();
+    return list.some(p => lower.includes(p));
+};
 
 export interface AIAffirmationRequest {
     profession: string;
@@ -75,16 +112,16 @@ export const getMomentumState = (user: UserProfile): MomentumState => {
 };
 
 const MOMENTUM_GUIDANCE: Record<MomentumState, string> = {
-    breakthrough: 'They are in a breakthrough period — deep consistency, high energy, results compounding. Honor the depth of what they are creating.',
+    breakthrough: 'They are in a breakthrough period: deep consistency, high energy, results compounding. Honor the depth of what they are creating.',
     on_a_roll: 'They are building beautiful momentum. Let the message reflect their forward motion and affirm that it is working.',
-    recovering: 'They are finding their way back. Let the message be a warm welcome home — gentle, not a push. No pressure.',
+    recovering: 'They are finding their way back. Let the message be a warm welcome home: gentle, not a push. No pressure.',
     steady: 'They are in a steady, quiet rhythm. Celebrate the underrated power of returning, day after day, without needing it to be dramatic.',
 };
 
 export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountability', string> = {
-    nurturing: `Be warm, patient, and unhurried. Acknowledge how they feel before pointing forward. Lead with care — make them feel seen first. Gentle, not soft. Like the coach who checks in on you as a person, not just a performer.`,
-    direct: `Be honest and clear. No filler, no fluff — but stay warm. Say the real thing plainly. Skip the build-up. Trust them to handle a straight answer. Be the friend who tells the truth because they respect you.`,
-    accountability: `Be firm and high-standard. You see what they're capable of and you won't let them coast. Acknowledge the work but name the gap. No cruelty — but no excuses either. The coach who pushes because they believe in you more than you believe in yourself right now.`,
+    nurturing: `Be warm, patient, and unhurried. Acknowledge how they feel before pointing forward. Lead with care. Make them feel seen first. Gentle, not soft. Like the coach who checks in on you as a person, not just a performer.`,
+    direct: `Be honest and clear. No filler, no fluff, but stay warm. Say the real thing plainly. Skip the build-up. Trust them to handle a straight answer. Be the friend who tells the truth because they respect you.`,
+    accountability: `Be firm and high-standard. You see what they're capable of and you won't let them coast. Acknowledge the work but name the gap. No cruelty, but no excuses either. The coach who pushes because they believe in you more than you believe in yourself right now.`,
 };
 
 import type { ChatMessage, UserProfile, UserVoiceProfile } from '../types';
@@ -152,7 +189,7 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
     const activeGoals = (user.goals || []).filter(g => !g.completedAt).slice(0, 3);
     const totalPractices = user.practiceData?.totalPractices ?? 0;
 
-    // First name only — extract from full name if needed.
+    // First name only: extract from full name if needed.
     const firstName = (user.name || '').trim().split(/\s+/)[0] || 'they';
 
     const contextBlock = [
@@ -193,7 +230,7 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
 
     const prompt = `You are Palante, a personal growth companion. Based on the data below, write a warm 4-5 sentence observation of this specific person's pattern. This will appear on their profile as a personal note from Palante.
 
-Tone: supportive, specific, and human — like a trusted friend who has genuinely been paying attention to how this person actually moves through their weeks. Use second person ("you", "your"). Reference what they've actually been grateful for and intending toward. Make it feel like a real read on this person, not a template that could apply to anyone.
+Tone: supportive, specific, and human, like a trusted friend who has genuinely been paying attention to how this person actually moves through their weeks. Use second person ("you", "your"). Reference what they've actually been grateful for and intending toward. Make it feel like a real read on this person, not a template that could apply to anyone.
 
 ABSOLUTE RULES:
 - 4-5 sentences. No more.
@@ -201,6 +238,7 @@ ABSOLUTE RULES:
 - Never use the person's name in the text. Start with "You're" or "You've".
 - No em dashes (the — character). Use periods and commas only.
 - Never use the words: journey, intentional, mindful, anchor, foundation, tapestry, weave, tether, sovereignty.
+- Never write "the whole practice" or any variant. Do not tell them what they did mattered. Say what it did.
 - Never write something that could apply to any person on any week. Be specific to what their data actually shows.
 
 USER DATA:
@@ -240,11 +278,11 @@ const buildFallbackNarrative = (user: UserProfile): string => {
     const recentGratitude = user.dailyMorningPractice?.[user.dailyMorningPractice.length - 1]?.gratitudes?.[0];
 
     const streakLine = streak > 0
-        ? `You're on a ${streak}-day streak — that kind of consistency builds something real.`
+        ? `You're on a ${streak}-day streak. That kind of consistency builds something real.`
         : `You're finding your way back to your practice, and that return takes courage.`;
 
     const gratitudeLine = recentGratitude
-        ? ` You've been holding onto gratitude for ${recentGratitude} — that kind of awareness is rare and worth honoring.`
+        ? ` You've been holding onto gratitude for ${recentGratitude}. That kind of awareness is rare and worth honoring.`
         : '';
 
     const goalsLine = goals.length
@@ -254,11 +292,18 @@ const buildFallbackNarrative = (user: UserProfile): string => {
     return `${streakLine}${gratitudeLine}${goalsLine}`.replace(/\s+/g, ' ').trim();
 };
 
+/**
+ * Tiers are described structurally (person, sentence length, mood) rather than by naming
+ * people to imitate. The earlier version pointed the model at Buddha, Thich Nhat Hanh,
+ * Marcus Aurelius, Ryan Holiday, and David Goggins, which invited it to reproduce real
+ * authors' phrasing in an app whose whole premise is that it publishes only its own words.
+ * These descriptions match the tier voices documented in src/data/affirmations.ts.
+ */
 const getIntensityDescription = (intensity: 1 | 2 | 3): string => {
     switch (intensity) {
-        case 1: return 'gentle, poetic, and nurturing. Think Buddha, Thich Nhat Hanh - peaceful and affirming.';
-        case 2: return 'direct, clear, and stoic. Think Marcus Aurelius, Ryan Holiday - firm but wise.';
-        case 3: return 'bold, intense, and empowering. Think David Goggins or a high-performance coach - high energy and limitless.';
+        case 1: return 'gentle and inspiring. Second person. Warm, observational, permission-giving. Long enough to breathe.';
+        case 2: return 'clear and focused. First person, as if they are talking to themselves about method. Plain words, no decoration.';
+        case 3: return 'energized and bold. Imperative. Short, physical sentences with no hedging.';
         default: return 'balanced and motivational.';
     }
 };
@@ -280,7 +325,7 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
         : '';
 
     const intentionLine = request.dailyIntention
-        ? `- Today's Intention: "${request.dailyIntention}" — lean into this theme directly`
+        ? `- Today's Intention: "${request.dailyIntention}", lean into this theme directly`
         : '';
     const focusAreasLine = request.focusAreas?.length
         ? `- Focus Areas: ${request.focusAreas.join(', ')}`
@@ -293,7 +338,7 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
     // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
     const coachIdentity = request.coachName?.trim() || 'Palante';
 
-    const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation partner. "Pa'lante" means "para adelante" — strictly forward. Your mission is to help the user move forward with clarity and power.
+    const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation partner. "Pa'lante" means "para adelante", strictly forward. Your mission is to help the user move forward with clarity and power.
 
 Generate a single, powerful affirmation or motivational quote for someone with these characteristics:
 - Profession: ${request.profession || 'General'}
@@ -372,7 +417,7 @@ The author field defaults to ${coachIdentity} unless you are quoting a specific 
             return getFallbackAffirmation(request);
         }
     } catch (error) {
-        console.error('Error calling Anthropic API:', error);
+        if (!isAIDisabledError(error)) console.error('Error calling Anthropic API:', error);
         return getFallbackAffirmation(request);
     }
 };
@@ -400,7 +445,7 @@ Context:
 
 TONE: Be warm, friendly, and professional. NEVER use overly familiar terms like "my love", "dear", "honey". Address them by name or "you".
 
-Be direct and focus on what matters most right now. Respond with ONLY the message — no preamble, no quotation marks around it.
+Be direct and focus on what matters most right now. Respond with ONLY the message. No preamble, no quotation marks around it.
 
 MEDICAL SAFETY GUIDE:
 - Use only motivational language.
@@ -483,7 +528,7 @@ Your job is to hear what is UNDERNEATH it: the single thread that connects what
 they are grateful for, who they say they are, and where they are pointed today${data.commitment ? ' (including the concrete thing they committed to)' : ''}.
 Then give that thread back to them as something larger than what they handed you.
 
-OUTPUT FORMAT — this is critical:
+OUTPUT FORMAT, this is critical:
 The output is the affirmation ONLY, spoken entirely in the user's own
 first-person voice, start to finish. You are invisible in it. Never narrate
 your listening ("I notice," "I see," "I hear you"), never address the user
@@ -506,14 +551,14 @@ into someone else's, yet contain almost none of their own words.
 ABSOLUTE RULES:
 - 40 words MAX (count carefully)
 - ALWAYS write in first person: "I am," "Today I," "I carry," "I know," etc.
-- NEVER write in second person ("you," "your") — this is the user's own voice
+- NEVER write in second person ("you," "your"). This is the user's own voice
 - NEVER quote, restate, or list back their entries. Transform them.
 - NEVER use em dashes (—). Periods and commas only.
 - NEVER use: "journey," "intentional," "mindful," "anchor," "show up," "showed up," "showing up," "tapestry," "sovereignty"
 - No quotation marks around the output
 - Sound grounded and real, not performative
 
-EXAMPLES — study the transformation, never copy the content:
+EXAMPLES. Study the transformation, never copy the content:
 (grateful: coffee with mom, affirmation: I am patient, intention: presence)
 "I was reminded this morning that nothing worth having needs to be rushed. Today I move slowly enough to actually be here for my life."
 (grateful: the deal closed, affirmation: I am a builder, intention: momentum)
@@ -547,7 +592,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
 
         if (!response.ok) {
             const errBody = await response.text().catch(() => '(unreadable)');
-            console.error(`[Palante AI] morning message proxy failed — status ${response.status}:`, errBody);
+            console.error(`[Palante AI] morning message proxy failed, status ${response.status}:`, errBody);
             return null;
         }
 
@@ -573,85 +618,16 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
         if (!message || isSecondPerson(message)) return getFallbackMorningMessage(data);
         return message;
     } catch (error) {
-        console.error('[Palante AI] morning message exception:', error);
+        if (!isAIDisabledError(error)) console.error('[Palante AI] morning message exception:', error);
         return getFallbackMorningMessage(data);
     }
 };
 
 /**
- * Generate a short, quotable Palante affirmation anchored in what the user
- * actually wrote during their morning practice. Used for the garden card on
- * the home screen — should feel like a real quote, not a coaching message.
+ * Removed July 2026: generatePalanteQuote, which wrote the garden affirmation. Its only
+ * caller was App.tsx, which stored the result in localStorage and never rendered it, while
+ * re-requesting it after every practice completion. Deleted with that caller.
  */
-export const generatePalanteQuote = async (data: {
-    gratitudes: string[];
-    affirmations: string[];
-    intention: string;
-    commitment?: string;
-    coachTone?: 'nurturing' | 'direct' | 'accountability';
-    streak?: number;
-}): Promise<string> => {
-    const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
-
-    const contentBlock = [
-        data.gratitudes.length ? `Grateful for: ${data.gratitudes.slice(0, 3).join(', ')}` : '',
-        data.affirmations.length ? `Their own affirmations: ${data.affirmations.slice(0, 3).join(', ')}` : '',
-        data.intention ? `Today's intention: ${data.intention}` : '',
-        data.commitment ? `What they committed to do: ${data.commitment}` : '',
-        data.streak ? `Current streak: ${data.streak} days` : '',
-    ].filter(Boolean).join('\n');
-
-    const prompt = `You are Palante. Based on what this person wrote in their morning practice, write ONE short quote-like affirmation — 8 to 18 words. It should feel like something they could save, share, or return to.
-
-WHAT THEY WROTE:
-${contentBlock}
-
-TONE:
-${toneDirective}
-
-RULES:
-- 8–18 words. No more.
-- Written in second person ("you", "your") OR as a universal present-tense truth.
-- Must feel DIRECTLY connected to what they wrote — not generic.
-- Quotable, specific, resonant. Like a line they'd underline.
-- No em dashes. No colons. Commas and periods only.
-- No quotation marks in the output.
-- NEVER use: "journey," "intentional," "mindful," "anchor," "tapestry," "weave," "sovereignty," "make it count," "you've got this."
-- Do NOT repeat their exact words back verbatim — reframe, distill, elevate.
-
-Write only the affirmation. Nothing else.`;
-
-    try {
-        const response = await fetchWithTimeout(PROXY_URL, {
-            method: 'POST',
-            headers: getProxyHeaders(),
-            body: JSON.stringify({
-                model: ANTHROPIC_MODEL,
-                max_tokens: 100,
-                temperature: 0.85,
-                messages: [{ role: 'user', content: prompt }],
-            }),
-        });
-
-        if (!response.ok) {
-            const errBody = await response.text().catch(() => '(unreadable)');
-            console.error(`[Palante AI] garden affirmation proxy failed — status ${response.status}:`, errBody);
-            return '';
-        }
-
-        const json = await response.json();
-        let text = json.content?.[0]?.text?.trim();
-        if (!text) {
-            console.error('[Palante AI] garden affirmation: empty response', json);
-            return '';
-        }
-        text = text.replace(/^["'']|["'']$/g, '').trim();
-        return text;
-    } catch (error) {
-        console.error('[Palante AI] garden affirmation exception:', error);
-        return '';
-    }
-};
 
 /**
  * Generate a personalized evening reflection message based on GLAD responses.
@@ -680,7 +656,7 @@ export const generateEveningPracticeMessage = async (
         : '';
 
     const commitmentBlock = data.morningCommitment
-        ? `\nWHAT THEY COMMITTED TO THIS MORNING:\n"${data.morningCommitment}"\n${data.commitmentReflection ? `\nHOW IT WENT:\n"${data.commitmentReflection}"` : '\n(No reflection on how it went. Treat this as neutral—maybe they did it, maybe not. Be curious, not assumptive.)'}`
+        ? `\nWHAT THEY COMMITTED TO THIS MORNING:\n"${data.morningCommitment}"\n${data.commitmentReflection ? `\nHOW IT WENT:\n"${data.commitmentReflection}"` : '\n(No reflection on how it went. Treat this as neutral. Maybe they did it, maybe not. Be curious, not assumptive.)'}`
         : '';
 
     const prompt = `You are the evening voice of Palante. A close friend who just listened to this person's day.
@@ -697,7 +673,7 @@ WHAT THEY REFLECTED ON TODAY (G.L.A.D.):
 ${commitmentBlock}
 
 YOUR TASK:
-Read all of it. Find the MOST ALIVE thread—the thing that feels most real and human about their day. Then connect it to ONE other moment from their reflections, so they can feel the shape of the whole day, not just a fragment of it.
+Read all of it. Find the MOST ALIVE thread, the thing that feels most real and human about their day. Then connect it to ONE other moment from their reflections, so they can feel the shape of the whole day, not just a fragment of it.
 
 You are a close friend who was paying attention, not a transcript. Being SEEN
 does not mean having your day read back to you. It means someone noticed what
@@ -713,7 +689,7 @@ Otherwise: respond to what's most alive in the four reflections (G, L, A, or D).
 
 Your job is simple: let them know they were SEEN. Not fixed. Not graded. Seen.
 
-ABSOLUTE RULES — these are non-negotiable:
+ABSOLUTE RULES, these are non-negotiable:
 1. EXACTLY 3 sentences. Count them. If 4, delete one.
 2. NEVER use em dashes (—). Periods and commas only.
 3. NEVER open with their name.
@@ -732,7 +708,7 @@ ABSOLUTE RULES — these are non-negotiable:
 9. No quotation marks anywhere in the output, full stop. Never quote the
    user's own words back to them, even accurately.
 
-EXAMPLES — study how two specifics get touched lightly and then read for meaning, never copy the content:
+EXAMPLES. Study how two specifics get touched lightly and then read for meaning, never copy the content:
 (gratitude: sister called / accomplishment: finished the deck)
 "You closed something out today and someone who loves you called in the middle of it. Work and the people who matter rarely land on the same day. When they do, that is worth noticing."
 (learning: saying no is allowed / delight: kid's joke at dinner)
@@ -765,8 +741,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
         }
         return false;
     };
-    const BANNED_PHRASES = ['journey', 'intentional', 'mindful', 'anchor', 'show up', 'showed up', 'showing up', 'tapestry', 'tether', 'sovereignty'];
-    const hasBannedPhrase = (text: string) => BANNED_PHRASES.some(p => text.toLowerCase().includes(p));
+    const hasBannedPhrase = (text: string) => containsBannedPhrase(text);
 
     const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -806,7 +781,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
 
         if (message && needsRetry(message)) {
             console.warn('[Palante AI] evening message echoed the user\'s words or used a banned phrase, retrying once');
-            message = await requestOnce('IMPORTANT: your previous attempt either quoted/reproduced the user\'s own words directly, or used a banned word (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, tether, sovereignty). Write it again with zero quotation marks, zero verbatim phrases from what they wrote, and none of those banned words, entirely in your own words.');
+            message = await requestOnce('IMPORTANT: your previous attempt either quoted/reproduced the user\'s own words directly, or used a banned word or phrase (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, tether, sovereignty, "the whole practice"). Write it again with zero quotation marks, zero verbatim phrases from what they wrote, and none of those banned words, entirely in your own words.');
         }
 
         if (!message || needsRetry(message)) {
@@ -815,7 +790,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
 
         return message;
     } catch (error) {
-        console.error('Error generating evening message:', error);
+        if (!isAIDisabledError(error)) console.error('Error generating evening message:', error);
         return getFallbackEveningMessage(userName, data);
     }
 };
@@ -843,7 +818,7 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     ] as const).filter(e => e.value).sort((x, y) => y.value!.length - x.value!.length);
 
     if (!ranked.length) {
-        return `You stopped at the end of your day to look at it. That is the whole practice. The kind of attention it takes to do that is not nothing.`;
+        return `You stopped at the end of your day to look at it. Most days get spent without ever being seen. This one did not.`;
     }
 
     const { field } = ranked[0];
@@ -879,7 +854,7 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
     const pool = [
         `You ended today with something worth being grateful for, and you named it. That specific attention at the close of a full day means it mattered, all the way through.`,
         `There is something right about closing a day with your attention on the things worth holding. You did that tonight.`,
-        `You stayed close to what your life is actually made of today. That is the whole practice, and you did it.`,
+        `You stayed close to what your life is actually made of today. Attention like that is what makes a day feel like it belonged to you.`,
     ];
     return pool[seed % pool.length];
 };
@@ -906,7 +881,7 @@ const getSimulatedResponse = (message: string, context: UserContext): string => 
 
     // Generic Friendly / Coaching
     if (lowerMsg.includes('hello') || lowerMsg.includes('hi ') || lowerMsg.includes('hey')) {
-        return `Hey ${context.name}! I'm so glad you reached out. I'm right here—what's on your mind?`;
+        return `Hey ${context.name}! I'm so glad you reached out. I'm right here. What's on your mind?`;
     }
 
     if (lowerMsg.includes('thanks') || lowerMsg.includes('thank you')) {
@@ -924,17 +899,17 @@ const getSimulatedResponse = (message: string, context: UserContext): string => 
  */
 const stripMarkdown = (text: string): string => {
     return text
-        // **bold** and __bold__ — keep inner text
+        // **bold** and __bold__, keep inner text
         .replace(/\*\*([^*]+)\*\*/g, '$1')
         .replace(/__([^_]+)__/g, '$1')
-        // *italic* and _italic_ — keep inner text (single chars only, not paired **)
+        // *italic* and _italic_, keep inner text (single chars only, not paired **)
         .replace(/(^|[^*])\*([^*\n]+)\*([^*]|$)/g, '$1$2$3')
         .replace(/(^|[^_])_([^_\n]+)_([^_]|$)/g, '$1$2$3')
         // Leading bullets at line start: `- foo` or `* foo` → `foo`
         .replace(/^[ \t]*[-*][ \t]+/gm, '')
         // Leading numbered list: `1. foo` → `foo`
         .replace(/^[ \t]*\d+\.[ \t]+/gm, '')
-        // Leading `# `, `## ` headers — just keep the text
+        // Leading `# `, `## ` headers, just keep the text
         .replace(/^[ \t]*#{1,6}[ \t]+/gm, '')
         // Inline code backticks → keep inner text
         .replace(/`([^`]+)`/g, '$1')
@@ -944,18 +919,18 @@ const stripMarkdown = (text: string): string => {
 };
 
 /**
- * Generate the "continuity opener" — the single line the partner uses to greet a
+ * Generate the "continuity opener", the single line the partner uses to greet a
  * returning user by gently calling back to something they shared in a PAST
  * conversation. This is the moment that makes the remembering feel real: instead
  * of "What's on your mind?", the partner opens with "A while back you mentioned
- * the thing with your brother — has that settled?"
+ * the thing with your brother: has that settled?"
  *
  * Craft rules (the difference between magic and creepy) are enforced in the
  * prompt: exactly one callback, decay with age, never fabricate a detail, and a
  * "NONE" escape hatch when nothing is substantial enough to warrant a callback.
  *
  * Returns the callback line WITHOUT a "Hey {name}" prefix (the caller adds that),
- * or null when there is nothing worth recalling / on any failure — callers fall
+ * or null when there is nothing worth recalling / on any failure, callers fall
  * back to the generic greeting. Precompute this once per day and cache it; it is
  * one Haiku call and is counted against the same daily chat budget as a turn.
  */
@@ -964,7 +939,7 @@ export const generateContinuityOpener = async (
     userName: string,
     coachName?: string,
 ): Promise<string | null> => {
-    // Only real conversation memories earn a callback — thin/empty entries don't.
+    // Only real conversation memories earn a callback, thin/empty entries don't.
     const realMemories = memories.map(m => m?.trim()).filter((m): m is string => !!m && m.length > 15);
     if (realMemories.length === 0) return null;
 
@@ -977,21 +952,21 @@ export const generateContinuityOpener = async (
 
     const prompt = `You are ${coachIdentity}, ${firstName}'s personal growth partner. ${firstName} is opening a new conversation with you right now. Below are things ${firstName} shared with you in PAST conversations, newest first.
 
-Write ONE short opening line that gently calls back to the single most meaningful, still-open thing — a feeling they named, a situation they were working through, a person who matters to them. The goal is for ${firstName} to feel genuinely remembered, the way a close friend remembers.
+Write ONE short opening line that gently calls back to the single most meaningful, still-open thing: a feeling they named, a situation they were working through, a person who matters to them. The goal is for ${firstName} to feel genuinely remembered, the way a close friend remembers.
 
 PAST MEMORIES (newest first):
 ${realMemories.slice(0, 10).map(m => `- ${m}`).join('\n')}
 
 RULES:
 - ONE callback only. Pick the single most emotionally resonant, still-unresolved thread and ignore the rest. Do not list or stack multiple memories.
-- Lead with warmth. This line is an act of care — a friend who is glad they came back and remembers what mattered to them. Make them feel held and quietly rooted for. Invite, never interrogate; a soft question is welcome but optional.
+- Lead with warmth. This line is an act of care, a friend who is glad they came back and remembers what mattered to them. Make them feel held and quietly rooted for. Invite, never interrogate; a soft question is welcome but optional.
 - Decay with age: the memories are newest first. If you reach for an older one, soften the time ("a while back…", "a bit ago…") rather than implying it just happened.
-- NEVER invent or assume. Use only what is explicitly written above. If you are unsure of a name or detail, stay general — a wrong detail breaks trust far worse than a soft one. Better vague-and-true than specific-and-wrong.
-- Do NOT open with "Hey ${firstName}" or any greeting word — that is added separately. Start directly with the callback.
+- NEVER invent or assume. Use only what is explicitly written above. If you are unsure of a name or detail, stay general. A wrong detail breaks trust far worse than a soft one. Better vague-and-true than specific-and-wrong.
+- Do NOT open with "Hey ${firstName}" or any greeting word. That is added separately. Start directly with the callback.
 - If none of these memories are substantial enough for a natural, caring callback (they are logistical, vague, or trivial), reply with exactly: NONE
 - Plain prose. No markdown, no surrounding quotes. Under 30 words.
 
-REGISTER — always, no matter what: warm, supportive, and encouraging. Even when calling back to something hard, your belief in ${firstName} and your gladness that they are here comes through first. Never clinical, never probing, never a performance review. Just a partner who genuinely cares.`;
+REGISTER, always, no matter what: warm, supportive, and encouraging. Even when calling back to something hard, your belief in ${firstName} and your gladness that they are here comes through first. Never clinical, never probing, never a performance review. Just a partner who genuinely cares.`;
 
     try {
         const res = await fetchWithTimeout(PROXY_URL, {
@@ -1030,7 +1005,7 @@ export const chatWithCoach = async (
 ): Promise<string> => {
     // Daily cost guardrail: partner chat is the only unbounded AI vector. Once a
     // user hits the daily ceiling, return a warm sign-off instead of calling the
-    // API — protects margins without ever touching normal use. See aiUsageBudget.
+    // API: protects margins without ever touching normal use. See aiUsageBudget.
     if (isChatLimitReached()) {
         return getDailyLimitMessage(context.name);
     }
@@ -1040,7 +1015,7 @@ export const chatWithCoach = async (
     const intensityDesc = getIntensityDescription(context.quoteIntensity);
     const timeOfDay = new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening';
 
-    // Construct Memory Block — all blocks are trimmed to bound token cost per call.
+    // Construct Memory Block: all blocks are trimmed to bound token cost per call.
     const trunc = (s: string, n: number) => s.length > n ? s.slice(0, n) + '…' : s;
 
     const journalMemory = context.recentJournalEntries?.length
@@ -1079,7 +1054,7 @@ export const chatWithCoach = async (
     const { buildHealthPromptBlock } = await import('./healthService');
     const healthBlock = context.healthContext ? buildHealthPromptBlock(context.healthContext) : '';
 
-    // Construct System Prompt — sent as Anthropic's top-level `system` field, not as a user message.
+    // Construct System Prompt: sent as Anthropic's top-level `system` field, not as a user message.
     const bioBlock = context.bio
         ? `\nABOUT THIS PERSON (in their own words):\n${context.bio}`
         : '';
@@ -1116,7 +1091,7 @@ GOAL:
 Build a genuine connection. Be a supportive presence. Use their history to provide more personalized, insightful guidance. Only transition to "coaching" once you've truly listened.
 
 FORMATTING:
-- Plain prose only. NEVER use markdown — no asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
+- Plain prose only. NEVER use markdown. No asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
 - Write the way you would text a close friend. Short paragraphs. Real sentences.
 - If you want to emphasize a question or idea, do it through phrasing, not punctuation.
 
@@ -1124,13 +1099,13 @@ MEDICAL SAFETY GUIDE:
 - You are a wellness companion, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
-- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
+- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion, not a substitute for professional mental health support, and provide the 988 crisis line (call or text).`;
 
     // Build threaded history for Anthropic.
     // - Filter out init-greeting messages.
     // - Take the last 10 turns for context.
     // - Drop the last message if it's the current user message (avoid duplication with `message`).
-    // - Anthropic requires strict user/assistant alternation starting with user — collapse any
+    // - Anthropic requires strict user/assistant alternation starting with user, collapse any
     //   consecutive same-role messages by joining with a newline.
     const cleanHistory = history
         .filter(msg => !msg.id?.startsWith('init-'))
@@ -1190,7 +1165,7 @@ MEDICAL SAFETY GUIDE:
         return stripMarkdown(text);
 
     } catch (error) {
-        console.error('Error calling Anthropic Chat:', error);
+        if (!isAIDisabledError(error)) console.error('Error calling Anthropic Chat:', error);
         return getSimulatedResponse(message, context);
     }
 };
@@ -1205,10 +1180,10 @@ const PILLAR_SYSTEM_PROMPTS: Record<CoachPillarKey, string> = {
 The user has come to you specifically because they are dealing with anxiety, worry, or overwhelm.
 
 YOUR APPROACH:
-- Lead with calm, grounded empathy. Match their energy — do NOT be overly cheerful.
+- Lead with calm, grounded empathy. Match their energy. Do NOT be overly cheerful.
 - Your first goal is always to help them feel heard and safe before offering any tools or advice.
 - Use evidence-backed CBT and mindfulness-adjacent techniques when appropriate (breathing, grounding, cognitive reframing).
-- Offer gentle, concrete micro-actions — nothing overwhelming.
+- Offer gentle, concrete micro-actions. Nothing overwhelming.
 - Remind them that anxiety is information, not a verdict.
 - Reference their recent journal entries or energy data if relevant.
 
@@ -1223,13 +1198,13 @@ YOUR APPROACH:
 - Offer specific, science-backed strategies: timed focus intervals, single-tasking, environment design, reducing friction.
 - Help them identify and remove the root obstacle to their focus (fear of failure? perfectionism? unclear priorities?).
 - Reference their current goals and energy level if available.
-- Be direct and practical — they need a plan, not just encouragement.
+- Be direct and practical. They need a plan, not just encouragement.
 
 NEVER: be vague or fluffy. They chose Focus because they need real help cutting through the noise.
 TONE: Crisp, efficient, warm-but-direct. Like a high-performance coach who respects their time.`,
 
     motivation: `You are Palante, operating specifically as a motivation and momentum guide.
-The user has come to you because their drive is low — they may feel stuck, uninspired, or disconnected from their why.
+The user has come to you because their drive is low. They may feel stuck, uninspired, or disconnected from their why.
 
 YOUR APPROACH:
 - Start by uncovering WHY their motivation has dipped. Is it burnout? Unclear goals? Lack of progress visibility?
@@ -1237,40 +1212,40 @@ YOUR APPROACH:
 - Use identity-based framing ("You're the kind of person who...") to re-anchor their self-concept.
 - Offer one concrete action they can take in the next 10 minutes to build momentum.
 - Celebrate any recent wins in their data (streak, goals completed, journal highlights).
-- Be energizing without being hollow — no empty hype.
+- Be energizing without being hollow. No empty hype.
 
 NEVER: give generic "you got this!" platitudes. They want to feel it, not just hear it.
 TONE: Igniting, purposeful, real. Like someone who genuinely believes in them and has the receipts to prove it.`,
 
     setbacks: `You are Palante, operating specifically as a resilience and recovery guide.
-The user has come to you after a setback — a failure, a rough day, a disappointment, or a knock to their confidence.
+The user has come to you after a setback: a failure, a rough day, a disappointment, or a knock to their confidence.
 
 YOUR APPROACH:
 - Open with full acknowledgment. Do NOT rush past the pain. Sit with them in it first.
-- Normalize the setback — even the most successful people face these moments.
+- Normalize the setback. Even the most successful people face these moments.
 - Help them extract the lesson without toxic positivity ("everything happens for a reason" is off-limits).
 - When they're ready, gently shift to a forward frame: what is ONE small thing they can control right now?
 - Reference any past wins in their data as evidence of their resilience.
-- Remind them that pa'lante — forward — doesn't mean pretending the fall didn't happen.
+- Remind them that pa'lante, forward, doesn't mean pretending the fall didn't happen.
 
 NEVER: rush to silver linings, dismiss their pain, or make them feel weak for struggling.
 TONE: Grounded, compassionate, honest. Like a friend who has been through hard things and made it.`,
 
     open: `You are Palante, a warm, nurturing, and deeply supportive friend and mentor.
-The user has come for an open conversation — no specific agenda.
+The user has come for an open conversation with no specific agenda.
 
 YOUR APPROACH:
 - Be curious and open. Let them lead. Ask a good question first.
 - Listen actively. Reference their context naturally (energy, journal, goals).
 - Only offer tools or advice once they've felt genuinely heard.
-- Match their emotional register — don't project energy they haven't shown.
+- Match their emotional register. Don't project energy they haven't shown.
 
 TONE: Conversational, human, patient. Like a trusted friend who happens to be a great coach.`,
 };
 
 /**
  * Chat with Palante using a pillar-specific system prompt.
- * Drops straight into the chat — no separate intro card.
+ * Drops straight into the chat: no separate intro card.
  */
 export const chatWithCoachPillar = async (
     message: string,
@@ -1278,7 +1253,7 @@ export const chatWithCoachPillar = async (
     context: UserContext,
     pillar: CoachPillarKey
 ): Promise<string> => {
-    // Same daily cost guardrail as chatWithCoach — see aiUsageBudget.
+    // Same daily cost guardrail as chatWithCoach: see aiUsageBudget.
     if (isChatLimitReached()) {
         return getDailyLimitMessage(context.name);
     }
@@ -1332,7 +1307,7 @@ STYLE: ${intensityDesc}
 RESPONSE LENGTH: Keep responses focused and conversational. Under 120 words unless the user asks for something detailed.
 
 FORMATTING:
-- Plain prose only. NEVER use markdown — no asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
+- Plain prose only. NEVER use markdown. No asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
 - Write the way you would text a close friend. Short paragraphs. Real sentences.
 - If you want to emphasize a question or idea, do it through phrasing, not punctuation.
 
@@ -1340,9 +1315,9 @@ MEDICAL SAFETY GUIDE:
 - You are a wellness companion, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
-- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion — not a substitute for professional mental health support — and provide the 988 crisis line (call or text).`;
+- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion, not a substitute for professional mental health support, and provide the 988 crisis line (call or text).`;
 
-    // Build threaded history for Anthropic — same shape as chatWithCoach.
+    // Build threaded history for Anthropic: same shape as chatWithCoach.
     const cleanHistoryPillar = history
         .filter(msg => !msg.id?.startsWith('init-'))
         .slice(-6);
@@ -1397,7 +1372,7 @@ MEDICAL SAFETY GUIDE:
         return stripMarkdown(text);
 
     } catch (error) {
-        console.error('Error calling Anthropic Pillar Chat:', error);
+        if (!isAIDisabledError(error)) console.error('Error calling Anthropic Pillar Chat:', error);
         return getSimulatedResponse(message, context);
     }
 };
@@ -1585,7 +1560,7 @@ TONE:
         }
 
     } catch (error) {
-        console.error("Reflection Analysis Error", error);
+        if (!isAIDisabledError(error)) console.error("Reflection Analysis Error", error);
         return getFallbackReflectionAnalysis();
     }
 };
@@ -1687,7 +1662,7 @@ function computePatternFacts(user: UserProfile): PatternFact[] {
 const buildFallbackInsight = (facts: PatternFact[]): { insight: string; dataPoint: string } | null => {
     const mostActive = facts.find(f => f.label === 'most_active_day');
     if (mostActive) return {
-        insight: `Your practice naturally gravitates toward ${mostActive.value}s — your most consistent day of the month.`,
+        insight: `Your practice naturally gravitates toward ${mostActive.value}s, your most consistent day of the month.`,
         dataPoint: mostActive.value,
     };
     const highEnergy = facts.find(f => f.label === 'highest_energy_day');
@@ -1717,7 +1692,7 @@ export const generateMonthlyPatternInsight = async (
 
     const factsText = facts.map(f => `- ${f.label}: ${f.value} (${f.dataPoint})`).join('\n');
 
-    const prompt = `You have 30 days of behavioral data for a wellness app user. Pick the ONE most interesting, specific, and surprising pattern — something they might not have consciously noticed.
+    const prompt = `You have 30 days of behavioral data for a wellness app user. Pick the ONE most interesting, specific, and surprising pattern, something they might not have consciously noticed.
 
 DATA:
 ${factsText}
@@ -1843,7 +1818,7 @@ No quotation marks anywhere in the output. Never quote their own words back to t
 
 const buildWeeklyReflectionFallback = (accomplishments: string[], _firstName: string): string => {
     if (accomplishments.length === 0) return "You stayed in it this week. That's the whole game.";
-    if (accomplishments.length === 1) return `You got it done — ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. One win is enough to build on. Keep going.`;
+    if (accomplishments.length === 1) return `You got it done. ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. One win is enough to build on. Keep going.`;
     return `You held your ground this week, took care of what needed taking care of, and kept moving. Every one of these wins is evidence of someone who follows through. Keep going.`;
 };
 
@@ -1918,7 +1893,7 @@ const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
 };
 
 /**
- * Generates the Day 90 Growth Story — a personal memoir synthesized from
+ * Generates the Day 90 Growth Story: a personal memoir synthesized from
  * the user's actual intentions, gratitudes, evening reflections, and letter to self.
  */
 export const generateGrowthStory = async (data: GrowthStoryData): Promise<GrowthStory> => {
@@ -1934,7 +1909,7 @@ export const generateGrowthStory = async (data: GrowthStoryData): Promise<Growth
     };
 
     const fallbackMemoir = buildGrowthStoryFallback(data);
-    // Build a curated data snapshot — first 3 + last 3 morning practices
+    // Build a curated data snapshot: first 3 + last 3 morning practices
     const all = morningPractices;
     const earliest = all.slice(0, 3);
     const latest = all.slice(-3);
@@ -1965,7 +1940,7 @@ export const generateGrowthStory = async (data: GrowthStoryData): Promise<Growth
         accountability: 'High-standard and proud. You name what they built with the full weight of what that took.',
     };
 
-    const prompt = `You are writing a personal memoir for someone who just completed 90 days of a growth practice called Palante. This will be the first thing they read after their Full Bloom ceremony. It should feel like reading a short story about themselves — specific, earned, true.
+    const prompt = `You are writing a personal memoir for someone who just completed 90 days of a growth practice called Palante. This will be the first thing they read after their Full Bloom ceremony. It should feel like reading a short story about themselves: specific, earned, true.
 
 THEIR JOURNEY DATA:
 
@@ -2000,14 +1975,15 @@ Write a memoir of 5 to 7 sentences. Rules:
    sentences back to them reads like a report, not a story. The detail should
    feel remembered, not retrieved.
 4. If a letter exists, reference it: they wrote something to themselves then, and this is that day arriving.
-5. End with one sentence that looks forward without pressure — it should feel like a completion, not a launchpad.
+5. End with one sentence that looks forward without pressure. It should feel like a completion, not a launchpad.
 6. Speak directly to them ("you", "your"). Never write in third person.
 7. No em dashes. No bullet points. No headers. One flowing paragraph.
 8. NEVER use these words: journey, intentional, mindful, anchor, show up, showed up, showing up, tapestry, weave, tether, manifested, sovereignty, transformational, incredible.
+9. NEVER write "the whole practice" or any variant of it. Never assert that something mattered or was enough; show what it did instead.
 9. No quotation marks anywhere in the output. Never quote the user's own words, even accurately.
 10. HARD LIMIT: Under 150 words total.
 
-Write the memoir now — no preamble:`;
+Write the memoir now, with no preamble:`;
 
     // Same anti-echo guard as the daily practice messages: catch quoting or
     // verbatim reproduction of the user's own gratitude/delight/accomplishment
@@ -2032,9 +2008,8 @@ Write the memoir now — no preamble:`;
         }
         return false;
     };
-    const BANNED_PHRASES = ['journey', 'intentional', 'mindful', 'anchor', 'show up', 'showed up', 'showing up', 'tapestry', 'weave', 'tether', 'manifested', 'sovereignty', 'transformational', 'incredible'];
-    const hasBannedPhrase = (text: string) => BANNED_PHRASES.some(p => text.toLowerCase().includes(p));
-    // Generous buffer over the prompt's 150-word hard limit — this only
+    const hasBannedPhrase = (text: string) => containsBannedPhrase(text, MEMOIR_BANNED_PHRASES);
+    // Generous buffer over the prompt's 150-word hard limit. This only
     // catches a genuinely runaway response, not word-count off-by-a-few.
     const isTooLong = (text: string) => text.split(/\s+/).filter(Boolean).length > 200;
     const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text) || hasBannedPhrase(text) || isTooLong(text);
@@ -2063,7 +2038,7 @@ Write the memoir now — no preamble:`;
 
         if (memoir && needsRetry(memoir)) {
             console.warn('[Palante AI] growth story memoir echoed the user\'s words, used a banned phrase, or ran too long, retrying once');
-            memoir = await requestOnce('IMPORTANT: your previous attempt quoted/reproduced the user\'s own words, used a banned word (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, weave, tether, manifested, sovereignty, transformational, incredible), or exceeded 150 words. Write it again under 150 words, with zero quotation marks, zero verbatim phrases from their data, and none of those banned words, entirely in your own words.');
+            memoir = await requestOnce('IMPORTANT: your previous attempt quoted/reproduced the user\'s own words, used a banned word or phrase (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, weave, tether, manifested, sovereignty, transformational, incredible, "the whole practice"), or exceeded 150 words. Write it again under 150 words, with zero quotation marks, zero verbatim phrases from their data, and none of those banned words, entirely in your own words.');
         }
 
         if (!memoir || needsRetry(memoir)) {

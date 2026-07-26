@@ -57,11 +57,11 @@ export const shareElementAsImage = async (
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Canvas-based quote share image
-// Draws directly via Canvas 2D API — no html2canvas, no DOM capture,
+// Draws directly via Canvas 2D API: no html2canvas, no DOM capture,
 // works 100% reliably in Capacitor/WKWebView.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Deterministic PRNG — same algorithm as DashboardQuoteCard + SharedQuotePreview
+// Deterministic PRNG: same algorithm as DashboardQuoteCard + SharedQuotePreview
 const getRand = (s: string, i: number): number => {
     let hash = 0;
     for (let j = 0; j < s.length; j++) hash = ((hash << 5) - hash) + s.charCodeAt(j);
@@ -69,7 +69,7 @@ const getRand = (s: string, i: number): number => {
     return x - Math.floor(x);
 };
 
-// Earthy palette — matches the home card exactly
+// Earthy palette: matches the home card exactly
 const COLORS = ['#F59E0B', '#E5D6A7', '#C96A3A', '#415D43', '#879582'];
 
 function wrapText(
@@ -97,7 +97,7 @@ function roundedRect(
     ctx: CanvasRenderingContext2D,
     x: number, y: number, w: number, h: number, r: number,
 ) {
-    // Cap radius so corners never overlap — beyond half the shortest side produces sharp artifacts
+    // Cap radius so corners never overlap: beyond half the shortest side produces sharp artifacts
     r = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -133,7 +133,7 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
             document.fonts.load('800 30px Inter'),
             document.fonts.load('600 20px Inter'),
         ]);
-    } catch { /* no network — falls back to system sans-serif */ }
+    } catch { /* no network, falls back to system sans-serif */ }
     await document.fonts.ready;
     const logoImg = await logoPromise;
 
@@ -156,7 +156,7 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
 
-    // Art blobs — scaled from the 400×520 SVG viewBox to 1080×1920
+    // Art blobs: scaled from the 400×520 SVG viewBox to 1080×1920
     for (let i = 1; i <= 5; i++) {
         const cx    = 50  + getRand(seed, i * 10) * 980;
         const cy    = 50  + getRand(seed, i * 20) * 1820;
@@ -222,7 +222,7 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
     roundedRect(ctx, CARD_MX, cardY, cardW, cardH, 48);
     ctx.fill();
 
-    // ── 5. Logo badge — dark-green circle overlapping top of card (matches preview) ──
+    // ── 5. Logo badge, dark-green circle overlapping top of card (matches preview) ──
     const badgeR  = 54;
     const badgeCX = W / 2;
     const badgeCY = cardY;
@@ -238,13 +238,13 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
     ctx.fill();
     ctx.restore();
 
-    // Badge fill — dark green to match SharedQuotePreview
+    // Badge fill: dark green to match SharedQuotePreview
     ctx.fillStyle = '#355E3B';
     ctx.beginPath();
     ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Logo image centered inside badge — preserve natural aspect ratio so it never squishes
+    // Logo image centered inside badge: preserve natural aspect ratio so it never squishes
     if (logoImg && logoImg.naturalWidth > 0) {
         const maxLogoSize = badgeR * 1.05;
         const aspect = logoImg.naturalWidth / logoImg.naturalHeight;
@@ -296,20 +296,20 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
         ctx.fillText(quote.author.toUpperCase(), W / 2, dividerY + 20);
     }
 
-    // ── 8. Branding — sits directly below the quote card so it's never cropped ──
+    // ── 8. Branding, sits directly below the quote card so it's never cropped ──
     const brandingY = cardY + cardH + 52;
 
     ctx.font         = '600 22px Inter, sans-serif';
     ctx.fillStyle    = 'rgba(253,251,247,0.5)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('FORWARD, TOGETHER — EVERY SINGLE DAY', W / 2, brandingY);
+    ctx.fillText('FORWARD, TOGETHER. EVERY SINGLE DAY.', W / 2, brandingY);
 
     ctx.font      = '800 34px Inter, sans-serif';
     ctx.fillStyle = 'rgba(253,251,247,0.88)';
     ctx.fillText('@PALANTE.APP', W / 2, brandingY + 46);
 
-    // JPEG 92% — smaller than PNG, perfect for social upload
+    // JPEG 92%, smaller than PNG, perfect for social upload
     return canvas.toDataURL('image/jpeg', 0.92);
 }
 
@@ -355,7 +355,7 @@ export async function generateWeeklyReflectionShareImage(
     canvas.height = H;
     const ctx = canvas.getContext('2d')!;
 
-    // ── 1. Background — same earthy blob treatment as quote card ────────────
+    // ── 1. Background, same earthy blob treatment as quote card ────────────
     ctx.fillStyle = '#415D43';
     ctx.fillRect(0, 0, W, H);
 
@@ -415,7 +415,7 @@ export async function generateWeeklyReflectionShareImage(
     roundedRect(ctx, CARD_MX, cardY, cardW, cardH, 48);
     ctx.fill();
 
-    // ── 4. Logo badge — identical to generateShareImage ─────────────────────
+    // ── 4. Logo badge, identical to generateShareImage ─────────────────────
     const badgeR  = 54;
     const badgeCX = W / 2;
     const badgeCY = cardY;
@@ -486,14 +486,14 @@ export async function generateWeeklyReflectionShareImage(
     ctx.textBaseline = 'top';
     ctx.fillText(dateRange.toUpperCase(), W / 2, dividerY + 28);
 
-    // ── 8. Branding — same position as quote card ────────────────────────────
+    // ── 8. Branding, same position as quote card ────────────────────────────
     const brandingY = cardY + cardH + 52;
 
     ctx.font         = '600 22px Inter, sans-serif';
     ctx.fillStyle    = 'rgba(253,251,247,0.5)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('FORWARD, TOGETHER — EVERY SINGLE DAY', W / 2, brandingY);
+    ctx.fillText('FORWARD, TOGETHER. EVERY SINGLE DAY.', W / 2, brandingY);
 
     ctx.font      = '800 34px Inter, sans-serif';
     ctx.fillStyle = 'rgba(253,251,247,0.88)';
@@ -504,7 +504,7 @@ export async function generateWeeklyReflectionShareImage(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Canvas-based milestone share image
-// Replaces html2canvas capture — works reliably in Capacitor/WKWebView.
+// Replaces html2canvas capture: works reliably in Capacitor/WKWebView.
 // ─────────────────────────────────────────────────────────────────────────────
 
 function drawTrophyOnCanvas(
@@ -755,7 +755,7 @@ export async function saveMilestoneToPhotos(params: {
             directory: Directory.Cache,
         });
 
-        // iOS: share sheet with file — user taps "Save Image" to send to Camera Roll
+        // iOS: share sheet with file, user taps "Save Image" to send to Camera Roll
         await Share.share({
             title: params.title,
             text: 'Save your Palante milestone',
@@ -808,13 +808,13 @@ export async function shareMilestoneAsImage(params: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Streak share card — drawn entirely with Canvas 2D (no html2canvas).
+// Streak share card: drawn entirely with Canvas 2D (no html2canvas).
 // html2canvas fails silently on elements inside position:fixed modals in
 // WKWebView, which is exactly where SharedStreakCard lives. Direct canvas
 // drawing is the only reliable path.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Full palette per cycle — mirrors SharedStreakCard's BG_COLORS exactly
+// Full palette per cycle: mirrors SharedStreakCard's BG_COLORS exactly
 const STREAK_CARD_PAL = [
     { bg0: '#1A3320', bg1: '#243D2A', T: '#C96A3A', G: '#E5D6A7', S: '#415D43', story0: '#1A3320', story1: '#0F1E13' },
     { bg0: '#12103A', bg1: '#1A1B42', T: '#6B4FBB', G: '#C5C0F0', S: '#2D3E6B', story0: '#12103A', story1: '#0A0922' },
@@ -856,7 +856,7 @@ async function generateStreakStoryImage(params: {
         ? `Garden started · ${remaining} petals to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`
         : `${outerPetals} petal${outerPetals !== 1 ? 's' : ''} earned · ${remaining} to full bloom${cycle > 0 ? ` · cycle ${cycle + 1}` : ''}`;
 
-    // Canvas — 1080×1920 Instagram Stories format
+    // Canvas: 1080×1920 Instagram Stories format
     const W = 1080, H = 1920;
     // Card is 3× the 200×356 CSS card
     const CW = 600, CH = 1068, CR = 48;
@@ -963,7 +963,7 @@ async function generateStreakStoryImage(params: {
 
     // ── Mandala SVG ──────────────────────────────────────────────────────────
     // Grab the live SVG rendered in the ShareModal, serialize to data URL,
-    // and draw it on canvas — more reliable than html2canvas in WKWebView.
+    // and draw it on canvas: more reliable than html2canvas in WKWebView.
     const svgEl = document.querySelector('#streak-share-card svg') as SVGElement | null;
     // Match DOM card: mandala container is full card width × 210/356 of card height
     const MANDALA_SIZE = CW;
@@ -1050,7 +1050,7 @@ async function generateStreakStoryImage(params: {
     ctx.font        = '500 14px Inter, sans-serif';
     ctx.fillStyle   = '#FFFFFF';
     ctx.globalAlpha = 0.65;
-    ctx.fillText('FORWARD, TOGETHER — EVERY SINGLE DAY', INFO_X + INFO_W / 2, curY);
+    ctx.fillText('FORWARD, TOGETHER. EVERY SINGLE DAY.', INFO_X + INFO_W / 2, curY);
     ctx.globalAlpha = 1;
 
     const base64   = canvas.toDataURL('image/jpeg', 0.93).split(',')[1];

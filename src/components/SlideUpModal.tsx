@@ -110,7 +110,7 @@ export const SlideUpModal: React.FC<SlideUpModalProps> = ({
                     `}
                     onClick={(e) => e.stopPropagation()}
                 >
-                    {/* Art background — seed-of-life sacred geometry */}
+                    {/* Art background: seed-of-life sacred geometry */}
                     {!className && (
                         <svg
                             xmlns="http://www.w3.org/2000/svg"

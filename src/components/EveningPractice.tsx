@@ -30,11 +30,11 @@ interface EveningPracticeProps {
 }
 
 export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, isDarkMode, existingPractice, userName, todayMorningCommitment, todayMorningIntention, userVoiceProfile, onStepChange, coachName }) => {
-    const contentRef = useAutoScroll();
+    const _contentRef = useAutoScroll();
 
     const commitmentText = todayMorningCommitment?.trim() || '';
     const intentionText = todayMorningIntention?.trim() || '';
-    // Commitment check-in step is intentionally disabled — evening flows straight to GLAD.
+    // Commitment check-in step is intentionally disabled, evening flows straight to GLAD.
     // morningCommitment is still forwarded to the AI for message context (line 88).
     const hasCommitment = false;
     void commitmentText; void intentionText; // suppress unused-var warnings
@@ -208,7 +208,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
             </div>
 
             <p className={`mt-3 text-xs uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
-                Optional — share as much or as little as you want
+                Optional. Share as much or as little as you want
             </p>
 
             <div className="flex gap-3 mt-8">
@@ -333,7 +333,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
             : 'bg-gradient-to-br from-white to-sage/5 border-sage/20 shadow-sm'
             }`}>
 
-            {/* Background Decor — unified with morning's pale-gold/sage palette (not purple/indigo). */}
+            {/* Background Decor: unified with morning's pale-gold/sage palette (not purple/indigo). */}
             <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-20 ${isDarkMode ? 'bg-pale-gold' : 'bg-sage'}`} />
 
             <div className={`transition-opacity duration-300 ${isAnimating ? 'opacity-0' : 'opacity-100'}`}>

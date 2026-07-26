@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
     Send, Bot, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
-    Zap, Flame, Mountain, Wind, Home, TrendingUp, Wrench, MessageSquare, History, User, Star, Trash2, Brain,
+    Zap, Flame, Mountain, Wind, Trash2, Brain,
     Volume2, Loader2
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
+import { CrisisResourceCard } from './CrisisResourceCard';
+import { detectCrisisSignal, type CrisisSignal } from '../utils/crisisDetection';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
 import { speak, stopSpeaking } from '../utils/ttsService';
 import { getHealthContext } from '../utils/healthService';
 import type { HealthContext } from '../utils/healthService';
 import type { CoachPillarKey } from '../utils/aiService';
-import type { UserProfile, ChatMessage, CoachSession, CoachPillar } from '../types';
+import type { UserProfile, ChatMessage, CoachSession, CoachPillar, PrimaryIntent } from '../types';
 import { canUseAI } from '../types';
 import { haptics } from '../utils/haptics';
 import { STORAGE_KEYS } from '../constants/storageKeys';
@@ -20,19 +22,6 @@ import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
 import { extractAndSaveMemories } from '../utils/memoryService';
 import { useContinuityOpener, readCachedOpener } from '../hooks/useContinuityOpener';
 import { Capacitor } from '@capacitor/core';
-
-// ── Speech recognition type ──────────────────────────────────────────────────
-interface SpeechRecognitionInstance {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    onstart: (() => void) | null;
-    onresult: ((e: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
-    onerror: (() => void) | null;
-    onend: (() => void) | null;
-    start: () => void;
-    stop: () => void;
-}
 
 interface CoachViewProps {
     user: UserProfile;
@@ -66,7 +55,7 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
         glowColor: '#E5D6A7',
         textColor: '#1F3824',
-        greeting: "I'm here with you. Take a breath — let's slow down together. What's weighing on you right now?",
+        greeting: "I'm here with you. Take a breath. Let's slow down together. What's weighing on you right now?",
     },
     {
         key: 'motivation',
@@ -78,7 +67,7 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
         glowColor: '#E5D6A7',
         textColor: '#1F3824',
-        greeting: "The drive will come back — I promise. But first, tell me: when did you last feel truly fired up? What was different then?",
+        greeting: "The drive will come back. I promise. But first, tell me: when did you last feel truly fired up? What was different then?",
     },
     {
         key: 'setbacks',
@@ -90,9 +79,39 @@ const PILLAR_CONFIGS: PillarConfig[] = [
         iconBg: (d) => d ? '#E5D6A7' : '#E5D6A7',
         glowColor: '#E5D6A7',
         textColor: '#1F3824',
-        greeting: "I'm glad you came here. Whatever happened — it doesn't define you. Tell me what's going on. I'm listening.",
+        greeting: "I'm glad you came here. Whatever happened, it doesn't define you. Tell me what's going on. I'm listening.",
     },
 ];
+
+/**
+ * First-session starter prompts, keyed to the intent the user picked in onboarding. These
+ * are the answering half of INTENT_GREETINGS in startPillarSession: the greeting asks why
+ * they came, these give three ways to start answering. From session two on, the rotating
+ * pool in the chat view takes over, since by then time of day and today's intention say
+ * more than a choice made once during signup.
+ */
+const INTENT_PROMPTS: Partial<Record<PrimaryIntent, string[]>> = {
+    consistency: [
+        "What's been getting in the way of me showing up?",
+        "How do I build a streak that actually sticks?",
+        "What's the smallest practice I can commit to right now?",
+    ],
+    clarity: [
+        "I'm feeling scattered. Help me find my focus.",
+        "What should I actually be working on right now?",
+        "I have too many priorities. Where do I start?",
+    ],
+    stress: [
+        "I'm overwhelmed right now. Where do I begin?",
+        "What's the quickest way to feel less anxious?",
+        "I need to get out of my head. Can you help?",
+    ],
+    purpose: [
+        "I don't know what I'm working toward anymore.",
+        "What would a meaningful day look like for me?",
+        "Help me reconnect with why I'm doing all of this.",
+    ],
+};
 
 const loadSessions = (): CoachSession[] => {
     try {
@@ -136,8 +155,8 @@ const formatDate = (ms: number): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate, onFirstAIResponse }) => {
-    const { isDarkMode } = useTheme();
+export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate: _onNavigate, onFirstAIResponse }) => {
+    const { isDarkMode: _isDarkMode } = useTheme();
     type ViewMode = 'home' | 'chat' | 'history';
     const [view, setView] = useState<ViewMode>('home');
     const [showMemoryPanel, setShowMemoryPanel] = useState(false);
@@ -146,6 +165,9 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const [historySearch, setHistorySearch] = useState('');
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    // Set by the deterministic tripwire in handleSend. Stays pinned above the composer
+    // until dismissed, so it survives scrolling and further messages.
+    const [crisisSignal, setCrisisSignal] = useState<CrisisSignal | null>(null);
     // Cross-session memories + the memory-aware greeting, loaded and precomputed
     // once per day. Shared with the app-level home card through the same hook and
     // localStorage cache, so generation happens at most once a day across both.
@@ -160,7 +182,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const inputRef = useRef<HTMLInputElement>(null);
     const healthCtxRef = useRef<HealthContext | undefined>(undefined);
 
-    // Fetch Apple Health context once on mount — silently ignored if unavailable
+    // Fetch Apple Health context once on mount: silently ignored if unavailable
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
             getHealthContext().then(ctx => {
@@ -224,7 +246,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
 
     // Path B: the pillar picker is gone. New sessions always start as 'open' and Palante figures
     // out the right tone from what the user says. startPillarSession is kept for callers, but we
-    // no longer persist the session at creation time — only when the user actually sends a message.
+    // no longer persist the session at creation time, only when the user actually sends a message.
     // This prevents the Archive from filling up with empty single-greeting sessions every time
     // the user taps "Palante" without saying anything.
     const startPillarSession = useCallback((pillar: CoachPillar) => {
@@ -238,7 +260,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         const isFirstSession = sessions.length === 0;
         if (pillar === 'open' && isFirstSession && user.primaryIntent) {
             const INTENT_GREETINGS: Record<string, string> = {
-                consistency: `Building a daily practice is one of the most powerful things you can do. Tell me — what's been getting in the way of showing up consistently?`,
+                consistency: `Building a daily practice is one of the most powerful things you can do. Tell me: what's been getting in the way of showing up consistently?`,
                 clarity: `You said you're looking for more clarity and focus. What's feeling most scattered or overwhelming right now?`,
                 stress: `Life has been heavy lately. I'm right here. What's been weighing on you the most?`,
                 purpose: `You want your days to mean something more. I love that you're here for that reason. What would a life with more purpose actually feel like to you?`,
@@ -272,7 +294,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             messageCount: 0,
         };
 
-        // Do NOT persist yet — wait for the first user message. The existing message-send flow
+        // Do NOT persist yet: wait for the first user message. The existing message-send flow
         // calls upsertSession when a message lands, which is when the session becomes worth saving.
         setActiveSession(newSession);
         setView('chat');
@@ -349,7 +371,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         // When the partner has no narrative and no prior memories, synthesize a seed narrative
         // from the intent the user chose in onboarding so day-1 context isn't empty.
         const INTENT_SEED_NARRATIVES: Partial<Record<string, string>> = {
-            consistency: `This person came to Palante because they want to build more consistency in their life — to show up for themselves every day regardless of how they feel.`,
+            consistency: `This person came to Palante because they want to build more consistency in their life, to show up for themselves every day regardless of how they feel.`,
             clarity: `This person is looking for clarity and focus. They feel scattered or overwhelmed and want to cut through the noise and know what matters most.`,
             stress: `This person is dealing with real stress and came to Palante to stay grounded. Life has felt heavy and they want support managing that weight.`,
             purpose: `This person wants their days to feel meaningful. They came to Palante to reconnect with purpose and make their life feel intentional and directed.`,
@@ -393,6 +415,15 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inputText.trim() || !activeSession) return;
+
+        // Deterministic crisis check on what the user actually typed. This runs before
+        // and independently of the model call: the resources surface even if the reply
+        // never mentions them, and even if the API call fails outright.
+        // Escalates active over passive; never downgrades an already-showing card.
+        const signal = detectCrisisSignal(inputText);
+        if (signal && !(crisisSignal?.severity === 'active' && signal.severity === 'passive')) {
+            setCrisisSignal(signal);
+        }
 
         const userMsg: ChatMessage = {
             id: Date.now().toString(),
@@ -448,7 +479,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             console.error('Chat error:', error);
             const errMsg: ChatMessage = {
                 id: (Date.now() + 1).toString(),
-                text: "I'm having trouble connecting right now. Check your connection and try again — I'm here when you're ready.",
+                text: "I'm having trouble connecting right now. Check your connection and try again. I'm here when you're ready.",
                 timestamp: Date.now(),
                 role: 'assistant',
             };
@@ -463,54 +494,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     };
 
 
-    // Tap-to-send a quick-start prompt directly without going through the form
-    const handleQuickStart = async (prompt: string) => {
-        if (!activeSession || isTyping) return;
-        haptics.medium();
-
-        const userMsg: ChatMessage = {
-            id: Date.now().toString(),
-            text: prompt,
-            timestamp: Date.now(),
-            role: 'user',
-        };
-
-        const updatedSession: CoachSession = {
-            ...activeSession,
-            title: autoTitle(prompt),
-            messages: [...activeSession.messages, userMsg],
-            updatedAt: Date.now(),
-            messageCount: activeSession.messageCount + 1,
-        };
-        setActiveSession(updatedSession);
-        setInputText('');
-        setIsTyping(true);
-
-        try {
-            const context = buildContext();
-            const pillar = activeSession.pillar as CoachPillarKey;
-            const reply = pillar && pillar !== 'open'
-                ? await chatWithCoachPillar(prompt, updatedSession.messages, context, pillar)
-                : await chatWithCoach(prompt, updatedSession.messages, context);
-
-            const coachMsg: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                text: reply,
-                timestamp: Date.now(),
-                role: 'assistant',
-            };
-            const finalSession = { ...updatedSession, messages: [...updatedSession.messages, coachMsg], updatedAt: Date.now() };
-            setActiveSession(finalSession);
-            upsertSession(finalSession);
-            haptics.medium();
-        } catch {
-            setIsTyping(false);
-        } finally {
-            setIsTyping(false);
-        }
-    };
-
-    // Tap-to-hear: synthesize a partner reply aloud. On-demand only — never
+    // Tap-to-hear: synthesize a partner reply aloud. On-demand only, never
     // auto-plays. Tapping the active message again stops it. Cost is bounded by
     // the monthly TTS backstop, which silently falls back to the device voice.
     const handleSpeak = async (msg: ChatMessage) => {
@@ -533,29 +517,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     // Stop any audio when the view unmounts so it can't keep playing off-screen.
     useEffect(() => () => stopSpeaking(), []);
 
-    const INTENT_PROMPTS: Partial<Record<string, string[]>> = {
-        consistency: [
-            "What's been getting in the way of me showing up?",
-            "How do I build a streak that actually sticks?",
-            "What's the smallest practice I can commit to right now?",
-        ],
-        clarity: [
-            "I'm feeling scattered. Help me find my focus.",
-            "What should I actually be working on right now?",
-            "I have too many priorities. Where do I start?",
-        ],
-        stress: [
-            "I'm overwhelmed right now. Where do I begin?",
-            "What's the quickest way to feel less anxious?",
-            "I need to get out of my head. Can you help?",
-        ],
-        purpose: [
-            "I don't know what I'm working toward anymore.",
-            "What would a meaningful day look like for me?",
-            "Help me reconnect with why I'm doing all of this.",
-        ],
-    };
-
     const filteredSessions = sessions.filter(s => {
         if (!historySearch.trim()) return true;
         const q = historySearch.toLowerCase();
@@ -567,17 +528,9 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
 
     // ── Design Tokens ──────────────────────────────────────────────────────────
     const forestSage = '#415D43';
-    const hunterGreen = '#1B4332';
-    const deepestHunter = '#1F3824';
-    const paleGold = '#E5D6A7';
-    const ivory = '#F2EBE0';
-    const terracotta = '#C96A3A';
 
     const bg = forestSage; // User requested "New Forest Sage" background
     const textPrimary = 'text-[#E5D6A7]'; // Pale Gold for premium titles
-    const textSecondary = 'text-white';
-    const cardBg = 'rgba(255, 255, 255, 0.05)';
-    const borderColor = 'rgba(229, 214, 167, 0.15)';
 
     if (!canUseAI(user)) {
         const isDisabledInSettings = user.aiDisabled;
@@ -612,7 +565,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                 position: 'fixed',
             }}
         >
-            {/* ── Background depth — matches home page visual language exactly ── */}
+            {/* ── Background depth, matches home page visual language exactly ── */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 {/* Central luminosity bloom */}
                 <div className="absolute inset-0" style={{
@@ -627,7 +580,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                     height: '40%',
                     background: 'radial-gradient(ellipse 90% 70% at 50% 100%, rgba(201,106,58,0.13) 0%, transparent 70%)',
                 }} />
-                {/* Seed of Life — matches home page sacred geometry exactly */}
+                {/* Seed of Life: matches home page sacred geometry exactly */}
                 <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
                     <g fill="none" stroke="#E5D6A7" strokeWidth="0.65" opacity="0.14">
                         <circle cx="195" cy="413" r="148" strokeWidth="0.9" />
@@ -786,11 +739,23 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             ];
                             const n = promptPool.length;
                             const stride = Math.floor(n / 3);
-                            const seedPrompts = [
+                            const rotated = [
                                 promptPool[rotateSeed % n],
                                 promptPool[(rotateSeed + stride) % n],
                                 promptPool[(rotateSeed + stride * 2) % n],
                             ];
+
+                            // On the very first session the greeting above is already seeded from
+                            // primaryIntent (see startPillarSession). Match the prompts to it, so
+                            // the partner asks why they came and then offers ways to answer that
+                            // exact question. The rotating pool takes over from session two, when
+                            // time of day and today's intention are the more useful signal.
+                            // sessions is still empty here: a session is not persisted until the
+                            // first user message lands.
+                            const intentPrompts = sessions.length === 0 && user.primaryIntent
+                                ? INTENT_PROMPTS[user.primaryIntent]
+                                : undefined;
+                            const seedPrompts = intentPrompts ?? rotated;
 
                             return (
                                 <div className="space-y-5 animate-fade-in">
@@ -851,6 +816,13 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                     </div>
 
                     <div className="relative z-20 flex-shrink-0 px-6 pt-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 5.5rem)' }}>
+                        {crisisSignal && (
+                            <CrisisResourceCard
+                                severity={crisisSignal.severity}
+                                partnerName={user.coachName?.trim() || 'your partner'}
+                                onDismiss={() => setCrisisSignal(null)}
+                            />
+                        )}
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">
                             <div className="flex items-center gap-4 px-6 py-4 rounded-[3rem] bg-white/10 border-2 border-[#E5D6A7]/20 focus-within:border-[#E5D6A7]/50 backdrop-blur-3xl shadow-2xl transition-all">
                                 <input
@@ -892,7 +864,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 onClick={() => {
                                     setHistorySearch('');
                                     // Return to chat if we have one; otherwise exit Coach entirely.
-                                    // (We never return to 'home' anymore — that view is a transient redirect.)
+                                    // (We never return to 'home' anymore: that view is a transient redirect.)
                                     if (activeSession) {
                                         setView('chat');
                                     } else {

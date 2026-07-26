@@ -16,7 +16,7 @@ const ACCENT = '#C96A3A';
 const INK = 'rgba(250,247,243,0.92)';
 const INK_SOFT = 'rgba(250,247,243,0.58)';
 
-// One full-height movement with scroll-snap. Kept local — purely presentational.
+// One full-height movement with scroll-snap. Kept local, purely presentational.
 const Movement: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
     <section
         className={`min-h-[100dvh] w-full flex flex-col justify-center px-7 ${className}`}
@@ -90,7 +90,7 @@ export const YearForwardModal: React.FC<YearForwardModalProps> = ({ isOpen, data
                         style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 30%, rgba(201,106,58,0.14) 0%, transparent 70%)' }}
                     />
 
-                    {/* Close — fixed so it's always reachable */}
+                    {/* Close: fixed so it's always reachable */}
                     <button
                         onClick={() => { haptics.light(); onClose(); }}
                         aria-label="Close"

@@ -6,7 +6,7 @@
 // module (icons, synth engine, etc.) into their chunk.
 //
 // SYNTH sounds (white/pink/brown/violet noise + the binaural beats) are NOT here:
-// their mp3s were removed and they're generated procedurally — resolve those via
+// their mp3s were removed and they're generated procedurally, resolve those via
 // isSynthSound()/getSynthLoopBlobUrl() in utils/synthSounds.ts instead.
 //
 // KEEP IN SYNC with SOUNDS in src/components/SoundMixer.tsx if file ids change.

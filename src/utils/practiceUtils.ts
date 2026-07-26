@@ -5,7 +5,7 @@
  * No pressure, no guilt - just celebration of progress.
  */
 
-/** Format a date as YYYY-MM-DD using local time (not UTC — activity dates must match the user's calendar day) */
+/** Format a date as YYYY-MM-DD using local time (not UTC, activity dates must match the user's calendar day) */
 export const formatLocalDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -26,13 +26,13 @@ export const getDaysDifference = (date1: string, date2: string): number => {
 /** Get display details for a count milestone (Total Practices) */
 export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year') => {
     const milestones = {
-        first: { title: 'The First Day', icon: 'Sprout', message: "One practice. That's not nothing — that's everything. The garden is awake now.", label: 'Total Practices', days: 1 },
+        first: { title: 'The First Day', icon: 'Sprout', message: "One practice. That's not nothing. That's everything. The garden is awake now.", label: 'Total Practices', days: 1 },
         three: { title: 'Three In', icon: 'Sun', message: "Three practices. Most people stop at one. You came back twice more. Something in you means it.", label: 'Total Practices', days: 3 },
-        week: { title: 'Seven Practices', icon: 'Flame', message: "Seven down. The routine is taking shape. You're not just trying anymore — you're doing.", label: 'Total Practices', days: 7 },
-        fortnight: { title: 'Fourteen Practices', icon: 'Compass', message: "Fourteen practices. You're not just trying anymore — you're keeping a promise to yourself.", label: 'Total Practices', days: 14 },
+        week: { title: 'Seven Practices', icon: 'Flame', message: "Seven down. The routine is taking shape. You're not just trying anymore. You're doing.", label: 'Total Practices', days: 7 },
+        fortnight: { title: 'Fourteen Practices', icon: 'Compass', message: "Fourteen practices. You're not just trying anymore. You're keeping a promise to yourself.", label: 'Total Practices', days: 14 },
         month: { title: 'Thirty Practices', icon: 'Trophy', message: "Thirty practices. This is what it looks like when someone actually commits.", label: 'Total Practices', days: 30 },
         fifty: { title: 'Fifty Practices', icon: 'Star', message: "Fifty. You've been here through hard days, tired days, days when skipping would have been easy. You didn't.", label: 'Total Practices', days: 50 },
-        quarter: { title: 'Ninety Practices', icon: 'Award', message: "Ninety. Three months of choosing yourself. That's not a phase anymore — that's a foundation.", label: 'Total Practices', days: 90 },
+        quarter: { title: 'Ninety Practices', icon: 'Award', message: "Ninety. Three months of choosing yourself. That's not a phase anymore. That's a foundation.", label: 'Total Practices', days: 90 },
         century: { title: 'One Hundred', icon: 'Award', message: "A hundred practices. The person who started this is not the same person standing here now.", label: 'Total Practices', days: 100 },
         halfyear: { title: 'One Eighty', icon: 'Trophy', message: "One hundred eighty. Six months of not quitting on yourself. The math is undeniable.", label: 'Total Practices', days: 180 },
         twohundred: { title: 'Two Hundred', icon: 'Heart', message: "Two hundred. This isn't a habit you built. It's who you are.", label: 'Total Practices', days: 200 },
@@ -43,8 +43,11 @@ export const getMilestoneDetails = (milestone: 'first' | 'three' | 'week' | 'for
 
 /** Get display details for a true STREAK milestone */
 export const getStreakMilestoneDetails = (days: number) => {
-    const details: Record<number, any> = {
-        7: { title: 'Seven Days Running', icon: 'Flame', message: "Seven days in a row. Something is clicking — this is what momentum feels like. Keep this feeling.", label: 'Day Streak' },
+    // `days` is absent here on purpose: a streak milestone already knows its own day count
+    // from the argument, so callers read `streakDays` rather than this. Declared optional
+    // so the shape still unifies with getMilestoneDetails, which does carry it.
+    const details: Record<number, { title: string; icon: string; message: string; label: string; days?: number }> = {
+        7: { title: 'Seven Days Running', icon: 'Flame', message: "Seven days in a row. Something is clicking. This is what momentum feels like. Keep this feeling.", label: 'Day Streak' },
         30: { title: 'Thirty Straight', icon: 'Trophy', message: "Thirty consecutive days. This is no longer a practice you're trying to build. It's a rhythm you already have.", label: 'Day Streak' },
         100: { title: 'One Hundred Days', icon: 'Award', message: "One hundred days without a break. That is extraordinary self-trust. You showed up even when it was hard.", label: 'Day Streak' }
     };

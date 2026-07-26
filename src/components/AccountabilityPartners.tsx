@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Users, UserPlus, Calendar, X, Flame, Zap, Sparkles as SparklesIcon, AlertTriangle, ShieldOff, Lightbulb, ToggleLeft, ToggleRight } from 'lucide-react';
 import { haptics } from '../utils/haptics';
 import type { AccountabilityPartner, CoachSettings } from '../types';
 
-// Rotating partner coaching tips — deterministic by day so they don't flash on re-render
+// Rotating partner coaching tips: deterministic by day so they don't flash on re-render
 const PARTNER_TIPS: { category: string; tip: string }[] = [
     { category: 'Time', tip: 'Block 15 minutes each morning before checking your phone. That window belongs to you.' },
-    { category: 'Habit', tip: 'Attach your practice to something you already do — coffee, brushing teeth, lacing up shoes.' },
+    { category: 'Habit', tip: 'Attach your practice to something you already do: coffee, brushing teeth, lacing up shoes.' },
     { category: 'Accountability', tip: 'Text your partner when you finish a practice. The act of sharing doubles the commitment.' },
     { category: 'Focus', tip: 'Set one clear intention before you start. Vague goals fade; specific ones stick.' },
-    { category: 'Recovery', tip: 'A missed day isn\'t a broken streak — it\'s data. Ask: what made it hard? Then adjust.' },
+    { category: 'Recovery', tip: 'A missed day isn\'t a broken streak. It\'s data. Ask: what made it hard? Then adjust.' },
     { category: 'Momentum', tip: 'Two-minute rule: if it takes less than two minutes, do it now. Momentum compounds.' },
     { category: 'Time', tip: 'Protect your last 10 minutes before bed. That\'s when your brain consolidates the day\'s work.' },
     { category: 'Habit', tip: 'Make your practice visible. If it\'s out of sight, it\'s out of mind.' },
@@ -31,6 +31,10 @@ interface AccountabilityPartnersProps {
     onRemovePartner: (id: string) => void;
     onReportPartner: (id: string, name: string) => void;
     onBlockPartner: (id: string, name: string) => void;
+    /** Posts a real check-in the partner will see. Absent for legacy rows with no connectionId. */
+    onCheckIn?: (connectionId: string, name: string) => void;
+    /** Accept or decline an incoming request. */
+    onRespondToRequest?: (connectionId: string, accept: boolean) => void;
     onTogglePartnerTips?: (enabled: boolean) => void;
     isDarkMode: boolean;
 }
@@ -56,6 +60,8 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
     onRemovePartner,
     onReportPartner,
     onBlockPartner,
+    onCheckIn,
+    onRespondToRequest,
     onTogglePartnerTips,
     isDarkMode,
 }) => {
@@ -65,27 +71,15 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
     const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
     const activePartners = partners.filter(p => p.inviteStatus === 'accepted');
-    const pendingPartners = partners.filter(p => p.inviteStatus === 'pending');
+    // Requests they sent us, waiting on our answer.
+    const incomingRequests = partners.filter(p => p.inviteStatus === 'pending' && p.isIncoming);
+    // Requests we sent, waiting on theirs.
+    const outgoingRequests = partners.filter(p => p.inviteStatus === 'pending' && !p.isIncoming);
 
-    const [toast, setToast] = useState<string | null>(null);
-
-    const handleNudge = (name: string) => {
-        haptics.medium();
-        setToast(`Sent motivation to ${name}.`);
-        setTimeout(() => setToast(null), 2500);
-    };
 
     return (
         <div className={`w-full p-4 rounded-2xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'
             } relative`}>
-            {/* TOAST NOTIFICATION */}
-            {toast && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 px-5 py-2 rounded-full bg-black/20 backdrop-blur text-white text-xs font-bold shadow-xl animate-fade-in-up flex items-center gap-2 pointer-events-none">
-                    <Flame size={12} className="text-orange-500" fill="currentColor" />
-                    {toast}
-                </div>
-            )}
-
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
@@ -111,8 +105,51 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                 )}
             </div>
 
+            {/* Incoming requests: these need an answer, so they sit above everything else */}
+            {incomingRequests.length > 0 && (
+                <div className="space-y-2 mb-4">
+                    <p className={`text-xs uppercase tracking-wider font-bold ${textSecondary} mb-2`}>
+                        Wants to connect
+                    </p>
+                    {incomingRequests.map((partner) => (
+                        <div
+                            key={partner.id}
+                            className={`p-3 rounded-xl border ${isDarkMode
+                                ? 'bg-pale-gold/10 border-pale-gold/30'
+                                : 'bg-terracotta-500/5 border-terracotta-500/30'
+                                }`}
+                        >
+                            <div className="flex items-center justify-between gap-3">
+                                <span className={`text-sm font-medium ${textPrimary}`}>
+                                    {partner.name}
+                                </span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                        onClick={() => partner.connectionId && onRespondToRequest?.(partner.connectionId, false)}
+                                        disabled={!partner.connectionId}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all disabled:opacity-40 ${textSecondary}`}
+                                    >
+                                        Decline
+                                    </button>
+                                    <button
+                                        onClick={() => partner.connectionId && onRespondToRequest?.(partner.connectionId, true)}
+                                        disabled={!partner.connectionId}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all disabled:opacity-40 ${isDarkMode
+                                            ? 'bg-pale-gold text-sage-dark hover:bg-pale-gold/90'
+                                            : 'bg-terracotta-500 text-white hover:bg-terracotta-500/90'
+                                            }`}
+                                    >
+                                        Accept
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Empty State */}
-            {activePartners.length === 0 && pendingPartners.length === 0 && (
+            {activePartners.length === 0 && incomingRequests.length === 0 && outgoingRequests.length === 0 && (
                 <div className="text-center py-8">
                     <Users size={48} className={`mx-auto mb-3 ${textSecondary}`} />
                     <p className={`text-sm mb-4 ${textSecondary}`}>
@@ -172,12 +209,18 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                                     </div>
                                     <div className="flex items-center gap-0.5">
                                         <button
-                                            onClick={() => handleNudge(partner.name)}
-                                            className={`p-1.5 rounded-full transition-all ${isDarkMode
+                                            onClick={() => {
+                                                if (!partner.connectionId) return;
+                                                haptics.medium();
+                                                onCheckIn?.(partner.connectionId, partner.name);
+                                            }}
+                                            disabled={!partner.connectionId || !onCheckIn}
+                                            className={`p-1.5 rounded-full transition-all disabled:opacity-30 ${isDarkMode
                                                 ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
                                                 : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
                                                 }`}
-                                            title="Send Fire"
+                                            title={partner.connectionId ? `Check in with ${partner.name}` : 'Reconnect to check in'}
+                                            aria-label={`Check in with ${partner.name}`}
                                         >
                                             <Flame size={14} fill="currentColor" />
                                         </button>
@@ -228,13 +271,13 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                 </div>
             )}
 
-            {/* Pending Invites */}
-            {pendingPartners.length > 0 && (
+            {/* Outgoing invites: waiting on them */}
+            {outgoingRequests.length > 0 && (
                 <div className="space-y-2">
                     <p className={`text-xs uppercase tracking-wider font-bold ${textSecondary} mb-2`}>
-                        Pending Invites
+                        Waiting to be accepted
                     </p>
-                    {pendingPartners.map((partner) => (
+                    {outgoingRequests.map((partner) => (
                         <div
                             key={partner.id}
                             className={`p-3 rounded-lg border border-dashed ${isDarkMode ? 'border-white/20 bg-white/5' : 'border-sage/20 bg-sage/5'
@@ -270,7 +313,7 @@ export const AccountabilityPartners: React.FC<AccountabilityPartnersProps> = ({
                 </div>
             )}
 
-            {/* Partner Tips — toggle + daily tip card */}
+            {/* Partner Tips: toggle + daily tip card */}
             {onTogglePartnerTips && (
                 <div className={`mt-4 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-sage/10'}`}>
                     <button

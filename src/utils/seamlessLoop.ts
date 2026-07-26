@@ -1,5 +1,5 @@
 // Pure DSP helpers for building gaplessly loopable audio buffers.
-// Free of Web Audio types so the math is unit-testable in jsdom — the
+// Free of Web Audio types so the math is unit-testable in jsdom, the
 // Web Audio wiring lives in seamlessAudio.ts.
 
 /**
@@ -41,7 +41,7 @@ export function findLoudRange(
 /**
  * True when every channel carries identical audio (dual-mono). Many ambient
  * files are encoded as stereo from a mono master; collapsing them to one
- * channel halves decoded memory with zero quality loss. Sampled comparison —
+ * channel halves decoded memory with zero quality loss. Sampled comparison
  * a prime stride keeps the check cheap while making coincidental matches on
  * genuinely stereo material (bilateral pans, binaural beats) implausible.
  */
@@ -62,7 +62,7 @@ export function isDualMono(channels: Float32Array[], stride = 997): boolean {
  * Trims encoder-padding silence, then overlap-adds the final `fadeSeconds`
  * of audio onto the head with an equal-power crossfade. The output's last
  * sample is the sample immediately preceding the tail window and its first
- * sample is the tail window's first sample — so when a looping source wraps
+ * sample is the tail window's first sample: so when a looping source wraps
  * end→start, the waveform continues sample-exactly, and the only "seam" is a
  * gentle morph from tail into head spread across the whole fade window.
  */
@@ -78,7 +78,7 @@ export function bakeSeamlessLoop(
     const outLength = length - fade;
 
     if (fade <= 0 || outLength <= 0) {
-        // Too short to crossfade — return the trimmed audio unchanged.
+        // Too short to crossfade: return the trimmed audio unchanged.
         return channels.map(ch => ch.slice(start, end));
     }
 

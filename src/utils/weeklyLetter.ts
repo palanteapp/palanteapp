@@ -1,13 +1,18 @@
 import type { UserProfile } from '../types';
 import { fetchWithTimeout } from './fetchWithTimeout';
+import { assertAIEnabled } from './aiGate';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 
-const getProxyHeaders = () => ({
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-});
+// Choke point for the AI opt-out, see aiGate.ts.
+const getProxyHeaders = () => {
+    assertAIEnabled();
+    return {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    };
+};
 
 // Returns ISO week number (1-53)
 export const getISOWeekNumber = (date: Date = new Date()): number => {
@@ -87,12 +92,12 @@ export const generateWeeklyLetter = async (user: UserProfile): Promise<string> =
 
     const prompt = `You are ${partnerName}, ${firstName}'s personal AI growth partner inside the Palante app. Write a personal Sunday letter to ${firstName}.
 
-This is not a recap or a summary. It is a letter from a partner who has been genuinely paying attention — someone who noticed things, held space, and is reflecting back what they saw. Make it feel like it was written specifically for this one person, not a template.
+This is not a recap or a summary. It is a letter from a partner who has been genuinely paying attention: someone who noticed things, held space, and is reflecting back what they saw. Make it feel like it was written specifically for this one person, not a template.
 
 LETTER STRUCTURE:
-- Open with one specific, warm observation from this week — something they actually said or did (from their gratitudes, intentions, accomplishments, or delights). Make this the emotional anchor.
+- Open with one specific, warm observation from this week, something they actually said or did (from their gratitudes, intentions, accomplishments, or delights). Make this the emotional anchor.
 - Reflect on a pattern or theme you noticed across the week. What does this week's data say about where they are right now?
-- Name one thing about them that you want them to carry into next week — a quality you observed, not generic encouragement.
+- Name one thing about them that you want them to carry into next week: a quality you observed, not generic encouragement.
 - Close with one sentence that feels like a hand on the shoulder. No pep talk. Just presence.
 
 ABSOLUTE RULES:
@@ -103,7 +108,7 @@ ABSOLUTE RULES:
 - No em dashes (the — character). Use periods and commas only.
 - Never use these words: journey, intentional, mindful, anchor, tapestry, weave, tether, sovereignty, transformative, profound.
 - Do NOT invent details not in the data. If the data is sparse, write warmly but stay general about what's real.
-- End with a signature line on its own line: "— ${partnerName}"
+- End with a signature line on its own line: "${partnerName}"
 
 USER DATA THIS WEEK:
 ${contextBlock}
@@ -156,5 +161,5 @@ const buildFallbackLetter = (
 
     return `${firstName}, I've been thinking about you.${gratitudeStr} You showed up ${practiceStr}, and that is not a small thing.${streakStr} What I see in you is someone who keeps choosing to come back, even when it isn't easy. Carry that into next week.
 
-— ${partnerName}`;
+${partnerName}`;
 };

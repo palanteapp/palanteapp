@@ -9,7 +9,7 @@ interface AgeVerificationModalProps {
     onClose: () => void;
     onVerify: (dateOfBirth: string) => void;
     isDarkMode: boolean;
-    /** When true, the close/cancel buttons are hidden — used as a hard COPPA gate on first launch. */
+    /** When true, the close/cancel buttons are hidden, used as a hard COPPA gate on first launch. */
     required?: boolean;
 }
 

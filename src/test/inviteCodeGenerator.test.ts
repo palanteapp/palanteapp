@@ -73,7 +73,7 @@ describe('isValidInviteCode', () => {
 
     it('accepts I and O (validator is intentionally more permissive than the generator)', () => {
         // The regex [A-Z2-9] includes I and O even though the generator never
-        // produces them — the validator only rejects structurally invalid codes.
+        // produces them: the validator only rejects structurally invalid codes.
         expect(isValidInviteCode('IOIO-ABCD')).toBe(true);
     });
 

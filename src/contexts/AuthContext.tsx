@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Initial session check — race against a 3 s timeout so a missing/placeholder
+        // Initial session check: race against a 3 s timeout so a missing/placeholder
         // Supabase URL doesn't leave the app stuck on the loading spinner.
         const timeout = new Promise<void>(resolve => setTimeout(resolve, 3000));
         Promise.race([

@@ -20,7 +20,7 @@ export const useSpeechRecognition = () => {
     }, []);
 
     const startListening = useCallback(() => {
-        // Voice input not available in this build — do nothing silently
+        // Voice input not available in this build: do nothing silently
     }, []);
 
     const stopListening = useCallback(() => {

@@ -133,7 +133,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
 
                     {activeTab === 'tour' && (
                         <div className="space-y-6 animate-fade-in">
-                            {/* Partner — lead with the differentiator */}
+                            {/* Partner: lead with the differentiator */}
                             <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-pale-gold/10 border-pale-gold/20' : 'bg-sage/10 border-sage/20'}`}>
                                 <div className="flex gap-4">
                                     <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/20'}`}>
@@ -142,7 +142,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     <div>
                                         <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Meet {partnerName}, your partner</h4>
                                         <p className={`text-sm ${textSecondary}`}>
-                                            After every morning practice, {partnerName} writes you a personal message. Tap the chat icon anytime to talk — it knows your intentions, sees your patterns, and meets you exactly where you are.
+                                            After every morning practice, {partnerName} writes you a personal message. Tap the chat icon anytime to talk. It knows your intentions, sees your patterns, and meets you exactly where you are.
                                         </p>
                                         <button
                                             onClick={() => { onNavigate('ai-coach'); onClose(); }}
@@ -165,7 +165,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         Three tabs, one home
                                     </h4>
                                     <p className={`text-sm ${textSecondary}`}>
-                                        <strong>Home</strong> — your daily dashboard. <strong>Progress</strong> — your growth and mandala. <strong>Explore</strong> — tools for focus, breath, and sound.
+                                        <strong>Home</strong>: your daily dashboard. <strong>Progress</strong>: your growth and mandala. <strong>Explore</strong>: tools for focus, breath, and sound.
                                     </p>
                                 </div>
                                 <button
@@ -259,7 +259,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     >
                                         <Fish size={24} className={`mb-2 ${accentColor}`} />
                                         <h4 className={`font-medium text-sm ${textPrimary}`}>Koi Pond</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Your living zen space — grows as you practice</p>
+                                        <p className={`text-xs ${textSecondary} mt-1`}>Your living zen space, growing as you practice</p>
                                     </button>
                                 </div>
                             </div>
@@ -276,7 +276,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                                 <Mail size={16} className={accentColor} />
                                             </div>
                                             <div>
-                                                <h4 className={`text-sm font-semibold mb-0.5 ${textPrimary}`}>Day 3 — Letter to your future self</h4>
+                                                <h4 className={`text-sm font-semibold mb-0.5 ${textPrimary}`}>Day 3: Letter to your future self</h4>
                                                 <p className={`text-xs leading-relaxed ${textSecondary}`}>
                                                     After your third practice, you'll be invited to write a letter to who you'll be 30 days from now. It's one of the most grounding things you can do in this practice.
                                                 </p>
