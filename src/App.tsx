@@ -310,7 +310,8 @@ function AppContent() {
       const firstName = user.name?.split(' ')[0] || 'Friend';
       generateWeeklyReflection(
         trigger.accomplishments.map(a => a.text),
-        firstName
+        firstName,
+        user.language ?? 'en'
       ).then(msg => setWeeklyReflectionMessage(msg)).catch(() => {});
     }
 
@@ -1926,6 +1927,7 @@ function AppContent() {
                     <EveningPractice
                       userName={user.name}
                       coachName={user.coachName}
+                      language={user.language}
                       isDarkMode={isDarkMode}
                       existingPractice={null}
                       userVoiceProfile={user.userVoiceProfile}
@@ -3195,6 +3197,7 @@ function AppContent() {
                 firstName: user.name?.split(' ')[0] || 'friend',
                 coachTone: user.coachSettings?.coachTone,
                 startDate: allMorning[0]?.date,
+                language: user.language,
               },
             });
           }

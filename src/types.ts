@@ -64,6 +64,7 @@ export interface UserProfile {
     name: string;
     age?: number;
     coachName?: string; // Personal AI Coach Name
+    language?: AppLanguage; // App/AI/TTS language. Explicit toggle only — never auto-detected.
     career: string;
     profession: string;
     interests: string[];
@@ -402,6 +403,9 @@ export interface PartnerActivity {
 }
 
 export type CoachTone = 'nurturing' | 'direct' | 'accountability';
+
+// App/AI/TTS language. Explicit toggle only — never auto-detected from device locale.
+export type AppLanguage = 'en' | 'es';
 
 // "What's bringing you here?" onboarding answer. Drives the partner's default tone
 // and flavors the first daily dispatches so the choice actually shapes the experience.

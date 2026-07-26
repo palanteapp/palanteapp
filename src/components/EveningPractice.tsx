@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { Moon, ChevronRight, Heart, BookOpen, Award, Smile, Target } from 'lucide-react';
-import type { DailyEveningPractice, Quote } from '../types';
+import type { DailyEveningPractice, Quote, AppLanguage } from '../types';
 import { haptics } from '../utils/haptics';
 import { generateEveningPracticeMessage } from '../utils/aiService';
 import { Loader2 } from 'lucide-react';
@@ -27,9 +27,10 @@ interface EveningPracticeProps {
     userVoiceProfile?: import('../types').UserVoiceProfile;
     onStepChange?: (step: string) => void;
     coachName?: string;
+    language?: AppLanguage;
 }
 
-export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, isDarkMode, existingPractice, userName, todayMorningCommitment, todayMorningIntention, userVoiceProfile, onStepChange, coachName }) => {
+export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, isDarkMode, existingPractice, userName, todayMorningCommitment, todayMorningIntention, userVoiceProfile, onStepChange, coachName, language }) => {
     const _contentRef = useAutoScroll();
 
     const commitmentText = todayMorningCommitment?.trim() || '';
@@ -88,6 +89,7 @@ export const EveningPractice: React.FC<EveningPracticeProps> = ({ onComplete, is
                     morningCommitment: todayMorningCommitment?.trim() || undefined,
                     commitmentReflection: commitmentReflection.trim() || undefined,
                     userVoiceProfile,
+                    language,
                 }).then(msg => {
                     setGeneratedMessage(msg);
                     setIsGenerating(false);

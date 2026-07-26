@@ -15,6 +15,7 @@
 
 import { isTtsLimitReached, recordTtsUsage } from './aiUsageBudget';
 import { isAIEnabled } from './aiGate';
+import type { AppLanguage } from '../types';
 
 const TTS_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-proxy`;
 
@@ -96,24 +97,29 @@ export function stopSpeaking(): void {
 
 /** Free on-device voice, the fallback path. Uses Web Speech API with the best
  *  available enhanced voice on iOS (sounds far more natural than Capacitor TTS). */
-async function speakOnDevice(text: string, cb?: SpeakCallbacks): Promise<void> {
+async function speakOnDevice(text: string, cb?: SpeakCallbacks, language: AppLanguage = 'en'): Promise<void> {
+  // es-US: the generic/neutral Spanish locale tag most iOS builds ship a voice
+  // for, matching the neutral-register decision (vs. es-ES/es-MX/es-AR, which
+  // read as regionally specific).
+  const locale = language === 'es' ? 'es-US' : 'en-US';
+  const langPrefix = language === 'es' ? 'es' : 'en';
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
 
   if (synth) {
     return new Promise((resolve) => {
       const utt = new SpeechSynthesisUtterance(text);
-      utt.lang = 'en-US';
+      utt.lang = locale;
       utt.rate = 0.9;   // Slightly slower reads more naturally
       utt.pitch = 1.0;
       utt.volume = 1.0;
 
       const applyVoice = () => {
         const voices = synth.getVoices();
-        // Preference order: enhanced local > any local > any English > first available
+        // Preference order: enhanced local > any local > any matching-language > first available
         const best =
-          voices.find(v => v.lang.startsWith('en') && v.localService && /enhanced|premium/i.test(v.name)) ||
-          voices.find(v => v.lang.startsWith('en') && v.localService) ||
-          voices.find(v => v.lang.startsWith('en')) ||
+          voices.find(v => v.lang.startsWith(langPrefix) && v.localService && /enhanced|premium/i.test(v.name)) ||
+          voices.find(v => v.lang.startsWith(langPrefix) && v.localService) ||
+          voices.find(v => v.lang.startsWith(langPrefix)) ||
           voices[0];
         if (best) utt.voice = best;
       };
@@ -141,7 +147,7 @@ async function speakOnDevice(text: string, cb?: SpeakCallbacks): Promise<void> {
     const { TextToSpeech } = await import('@capacitor-community/text-to-speech');
     deviceSpeaking = true;
     cb?.onStart?.();
-    await TextToSpeech.speak({ text, lang: 'en-US', rate: 0.9, pitch: 1.0, volume: 1.0, category: 'playback' });
+    await TextToSpeech.speak({ text, lang: locale, rate: 0.9, pitch: 1.0, volume: 1.0, category: 'playback' });
     deviceSpeaking = false;
     cb?.onEnd?.();
   } catch (err) {
@@ -186,14 +192,14 @@ function playUrl(url: string, meter: boolean, cb?: SpeakCallbacks): Promise<void
  * Speak a partner reply aloud. Resolves when playback finishes.
  * Only one utterance plays at a time: a new call interrupts the previous.
  */
-export async function speak(text: string, cb?: SpeakCallbacks): Promise<void> {
+export async function speak(text: string, cb?: SpeakCallbacks, language: AppLanguage = 'en'): Promise<void> {
   // Must be called before any await: unlocks audio.play() on iOS WKWebView.
   unlockAudio();
   stopSpeaking();
   const clean = text.trim();
   if (!clean) return;
 
-  const key = `${PARTNER_VOICE}:${hashText(clean)}`;
+  const key = `${PARTNER_VOICE}:${language}:${hashText(clean)}`;
 
   // 1. Cached → replay free (already metered on first synth).
   const cached = audioCache.get(key);
@@ -204,14 +210,14 @@ export async function speak(text: string, cb?: SpeakCallbacks): Promise<void> {
 
   // 2. Over the monthly paid ceiling → free device voice.
   if (isTtsLimitReached()) {
-    await speakOnDevice(clean, cb);
+    await speakOnDevice(clean, cb, language);
     return;
   }
 
   // 3. Paid path → synthesize via the proxy, cache, meter, play.
   const headers = getProxyHeaders();
   if (!headers) {
-    await speakOnDevice(clean, cb);
+    await speakOnDevice(clean, cb, language);
     return;
   }
 
@@ -222,7 +228,7 @@ export async function speak(text: string, cb?: SpeakCallbacks): Promise<void> {
       body: JSON.stringify({ input: clean, voice: PARTNER_VOICE, instructions: VOICE_INSTRUCTIONS }),
     });
     if (!res.ok) {
-      await speakOnDevice(clean, cb);
+      await speakOnDevice(clean, cb, language);
       return;
     }
     const blob = await res.blob();
@@ -231,7 +237,7 @@ export async function speak(text: string, cb?: SpeakCallbacks): Promise<void> {
     await playUrl(url, true, cb);
   } catch (err) {
     // Network / offline → free device voice so tapping never just fails.
-    await speakOnDevice(clean, cb);
+    await speakOnDevice(clean, cb, language);
     void err;
   }
 }

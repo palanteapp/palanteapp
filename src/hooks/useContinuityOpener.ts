@@ -46,6 +46,7 @@ export function useContinuityOpener(
     const userId = user?.id;
     const userName = user?.name;
     const coachName = user?.coachName;
+    const language = user?.language ?? 'en';
 
     // Load cross-session memories so the partner remembers across conversations.
     useEffect(() => {
@@ -77,7 +78,7 @@ export function useContinuityOpener(
         let cancelled = false;
         if (!inflight || inflightDay !== today) {
             inflightDay = today;
-            inflight = generateContinuityOpener(persistedMemories, userName || 'Friend', coachName)
+            inflight = generateContinuityOpener(persistedMemories, userName || 'Friend', coachName, language)
                 .then(line => {
                     try {
                         localStorage.setItem(STORAGE_KEYS.CONTINUITY_OPENER, JSON.stringify({ date: today, text: line ?? '' }));
@@ -88,7 +89,7 @@ export function useContinuityOpener(
         }
         inflight.then(line => { if (!cancelled) setContinuityOpener(line); });
         return () => { cancelled = true; };
-    }, [userId, userName, coachName, persistedMemories]);
+    }, [userId, userName, coachName, persistedMemories, language]);
 
     return { persistedMemories, continuityOpener };
 }

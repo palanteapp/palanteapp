@@ -7,6 +7,7 @@
 import { fetchWithTimeout } from './fetchWithTimeout';
 import { isChatLimitReached, recordChatCall, getDailyLimitMessage } from './aiUsageBudget';
 import { assertAIEnabled, isAIDisabledError } from './aiGate';
+import { normalizeWords } from './textNormalize';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
@@ -62,6 +63,28 @@ export const containsBannedPhrase = (text: string, list: readonly string[] = BAN
     return list.some(p => lower.includes(p));
 };
 
+/**
+ * Spanish equivalents of the same overused/AI-tell-word CONCEPT, not
+ * word-for-word translations of BANNED_PHRASES — the goal is banning the
+ * Spanish words that carry the same hollow, wellness-brochure quality.
+ */
+export const BANNED_PHRASES_ES = [
+    'viaje', 'intencional', 'consciente', 'ancla',
+    'presentarte', 'mostrarte', 'aparecer',
+    'tapiz', 'atadura', 'soberanía',
+    'toda la práctica',
+] as const;
+
+export const MEMOIR_BANNED_PHRASES_ES = [
+    ...BANNED_PHRASES_ES,
+    'tejer', 'se manifestó', 'transformacional', 'increíble',
+] as const;
+
+const banForLanguage = (language: AppLanguage | undefined, memoir: boolean): readonly string[] => {
+    if (language === 'es') return memoir ? MEMOIR_BANNED_PHRASES_ES : BANNED_PHRASES_ES;
+    return memoir ? MEMOIR_BANNED_PHRASES : BANNED_PHRASES;
+};
+
 export interface AIAffirmationRequest {
     profession: string;
     focusGoal: string;
@@ -75,6 +98,7 @@ export interface AIAffirmationRequest {
     dailyIntention?: string;
     currentMood?: string;
     currentEnergy?: number;
+    language?: AppLanguage;
 }
 
 export interface UserContext {
@@ -98,6 +122,7 @@ export interface UserContext {
     persistedMemories?: string[];
     healthContext?: { sleepHours?: number; restingHR?: number; sleepTrend?: 'below_average' | 'above_average' | 'typical' };
     bio?: string;
+    language?: AppLanguage;
 }
 
 export type MomentumState = 'on_a_roll' | 'recovering' | 'breakthrough' | 'steady';
@@ -124,7 +149,38 @@ export const COACH_TONE_GUIDANCE: Record<'nurturing' | 'direct' | 'accountabilit
     accountability: `Be firm and high-standard. You see what they're capable of and you won't let them coast. Acknowledge the work but name the gap. No cruelty, but no excuses either. The coach who pushes because they believe in you more than you believe in yourself right now.`,
 };
 
-import type { ChatMessage, UserProfile, UserVoiceProfile } from '../types';
+import type { ChatMessage, UserProfile, UserVoiceProfile, AppLanguage } from '../types';
+
+/**
+ * Appended to every generated-content prompt. The model's meta-instructions
+ * (tone guidance, persona rules, etc.) stay in English — Claude follows English
+ * instructions reliably while writing its final answer in Spanish — only the
+ * output-language directive itself needs to exist per language.
+ */
+export const LANGUAGE_DIRECTIVE: Record<AppLanguage, string> = {
+    en: '',
+    es: 'IMPORTANT: Write your entire response in neutral, formal Spanish (español neutro). No regional slang, no colloquialisms, no Spanglish or code-switching. Do not switch to English at any point.',
+};
+
+/**
+ * Spanish prose runs ~15-25% longer than English for equivalent meaning, so
+ * word/character caps embedded in prompts (and their JS-side length gates)
+ * need to scale. Sentence/paragraph COUNTS ("EXACTLY 3 sentences") do not.
+ */
+const LENGTH_MULTIPLIER: Record<AppLanguage, number> = { en: 1, es: 1.22 };
+const scaled = (n: number, language: AppLanguage = 'en'): number => Math.round(n * LENGTH_MULTIPLIER[language]);
+
+/** Second-person-slip detector, used to catch the model narrating AT the user instead of speaking AS them. */
+const SECOND_PERSON: Record<AppLanguage, RegExp> = {
+    en: /\b(you|your|yours)\b/i,
+    es: /\b(tú|tu|tus|te|ti|usted|ustedes|su|sus)\b/i,
+};
+
+/** Strips a leading greeting the model sometimes adds despite being told not to. */
+const GREETING_STRIP: Record<AppLanguage, RegExp> = {
+    en: /^(hey|hi|hello)\b[^.!?]*[.,!?]+\s*/i,
+    es: /^(hola|buenas|buenos días|buenas tardes|buenas noches|qué tal)\b[^.!?]*[.,!?]+\s*/i,
+};
 
 export interface AIAffirmationResponse {
     text: string;
@@ -226,9 +282,12 @@ export const generateUserNarrative = async (user: UserProfile): Promise<string> 
             : '',
     ].filter(Boolean).join('\n');
 
+    const language: AppLanguage = user.language ?? 'en';
     const fallback = buildFallbackNarrative(user);
+    const directive = LANGUAGE_DIRECTIVE[language];
 
     const prompt = `You are Palante, a personal growth companion. Based on the data below, write a warm 4-5 sentence observation of this specific person's pattern. This will appear on their profile as a personal note from Palante.
+${directive}
 
 Tone: supportive, specific, and human, like a trusted friend who has genuinely been paying attention to how this person actually moves through their weeks. Use second person ("you", "your"). Reference what they've actually been grateful for and intending toward. Make it feel like a real read on this person, not a template that could apply to anyone.
 
@@ -240,6 +299,7 @@ ABSOLUTE RULES:
 - Never use the words: journey, intentional, mindful, anchor, foundation, tapestry, weave, tether, sovereignty.
 - Never write "the whole practice" or any variant. Do not tell them what they did mattered. Say what it did.
 - Never write something that could apply to any person on any week. Be specific to what their data actually shows.
+${directive}
 
 USER DATA:
 ${contextBlock}
@@ -276,6 +336,19 @@ const buildFallbackNarrative = (user: UserProfile): string => {
     const streak = user.streak || 0;
     const goals = (user.goals || []).filter(g => !g.completedAt).map(g => g.title);
     const recentGratitude = user.dailyMorningPractice?.[user.dailyMorningPractice.length - 1]?.gratitudes?.[0];
+
+    if ((user.language ?? 'en') === 'es') {
+        const streakLine = streak > 0
+            ? `Llevas ${streak} días seguidos. Esa clase de constancia construye algo real.`
+            : `Estás encontrando el camino de vuelta a tu práctica, y volver toma valentía.`;
+        const gratitudeLine = recentGratitude
+            ? ` Has estado agradeciendo por ${recentGratitude}. Esa clase de atención es poco común y vale la pena honrarla.`
+            : '';
+        const goalsLine = goals.length
+            ? ` Ahora mismo estás trabajando hacia ${goals.slice(0, 2).join(' y ')}, y cada paso pequeño que das aquí es parte de eso.`
+            : ` Sea lo que sea que te trajo aquí hoy, estás aquí, y eso siempre es la parte más difícil.`;
+        return `${streakLine}${gratitudeLine}${goalsLine}`.replace(/\s+/g, ' ').trim();
+    }
 
     const streakLine = streak > 0
         ? `You're on a ${streak}-day streak. That kind of consistency builds something real.`
@@ -337,8 +410,12 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
 
     // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
     const coachIdentity = request.coachName?.trim() || 'Palante';
+    const language: AppLanguage = request.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
+    const wordCap = scaled(25, language);
 
     const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation partner. "Pa'lante" means "para adelante", strictly forward. Your mission is to help the user move forward with clarity and power.
+${directive}
 
 Generate a single, powerful affirmation or motivational quote for someone with these characteristics:
 - Profession: ${request.profession || 'General'}
@@ -368,9 +445,10 @@ MEDICAL SAFETY GUIDE:
 
 OUTPUT FORMAT:
 Respond with ONLY a single valid JSON object, no markdown fences, no commentary before or after. Exactly this shape:
-{"text":"The affirmation or quote text (under 25 words)","author":"${coachIdentity}"}
+{"text":"The affirmation or quote text (under ${wordCap} words)","author":"${coachIdentity}"}
 
-The author field defaults to ${coachIdentity} unless you are quoting a specific historical figure that perfectly fits this persona's ${intensityDesc} tone.`;
+The author field defaults to ${coachIdentity} unless you are quoting a specific historical figure that perfectly fits this persona's ${intensityDesc} tone.
+${directive}`;
 
     try {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -433,9 +511,14 @@ export const generateCoachingMessage = async (
         totalGoals: number;
         timeOfDay: 'morning' | 'afternoon' | 'evening';
         profession: string;
+        language?: AppLanguage;
     }
 ): Promise<string> => {
-    const prompt = `You are Palante. Generate a brief, personalized coaching message (under 15 words) for ${userName}.
+    const language: AppLanguage = context.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
+    const wordCap = scaled(15, language);
+    const prompt = `You are Palante. Generate a brief, personalized coaching message (under ${wordCap} words) for ${userName}.
+${directive}
 
 Context:
 - Time: ${context.timeOfDay}
@@ -450,7 +533,8 @@ Be direct and focus on what matters most right now. Respond with ONLY the messag
 MEDICAL SAFETY GUIDE:
 - Use only motivational language.
 - NEVER give health, medical, or dietary advice.
-- Stay within the bounds of a supportive coach.`;
+- Stay within the bounds of a supportive coach.
+${directive}`;
 
     try {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -494,8 +578,12 @@ export const generateMorningPracticeMessage = async (
         coachTone?: 'nurturing' | 'direct' | 'accountability';
         userVoiceProfile?: UserVoiceProfile;
         healthContext?: { sleepHours?: number; restingHR?: number; sleepTrend?: 'below_average' | 'above_average' | 'typical' };
+        language?: AppLanguage;
     }
 ): Promise<string> => {
+    const language: AppLanguage = data.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
+    const wordCap = scaled(40, language);
     const toneDirective = COACH_TONE_GUIDANCE[data.coachTone ?? 'nurturing'];
     const voiceContext = data.userVoiceProfile
         ? `\nTheir core values: ${data.userVoiceProfile.extractedValues.join(', ')}\nHow they want to be spoken to: ${data.userVoiceProfile.voiceTone}`
@@ -505,6 +593,7 @@ export const generateMorningPracticeMessage = async (
     const healthBlock = data.healthContext ? buildHealthPromptBlock(data.healthContext) : '';
 
     const prompt = `You are a wise, present partner who knows ${userName} deeply.
+${directive}
 
 YOUR RELATIONSHIP WITH THEM:
 You listen. You remember. You see the pattern in what they care about.
@@ -549,7 +638,7 @@ The test: it must fit this one person's morning so well it could not be swapped
 into someone else's, yet contain almost none of their own words.
 
 ABSOLUTE RULES:
-- 40 words MAX (count carefully)
+- ${wordCap} words MAX (count carefully)
 - ALWAYS write in first person: "I am," "Today I," "I carry," "I know," etc.
 - NEVER write in second person ("you," "your"). This is the user's own voice
 - NEVER quote, restate, or list back their entries. Transform them.
@@ -570,13 +659,14 @@ TONE DIRECTIVE:
 ${toneDirective}
 
 Write the message now. Make them feel seen and grounded.
+${directive}
 
 MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
     // The affirmation must be the user's own first-person voice. If the model
     // narrates as the partner instead ("I notice what you're building..."),
     // retry once with a corrective note before falling back.
-    const isSecondPerson = (text: string) => /\b(you|your|yours)\b/i.test(text);
+    const isSecondPerson = (text: string) => SECOND_PERSON[language].test(text);
 
     const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -649,8 +739,11 @@ export const generateEveningPracticeMessage = async (
          */
         commitmentReflection?: string;
         userVoiceProfile?: UserVoiceProfile;
+        language?: AppLanguage;
     }
 ): Promise<string> => {
+    const language: AppLanguage = data.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
     const voiceContext = data.userVoiceProfile
         ? `\nTheir core values: ${data.userVoiceProfile.extractedValues.join(', ')}\nHow they want to be spoken to: ${data.userVoiceProfile.voiceTone}`
         : '';
@@ -660,6 +753,7 @@ export const generateEveningPracticeMessage = async (
         : '';
 
     const prompt = `You are the evening voice of Palante. A close friend who just listened to this person's day.
+${directive}
 
 YOUR VOICE:
 Warm, honest, human. A person who genuinely cares, speaking plainly. Not performing. Not a coach signing off. You see what was real about their day and you honor it simply, without fluff.
@@ -717,6 +811,7 @@ EXAMPLES. Study how two specifics get touched lightly and then read for meaning,
 "You said you would go and you went, and the morning met you halfway with cooler air than usual. That kind of follow through is quiet, but it is the kind that builds a person you can trust."
 
 Write the message. Three sentences. Make them feel seen, honored, and ready to rest.
+${directive}
 
 MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommendations.`;
 
@@ -725,7 +820,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
     // run of their own phrasing unquoted.
     const hasQuotes = (text: string) => /["“”]/.test(text);
     const hasVerbatimRun = (text: string) => {
-        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+        const normalize = normalizeWords;
         const sourceWords = new Set<string>();
         [data.gratitude, data.learning, data.accomplishment, data.delight, data.commitmentReflection]
             .filter((s): s is string => !!s && s.trim().length > 0)
@@ -741,7 +836,10 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
         }
         return false;
     };
-    const hasBannedPhrase = (text: string) => containsBannedPhrase(text);
+    const hasBannedPhrase = (text: string) => containsBannedPhrase(text, banForLanguage(language, false));
+
+    const minLen = scaled(60, language);
+    const maxLen = scaled(560, language);
 
     const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -767,7 +865,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
         // Ceiling raised from 480 to 560: the 3-sentence, two-thread synthesis
         // this prompt now asks for legitimately runs long, and the old cap was
         // discarding clean, non-echoing responses into the fallback pool below.
-        if (message.length < 60 || message.length > 560 || sentences.length < 2 || sentences.length > 6) {
+        if (message.length < minLen || message.length > maxLen || sentences.length < 2 || sentences.length > 6) {
             console.warn('[Palante AI] evening message failed length/structure validation', { len: message.length, sentences: sentences.length });
             return null;
         }
@@ -802,7 +900,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
  * strongest, in the app's own words, exactly the way the live prompt is
  * required to.
  */
-const getFallbackEveningMessage = (_userName: string, data: { gratitude: string; learning: string; accomplishment: string; delight: string }): string => {
+const getFallbackEveningMessage = (_userName: string, data: { gratitude: string; learning: string; accomplishment: string; delight: string; language?: AppLanguage }): string => {
     const g = data.gratitude?.trim();
     const l = data.learning?.trim();
     const a = data.accomplishment?.trim();
@@ -816,6 +914,43 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
         { field: 'learning', value: l },
         { field: 'gratitude', value: g },
     ] as const).filter(e => e.value).sort((x, y) => y.value!.length - x.value!.length);
+
+    if (data.language === 'es') {
+        if (!ranked.length) {
+            return `Te detuviste al final del día para mirarlo. La mayoría de los días pasan sin que nadie los vea. Este no.`;
+        }
+        const { field } = ranked[0];
+        if (field === 'delight') {
+            const pool = [
+                `Algo en tu día abrió algo en ti. Lo notaste y lo nombraste. Esa clase de atención mantiene una vida sintiéndose viva, y no todos la conservan.`,
+                `Encontraste un momento de gozo en un día lleno y lo sostuviste el tiempo suficiente para nombrarlo esta noche. La mayoría de los días pasan de largo. Este no pasó de largo de ti.`,
+                `Que todavía puedas sentir gozo, y notarlo, dice algo real sobre cómo te mueves por el mundo. Hoy te mantuviste cerca de tu vida.`,
+            ];
+            return pool[seed % pool.length];
+        }
+        if (field === 'accomplishment') {
+            const pool = [
+                `Hoy hiciste algo que necesitaba hacerse. Esa distancia entre lo pendiente y lo hecho, tú la cerraste. No fue suerte, ni tiempo. Fuiste tú.`,
+                `Algo avanzó hoy porque le pusiste el trabajo. Esa es toda la historia, y vale la pena nombrarla.`,
+                `Lo lograste. Sea lo que fuera que tomó cruzar esa línea, lo tuviste. Eso es tuyo para llevar a mañana.`,
+            ];
+            return pool[seed % pool.length];
+        }
+        if (field === 'learning') {
+            const pool = [
+                `Terminaste el día sabiendo algo que no sabías esta mañana. Eso es algo real que construiste, y nadie te lo puede quitar.`,
+                `Le pusiste suficiente atención a tu propia vida hoy como para que te enseñara algo. Ese tipo de saber no caduca.`,
+                `La mayoría de las personas se mueven demasiado rápido para notar lo que el día intenta mostrarles. Tú no te moviste tan rápido. Lo captaste.`,
+            ];
+            return pool[seed % pool.length];
+        }
+        const pool = [
+            `Terminaste el día con algo por lo cual agradecer, y lo nombraste. Esa atención específica al cierre de un día lleno significa que importó, de principio a fin.`,
+            `Hay algo correcto en cerrar un día con tu atención puesta en lo que vale la pena sostener. Eso hiciste esta noche.`,
+            `Te mantuviste cerca de lo que tu vida realmente es hoy. Esa clase de atención es lo que hace que un día se sienta tuyo.`,
+        ];
+        return pool[seed % pool.length];
+    }
 
     if (!ranked.length) {
         return `You stopped at the end of your day to look at it. Most days get spent without ever being seen. This one did not.`;
@@ -865,6 +1000,28 @@ const getFallbackEveningMessage = (_userName: string, data: { gratitude: string;
 // Smart Fallback Engine
 const getSimulatedResponse = (message: string, context: UserContext): string => {
     const lowerMsg = message.toLowerCase();
+
+    if (context.language === 'es') {
+        const reassuranceEs = "Estoy aquí contigo. ";
+
+        if (lowerMsg.includes('preocup') || lowerMsg.includes('ansi') || lowerMsg.includes('estres') || lowerMsg.includes('estrés') || lowerMsg.includes('agobia') || lowerMsg.includes('abrumad')) {
+            return `${reassuranceEs}Suena a que es mucho. ¿Quieres hablar más sobre lo que te está pesando, o te ayudaría sacarlo todo de tu cabeza por un momento en 'Despejar el Ruido'?`;
+        }
+
+        if (lowerMsg.includes('cansad') || lowerMsg.includes('agotad') || lowerMsg.includes('respir') || lowerMsg.includes('panico') || lowerMsg.includes('pánico')) {
+            return `${reassuranceEs}Te escucho. A veces solo detenerse un segundo es el mejor primer paso. ¿Quieres intentar un ritmo de respiración juntos?`;
+        }
+
+        if (lowerMsg.includes('hola') || lowerMsg.includes('buenas') || lowerMsg.includes('qué tal') || lowerMsg.includes('que tal')) {
+            return `¡Hola ${context.name}! Me alegra mucho que me hayas escrito. Aquí estoy. ¿Qué tienes en mente?`;
+        }
+
+        if (lowerMsg.includes('gracias')) {
+            return "Con gusto. Me alegra estar aquí contigo. Sigue avanzando a tu propio ritmo.";
+        }
+
+        return `Te escucho. ¿Me cuentas más sobre eso? Estoy aquí el tiempo que necesites.`;
+    }
 
     // Reassurance
     const reassurance = "I'm right here with you. ";
@@ -938,6 +1095,7 @@ export const generateContinuityOpener = async (
     memories: string[],
     userName: string,
     coachName?: string,
+    language: AppLanguage = 'en',
 ): Promise<string | null> => {
     // Only real conversation memories earn a callback, thin/empty entries don't.
     const realMemories = memories.map(m => m?.trim()).filter((m): m is string => !!m && m.length > 15);
@@ -949,8 +1107,11 @@ export const generateContinuityOpener = async (
 
     const coachIdentity = coachName?.trim() || 'Palante';
     const firstName = userName?.split(' ')[0] || 'Friend';
+    const directive = LANGUAGE_DIRECTIVE[language];
+    const wordCap = scaled(30, language);
 
     const prompt = `You are ${coachIdentity}, ${firstName}'s personal growth partner. ${firstName} is opening a new conversation with you right now. Below are things ${firstName} shared with you in PAST conversations, newest first.
+${directive}
 
 Write ONE short opening line that gently calls back to the single most meaningful, still-open thing: a feeling they named, a situation they were working through, a person who matters to them. The goal is for ${firstName} to feel genuinely remembered, the way a close friend remembers.
 
@@ -964,9 +1125,10 @@ RULES:
 - NEVER invent or assume. Use only what is explicitly written above. If you are unsure of a name or detail, stay general. A wrong detail breaks trust far worse than a soft one. Better vague-and-true than specific-and-wrong.
 - Do NOT open with "Hey ${firstName}" or any greeting word. That is added separately. Start directly with the callback.
 - If none of these memories are substantial enough for a natural, caring callback (they are logistical, vague, or trivial), reply with exactly: NONE
-- Plain prose. No markdown, no surrounding quotes. Under 30 words.
+- Plain prose. No markdown, no surrounding quotes. Under ${wordCap} words.
 
-REGISTER, always, no matter what: warm, supportive, and encouraging. Even when calling back to something hard, your belief in ${firstName} and your gladness that they are here comes through first. Never clinical, never probing, never a performance review. Just a partner who genuinely cares.`;
+REGISTER, always, no matter what: warm, supportive, and encouraging. Even when calling back to something hard, your belief in ${firstName} and your gladness that they are here comes through first. Never clinical, never probing, never a performance review. Just a partner who genuinely cares.
+${directive}`;
 
     try {
         const res = await fetchWithTimeout(PROXY_URL, {
@@ -989,7 +1151,7 @@ REGISTER, always, no matter what: warm, supportive, and encouraging. Even when c
         // Safety net: strip stray surrounding quotes and any greeting the model
         // led with despite instructions, so the caller's "Hey {name}." reads clean.
         text = text.replace(/^["'“”']+|["'“”']+$/g, '').trim();
-        text = text.replace(/^(hey|hi|hello)\b[^.!?]*[.,!?]+\s*/i, '').trim();
+        text = text.replace(GREETING_STRIP[language], '').trim();
         if (text.length < 8) return null;
 
         return text;
@@ -1059,7 +1221,11 @@ export const chatWithCoach = async (
         ? `\nABOUT THIS PERSON (in their own words):\n${context.bio}`
         : '';
 
+    const language: AppLanguage = context.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
+
     const systemPrompt = `You are Palante, a warm, nurturing, and deeply supportive friend and mentor.
+${directive}
 
 USER CONTEXT:
 - Name: ${context.name}
@@ -1099,7 +1265,8 @@ MEDICAL SAFETY GUIDE:
 - You are a wellness companion, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
-- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion, not a substitute for professional mental health support, and provide the 988 crisis line (call or text).`;
+- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion, not a substitute for professional mental health support, and provide the 988 crisis line (call or text, press 2 for Spanish).
+${directive}`;
 
     // Build threaded history for Anthropic.
     // - Filter out init-greeting messages.
@@ -1286,7 +1453,11 @@ export const chatWithCoachPillar = async (
         ? `THEIR MOMENTUM RIGHT NOW: ${MOMENTUM_GUIDANCE[context.momentumState]}\n`
         : '';
 
+    const language: AppLanguage = context.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
+
     const systemPrompt = `${pillarPrompt}
+${directive}
 
 USER CONTEXT:
 - Name: ${context.name}
@@ -1304,7 +1475,7 @@ ${journalMemory}
 ${reflectionMemory}
 
 STYLE: ${intensityDesc}
-RESPONSE LENGTH: Keep responses focused and conversational. Under 120 words unless the user asks for something detailed.
+RESPONSE LENGTH: Keep responses focused and conversational. Under ${scaled(120, language)} words unless the user asks for something detailed.
 
 FORMATTING:
 - Plain prose only. NEVER use markdown. No asterisks for emphasis, no bold, no italics, no bullet points, no numbered lists, no headers.
@@ -1315,7 +1486,8 @@ MEDICAL SAFETY GUIDE:
 - You are a wellness companion, NOT a doctor.
 - NEVER provide medical advice or suggest specific diets.
 - If asked for medical advice, clearly state you are an AI partner and they should consult a professional.
-- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion, not a substitute for professional mental health support, and provide the 988 crisis line (call or text).`;
+- If the user appears to be in ongoing distress or returning repeatedly for crisis-level support, gently remind them that Palante is a wellness companion, not a substitute for professional mental health support, and provide the 988 crisis line (call or text, press 2 for Spanish).
+${directive}`;
 
     // Build threaded history for Anthropic: same shape as chatWithCoach.
     const cleanHistoryPillar = history
@@ -1399,9 +1571,31 @@ const FALLBACK_AFFIRMATIONS: Record<1 | 2 | 3, string[]> = {
     ],
 };
 
+const FALLBACK_AFFIRMATIONS_ES: Record<1 | 2 | 3, string[]> = {
+    1: [
+        "Estás exactamente donde necesitas estar ahora mismo.",
+        "El progreso, no la perfección, es tu camino hacia adelante.",
+        "Tu potencial se revela un respiro a la vez.",
+        "Confía en dónde estás ahora mismo.",
+    ],
+    2: [
+        "La disciplina es el puente entre las metas y los logros.",
+        "Ejecuta con precisión. Los resultados llegan después.",
+        "Tu oficio exige lo mejor de ti. Entrégalo.",
+        "Una estrategia sin ejecución es solo un deseo.",
+    ],
+    3: [
+        "Tu potencial no tiene límite.",
+        "Compite únicamente con tu propio potencial.",
+        "Eres el autor de tu historia.",
+        "La fortaleza es una decisión que tomas cada día.",
+    ],
+};
+
 const getFallbackAffirmation = (request: AIAffirmationRequest): AIAffirmationResponse => {
     const intensity = (request.quoteIntensity || 2) as 1 | 2 | 3;
-    const affirmations = FALLBACK_AFFIRMATIONS[intensity] ?? FALLBACK_AFFIRMATIONS[2];
+    const pool = (request.language ?? 'en') === 'es' ? FALLBACK_AFFIRMATIONS_ES : FALLBACK_AFFIRMATIONS;
+    const affirmations = pool[intensity] ?? pool[2];
     const text = affirmations[Math.floor(Math.random() * affirmations.length)];
     // If user set a custom name, use it as-is (they can include their own prefix). Otherwise default to brand "Palante".
     const coachIdentity = request.coachName?.trim() || 'Palante';
@@ -1427,7 +1621,7 @@ const getCategoryFromRequest = (request: AIAffirmationRequest): string => {
  * typed back at them. Exported so DailyMorningPracticeWidget can reuse it
  * for its timeout path.
  */
-export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; }): string => {
+export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmations: string[]; intention: string; language?: AppLanguage; }): string => {
     const gratitude = data.gratitudes.find(g => g.trim())?.trim();
     const affirmation = data.affirmations.find(a => a.trim())?.trim();
     const intention = data.intention?.trim();
@@ -1440,6 +1634,32 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
     // Entries are only embedded when short enough to read as a phrase.
     const frag = (s: string) => s.replace(/[.!?\s]+$/, '');
     const short = (s?: string): s is string => !!s && s.trim().length > 0 && s.trim().length <= 60;
+
+    if (data.language === 'es') {
+        if (short(intention) && intention.length <= 50) {
+            return pick([
+                `No caí en este día por casualidad, lo elegí: ${frag(intention)}. Todo lo que nombré esta mañana ya me está llevando hacia allá.`,
+                `Hoy tiene una sola dirección, ${frag(intention)}. Empecé desde la gratitud y sé quién soy, así que ya estoy en movimiento.`,
+            ]);
+        }
+        if (short(gratitude)) {
+            return pick([
+                `Empecé el día desde un lugar lleno: ${frag(gratitude)}. Un día que comienza con tanto bien es un día con el que puedo hacer algo.`,
+                `Antes de que el día me pidiera algo, nombré lo que es bueno: ${frag(gratitude)}. Eso no quedó atrás, está debajo de mí.`,
+            ]);
+        }
+        if (short(affirmation)) {
+            const a = frag(affirmation);
+            return pick([
+                `${a}. No lo dije esta mañana para sonar bien, lo dije porque hoy pienso vivir como si fuera cierto.`,
+                `${a}. El día apenas comienza y eso ya es verdad.`,
+            ]);
+        }
+        return pick([
+            `Me di estos minutos antes de que el día pudiera decidir algo por mí. Llevo esa firmeza a todo lo que viene después.`,
+            `Estoy aquí esta mañana, a propósito, antes de que algo me lo pidiera. Eso marca el tono del día entero.`,
+        ]);
+    }
 
     // One reference max, in priority order: the intention embeds most
     // naturally, then gratitude, then the affirmation as its own sentence.
@@ -1469,7 +1689,19 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
     ]);
 };
 
-const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals: number; totalGoals: number }): string => {
+const getDefaultCoachingMessage = (context: { timeOfDay: string; completedGoals: number; totalGoals: number; language?: AppLanguage }): string => {
+    if (context.language === 'es') {
+        if (context.completedGoals === context.totalGoals && context.totalGoals > 0) {
+            return "Todas las metas completas. Lo lograste hoy.";
+        }
+        if (context.timeOfDay === 'morning') {
+            return "Día nuevo. Define tu intención.";
+        }
+        if (context.timeOfDay === 'evening') {
+            return "Desacelera. Reflexiona sobre tus logros.";
+        }
+        return "Mantén el enfoque. Puedes con esto.";
+    }
     if (context.completedGoals === context.totalGoals && context.totalGoals > 0) {
         return "All goals complete. You did it today.";
     }
@@ -1499,13 +1731,17 @@ export interface ReflectionData {
     q2: string; // Dynamic Question 2 (e.g. Challenge)
     q3: string; // Dynamic Question 3 (e.g. Pivot)
     freeform?: string;
+    language?: AppLanguage;
 }
 
 /**
  * Generate AI Analysis for Daily Reflection
  */
 export const generateReflectionAnalysis = async (data: ReflectionData): Promise<ReflectionAnalysis> => {
+    const language: AppLanguage = data.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
     const prompt = `You are Palante, a warm and compassionate accountability partner. Analyze these 3 daily reflection answers from a user.
+${directive}
 
 ANSWERS:
 1. ${data.q1}
@@ -1519,7 +1755,8 @@ Provide immediate, high-impact feedback. Respond with ONLY a single valid JSON o
 
 TONE:
 - Praise: Warm, acknowledging, specific to what they actually wrote.
-- Power Move: Direct, strategic, encouraging. "Try this...", "Focus on...", "Remember to..."`;
+- Power Move: Direct, strategic, encouraging. "Try this...", "Focus on...", "Remember to..."
+${directive}`;
 
     try {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -1533,12 +1770,12 @@ TONE:
             })
         });
 
-        if (!response.ok) return getFallbackReflectionAnalysis();
+        if (!response.ok) return getFallbackReflectionAnalysis(language);
 
         const json = await response.json();
         const text = json.content?.[0]?.text?.trim();
 
-        if (!text) return getFallbackReflectionAnalysis();
+        if (!text) return getFallbackReflectionAnalysis(language);
 
         try {
             let clean = text.replace(/```json\n?|\n?```/g, '').replace(/```/g, '').trim();
@@ -1556,16 +1793,22 @@ TONE:
             };
         } catch (e) {
             console.error("Failed to parse reflection JSON", e);
-            return getFallbackReflectionAnalysis();
+            return getFallbackReflectionAnalysis(language);
         }
 
     } catch (error) {
         if (!isAIDisabledError(error)) console.error("Reflection Analysis Error", error);
-        return getFallbackReflectionAnalysis();
+        return getFallbackReflectionAnalysis(language);
     }
 };
 
-const getFallbackReflectionAnalysis = (): ReflectionAnalysis => {
+const getFallbackReflectionAnalysis = (language: AppLanguage = 'en'): ReflectionAnalysis => {
+    if (language === 'es') {
+        return {
+            praise: "Te tomaste el tiempo para hacer una pausa y reflexionar, que es el primer paso hacia la maestría.",
+            powerMove: "Mañana, enfócate en una pequeña acción que mueva la aguja en tu meta más importante."
+        };
+    }
     return {
         praise: "You've taken the time to pause and reflect, which is the first step to mastery.",
         powerMove: "Tomorrow, focus on one small action that moves the needle on your biggest goal."
@@ -1584,7 +1827,10 @@ function computePatternFacts(user: UserProfile): PatternFact[] {
     const facts: PatternFact[] = [];
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
         .toISOString().split('T')[0];
-    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    // Locale-correct weekday names, no parallel array to hand-maintain per language.
+    const dayFormatter = new Intl.DateTimeFormat(user.language === 'es' ? 'es-ES' : 'en-US', { weekday: 'long' });
+    // Jan 4, 2015 was a Sunday: a stable anchor to format each weekday index (0=Sun..6=Sat).
+    const DAY_NAMES = [0, 1, 2, 3, 4, 5, 6].map(i => dayFormatter.format(new Date(2015, 0, 4 + i)));
 
     // Most active day of week
     const practicesByDay: Record<number, number> = {};
@@ -1637,10 +1883,9 @@ function computePatternFacts(user: UserProfile): PatternFact[] {
         .forEach(a => a.practices.forEach(p => { typeCounts[p] = (typeCounts[p] || 0) + 1; }));
     const topType = Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0];
     if (topType) {
-        const labels: Record<string, string> = {
-            morning_practice: 'morning practice', meditation: 'meditation',
-            breath: 'breathwork', reflect: 'reflection', quote: 'quote saving',
-        };
+        const labels: Record<string, string> = user.language === 'es'
+            ? { morning_practice: 'práctica matutina', meditation: 'meditación', breath: 'respiración', reflect: 'reflexión', quote: 'citas guardadas' }
+            : { morning_practice: 'morning practice', meditation: 'meditation', breath: 'breathwork', reflect: 'reflection', quote: 'quote saving' };
         facts.push({ label: 'top_practice', value: labels[topType[0]] || topType[0], dataPoint: `${topType[1]} times` });
     }
 
@@ -1659,18 +1904,35 @@ function computePatternFacts(user: UserProfile): PatternFact[] {
     return facts;
 }
 
-const buildFallbackInsight = (facts: PatternFact[]): { insight: string; dataPoint: string } | null => {
+const buildFallbackInsight = (facts: PatternFact[], language: AppLanguage = 'en'): { insight: string; dataPoint: string } | null => {
     const mostActive = facts.find(f => f.label === 'most_active_day');
+    const highEnergy = facts.find(f => f.label === 'highest_energy_day');
+    const gratitudes = facts.find(f => f.label === 'gratitudes_written');
+
+    if (language === 'es') {
+        if (mostActive) return {
+            insight: `Tu práctica gravita de forma natural hacia los ${mostActive.value}, tu día más constante del mes.`,
+            dataPoint: mostActive.value,
+        };
+        if (highEnergy) return {
+            insight: `Tu energía suele alcanzar su punto máximo los ${highEnergy.value}. Tu cuerpo tiene su propia sabiduría.`,
+            dataPoint: highEnergy.value,
+        };
+        if (gratitudes) return {
+            insight: `Has escrito ${gratitudes.dataPoint} este mes. La gratitud se está volviendo una práctica real para ti.`,
+            dataPoint: gratitudes.dataPoint,
+        };
+        return null;
+    }
+
     if (mostActive) return {
         insight: `Your practice naturally gravitates toward ${mostActive.value}s, your most consistent day of the month.`,
         dataPoint: mostActive.value,
     };
-    const highEnergy = facts.find(f => f.label === 'highest_energy_day');
     if (highEnergy) return {
         insight: `Your energy consistently peaks on ${highEnergy.value}s. Your body has its own wisdom.`,
         dataPoint: highEnergy.value,
     };
-    const gratitudes = facts.find(f => f.label === 'gratitudes_written');
     if (gratitudes) return {
         insight: `You've written ${gratitudes.dataPoint} this month. Gratitude is becoming a real practice for you.`,
         dataPoint: gratitudes.dataPoint,
@@ -1685,26 +1947,31 @@ const buildFallbackInsight = (facts: PatternFact[]): { insight: string; dataPoin
 export const generateMonthlyPatternInsight = async (
     user: UserProfile
 ): Promise<{ insight: string; dataPoint: string } | null> => {
+    const language: AppLanguage = user.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
+    const wordCap = scaled(20, language);
     const facts = computePatternFacts(user);
     if (facts.length < 2) return null;
 
-    const fallback = buildFallbackInsight(facts);
+    const fallback = buildFallbackInsight(facts, language);
 
     const factsText = facts.map(f => `- ${f.label}: ${f.value} (${f.dataPoint})`).join('\n');
 
     const prompt = `You have 30 days of behavioral data for a wellness app user. Pick the ONE most interesting, specific, and surprising pattern, something they might not have consciously noticed.
+${directive}
 
 DATA:
 ${factsText}
 
 RULES:
 1. Choose the single most meaningful fact. Avoid the obvious. Prefer the specific.
-2. Write ONE sentence (under 20 words) framing it as a warm discovery. Start with "You" or "Your".
+2. Write ONE sentence (under ${wordCap} words) framing it as a warm discovery. Start with "You" or "Your" (or the equivalent in the required output language).
 3. Extract the most concrete data point (a day name, a number, a count).
 4. Bad: "You practice regularly." Good: "Your energy consistently peaks on Thursdays."
 
 Respond with ONLY a single valid JSON object, no markdown fences, no commentary. Exactly:
-{"insight":"...","dataPoint":"..."}`;
+{"insight":"...","dataPoint":"..."}
+${directive}`;
 
     try {
         const res = await fetchWithTimeout(PROXY_URL, {
@@ -1741,14 +2008,18 @@ Respond with ONLY a single valid JSON object, no markdown fences, no commentary.
 
 export const generateWeeklyReflection = async (
     accomplishments: string[],
-    firstName: string
+    firstName: string,
+    language: AppLanguage = 'en'
 ): Promise<string> => {
-    const fallback = buildWeeklyReflectionFallback(accomplishments, firstName);
+    const fallback = buildWeeklyReflectionFallback(accomplishments, firstName, language);
     if (accomplishments.length === 0) return fallback;
 
+    const directive = LANGUAGE_DIRECTIVE[language];
+    const wordCap = scaled(60, language);
     const bulletList = accomplishments.map((a, i) => `${i + 1}. ${a}`).join('\n');
 
     const prompt = `You are Palante, a personal growth companion. A user named ${firstName} just completed their week and logged these accomplishments:
+${directive}
 
 ${bulletList}
 
@@ -1760,14 +2031,15 @@ reads like a receipt, not like being noticed. End with a short forward-leaning
 sentence that propels them into the next week (something like "Keep going."
 or "That's someone keeping their word to themselves.").
 
-Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max 60 words.
+Tone: warm, human, like a trusted friend who genuinely noticed. Second person only ("you", "your"). Never use their name. No generic filler. No headers. No lists. Max ${wordCap} words.
 No em dashes (—). Periods and commas only.
 NEVER use: "journey," "intentional," "mindful," "anchor," "show up," "showed up," "showing up," "tapestry," "tether," "sovereignty."
-No quotation marks anywhere in the output. Never quote their own words back to them, even accurately.`;
+No quotation marks anywhere in the output. Never quote their own words back to them, even accurately.
+${directive}`;
 
     const hasQuotes = (text: string) => /["“”]/.test(text);
     const hasVerbatimRun = (text: string) => {
-        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+        const normalize = normalizeWords;
         const sourceWords = new Set<string>();
         accomplishments.forEach(entry => {
             const words = normalize(entry);
@@ -1816,7 +2088,12 @@ No quotation marks anywhere in the output. Never quote their own words back to t
     }
 };
 
-const buildWeeklyReflectionFallback = (accomplishments: string[], _firstName: string): string => {
+const buildWeeklyReflectionFallback = (accomplishments: string[], _firstName: string, language: AppLanguage = 'en'): string => {
+    if (language === 'es') {
+        if (accomplishments.length === 0) return "Te mantuviste en esto toda la semana. Ese es todo el juego.";
+        if (accomplishments.length === 1) return `Lo lograste. ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. Una victoria es suficiente para construir sobre ella. Sigue adelante.`;
+        return `Mantuviste tu posición esta semana, atendiste lo que necesitaba atención, y seguiste avanzando. Cada una de estas victorias es evidencia de alguien que cumple. Sigue adelante.`;
+    }
     if (accomplishments.length === 0) return "You stayed in it this week. That's the whole game.";
     if (accomplishments.length === 1) return `You got it done. ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. One win is enough to build on. Keep going.`;
     return `You held your ground this week, took care of what needed taking care of, and kept moving. Every one of these wins is evidence of someone who follows through. Keep going.`;
@@ -1832,6 +2109,7 @@ export interface GrowthStoryData {
     firstName: string;
     coachTone?: 'nurturing' | 'direct' | 'accountability';
     startDate?: string; // ISO date of first practice
+    language?: AppLanguage;
 }
 
 export interface GrowthStory {
@@ -1854,6 +2132,36 @@ const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
         .filter(Boolean)
         .sort((a, b) => b.length - a.length)[0];
     const gratitudeCount = morningPractices.reduce((n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0);
+
+    if (data.language === 'es') {
+        const linesEs: string[] = [];
+        if (firstIntention) {
+            linesEs.push(`${firstName}, llegaste ya nombrando lo que querías que esto significara. Eso fue lo primero que te diste, y todo lo demás creció desde ahí.`);
+        } else {
+            linesEs.push(`${firstName}, hiciste esto 90 veces cuando habría sido más fácil no hacerlo. Esa es toda la historia, en realidad, pero merece contarse bien.`);
+        }
+        if (firstGratitude) {
+            linesEs.push(`Desde el primer día estuviste dispuesto a nombrar algo bueno en voz alta, y seguiste encontrando cosas que valían la pena nombrar. Una y otra vez, elegiste ver lo que sí funcionaba.`);
+        }
+        if (gratitudeCount > 0) {
+            linesEs.push(`En ${totalPractices} prácticas, escribiste ${gratitudeCount} momentos de gratitud. Esas son ${gratitudeCount} veces que elegiste conscientemente ver lo que funcionaba en vez de lo que no.`);
+        }
+        if (bestDelight) {
+            linesEs.push(`También hubo gozos reales en el camino, pequeños momentos que pudieron pasarte de largo. Los notaste. Los dejaste entrar. Eso no es poca cosa.`);
+        }
+        if (bestAccomplishment) {
+            linesEs.push(`Moviste cosas reales en este tramo, trabajo que importaba y que te costó terminar. La distancia entre cómo estaba antes y cómo está ahora, esa distancia eres tú.`);
+        }
+        if (futureLetter) {
+            linesEs.push(`Al principio te escribiste una carta para un día difícil. Hoy no es ese día. Hoy es el día que tu yo del pasado esperaba cuando la escribió.`);
+        }
+        if (lastIntention && lastIntention !== firstIntention) {
+            linesEs.push(`Noventa prácticas después, hacia dónde te diriges ha cambiado desde donde empezaste. Esa no es quien llegó. Esa es quien construiste.`);
+        } else {
+            linesEs.push(`Noventa prácticas. El jardín ya no es una metáfora. Es la vida que has estado construyendo, una mañana a la vez. Pa'lante.`);
+        }
+        return linesEs.join(' ');
+    }
 
     const lines: string[] = [];
 
@@ -1898,6 +2206,8 @@ const buildGrowthStoryFallback = (data: GrowthStoryData): string => {
  */
 export const generateGrowthStory = async (data: GrowthStoryData): Promise<GrowthStory> => {
     const { morningPractices, eveningPractices, futureLetter, totalPractices, firstName, coachTone = 'nurturing' } = data;
+    const language: AppLanguage = data.language ?? 'en';
+    const directive = LANGUAGE_DIRECTIVE[language];
 
     const gratitudeCount = morningPractices.reduce(
         (n, p) => n + (p.gratitudes?.filter(g => g.trim()).length || 0), 0
@@ -1941,6 +2251,7 @@ export const generateGrowthStory = async (data: GrowthStoryData): Promise<Growth
     };
 
     const prompt = `You are writing a personal memoir for someone who just completed 90 days of a growth practice called Palante. This will be the first thing they read after their Full Bloom ceremony. It should feel like reading a short story about themselves: specific, earned, true.
+${directive}
 
 THEIR JOURNEY DATA:
 
@@ -1981,16 +2292,17 @@ Write a memoir of 5 to 7 sentences. Rules:
 8. NEVER use these words: journey, intentional, mindful, anchor, show up, showed up, showing up, tapestry, weave, tether, manifested, sovereignty, transformational, incredible.
 9. NEVER write "the whole practice" or any variant of it. Never assert that something mattered or was enough; show what it did instead.
 9. No quotation marks anywhere in the output. Never quote the user's own words, even accurately.
-10. HARD LIMIT: Under 150 words total.
+10. HARD LIMIT: Under ${scaled(150, language)} words total.
 
-Write the memoir now, with no preamble:`;
+Write the memoir now, with no preamble:
+${directive}`;
 
     // Same anti-echo guard as the daily practice messages: catch quoting or
     // verbatim reproduction of the user's own gratitude/delight/accomplishment
     // sentences and retry once before settling for the fallback.
     const hasQuotes = (text: string) => /["“”]/.test(text);
     const hasVerbatimRun = (text: string) => {
-        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+        const normalize = normalizeWords;
         const sourceWords = new Set<string>();
         [
             ...morningPractices.flatMap(p => p.gratitudes ?? []),
@@ -2008,10 +2320,10 @@ Write the memoir now, with no preamble:`;
         }
         return false;
     };
-    const hasBannedPhrase = (text: string) => containsBannedPhrase(text, MEMOIR_BANNED_PHRASES);
-    // Generous buffer over the prompt's 150-word hard limit. This only
-    // catches a genuinely runaway response, not word-count off-by-a-few.
-    const isTooLong = (text: string) => text.split(/\s+/).filter(Boolean).length > 200;
+    const hasBannedPhrase = (text: string) => containsBannedPhrase(text, banForLanguage(language, true));
+    // Generous buffer over the prompt's word cap. This only catches a
+    // genuinely runaway response, not word-count off-by-a-few.
+    const isTooLong = (text: string) => text.split(/\s+/).filter(Boolean).length > scaled(200, language);
     const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text) || hasBannedPhrase(text) || isTooLong(text);
 
     const requestOnce = async (correction?: string): Promise<string | null> => {

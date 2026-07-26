@@ -409,6 +409,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             persistedMemories: allMemories,
             bio: user.bio,
             healthContext: healthCtxRef.current,
+            language: user.language,
         };
     }, [user, persistedMemories]);
 
@@ -511,7 +512,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             onStart: () => { setVoiceLoadingId(null); setVoiceMsgId(msg.id); },
             onEnd: () => { setVoiceMsgId(null); setVoiceLoadingId(null); },
             onError: () => { setVoiceMsgId(null); setVoiceLoadingId(null); },
-        });
+        }, user.language ?? 'en');
     };
 
     // Stop any audio when the view unmounts so it can't keep playing off-screen.
@@ -821,6 +822,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 severity={crisisSignal.severity}
                                 partnerName={user.coachName?.trim() || 'your partner'}
                                 onDismiss={() => setCrisisSignal(null)}
+                                language={user.language}
                             />
                         )}
                         <form onSubmit={handleSend} className="max-w-xl mx-auto">

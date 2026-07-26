@@ -22,4 +22,5 @@ export const createDefaultProfile = (id: string): UserProfile => ({
     goals: [],
     favoriteQuotes: [],
     aiDisabled: false,
+    language: 'en',
 });

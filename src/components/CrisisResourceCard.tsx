@@ -1,6 +1,7 @@
 import { Phone, MessageSquare, X } from 'lucide-react';
 import { haptics } from '../utils/haptics';
 import type { CrisisSeverity } from '../utils/crisisDetection';
+import type { AppLanguage } from '../types';
 
 /**
  * Surfaced by a deterministic keyword tripwire (utils/crisisDetection), not by the
@@ -18,16 +19,23 @@ interface CrisisResourceCardProps {
     severity: CrisisSeverity;
     partnerName: string;
     onDismiss: () => void;
+    language?: AppLanguage;
 }
 
-export function CrisisResourceCard({ severity, partnerName, onDismiss }: CrisisResourceCardProps) {
-    const heading = severity === 'active'
-        ? 'Please talk to someone right now'
-        : "You don't have to carry this alone";
+export function CrisisResourceCard({ severity, partnerName, onDismiss, language = 'en' }: CrisisResourceCardProps) {
+    const isEs = language === 'es';
 
-    const body = severity === 'active'
-        ? `What you just wrote matters, and it's bigger than what ${partnerName} can hold. There are people trained for exactly this, available right now, free and confidential.`
-        : `${partnerName} is here for you, but not as a substitute for a person. If today is heavier than usual, talking to someone real is worth it.`;
+    const heading = isEs
+        ? (severity === 'active' ? 'Por favor, habla con alguien ahora mismo' : 'No tienes que cargar con esto sola')
+        : (severity === 'active' ? 'Please talk to someone right now' : "You don't have to carry this alone");
+
+    const body = isEs
+        ? (severity === 'active'
+            ? `Lo que acabas de escribir importa, y es más grande de lo que ${partnerName} puede sostener. Hay personas capacitadas exactamente para esto, disponibles ahora mismo, gratis y confidencial.`
+            : `${partnerName} está aquí para ti, pero no sustituye a una persona real. Si hoy pesa más de lo usual, hablar con alguien vale la pena.`)
+        : (severity === 'active'
+            ? `What you just wrote matters, and it's bigger than what ${partnerName} can hold. There are people trained for exactly this, available right now, free and confidential.`
+            : `${partnerName} is here for you, but not as a substitute for a person. If today is heavier than usual, talking to someone real is worth it.`);
 
     return (
         <div
@@ -56,7 +64,7 @@ export function CrisisResourceCard({ severity, partnerName, onDismiss }: CrisisR
                     </h3>
                     <button
                         onClick={() => { haptics.selection(); onDismiss(); }}
-                        aria-label="Dismiss support resources"
+                        aria-label={isEs ? 'Cerrar recursos de apoyo' : 'Dismiss support resources'}
                         className="flex-shrink-0 -mt-1 -mr-1 p-1.5 rounded-full transition-colors hover:bg-black/5"
                     >
                         <X size={16} color="rgba(45,62,51,0.4)" />
@@ -92,9 +100,24 @@ export function CrisisResourceCard({ severity, partnerName, onDismiss }: CrisisR
                             fontSize: '14.5px',
                         }}
                     >
-                        Call 988: Suicide &amp; Crisis Lifeline
+                        {isEs ? 'Llama al 988: Línea de Crisis y Prevención del Suicidio' : 'Call 988: Suicide & Crisis Lifeline'}
                     </span>
                 </a>
+                {isEs && (
+                    <p
+                        style={{
+                            fontFamily: 'Inter, sans-serif',
+                            fontWeight: 400,
+                            color: 'rgba(45,62,51,0.45)',
+                            fontSize: '11px',
+                            lineHeight: 1.4,
+                            textAlign: 'center',
+                            marginTop: -6,
+                        }}
+                    >
+                        Presiona 2 para español.
+                    </p>
+                )}
 
                 <a
                     href="sms:741741&body=HOME"
@@ -126,7 +149,9 @@ export function CrisisResourceCard({ severity, partnerName, onDismiss }: CrisisR
                         paddingTop: 4,
                     }}
                 >
-                    Free, confidential, 24/7. If you are in immediate danger, call 911.
+                    {isEs
+                        ? 'Gratis, confidencial, 24/7. Si estás en peligro inmediato, llama al 911.'
+                        : 'Free, confidential, 24/7. If you are in immediate danger, call 911.'}
                 </p>
             </div>
         </div>

@@ -110,6 +110,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 affirmations: affirmations.filter(a => a.trim().length > 0),
                 intention,
                 coachTone: user?.coachSettings?.coachTone,
+                language: user?.language,
             };
             const fallbackTimer = setTimeout(() => {
                 setGeneratedMessage(getFallbackMorningMessage(fallbackData));

@@ -438,6 +438,7 @@ export const getAIQuote = async (user: UserProfile): Promise<Quote> => {
             dailyIntention: todaysPrimingAI?.dailyIntention,
             currentMood: user.currentMood,
             currentEnergy: user.currentEnergy,
+            language: user.language,
         });
 
         return {

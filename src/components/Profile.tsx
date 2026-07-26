@@ -19,6 +19,7 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
 import { AIDisclosureModal } from './AIDisclosureModal';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface ProfileProps {
     user: UserProfile;
@@ -64,6 +65,7 @@ const CollapsibleSection: React.FC<{
 );
 
 export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, onClose, onOpenKoiPond, onToggleTheme, onShowWelcome, onViewPrivacy, onWriteLetter, onRefreshNarrative, onToast }) => {
+    const { t } = useTranslation();
     const [name, setName] = useState(user.name || '');
     const [age, setAge] = useState<number | ''>(user.age || '');
     const [coachName, setCoachName] = useState(user.coachName || '');
@@ -737,6 +739,37 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <option value="Writer">Writer / Author</option>
                                     <option value="Other">Other</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label className={labelClasses}>{t('settings.language')}</label>
+                                <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/40'}`}>{t('settings.languageHelp')}</p>
+                                <div className="flex gap-3">
+                                    {(['en', 'es'] as const).map(lang => {
+                                        const isActive = (user.language ?? 'en') === lang;
+                                        return (
+                                            <button
+                                                key={lang}
+                                                type="button"
+                                                onClick={() => {
+                                                    haptics.selection();
+                                                    onUpdate((prevUser: UserProfile | null) => {
+                                                        if (!prevUser) return user;
+                                                        return { ...prevUser, language: lang };
+                                                    });
+                                                }}
+                                                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                                                    isActive
+                                                        ? 'bg-[#C96A3A] text-white'
+                                                        : isDarkMode
+                                                            ? 'bg-white/8 text-white hover:bg-white/14'
+                                                            : 'bg-sage/8 text-sage-dark/60 hover:bg-sage/15'
+                                                }`}
+                                            >
+                                                {lang === 'en' ? t('settings.languageEnglish') : t('settings.languageSpanish')}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                             <div>
                                 <label className={labelClasses}>Focus Goal</label>

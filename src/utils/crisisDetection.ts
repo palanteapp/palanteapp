@@ -57,6 +57,56 @@ const INTENT = String.raw`(?:want|wanna|going|gonna|need|ready|plan|planning|thi
 const HARM_VERB = String.raw`(?:hurt(?:ing)?|harm(?:ing)?|cut(?:ting)?)`;
 
 /**
+ * Spanish equivalents. Content flagged as needing native/fluent-speaker
+ * review before shipping, same as the deferred content catalogs, but the
+ * bias here is non-negotiable: false positives are cheap, false negatives
+ * are not (see file doc comment above). Patterns are written against the
+ * NFD-diacritic-stripped form normalize() produces (e.g. "está" -> "esta").
+ */
+const IDIOMS_ES: RegExp[] = [
+    /\bme muero de (?:ganas|hambre|risa|sueno|verguenza)\b/g, // "dying to", "starving", "dying laughing"
+    /\besto (?:me |lo |la )?esta matando\b/g,                  // "this is killing me" (stress hyperbole)
+    /\blo (?:mataste|mato)\b/g,                                 // "you killed it" (nailed a performance)
+    /\bmuert[oa] de (?:cansancio|risa|hambre|sueno|verguenza)\b/g, // "dead tired", "dead of laughter"
+    /\bcansancio mortal\b/g,
+    /\bsuicidio (?:profesional|politico|comercial)\b/g,         // career/political/commercial suicide
+];
+
+const INTENT_ES = String.raw`(?:quiero|quisiera|voy a|pienso|planeo|estoy pensando en|me quiero)\s*`;
+
+const ACTIVE_PATTERNS_ES: RegExp[] = [
+    /\bquiero morir\b/,
+    /\bquiero estar muert[oa]\b/,
+    /\bmejor muert[oa]\b/,
+    /\bsuicida\b/,
+    /\bcometer suicidio\b/,
+    /\bpensando en (?:el )?suicidio\b/,
+    /\b(?:quiero|voy a|pienso) suicidarme\b/,
+    /\bme quiero suicidar\b/,
+    /\b(?:quiero|voy a) matarme\b/,
+    /\bme quiero matar\b/,
+    new RegExp(String.raw`\b${INTENT_ES}(?:hacerme dano|lastimarme|cortarme|herirme)\b`),
+    /\bno (?:quiero|tengo ganas de) seguir viviendo\b/,
+    /\bno tengo (?:razon|motivo) (?:para|por que) vivir\b/,
+    /\bnada (?:por lo que|para lo que) vivir\b/,
+    /\bno quiero despertar(?:me)?\b/,
+    /\b(?:acabar|terminar) con mi vida\b/,
+    /\bquitarme la vida\b/,
+];
+
+const PASSIVE_PATTERNS_ES: RegExp[] = [
+    /\bmejor sin mi\b/,
+    /\bmas feli(?:z|ces) sin mi\b/,
+    /\bya no quiero estar aqui\b/,
+    /\bcansad[oa] de vivir\b/,
+    /\bhart[oa] de (?:la vida|vivir)\b/,
+    /\bno (?:puedo|aguanto) mas (?:con|con esto de) la vida\b/,
+    /\brenunciar a la vida\b/,
+    /\bojala nunca (?:hubiera|hubiese) nacido\b/,
+    /\bnadie (?:notaria|se daria cuenta) si yo\b/,
+];
+
+/**
  * Explicit intent or ideation. Highest confidence.
  */
 const ACTIVE_PATTERNS: RegExp[] = [
@@ -118,18 +168,21 @@ export function detectCrisisSignal(text: string): CrisisSignal | null {
     if (!scannable) return null;
 
     // Strip everyday idioms before matching so they cannot trip a pattern.
-    for (const idiom of IDIOMS) {
+    // Both language sets always run, regardless of the user's selected app
+    // language: a bilingual user may type in either language, and crisis
+    // coverage must never depend on a UI toggle.
+    for (const idiom of [...IDIOMS, ...IDIOMS_ES]) {
         scannable = scannable.replace(idiom, ' ');
     }
     scannable = scannable.replace(/\s+/g, ' ').trim();
     if (!scannable) return null;
 
-    for (const pattern of ACTIVE_PATTERNS) {
+    for (const pattern of [...ACTIVE_PATTERNS, ...ACTIVE_PATTERNS_ES]) {
         const hit = scannable.match(pattern);
         if (hit) return { severity: 'active', matched: hit[0] };
     }
 
-    for (const pattern of PASSIVE_PATTERNS) {
+    for (const pattern of [...PASSIVE_PATTERNS, ...PASSIVE_PATTERNS_ES]) {
         const hit = scannable.match(pattern);
         if (hit) return { severity: 'passive', matched: hit[0] };
     }

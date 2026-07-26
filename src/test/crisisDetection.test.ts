@@ -86,6 +86,90 @@ describe('detectCrisisSignal, everyday language must not fire', () => {
     });
 });
 
+describe('detectCrisisSignal, Spanish active signals', () => {
+    const active = [
+        'quiero morir',
+        'quiero estar muerta',
+        'mejor muerto que seguir asi',
+        'me siento suicida hoy',
+        'he pensado en cometer suicidio',
+        'llevo tiempo pensando en el suicidio',
+        'quiero suicidarme',
+        'me quiero suicidar',
+        'quiero matarme',
+        'me quiero matar',
+        'quiero hacerme daño',
+        'no quiero seguir viviendo',
+        'no tengo razón para vivir',
+        'no tengo nada por lo que vivir',
+        'no quiero despertar mañana',
+        'quiero acabar con mi vida',
+        'quiero quitarme la vida',
+    ];
+
+    it.each(active)('flags %j as active', (text) => {
+        const signal = detectCrisisSignal(text);
+        expect(signal).not.toBeNull();
+        expect(signal?.severity).toBe('active');
+    });
+});
+
+describe('detectCrisisSignal, Spanish passive signals', () => {
+    const passive = [
+        'mi familia estaría mejor sin mí',
+        'todos serían más felices sin mí',
+        'ya no quiero estar aquí',
+        'estoy tan cansada de vivir',
+        'estoy harto de la vida',
+        'no puedo más con la vida',
+        'quiero renunciar a la vida',
+        'ojalá nunca hubiera nacido',
+        'nadie se daría cuenta si yo desapareciera',
+    ];
+
+    it.each(passive)('flags %j as passive', (text) => {
+        const signal = detectCrisisSignal(text);
+        expect(signal).not.toBeNull();
+        expect(signal?.severity).toBe('passive');
+    });
+});
+
+describe('detectCrisisSignal, Spanish everyday language must not fire', () => {
+    const benign = [
+        // Hyperbole sharing crisis vocabulary
+        'me muero de ganas de verte',
+        'esto me está matando con este calor',
+        'lo mataste en el escenario',
+        'estoy muerta de risa con este meme',
+        'tengo un cansancio mortal hoy',
+        'eso sería un suicidio profesional',
+        'corrí 5 kms esta mañana',
+
+        // Ordinary distress that is NOT ideation: these should stay quiet
+        'estoy muy estresada hoy',
+        'el trabajo ha sido muy difícil últimamente',
+        'me siento agotada y sin motivación',
+        'tuve una pelea con mi hermano',
+        'me lastimé haciendo ejercicio ayer',
+        'no puedo más con este proyecto, es demasiado',
+        'me siento muy triste hoy',
+    ];
+
+    it.each(benign)('stays silent on %j', (text) => {
+        expect(detectCrisisSignal(text)).toBeNull();
+    });
+});
+
+describe('detectCrisisSignal, bilingual coverage does not depend on a language toggle', () => {
+    it('flags a Spanish crisis phrase even without any app-language setting involved', () => {
+        expect(detectCrisisSignal('quiero matarme')?.severity).toBe('active');
+    });
+
+    it('flags an English crisis phrase alongside Spanish coverage in the same detector', () => {
+        expect(detectCrisisSignal('i want to kill myself')?.severity).toBe('active');
+    });
+});
+
 describe('detectCrisisSignal, robustness', () => {
     it('handles punctuation and curly apostrophes', () => {
         expect(detectCrisisSignal("I don’t want to be here anymore...")).not.toBeNull();
