@@ -1,18 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Settings, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Sparkles, Fish, Mail, ChevronRight, Award } from 'lucide-react';
+import { Plus, Settings, TrendingUp, Goal as GoalIcon, Lightbulb, Sparkles, Fish, ChevronRight } from 'lucide-react';
 import { buildYearForwardData, hasEnoughForYearForward } from '../utils/yearForward';
 import { CoachCard } from './CoachCard';
 import { FocusItem } from './FocusItem';
 import { CelebrationModal } from './CelebrationModal';
 import { CoachSettingsModal } from './CoachSettingsModal';
-import { WeeklyInsightsCard } from './WeeklyInsightsCard';
 import type { UserProfile, DailyFocus, CoachSettings, EnergyLog } from '../types';
 import { triggerConfetti, triggerHaptic } from '../utils/CelebrationEffects';
 import { haptics } from '../utils/haptics';
 import { getTodayDate } from '../utils/practiceUtils';
 
-import { SlideUpModal } from './SlideUpModal';
 import { CoachGuidanceModal } from './CoachGuidanceModal';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -22,10 +20,7 @@ interface MomentumProps {
     onShowTip?: () => void;
     onToggleTheme?: () => void;
     onOpenKoiPond?: () => void;
-    onWriteLetter?: () => void;
-    onOpenHighlights?: () => void;
     onOpenYearForward?: () => void;
-    highlightsBadge?: boolean;
 }
 
 const BELL_URL = "https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73467.mp3?filename=tibetan-singing-bowl-reverberation-1-14782.mp3";
@@ -36,10 +31,7 @@ export const Momentum: React.FC<MomentumProps> = ({
     onShowTip,
     onToggleTheme,
     onOpenKoiPond,
-    onWriteLetter,
-    onOpenHighlights,
     onOpenYearForward,
-    highlightsBadge,
 }) => {
     const { isDarkMode } = useTheme();
     const bellRef = useRef<HTMLAudioElement | null>(null);
@@ -70,7 +62,6 @@ export const Momentum: React.FC<MomentumProps> = ({
     const [hasShownCelebration, setHasShownCelebration] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     // Removed levelUpData state - no more gamification
-    const [showInsightsExplainer, setShowInsightsExplainer] = useState(false);
     const [showCoachGuidance, setShowCoachGuidance] = useState(false);
 
     const dailyFocuses = user.dailyFocuses || [];
@@ -180,7 +171,7 @@ export const Momentum: React.FC<MomentumProps> = ({
             {/* 0. Header Area */}
             <div className="w-full mb-8">
                 <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Progress</h2>
-                <p className={`text-xs uppercase tracking-[0.18em] font-black mt-0.5 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>Progress & Growth</p>
+                <p className={`text-xs uppercase tracking-[0.18em] font-black mt-2 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>Progress & Growth</p>
                 <div className="flex gap-2">
                     <button
                         onClick={() => { haptics.light(); setShowCoachGuidance(true); }}
@@ -194,7 +185,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         style={{ background: isDarkMode ? '#C96A3A' : '#C96A3A' }}
                     >
                         <Settings size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Partner Settings</span>
+                        <span className="text-xs font-bold uppercase tracking-wider">Palante Settings</span>
                     </button>
                 </div>
             </div>
@@ -202,14 +193,16 @@ export const Momentum: React.FC<MomentumProps> = ({
             {/* ── Today's Intention + Total Practices Hero ── */}
             <div className="grid grid-cols-2 gap-3 mb-6">
                 {/* Today's Intention */}
-                <div className={`relative rounded-2xl p-5 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                <div className={`relative rounded-2xl p-5 overflow-hidden min-w-0 ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
                     <div className="flex flex-col items-start mb-3 gap-1.5">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
                             <GoalIcon size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
                         <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
                     </div>
-                    <p className={`text-xl font-display font-bold leading-tight mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                    <p
+                        className={`font-display font-bold leading-tight mb-0.5 break-words ${(todaysIntention?.length ?? 0) > 14 ? 'text-base' : 'text-xl'} ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}
+                    >
                         {todaysIntention || 'Not set'}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
@@ -386,139 +379,7 @@ export const Momentum: React.FC<MomentumProps> = ({
             </div>
 
 
-            {/* 4. Weekly Insights */}
-            <div className="mb-10">
-                <h3 className={`text-lg font-display font-medium mb-4 ${textPrimary}`}>
-                    Weekly Insights
-                </h3>
-                <WeeklyInsightsCard
-                    user={user}
-                    isDarkMode={isDarkMode}
-                    onClick={() => setShowInsightsExplainer(true)}
-                />
-            </div>
-
-            {/* 5. Weekly Highlights */}
-            {onOpenHighlights && (
-                <div className="mb-10">
-                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                        Weekly Wins
-                    </h3>
-                    <button
-                        onClick={() => { haptics.light(); onOpenHighlights(); }}
-                        className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
-                        style={{ background: isDarkMode ? undefined : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(201,106,58,0.03) 100%)' }}
-                    >
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'rgba(201,106,58,0.15)' }}>
-                            <Award size={18} style={{ color: '#C96A3A' }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <p className={`text-sm font-medium ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
-                                    This Week's Achievements
-                                </p>
-                                {highlightsBadge && (
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C96A3A' }} />
-                                )}
-                            </div>
-                            <p className={`text-xs ${isDarkMode ? 'text-white/45' : 'text-sage/45'}`}>
-                                Review your wins, your reflection, and what moved you forward.
-                            </p>
-                        </div>
-                        <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white/25' : 'text-sage/25'}`} />
-                    </button>
-                </div>
-            )}
-
-            {/* 6. Letters to Your Future Self */}
-            {onWriteLetter && (() => {
-                const letters = user.futureLetters ?? [];
-                const letterCount = letters.length;
-                const lastLetter = letters[letters.length - 1];
-                const lastWrittenLabel = lastLetter
-                    ? new Date(lastLetter.writtenDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
-                    : null;
-                return (
-                    <div className="mb-10">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                                Letters to Your Future Self
-                            </h3>
-                            {letterCount > 0 && (
-                                <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
-                                    {letterCount} {letterCount === 1 ? 'letter' : 'letters'}
-                                </span>
-                            )}
-                        </div>
-                        <button
-                            onClick={() => { haptics.light(); onWriteLetter(); }}
-                            className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
-                        >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/12' : 'bg-[#E5D6A7]/20'}`}>
-                                <Mail size={18} color="#E5D6A7" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium mb-0.5 ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
-                                    {letterCount === 0 ? 'Write your first letter' : 'Write another letter'}
-                                </p>
-                                <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
-                                    {letterCount === 0
-                                        ? 'A message from who you are now to who you\'ll become.'
-                                        : `Last written ${lastWrittenLabel}`}
-                                </p>
-                            </div>
-                            <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/25'}`} />
-                        </button>
-                    </div>
-                );
-            })()}
-
             {/* ... other modals ... */}
-
-
-            <SlideUpModal
-                isOpen={showInsightsExplainer}
-                onClose={() => setShowInsightsExplainer(false)}
-                isDarkMode={isDarkMode}
-            >
-                <div className={`p-6 w-full max-w-sm mx-auto ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                    <div className="flex flex-col items-center text-center mb-6">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/20 text-sage'}`}>
-                            <TrendingUp size={24} />
-                        </div>
-                        <h2 className="text-3xl font-display font-medium mb-2">Unlock Your Insights</h2>
-                        <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                            Once you track your focus for a few days, your partner will start spotting patterns to help you optimize your flow.
-                        </p>
-                    </div>
-
-                    <div className="space-y-4">
-                        {[
-                            { icon: Lightbulb, title: "Productivity Patterns", desc: "Discover when you do your best work." },
-                            { icon: Zap, title: "Energy Correlation", desc: "See how your mood affects your output." },
-                            { icon: GoalIcon, title: "Consistency Score", desc: "Track your streak and reliability." }
-                        ].map((item, i) => (
-                            <div key={i} className={`flex items-start gap-4 p-4 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
-                                <item.icon size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
-                                <div>
-                                    <h3 className="font-medium text-sm mb-0.5">{item.title}</h3>
-                                    <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>{item.desc}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <button
-                        onClick={() => setShowInsightsExplainer(false)}
-                        className={`w-full py-4 mt-8 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${isDarkMode
-                            ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                            : 'bg-[#1B4332] text-white hover:bg-sage-600'}`}
-                    >
-                        Got it
-                    </button>
-                </div>
-            </SlideUpModal>
 
             <CoachGuidanceModal
                 isOpen={showCoachGuidance}

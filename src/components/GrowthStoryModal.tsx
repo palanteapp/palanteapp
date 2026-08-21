@@ -24,6 +24,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
 
     useEffect(() => {
         if (!isOpen || !data) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- resets and kicks off the async memoir generation each time the modal opens with new data
         setMemoir(null);
         setStats(null);
         setLoading(true);

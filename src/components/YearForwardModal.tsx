@@ -52,6 +52,7 @@ export const YearForwardModal: React.FC<YearForwardModalProps> = ({ isOpen, data
 
     useEffect(() => {
         if (!isOpen || !data) return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- resets and kicks off the async letter generation each time the modal opens with new data
         setLetter(null);
         setLoading(true);
         haptics.success();

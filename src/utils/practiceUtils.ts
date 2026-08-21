@@ -102,14 +102,68 @@ export const initializePracticeData = (): PracticeData => ({
     activityHistory: []
 });
 
+/** Keys of PracticeData['milestones'], e.g. 'practices_14' */
+export type MilestoneKey = keyof PracticeData['milestones'];
+
+/** Display name used by the celebration UI (modal / toast copy lookup) */
+export type MilestoneName = 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year';
+
+/**
+ * Single source of truth for milestone-key -> display-name. Previously this 11-entry
+ * map was copy-pasted at every checkMilestone call site in App.tsx; now callers get the
+ * display name for free from logPractice's return value instead of re-deriving it.
+ */
+export const MILESTONE_NAMES: Record<MilestoneKey, MilestoneName> = {
+    practices_1: 'first',
+    practices_3: 'three',
+    practices_7: 'week',
+    practices_14: 'fortnight',
+    practices_30: 'month',
+    practices_50: 'fifty',
+    practices_90: 'quarter',
+    practices_100: 'century',
+    practices_180: 'halfyear',
+    practices_200: 'twohundred',
+    practices_365: 'year',
+};
+
+export interface MilestoneCheckResult {
+    milestone: MilestoneKey | null;
+    isNew: boolean;
+    milestoneName: MilestoneName | null;
+}
+
+export interface LogPracticeResult extends MilestoneCheckResult {
+    data: PracticeData;
+}
+
+/**
+ * Milestone thresholds in ascending order - single source of truth shared by
+ * logPractice's sealing loop and checkMilestone's detection loop, so the 11
+ * threshold numbers aren't hand-copied between the two functions.
+ */
+const MILESTONE_THRESHOLDS: [MilestoneKey, number][] = [
+    ['practices_1', 1], ['practices_3', 3], ['practices_7', 7], ['practices_14', 14],
+    ['practices_30', 30], ['practices_50', 50], ['practices_90', 90], ['practices_100', 100],
+    ['practices_180', 180], ['practices_200', 200], ['practices_365', 365],
+];
+
 /**
  * Log a practice activity
  * No consecutive day requirements - just count total practices
+ *
+ * Returns the updated PracticeData plus whether THIS call newly crossed a milestone.
+ * The crossing check runs against `currentData.milestones` - the snapshot from BEFORE
+ * this call - which is the same reference point every caller used to compute by hand
+ * (logPractice(...) then checkMilestone(updated.totalPractices, current.milestones)).
+ * Doing it here means every call site gets a correct, un-guessable milestone result
+ * "for free" instead of separately calling checkMilestone with a hand-computed count
+ * (or, worse, not calling it at all).
  */
 export const logPractice = (
     currentData: PracticeData,
     practiceType: string
-): PracticeData => {
+): LogPracticeResult => {
     const today = getTodayDate();
 
     // Find or create today's activity
@@ -141,18 +195,37 @@ export const logPractice = (
         return sum + activity.practices.length;
     }, 0);
 
+    // Determine whether THIS call newly crosses a milestone, using the snapshot of
+    // `currentData.milestones` from BEFORE this call - the same pre-update reference
+    // point every caller used to compute by hand via checkMilestone(updated.totalPractices,
+    // current.milestones). Doing it here means the result can never go stale or be
+    // guessed from a hand-rolled count.
+    const { milestone, isNew } = checkMilestone(totalPractices, currentData.milestones);
+
+    // Seal every threshold reached by this call, INCLUDING the one just crossed (`>=`,
+    // not `>`). The milestone/isNew result above was already decided from the stale
+    // pre-update snapshot, so it's always safe to seal here as soon as a threshold is
+    // met. Sealing late (with `>`) left the crossed threshold looking "unseen" in the
+    // persisted state, so the very next call's pre-update snapshot still read it as
+    // unsealed and fired the same celebration a second time.
+    const updatedMilestones = { ...currentData.milestones };
+    for (const [key, threshold] of MILESTONE_THRESHOLDS) {
+        if (!updatedMilestones[key] && totalPractices >= threshold) {
+            updatedMilestones[key] = true;
+        }
+    }
+
     return {
-        ...currentData,
-        totalPractices,
-        lastActivityDate: today,
-        activityHistory: updatedHistory,
-        milestones: {
-            ...currentData.milestones,
-            // Backfill fields added after initial release so existing users don't get
-            // a false ceremony on their next practice. undefined → already-earned if count met.
-            practices_90: currentData.milestones.practices_90 ?? totalPractices > 90,
-            practices_180: currentData.milestones.practices_180 ?? totalPractices > 180,
+        data: {
+            ...currentData,
+            totalPractices,
+            lastActivityDate: today,
+            activityHistory: updatedHistory,
+            milestones: updatedMilestones,
         },
+        milestone,
+        isNew,
+        milestoneName: milestone ? MILESTONE_NAMES[milestone] : null,
     };
 };
 
@@ -162,40 +235,15 @@ export const logPractice = (
 export const checkMilestone = (
     totalPractices: number,
     currentMilestones: PracticeData['milestones']
-): { milestone: 'practices_1' | 'practices_3' | 'practices_7' | 'practices_14' | 'practices_30' | 'practices_50' | 'practices_90' | 'practices_100' | 'practices_180' | 'practices_200' | 'practices_365' | null; isNew: boolean } => {
-    // Check milestones in descending order so the highest newly-unlocked one fires
-    if (totalPractices >= 365 && !currentMilestones.practices_365) {
-        return { milestone: 'practices_365', isNew: true };
-    }
-    if (totalPractices >= 200 && !currentMilestones.practices_200) {
-        return { milestone: 'practices_200', isNew: true };
-    }
-    if (totalPractices >= 180 && !currentMilestones.practices_180) {
-        return { milestone: 'practices_180', isNew: true };
-    }
-    if (totalPractices >= 100 && !currentMilestones.practices_100) {
-        return { milestone: 'practices_100', isNew: true };
-    }
-    if (totalPractices >= 90 && !currentMilestones.practices_90) {
-        return { milestone: 'practices_90', isNew: true };
-    }
-    if (totalPractices >= 50 && !currentMilestones.practices_50) {
-        return { milestone: 'practices_50', isNew: true };
-    }
-    if (totalPractices >= 30 && !currentMilestones.practices_30) {
-        return { milestone: 'practices_30', isNew: true };
-    }
-    if (totalPractices >= 14 && !currentMilestones.practices_14) {
-        return { milestone: 'practices_14', isNew: true };
-    }
-    if (totalPractices >= 7 && !currentMilestones.practices_7) {
-        return { milestone: 'practices_7', isNew: true };
-    }
-    if (totalPractices >= 3 && !currentMilestones.practices_3) {
-        return { milestone: 'practices_3', isNew: true };
-    }
-    if (totalPractices >= 1 && !currentMilestones.practices_1) {
-        return { milestone: 'practices_1', isNew: true };
+): { milestone: MilestoneKey | null; isNew: boolean } => {
+    // Check milestones in descending order (highest threshold first) so the highest
+    // newly-unlocked one fires, using the same MILESTONE_THRESHOLDS list logPractice
+    // seals from - the 11 threshold numbers only live in one place.
+    for (let i = MILESTONE_THRESHOLDS.length - 1; i >= 0; i--) {
+        const [key, threshold] = MILESTONE_THRESHOLDS[i];
+        if (totalPractices >= threshold && !currentMilestones[key]) {
+            return { milestone: key, isNew: true };
+        }
     }
 
     return { milestone: null, isNew: false };

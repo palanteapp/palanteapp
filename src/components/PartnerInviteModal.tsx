@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Copy, Check, X } from 'lucide-react';
+import { Copy, Check, X, Share2 } from 'lucide-react';
+import { analytics } from '../utils/analytics';
 
 interface PartnerInviteModalProps {
     isOpen: boolean;
@@ -31,6 +32,19 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
         navigator.clipboard.writeText(inviteCode);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleShare = async () => {
+        analytics.referralCodeShared();
+        try {
+            const { Share } = await import('@capacitor/share');
+            await Share.share({
+                title: 'Palante invite code',
+                text: `Join me on Palante. Use my invite code ${inviteCode} to connect as accountability partners.`,
+            });
+        } catch {
+            // Web or share-sheet cancelled: the Copy button already covers this case
+        }
     };
 
     const handleAddByCode = () => {
@@ -84,12 +98,22 @@ export const PartnerInviteModal: React.FC<PartnerInviteModalProps> = ({
                         </div>
                         <button
                             onClick={handleCopy}
+                            aria-label="Copy invite code"
                             className={`px-5 py-3 rounded-xl font-medium transition-all flex items-center gap-2 ${copied
                                 ? isDarkMode ? 'bg-sage/20 text-sage' : 'bg-sage/20 text-sage'
                                 : isDarkMode ? 'bg-pale-gold/20 text-pale-gold hover:bg-pale-gold/30' : 'bg-sage/20 text-sage hover:bg-sage/30'
                                 }`}
                         >
                             {copied ? <Check size={18} /> : <Copy size={18} />}
+                        </button>
+                        <button
+                            onClick={handleShare}
+                            disabled={!inviteCode}
+                            aria-label="Share invite code"
+                            className={`px-5 py-3 rounded-xl font-medium transition-all flex items-center gap-2 disabled:opacity-40 ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold hover:bg-pale-gold/30' : 'bg-sage/20 text-sage hover:bg-sage/30'
+                                }`}
+                        >
+                            <Share2 size={18} />
                         </button>
                     </div>
                 </div>

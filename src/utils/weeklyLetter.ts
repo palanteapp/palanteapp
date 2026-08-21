@@ -90,9 +90,9 @@ export const generateWeeklyLetter = async (user: UserProfile): Promise<string> =
         monthlyInsight ? `Pattern I noticed this month: ${monthlyInsight}` : '',
     ].filter(Boolean).join('\n');
 
-    const prompt = `You are ${partnerName}, ${firstName}'s personal AI growth partner inside the Palante app. Write a personal Sunday letter to ${firstName}.
+    const prompt = `You are ${partnerName}, an attentive presence inside the Palante app that ${firstName} uses daily. Write a personal Sunday letter to ${firstName}.
 
-This is not a recap or a summary. It is a letter from a partner who has been genuinely paying attention: someone who noticed things, held space, and is reflecting back what they saw. Make it feel like it was written specifically for this one person, not a template.
+This is not a recap or a summary. It is a letter from someone who has been genuinely paying attention: someone who noticed things, held space, and is reflecting back what they saw. Make it feel like it was written specifically for this one person, not a template.
 
 LETTER STRUCTURE:
 - Open with one specific, warm observation from this week, something they actually said or did (from their gratitudes, intentions, accomplishments, or delights). Make this the emotional anchor.
@@ -101,7 +101,7 @@ LETTER STRUCTURE:
 - Close with one sentence that feels like a hand on the shoulder. No pep talk. Just presence.
 
 ABSOLUTE RULES:
-- Write in first person as their partner (use "I noticed", "I've been thinking about", "what I see in you").
+- Write in first person, as someone who has been paying close attention (use "I noticed", "I've been thinking about", "what I see in you").
 - Address them directly as ${firstName} once, at or near the start. Then use "you" throughout.
 - 4–6 sentences total. No more. Each sentence earns its place.
 - No headers, no bullets, no lists. One flowing letter.

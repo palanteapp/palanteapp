@@ -20,6 +20,7 @@ import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
 import { AIDisclosureModal } from './AIDisclosureModal';
 import { useTranslation } from '../i18n/useTranslation';
+import { analytics } from '../utils/analytics';
 
 interface ProfileProps {
     user: UserProfile;
@@ -121,6 +122,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
     // Check Apple Health auth status on mount (native only)
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- checks a platform capability + native auth status on mount, can't be known during render
         if (!Capacitor.isNativePlatform()) { setHealthStatus('unavailable'); return; }
         getHealthAuthStatus().then(r => setHealthStatus(r.status)).catch(() => setHealthStatus('unavailable'));
     }, []);
@@ -364,6 +366,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
             await refreshPartners();
             setShowPartnerInvite(false);
+            analytics.referralRedeemed({ status: result.status });
             onToast?.(
                 result.status === 'accepted'
                     ? `You and ${result.partnerName} are connected.`
@@ -402,7 +405,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
         'Lawyer': ['Win a major case', 'Make Partner', 'Master negotiation', 'Expertise in law'],
         'Marketing': ['Double my conversions', 'Master growth hacks', 'Build a viral brand', 'Data-driven results'],
         'Musician': ['Finish an album', 'Tour the world', 'Sell out a show', 'Master an instrument'],
-        'Real Estate': ['Close 10 deals', 'Build a portfolio', 'Master market timing', 'passive income'],
+        'Real Estate': ['Close 10 deals', 'Build a portfolio', 'Master market timing', 'Earn passive income'],
         'Sales': ['Crush my quota', 'Master closing', 'Build a pipeline', 'Top earner'],
         'Scientist': ['Publish a paper', 'Discover something new', 'Secure a grant', 'Impact society'],
         'Student': ['Graduate with honors', 'Master my major', 'Build a network', 'Land a dream job'],
@@ -477,7 +480,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         <div>
                                             <h4 className={`text-xs font-bold uppercase tracking-widest mb-2 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>Why Palante?</h4>
                                             <p className="text-base leading-relaxed">
-                                                Most tools track what you do. Palante learns who you are. Your partner grows alongside you, remembering your wins, noticing your patterns, and checking in when life gets heavy. It's not accountability in the traditional sense. It's more like a friend who genuinely wants you to thrive.
+                                                Most tools track what you do. Palante learns who you are. It grows alongside you, remembering your wins, noticing your patterns, and checking in when life gets heavy. It's not accountability in the traditional sense. It's more like a friend who genuinely wants you to thrive.
                                             </p>
                                         </div>
                                         <div>
@@ -647,7 +650,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <div>
                                     <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Enable AI Features</div>
                                     <div className={`text-xs ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
-                                        {aiDisabled ? 'AI disabled' : 'Partner, messages & insights on'}
+                                        {aiDisabled ? 'AI disabled' : 'Messages & insights on'}
                                     </div>
                                 </div>
                             </div>
@@ -702,7 +705,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClasses}>Partner Name</label>
+                                    <label className={labelClasses}>AI Name</label>
                                     <input
                                         value={coachName}
                                         onChange={e => setCoachName(e.target.value)}
@@ -820,7 +823,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             <div>
                                 <label className={labelClasses}>About me</label>
                                 <p className={`text-xs mb-2 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}>
-                                    Share anything you want your partner to know: your situation, what you're working through, what matters most right now.
+                                    Share anything you want Palante to know: your situation, what you're working through, what matters most right now.
                                 </p>
                                 <textarea
                                     value={bio}
@@ -860,7 +863,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                             Water Reminders
                                         </div>
                                         <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
-                                            Accountability Partner
+                                            Powered by Palante
                                         </div>
                                     </div>
                                 </div>
@@ -876,7 +879,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 </button>
                             </div>
                             <p className={`text-xs mt-2 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>
-                                Get firm reminders to hydrate. Your Palante Partner will act as your accountability partner to ensure you're flushing toxins and staying sharp.
+                                Get firm reminders to hydrate. Palante will check in on you to help you stay on track and feeling sharp.
                             </p>
                         </div>
                         <AccountabilityPartners
@@ -1214,7 +1217,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                         setFrequency(val);
                                         updateFrequency(val);
                                     }}
-                                    className={`w-full h-2 rounded-lg appearance-none cursor -pointer ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'
+                                    className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'
                                         } [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:transition-all ${isDarkMode
                                             ? '[&::-webkit-slider-thumb]:bg-pale-gold [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(212,175,55,0.5)]'
                                             : '[&::-webkit-slider-thumb]:bg-sage [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(111,123,109,0.5)]'
@@ -1240,7 +1243,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
 
                             {/* Partner Nudges */}
                             <div className="pt-4 border-t border-opacity-10" style={{ borderColor: isDarkMode ? 'white' : '#B5C2A3' }}>
-                                <label className={labelClasses}>Partner Nudges</label>
+                                <label className={labelClasses}>Palante Nudges</label>
                                 <p className={`text-sm mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                                     Get personalized check-ins and motivation throughout the day
                                 </p>
@@ -1349,7 +1352,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                     <div>
                                         <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Apple Health</p>
                                         <p className={`text-xs ${isDarkMode ? 'text-white/40' : 'text-sage/50'}`}>
-                                            {healthStatus === 'authorized' && 'Connected. Your partner reads sleep & heart rate'}
+                                            {healthStatus === 'authorized' && 'Connected. Palante reads sleep & heart rate'}
                                             {healthStatus === 'notDetermined' && 'Not connected yet'}
                                             {healthStatus === 'denied' && 'Permission denied. Update in iOS Settings'}
                                             {healthStatus === 'loading' && 'Checking…'}

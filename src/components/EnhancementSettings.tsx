@@ -44,6 +44,7 @@ const SettingRow = ({
     icon: Icon,
     options,
     onToggle,
+    note,
 }: {
     id: keyof EnhancementOptions,
     label: string,
@@ -51,42 +52,48 @@ const SettingRow = ({
     icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>,
     options: EnhancementOptions,
     onToggle: (id: keyof EnhancementOptions) => void,
-    isDarkMode: boolean
+    isDarkMode: boolean,
+    note?: string,
 }) => (
     <div
         onClick={(e) => {
             e.stopPropagation();
             onToggle(id);
         }}
-        className={`group flex items-center gap-4 p-4 rounded-[2rem] border transition-all duration-500 cursor-pointer active:scale-[0.98] ${options[id]
-            ? 'bg-white/[0.06] border-white/10 shadow-lg scale-[1.02]'
-            : 'bg-white/[0.06] border-white/10 hover:bg-white/10'
+        className={`group flex items-center gap-3 p-3 rounded-2xl border transition-all duration-300 cursor-pointer active:scale-[0.98] ${options[id]
+            ? 'bg-white/[0.08] border-white/10'
+            : 'bg-white/[0.05] border-white/10 hover:bg-white/10'
             }`}
     >
-        {/* Left Icon Container - Solid Badge Style */}
-        <div className={`w-12 h-12 rounded-2xl transition-all duration-500 relative flex items-center justify-center shadow-sm ${options[id]
-            ? 'bg-white/[0.12] rotate-3'
-            : 'bg-white/[0.08] opacity-50 rotate-0'
+        {/* Left Icon Container - compact badge */}
+        <div className={`w-9 h-9 rounded-xl transition-all duration-300 flex items-center justify-center flex-shrink-0 ${options[id]
+            ? 'bg-white/[0.14]'
+            : 'bg-white/[0.08] opacity-50'
             }`}>
-            <Icon size={20} className={`transition-colors duration-300 text-white`} strokeWidth={options[id] ? 2.5 : 1.5} />
+            <Icon size={16} className="text-white" strokeWidth={options[id] ? 2.5 : 1.5} />
         </div>
 
         {/* Title & Description */}
-        <div className="flex-1">
-            <h4 className={`text-xs font-black uppercase tracking-[0.1em] transition-colors ${options[id] ? 'text-white' : 'text-white'}`}>
+        <div className="flex-1 min-w-0">
+            <h4 className="text-[11px] font-black uppercase tracking-[0.08em] text-white">
                 {label}
             </h4>
-            <p className={`text-xs leading-relaxed transition-opacity mt-0.5 font-medium ${options[id] ? 'text-white' : 'text-white'}`}>
+            <p className="text-[11px] text-white/70 font-medium">
                 {description}
             </p>
+            {note && (
+                <p className="text-[10px] text-[#D4B882] font-semibold mt-0.5">
+                    {note}
+                </p>
+            )}
         </div>
 
-        {/* Right Toggle (The "Hole") - Re-refined */}
-        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${options[id]
-            ? 'bg-white/[0.15] border-white/20 shadow-md scale-110'
+        {/* Right Toggle (The "Hole") */}
+        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300 ${options[id]
+            ? 'bg-white/[0.15] border-white/20 scale-105'
             : 'border-white/20 bg-black/5'
             }`}>
-            {options[id] && <Check size={12} strokeWidth={4} className="text-white animate-scale-in" />}
+            {options[id] && <Check size={10} strokeWidth={4} className="text-white animate-scale-in" />}
         </div>
     </div>
 );
@@ -125,7 +132,60 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
     if (!isOpen) return null;
 
     const textPrimary = 'text-white';
-    const accentLabel = 'text-white font-black text-xs uppercase tracking-[0.2em]';
+
+    // Flat list — a prior audit found 5 (or 6, on Meditation) items split across 4 separate
+    // category headers made the panel read as more overwhelming than the option count alone
+    // warrants. One flat list keeps every row equally glanceable.
+    const rows: {
+        id: keyof EnhancementOptions,
+        label: string,
+        description: string,
+        icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>,
+        note?: string,
+    }[] = [
+        {
+            id: 'immersiveHaptics',
+            label: 'Immersive Haptics',
+            description: 'Vibrations synced to your breath.',
+            icon: Zap,
+            // Dark Sensory Mode's haptic pulse takes over the phase-tick logic whenever it's
+            // on (see Breathing.tsx), silently superseding this one. Surface that inline
+            // instead of leaving it to be discovered at runtime.
+            note: options.hapticDarkMode ? 'Overridden by Dark Sensory Mode' : undefined,
+        },
+        {
+            id: 'dynamicBackgrounds',
+            label: 'Phase Gradients',
+            description: 'Color shifts that paint the background.',
+            icon: Sparkles,
+        },
+        {
+            id: 'smoothTransitions',
+            label: 'Smooth Transitions',
+            description: 'Cinematic cross-fades between techniques.',
+            icon: ShieldCheck,
+        },
+        {
+            id: 'groundingHeartbeat',
+            label: 'Grounding Heartbeat',
+            description: 'A delicate pulse to keep you anchored.',
+            icon: Heart,
+        },
+        {
+            id: 'natureParticles',
+            label: 'Nature Particles',
+            description: 'Falling blossoms that drift with you.',
+            icon: Leaf,
+        },
+        {
+            id: 'hapticDarkMode',
+            label: 'Dark Sensory Mode',
+            description: 'Eyes closed, guided by haptic pulse.',
+            icon: EyeOff,
+        },
+    ];
+
+    const visibleRows = rows.filter(row => !exclude.includes(row.id));
 
     return (
         <SlideUpModal
@@ -136,135 +196,60 @@ export const EnhancementSettings: React.FC<EnhancementSettingsProps> = ({ isOpen
         >
             <div className={`w-full overflow-hidden ${textPrimary}`}>
                 {/* Header */}
-                <div className={`p-6 border-b border-white/10 space-y-4 backdrop-blur-md bg-white/10`}>
+                <div className="p-5 border-b border-white/10 backdrop-blur-md bg-white/10">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-white/[0.12] flex items-center justify-center shadow-sm">
-                                <Sparkles size={24} className="text-white" />
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/[0.12] flex items-center justify-center shadow-sm">
+                                <Sparkles size={18} className="text-white" />
                             </div>
                             <div>
-                                <h3 className={`text-xl font-display font-medium ${textPrimary}`}>
+                                <h3 className={`text-lg font-display font-medium ${textPrimary}`}>
                                     Premium Experience
                                 </h3>
-                                <p className="text-xs uppercase tracking-[0.2em] font-black text-white">Sensory Enhancements</p>
+                                <p className="text-[10px] uppercase tracking-[0.2em] font-black text-white/80">Sensory Enhancements</p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className={`p-2 rounded-full transition-all hover:bg-white/[0.06] text-white`}
+                            className="p-2 rounded-full transition-all hover:bg-white/[0.06] text-white"
                         >
-                            <X size={24} />
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={selectAll}
-                            className="flex-1 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-white/10 transition-all active:scale-95 bg-white/[0.08] hover:bg-white/[0.15] text-white"
-                        >
-                            Select All
-                        </button>
-                        <button
-                            onClick={deselectAll}
-                            className="flex-1 text-xs font-black uppercase tracking-widest px-5 py-3 rounded-2xl border-2 border-white/10 transition-all active:scale-95 bg-white/[0.08] hover:bg-white/[0.15] text-white"
-                        >
-                            Deselect All
+                            <X size={22} />
                         </button>
                     </div>
                 </div>
 
-                {/* Body - Tighter spacing, no unnecessary margins */}
-                <div className="p-4 space-y-6 max-h-[60vh] overflow-y-auto">
-                    {!exclude.includes('immersiveHaptics') && (
-                        <div className="space-y-4">
-                            <p className={accentLabel}>Sensory & Audio</p>
-                            <SettingRow
-                                id="immersiveHaptics"
-                                label="Immersive Haptics"
-                                description="Tactile vibrations synchronized with your breath."
-                                icon={Zap}
-                                options={options}
-                                onToggle={toggleOption}
-                                isDarkMode={isDarkMode}
-                            />
-                        </div>
-                    )}
+                {/* Body */}
+                <div className="p-4 space-y-2">
+                    {visibleRows.map(row => (
+                        <SettingRow
+                            key={row.id}
+                            id={row.id}
+                            label={row.label}
+                            description={row.description}
+                            icon={row.icon}
+                            note={row.note}
+                            options={options}
+                            onToggle={toggleOption}
+                            isDarkMode={isDarkMode}
+                        />
+                    ))}
+                </div>
 
-                    {(!exclude.includes('dynamicBackgrounds') || !exclude.includes('smoothTransitions')) && (
-                        <div className="space-y-4">
-                            <p className={accentLabel}>Visuals & Flow</p>
-                            <div className="space-y-3">
-                                {!exclude.includes('dynamicBackgrounds') && (
-                                    <SettingRow
-                                        id="dynamicBackgrounds"
-                                        label="Phase Gradients"
-                                        description="Subtle color shifts that paint the background."
-                                        icon={Sparkles}
-                                        options={options}
-                                        onToggle={toggleOption}
-                                        isDarkMode={isDarkMode}
-                                    />
-                                )}
-
-                                {!exclude.includes('smoothTransitions') && (
-                                    <SettingRow
-                                        id="smoothTransitions"
-                                        label="Smooth Transitions"
-                                        description="Cinematic cross-fades between techniques."
-                                        icon={ShieldCheck}
-                                        options={options}
-                                        onToggle={toggleOption}
-                                        isDarkMode={isDarkMode}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {!exclude.includes('groundingHeartbeat') && (
-                        <div className="space-y-4">
-                            <p className={accentLabel}>Meditation Only</p>
-                            <SettingRow
-                                id="groundingHeartbeat"
-                                label="Grounding Heartbeat"
-                                description="A delicate pulse to keep you anchored."
-                                icon={Heart}
-                                options={options}
-                                onToggle={toggleOption}
-                                isDarkMode={isDarkMode}
-                            />
-                        </div>
-                    )}
-
-                    {!exclude.includes('natureParticles') && (
-                        <div className="space-y-4">
-                            <p className={accentLabel}>Studio Environment</p>
-                            <SettingRow
-                                id="natureParticles"
-                                label="Nature Particles"
-                                description="Falling cherry blossoms that drift with you."
-                                icon={Leaf}
-                                options={options}
-                                onToggle={toggleOption}
-                                isDarkMode={isDarkMode}
-                            />
-                        </div>
-                    )}
-
-                    {!exclude.includes('hapticDarkMode') && (
-                        <div className="space-y-4">
-                            <p className={accentLabel}>Sensory Focus</p>
-                            <SettingRow
-                                id="hapticDarkMode"
-                                label="Dark Sensory Mode"
-                                description="Eyes closed, guided only by haptic pulse."
-                                icon={EyeOff}
-                                options={options}
-                                onToggle={toggleOption}
-                                isDarkMode={isDarkMode}
-                            />
-                        </div>
-                    )}
+                {/* Select All / Deselect All - secondary, below the list */}
+                <div className="flex items-center justify-center gap-3 pb-4">
+                    <button
+                        onClick={selectAll}
+                        className="text-[10px] font-bold uppercase tracking-widest text-white/50 hover:text-white transition-colors underline underline-offset-4 decoration-white/20"
+                    >
+                        Select All
+                    </button>
+                    <span className="text-white/20 text-[10px]">·</span>
+                    <button
+                        onClick={deselectAll}
+                        className="text-[10px] font-bold uppercase tracking-widest text-white/50 hover:text-white transition-colors underline underline-offset-4 decoration-white/20"
+                    >
+                        Deselect All
+                    </button>
                 </div>
 
                 {/* Footer - Minimalist */}

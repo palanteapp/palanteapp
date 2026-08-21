@@ -414,7 +414,7 @@ export const generateAffirmation = async (request: AIAffirmationRequest): Promis
     const directive = LANGUAGE_DIRECTIVE[language];
     const wordCap = scaled(25, language);
 
-    const prompt = `You are ${coachIdentity}, a high-performance wellness and motivation partner. "Pa'lante" means "para adelante", strictly forward. Your mission is to help the user move forward with clarity and power.
+    const prompt = `You are ${coachIdentity}, a high-performance source of wellness and motivation. "Pa'lante" means "para adelante", strictly forward. Your mission is to help the user move forward with clarity and power.
 ${directive}
 
 Generate a single, powerful affirmation or motivational quote for someone with these characteristics:
@@ -592,7 +592,7 @@ export const generateMorningPracticeMessage = async (
     const { buildHealthPromptBlock } = await import('./healthService');
     const healthBlock = data.healthContext ? buildHealthPromptBlock(data.healthContext) : '';
 
-    const prompt = `You are a wise, present partner who knows ${userName} deeply.
+    const prompt = `You are a wise, present listener who knows ${userName} deeply.
 ${directive}
 
 YOUR RELATIONSHIP WITH THEM:
@@ -629,6 +629,11 @@ HOW TO TRANSFORM (never echo):
   it is about being loved and unhurried. Speak to THAT.
 - You may allude to AT MOST ONE specific from their practice, reframed in fresh
   words. NEVER inventory all three sections back to them.
+- The intention is where they are pointed, not the whole message. Do not let it
+  carry the message alone: the connecting thread must be grounded in what they
+  are grateful for or who they say they're becoming, not just where they're
+  headed. If the message would still make sense with the gratitude and
+  affirmation lines deleted, it has failed, go back and root it in them instead.
 - Never reuse their phrasing. If they wrote "I am patient," the word "patient"
   should probably not appear. Find the sharper angle on the same truth.
 - The message should feel like a discovery, not a receipt. They should think
@@ -853,11 +858,17 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
             })
         });
 
-        if (!response.ok) return null;
+        if (!response.ok) {
+            console.warn('[Palante AI] evening message request failed', { status: response.status });
+            return null;
+        }
 
         const json = await response.json();
         let message = json.content?.[0]?.text?.trim();
-        if (!message) return null;
+        if (!message) {
+            console.warn('[Palante AI] evening message: empty response body', json);
+            return null;
+        }
 
         message = message.replace(/^["'“”]|["'“”]$/g, '').trim();
 
@@ -883,6 +894,7 @@ MEDICAL SAFETY: NEVER provide medical advice, diagnosis, or treatment recommenda
         }
 
         if (!message || needsRetry(message)) {
+            console.warn('[Palante AI] evening message falling back to static template', { hadMessage: !!message, stillNeedsRetry: !!message && needsRetry(message) });
             return getFallbackEveningMessage(userName, data);
         }
 
@@ -1635,20 +1647,42 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
     const frag = (s: string) => s.replace(/[.!?\s]+$/, '');
     const short = (s?: string): s is string => !!s && s.trim().length > 0 && s.trim().length <= 60;
 
-    if (data.language === 'es') {
-        if (short(intention) && intention.length <= 50) {
+    const isEs = data.language === 'es';
+
+    // One reference max, a template can't do more without sounding like an
+    // inventory of the day's entries. Which ONE it leans on used to be a fixed
+    // priority order (intention, then gratitude, then affirmation), which meant
+    // the message defaulted to the intention every single time the user filled
+    // one in, and gratitude/affirmations were effectively unreachable. It now
+    // rotates fairly across whichever of the three are actually present, seeded
+    // on the day's own content so the same entry always resolves the same way.
+    const intentionValid = isEs
+        ? (short(intention) && intention.length <= 50)
+        : (short(intention) && intention.length <= 50 && !/^i\b/i.test(intention));
+    const gratitudeValid = short(gratitude);
+    const affirmationValid = short(affirmation);
+
+    const candidates: Array<'intention' | 'gratitude' | 'affirmation'> = [
+        ...(intentionValid ? (['intention'] as const) : []),
+        ...(gratitudeValid ? (['gratitude'] as const) : []),
+        ...(affirmationValid ? (['affirmation'] as const) : []),
+    ];
+    const chosen = candidates.length > 0 ? candidates[seed % candidates.length] : null;
+
+    if (isEs) {
+        if (chosen === 'intention' && intention) {
             return pick([
                 `No caí en este día por casualidad, lo elegí: ${frag(intention)}. Todo lo que nombré esta mañana ya me está llevando hacia allá.`,
                 `Hoy tiene una sola dirección, ${frag(intention)}. Empecé desde la gratitud y sé quién soy, así que ya estoy en movimiento.`,
             ]);
         }
-        if (short(gratitude)) {
+        if (chosen === 'gratitude' && gratitude) {
             return pick([
                 `Empecé el día desde un lugar lleno: ${frag(gratitude)}. Un día que comienza con tanto bien es un día con el que puedo hacer algo.`,
                 `Antes de que el día me pidiera algo, nombré lo que es bueno: ${frag(gratitude)}. Eso no quedó atrás, está debajo de mí.`,
             ]);
         }
-        if (short(affirmation)) {
+        if (chosen === 'affirmation' && affirmation) {
             const a = frag(affirmation);
             return pick([
                 `${a}. No lo dije esta mañana para sonar bien, lo dije porque hoy pienso vivir como si fuera cierto.`,
@@ -1661,21 +1695,19 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
         ]);
     }
 
-    // One reference max, in priority order: the intention embeds most
-    // naturally, then gratitude, then the affirmation as its own sentence.
-    if (short(intention) && intention.length <= 50 && !/^i\b/i.test(intention)) {
+    if (chosen === 'intention' && intention) {
         return pick([
             `I did not wander into this day, I chose it: ${frag(intention)}. Everything I named this morning is already carrying me there.`,
             `Today has one direction, ${frag(intention)}. I started from gratitude and I know who I am, so I am already moving.`,
         ]);
     }
-    if (short(gratitude)) {
+    if (chosen === 'gratitude' && gratitude) {
         return pick([
             `I started today from a full place: ${frag(gratitude)}. A day that begins with that much good is a day I can do something with.`,
             `Before today asked anything of me, I named what is good: ${frag(gratitude)}. That is not behind me now, it is underneath me.`,
         ]);
     }
-    if (short(affirmation)) {
+    if (chosen === 'affirmation' && affirmation) {
         const a = frag(affirmation);
         const line = /^i['\s]/i.test(a) ? `${a.charAt(0).toUpperCase()}${a.slice(1)}` : `I am ${a}`;
         return pick([
@@ -2052,7 +2084,8 @@ ${directive}`;
         }
         return false;
     };
-    const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text);
+    const hasBannedPhrase = (text: string) => containsBannedPhrase(text, banForLanguage(language, false));
+    const needsRetry = (text: string) => hasQuotes(text) || hasVerbatimRun(text) || hasBannedPhrase(text);
 
     const requestOnce = async (correction?: string): Promise<string | null> => {
         const response = await fetchWithTimeout(PROXY_URL, {
@@ -2077,8 +2110,8 @@ ${directive}`;
         let text = await requestOnce();
 
         if (text && needsRetry(text)) {
-            console.warn('[Palante AI] weekly reflection echoed the user\'s own words, retrying once');
-            text = await requestOnce('IMPORTANT: your previous attempt quoted or reproduced the user\'s own words directly. Write it again with zero quotation marks and zero verbatim phrases from their accomplishments, entirely in your own words.');
+            console.warn('[Palante AI] weekly reflection echoed the user\'s own words or used a banned phrase, retrying once');
+            text = await requestOnce('IMPORTANT: your previous attempt either quoted/reproduced the user\'s own words directly, or used a banned word or phrase (journey, intentional, mindful, anchor, show up/showed up/showing up, tapestry, tether, sovereignty). Write it again with zero quotation marks, zero verbatim phrases from their accomplishments, and none of those banned words, entirely in your own words.');
         }
 
         if (!text || needsRetry(text)) return fallback;

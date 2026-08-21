@@ -4,6 +4,7 @@ import { Logo } from './Logo';
 import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
 import type { ContentType, QuoteSource, PrimaryIntent } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAgeRangeGate } from '../hooks/useAgeRangeGate';
 
 interface CinematicIntroProps {
     onComplete: (userData: {
@@ -41,11 +42,30 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const [nameError, setNameError] = useState('');
     const [birthYear, setBirthYear] = useState('');
     const [ageError, setAgeError] = useState('');
+    // Apple's Declared Age Range API (iOS 26+): an OS-verified/guardian-declared signal,
+    // checked alongside the self-reported birth year below. It only ever makes this gate
+    // MORE strict — a confirmed-under-13 signal blocks hard, since a self-report picker
+    // alone can be beaten by just choosing an older year. Every other outcome (13+,
+    // declined, or unavailable) leaves the picker as-is. Shared with AgeVerificationModal
+    // via useAgeRangeGate so the gating behavior (including the recheck haptic) can't
+    // drift between the two independently-styled screens again. The check is gated to
+    // fire only once the user reaches step 1 (the age picker), not at mount/splash — on
+    // iOS 26+ this can trigger Apple's system consent sheet, which shouldn't appear
+    // before any onboarding context has been shown.
+    const { osConfirmedUnder13, isChecking: isCheckingAge, isRechecking: isRecheckingAge, recheck: handleRecheckAge } = useAgeRangeGate({ active: step >= 1 });
 
     const currentYear = new Date().getFullYear();
     const YEARS = Array.from({ length: 100 }, (_, i) => currentYear - i);
 
     const handleAgeNext = () => {
+        // Defense in depth: the OS check hasn't resolved yet, or has already confirmed
+        // under-13. The Continue button is disabled while `isCheckingAge` (and hidden
+        // entirely once `osConfirmedUnder13`), but this guards against any click that
+        // races ahead of that render — a self-reported year must never be able to sneak
+        // past a pending or positive OS-confirmed-under-13 signal.
+        if (isCheckingAge || osConfirmedUnder13) {
+            return;
+        }
         if (!birthYear) {
             setAgeError('Please choose your birth year.');
             return;
@@ -215,7 +235,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.52 }}
                         >
-                            Your daily practice<br />for gratitude and growth.
+                            Move forward, with intention.
                         </motion.p>
 
                         {/* CTA */}
@@ -273,70 +293,120 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             >
                                 One quick thing
                             </motion.h2>
-                            <motion.p
-                                className="text-center text-base mb-10"
-                                style={{ color: 'rgba(229,214,167,0.55)' }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.09 }}
-                            >
-                                Just your birth year. That's all we keep.
-                            </motion.p>
+                            {osConfirmedUnder13 ? (
+                                <>
+                                    <motion.p
+                                        className="text-center text-base mb-2"
+                                        style={{ color: 'rgba(229,214,167,0.85)' }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.09 }}
+                                    >
+                                        Palante isn't available for this account yet.
+                                    </motion.p>
+                                    <p className="text-center text-sm px-4 mb-8" style={{ color: 'rgba(229,214,167,0.5)' }}>
+                                        Your device reports this account is under 13. Palante is built for ages 13 and up.
+                                        If this was set up on a shared device or a family member's age range
+                                        recently changed, you can check again.
+                                    </p>
 
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.11 }}
-                            >
-                                <select
-                                    value={birthYear}
-                                    onChange={e => { setBirthYear(e.target.value); setAgeError(''); }}
-                                    className="w-full px-5 py-4 rounded-2xl text-lg font-display outline-none appearance-none"
-                                    style={{
-                                        background: '#FDFBF7',
-                                        color: birthYear ? '#2D3E33' : 'rgba(45,62,51,0.5)',
-                                        border: ageError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.9)',
-                                    }}
-                                >
-                                    <option value="">Birth year</option>
-                                    {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
-                                </select>
-                            </motion.div>
+                                    <motion.button
+                                        onClick={handleRecheckAge}
+                                        disabled={isRecheckingAge}
+                                        className="w-full py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98] disabled:opacity-60"
+                                        style={{
+                                            background: '#E5D6A7',
+                                            color: '#2D3E33',
+                                            boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
+                                        }}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.15 }}
+                                        whileTap={{ scale: 0.97 }}
+                                    >
+                                        {isRecheckingAge ? 'Checking…' : 'Check Again'}
+                                    </motion.button>
 
-                            {ageError && (
-                                <p className="text-sm text-center mt-3" style={{ color: '#C96A3A' }}>{ageError}</p>
+                                    <motion.button
+                                        onClick={() => setStep(0)}
+                                        className="w-full mt-4 py-2 text-sm font-medium"
+                                        style={{ color: 'rgba(229,214,167,0.32)' }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.24 }}
+                                    >
+                                        ← Back
+                                    </motion.button>
+                                </>
+                            ) : (
+                                <>
+                                    <motion.p
+                                        className="text-center text-base mb-10"
+                                        style={{ color: 'rgba(229,214,167,0.55)' }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.09 }}
+                                    >
+                                        Just your birth year. That's all we keep.
+                                    </motion.p>
+
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.11 }}
+                                    >
+                                        <select
+                                            value={birthYear}
+                                            onChange={e => { setBirthYear(e.target.value); setAgeError(''); }}
+                                            className="w-full px-5 py-4 rounded-2xl text-lg font-display outline-none appearance-none"
+                                            style={{
+                                                background: '#FDFBF7',
+                                                color: birthYear ? '#2D3E33' : 'rgba(45,62,51,0.5)',
+                                                border: ageError ? '1.5px solid #C96A3A' : '1.5px solid rgba(255,255,255,0.9)',
+                                            }}
+                                        >
+                                            <option value="">Birth year</option>
+                                            {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
+                                        </select>
+                                    </motion.div>
+
+                                    {ageError && (
+                                        <p className="text-sm text-center mt-3" style={{ color: '#C96A3A' }}>{ageError}</p>
+                                    )}
+
+                                    <motion.button
+                                        onClick={handleAgeNext}
+                                        disabled={isCheckingAge}
+                                        className="w-full mt-6 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98] disabled:opacity-60"
+                                        style={{
+                                            background: '#E5D6A7',
+                                            color: '#2D3E33',
+                                            boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
+                                        }}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.15 }}
+                                        whileTap={{ scale: 0.97 }}
+                                    >
+                                        {isCheckingAge ? 'Checking…' : 'Continue →'}
+                                    </motion.button>
+
+                                    <motion.button
+                                        onClick={() => setStep(0)}
+                                        className="w-full mt-4 py-2 text-sm font-medium"
+                                        style={{ color: 'rgba(229,214,167,0.32)' }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.24 }}
+                                    >
+                                        ← Back
+                                    </motion.button>
+
+                                    <p className="text-center text-xs mt-6 px-4" style={{ color: 'rgba(229,214,167,0.30)' }}>
+                                        We only use this to keep Palante age-appropriate.
+                                    </p>
+                                </>
                             )}
-
-                            <motion.button
-                                onClick={handleAgeNext}
-                                className="w-full mt-6 py-5 rounded-2xl font-bold text-lg tracking-wide transition-all active:scale-[0.98]"
-                                style={{
-                                    background: '#E5D6A7',
-                                    color: '#2D3E33',
-                                    boxShadow: '0 8px 28px rgba(229,214,167,0.40)',
-                                }}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.15 }}
-                                whileTap={{ scale: 0.97 }}
-                            >
-                                Continue →
-                            </motion.button>
-
-                            <motion.button
-                                onClick={() => setStep(0)}
-                                className="w-full mt-4 py-2 text-sm font-medium"
-                                style={{ color: 'rgba(229,214,167,0.32)' }}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.24 }}
-                            >
-                                ← Back
-                            </motion.button>
-
-                            <p className="text-center text-xs mt-6 px-4" style={{ color: 'rgba(229,214,167,0.30)' }}>
-                                We only use this to keep Palante age-appropriate.
-                            </p>
                         </div>
                     </motion.div>
                 )}

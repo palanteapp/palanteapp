@@ -30,16 +30,16 @@ const TECHNIQUES = {
             { name: 'HoldIn', duration: 4 },
             { name: 'Exhale', duration: 4 },
         ] as const,
-        intro: "A powerful technique used by professionals to instantly calm the nervous system and regain focus.",
+        intro: "A technique used by professionals to help calm the nervous system and regain focus.",
         instructions: [
             { title: "Inhale (4s)", desc: "Build the charge." },
             { title: "Hold (4s)", desc: "Contain the energy." },
             { title: "Exhale (4s)", desc: "Release and expand." },
         ],
         benefits: [
-            { title: "Reduces Stress", desc: "Calms the fight-or-flight response." },
-            { title: "Sharpens Focus", desc: "Enhances mental clarity instantly." },
-            { title: "Regulates Pulse", desc: "Lowers heart rate effectively." }
+            { title: "A Calmer Body", desc: "The box pattern gives your nervous system something steady to settle around." },
+            { title: "Clearer Focus", desc: "Many people find their mind sharpens once the breathing steadies." },
+            { title: "A Slower Pulse", desc: "Paced breathing is linked to a lower heart rate for many people." }
         ],
         tips: [
             "Visualize containing light within a cube.",
@@ -63,8 +63,8 @@ const TECHNIQUES = {
             { title: "Exhale (8s)", desc: "Total release." }
         ],
         benefits: [
-            { title: "Better Sleep", desc: "Helps fall asleep faster." },
-            { title: "Anxiety Relief", desc: "Powerful natural tranquilizer." }
+            { title: "Easier to Drift Off", desc: "The longer exhale is a technique many people use to wind down before sleep." },
+            { title: "A Calmer Mind", desc: "Slowing your exhale is linked to a calmer nervous system for many people." }
         ],
         tips: ["Feel the vibration travel through your body.", "Let every muscle soften with the ripple."]
     },
@@ -82,8 +82,8 @@ const TECHNIQUES = {
             { title: "Exhale (6s)", desc: "Loop without pause." }
         ],
         benefits: [
-            { title: "Heart-Brain Coherence", desc: "Syncs your biological rhythms." },
-            { title: "Emotional Balance", desc: "Stabilizes mood and energy." }
+            { title: "A Steadier Rhythm", desc: "Coherent breathing is linked to a more synchronized heart and breath rhythm for many people." },
+            { title: "A Calmer Baseline", desc: "A slow, continuous breath is linked to a steadier mood for many people." }
         ],
         tips: ["Imagine liquid gold flowing endlessly.", "Smooth out every corner of the breath."]
     }
@@ -332,6 +332,10 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [enhancements, setEnhancements] = useState<EnhancementOptions>(() => readJSON<EnhancementOptions>(STORAGE_KEYS.ENHANCEMENTS, DEFAULT_ENHANCEMENTS));
+    // Only the options actually offered on this screen (groundingHeartbeat is excluded below,
+    // it's Meditation-only) should light up the Enhancements button.
+    const hasActiveEnhancement = enhancements.immersiveHaptics || enhancements.dynamicBackgrounds
+        || enhancements.smoothTransitions || enhancements.natureParticles || enhancements.hapticDarkMode;
 
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [_nextTechnique, setNextTechnique] = useState<Technique | null>(null);
@@ -695,7 +699,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                         </button>
                         <button
                             onClick={() => { haptics.light(); setShowSettings(true); }}
-                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all active:scale-95 ${enhancements.groundingHeartbeat ? 'bg-pale-gold text-warm-gray-green shadow-[0_0_15px_rgba(229,214,167,0.4)]' : 'bg-white/10 text-white/80'}`}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all active:scale-95 ${hasActiveEnhancement ? 'bg-pale-gold text-warm-gray-green shadow-[0_0_15px_rgba(229,214,167,0.4)]' : 'bg-white/10 text-white/80'}`}
                         >
                             <Settings size={13} strokeWidth={2.5} />
                             <span className="whitespace-nowrap">Enhancements</span>
@@ -729,7 +733,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                 </div>
 
                 {/* Content Stack: Selector -> Play Button */}
-                <div className="flex flex-col items-center gap-3 w-full max-w-sm px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+                <div className="flex flex-col items-center gap-3 w-full max-w-sm px-6 pb-[max(8rem,env(safe-area-inset-bottom))]">
 
                     {/* Technique Selector (Always Visible) */}
                     <div className="flex p-0.5 bg-black/20 backdrop-blur-xl rounded-full border border-white/5 relative z-50">

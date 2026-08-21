@@ -14,6 +14,12 @@
 //   node scripts/bake-loops.mjs --report           # dry-run, print seam metrics
 //   node scripts/bake-loops.mjs --write             # bake + overwrite outputs
 //   node scripts/bake-loops.mjs --write ocean-waves # one id only
+//   node scripts/bake-loops.mjs --all --report      # MANIFEST + LONGFORM
+//   node scripts/bake-loops.mjs --all --tune --report
+//        ↑ ignore the hand-picked `fade` and try a spread of windows per file,
+//          keeping whichever actually bakes the best seam. The chosen window is
+//          printed in the `fade` column so a good one can be written back into
+//          loopManifest.json.
 //
 // Sources are read from audio-raw/ (created on first run by copying the current
 // public files); baked outputs are written to public/. This keeps an untouched
@@ -31,52 +37,22 @@ const PUBLIC = path.join(ROOT, 'public');
 // ── Manifest: id → { src (relative to public), fade s, treatment } ───────────
 // treatment tunes the loop search; 'texture' allows a long loop near full
 // length, 'periodic' demands tighter tail/head alignment for wave/call cycles.
-const MANIFEST = [
-    // Textures — stationary, crossfade-friendly
-    { id: 'gentle-rain', src: 'sounds/gentle-rain.mp3', fade: 2.0, kind: 'texture' },
-    { id: 'waterfall', src: 'sounds/waterfall.mp3', fade: 2.0, kind: 'texture' },
-    { id: 'flowing-river', src: 'sounds/flowing-river.mp3', fade: 2.0, kind: 'texture' },
-    { id: 'calm-wind', src: 'sounds/calm-wind.mp3', fade: 1.5, kind: 'texture' },
-    { id: 'forest', src: 'sounds/forest.mp3', fade: 2.5, kind: 'texture' },
-    { id: 'camp-fire', src: 'sounds/camp-fire.mp3', fade: 1.5, kind: 'texture' },
-    { id: 'autumn-wind', src: 'Autumn Wind.mp3', fade: 2.5, kind: 'texture' },
-    { id: 'distant-rain-and-thunder', src: 'sounds/distant-rain-and-thunder.mp3', fade: 3.0, kind: 'texture' },
-    // Quasi-periodic — align to the wave/call cycle
-    { id: 'ocean-waves', src: 'sounds/ocean-waves.mp3', fade: 2.0, kind: 'periodic' },
-    { id: 'shoreline', src: 'sounds/shoreline.mp3', fade: 2.5, kind: 'periodic' },
-    { id: 'beach-and-birds', src: 'sounds/beach-and-birds.mp3', fade: 2.5, kind: 'periodic' },
-    // Structured / musical / heritage — keep the recording, find a clean loop
-    { id: 'birdsong', src: 'sounds/birdsong.mp3', fade: 1.5, kind: 'periodic' },
-    { id: 'boriquen-coqui', src: 'sounds/boriquen-coqui.mp3', fade: 2.0, kind: 'periodic' },
-    { id: 'busy-cafe-1', src: 'sounds/busy-cafe-1.mp3', fade: 2.0, kind: 'texture' },
-    { id: 'busy-cafe-2', src: 'sounds/busy-cafe-2.mp3', fade: 2.5, kind: 'texture' },
-    { id: 'busy-cafe-4', src: 'busy-cafe-4.mp3', fade: 2.5, kind: 'texture' },
-    { id: 'kalimba-africa', src: 'sounds/kalimba-africa.mp3', fade: 1.0, kind: 'periodic' },
-    { id: '1970-pr', src: 'sounds/1970-pr.mp3', fade: 2.0, kind: 'texture' },
-    { id: 'colombia-eas', src: 'colombia-eas.mp3', fade: 1.5, kind: 'periodic' },
-    { id: 'zen-out', src: 'sounds/zen-out.mp3', fade: 2.5, kind: 'periodic' },
-    { id: 'sounds-of-zen', src: 'sounds/sounds-of-zen.mp3', fade: 2.5, kind: 'periodic' },
-    { id: 'set-adrift', src: 'sounds/set-adrift.mp3', fade: 3.0, kind: 'periodic' },
-    { id: 'chillax-uno', src: 'sounds/chillax-uno.mp3', fade: 1.5, kind: 'periodic' },
-    { id: 'chillax-dos', src: 'sounds/chillax-dos.mp3', fade: 1.5, kind: 'periodic' },
-    { id: 'chillax-tres', src: 'sounds/chillax-tres.mp3', fade: 1.5, kind: 'periodic' },
-    { id: 'chill-cinco', src: 'Chill Cinco.mp3', fade: 2.0, kind: 'periodic' },
-];
-
-// Long-form pieces (8–18 min). These are far too large to hold decoded in RAM,
-// so they keep streaming at runtime — but we bake ONE clean tail→head seam so
-// the single, rare loop is continuous. Full length is preserved; bilateral
-// tracks keep their stereo panning. Whale is transcoded from an 80MB 24-bit WAV.
-const LONGFORM = [
-    { id: 'bilateral-eternal-reflection', src: 'sounds/bilateral-eternal-reflection.mp3', fade: 4.0, kind: 'texture', stereo: true, minFrac: 0.9, searchSec: 14 },
-    { id: 'bilateral-replenished', src: 'sounds/bilateral-replenished.mp3', fade: 4.0, kind: 'texture', stereo: true, minFrac: 0.9, searchSec: 14 },
-    { id: 'bilateral-tranquility', src: 'sounds/bilateral-tranquility.mp3', fade: 4.0, kind: 'texture', stereo: true, minFrac: 0.9, searchSec: 14 },
-    { id: 'bilateral-tune-up', src: 'sounds/bilateral-tune-up.mp3', fade: 4.0, kind: 'texture', stereo: true, minFrac: 0.9, searchSec: 14 },
-    { id: 'om-gum-shreem', src: 'sounds/om-gum-shreem-maha-lakshmiyei-namaha.mp3', fade: 3.0, kind: 'periodic', minFrac: 0.85, searchSec: 16 },
-    { id: 'chillax-quatro', src: 'sounds/chillax-quatro.mp3', fade: 3.0, kind: 'periodic', minFrac: 0.85, searchSec: 16 },
-    { id: 'busy-cafe-3', src: 'sounds/busy-cafe-3.mp3', fade: 3.0, kind: 'texture', minFrac: 0.85, searchSec: 12 },
-    { id: 'whale-sounds', src: 'sounds/whale-sounds.wav', out: 'sounds/whale-sounds.mp3', fade: 4.0, kind: 'periodic', minFrac: 0.85, searchSec: 16, rate: 24000 },
-];
+//
+// This lives in src/constants/loopManifest.json because the RUNTIME needs it
+// too: src/utils/seamlessAudio.ts must know which public/ files already carry a
+// correlation-matched seam so it does not blindly rebuild one on top. Keeping
+// one file means the two can never disagree about what was baked.
+//
+// `baked`    — decoded into memory and looped by the audio thread at runtime.
+// `longform` — 8–18 minute pieces, far too large to hold decoded, so they keep
+//              streaming. We still bake ONE clean tail→head seam so the single,
+//              rare loop is continuous. Full length is preserved; bilateral
+//              tracks keep their stereo panning (`stereo: true`). Whale is
+//              transcoded from an 80MB 24-bit WAV.
+const MANIFEST_PATH = path.join(ROOT, 'src/constants/loopManifest.json');
+const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+const MANIFEST = manifest.baked;
+const LONGFORM = manifest.longform;
 
 // ── ffmpeg decode / encode ───────────────────────────────────────────────────
 function decode(file, targetRate) {
@@ -101,7 +77,9 @@ function encode(outFile, channels, sr) {
     for (let i = 0; i < n; i++) for (let c = 0; c < nCh; c++) inter[i * nCh + c] = channels[c][i];
     const raw = Buffer.from(inter.buffer);
     const ext = path.extname(outFile).toLowerCase();
-    const codec = ext === '.wav' ? ['-c:a', 'pcm_s16le'] : ['-c:a', 'libmp3lame', '-q:a', '2'];
+    const codec = ext === '.wav' ? ['-c:a', 'pcm_s16le']
+        : ext === '.m4a' ? ['-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart']
+        : ['-c:a', 'libmp3lame', '-q:a', '2'];
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'f32le', '-ar', String(sr), '-ac', String(nCh),
         '-i', 'pipe:0', ...codec, outFile], { input: raw, maxBuffer: 1 << 30 });
 }
@@ -147,7 +125,30 @@ function findBestLoopEnd(mono, start, end, fade, sr, minFrac, searchSec) {
     return { bestE, ncc: best };
 }
 
+// NCC of the W samples ending at `E` against the W samples starting at `start`.
+// Fixed W, so scores are comparable across different fade lengths.
+function nccAt(mono, start, E, W) {
+    const base = E - W;
+    if (base < start || E > mono.length) return 0;
+    let dot = 0, a = 0, b = 0;
+    for (let i = 0; i < W; i++) {
+        const h = mono[start + i], t = mono[base + i];
+        dot += h * t; a += h * h; b += t * t;
+    }
+    return dot / (Math.sqrt(a * b) + 1e-9);
+}
+
 // Move an index to the nearest rising zero crossing within `win` samples.
+//
+// This looks like it should be load-bearing and mostly is not: bakeCrossfade's
+// output is already sample-exact across the wrap (its last sample is
+// ch[end-fade-1] and its first is ch[end-fade], adjacent samples of the
+// master), so there is no step for a zero crossing to soften. The suspicion
+// that it was actively harmful — dragging the cut off the correlation optimum —
+// was measured across all 41 tracks and did not hold up either: dropping the
+// snap scored better on 10, worse on 16, mean ΔNCC -0.001, and on most tracks
+// it moves the edge by well under a millisecond. Kept as-is because it is a
+// wash and these are shipped assets.
 function snapZero(mono, idx, win = 600) {
     for (let d = 0; d < win; d++) {
         for (const i of [idx + d, idx - d]) {
@@ -200,6 +201,7 @@ function seamMetric(channels, sr) {
 // ── Run ──────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const write = args.includes('--write');
+const tune = args.includes('--tune');
 const qa = args.includes('--qa');
 const longform = args.includes('--longform');
 const all = args.includes('--all');
@@ -212,8 +214,8 @@ if (qa && !existsSync(QA_DIR)) mkdirSync(QA_DIR, { recursive: true });
 const qaManifest = [];
 
 const jobs = source.filter(m => !onlyId || m.id === onlyId);
-console.log(`\n${'id'.padEnd(26)} ${'orig ratio'.padStart(10)} ${'baked ratio'.padStart(11)} ${'rmsCont'.padStart(8)}  ${'loopNCC'.padStart(7)}  ${'sec'.padStart(6)}  out`);
-console.log('-'.repeat(100));
+console.log(`\n${'id'.padEnd(26)} ${'orig ratio'.padStart(10)} ${'baked ratio'.padStart(11)} ${'rmsCont'.padStart(8)}  ${'loopNCC'.padStart(7)}  ${'fade'.padStart(5)}  ${'sec'.padStart(6)}  out`);
+console.log('-'.repeat(108));
 
 for (const job of jobs) {
     try {
@@ -233,11 +235,53 @@ for (const job of jobs) {
         const fade = Math.floor(job.fade * sr);
         const minFrac = job.minFrac ?? (job.kind === 'periodic' ? 0.5 : 0.7);
         const searchSec = job.searchSec ?? (job.kind === 'periodic' ? 12 : 6);
-        const { bestE, ncc } = findBestLoopEnd(mono, start, end, fade, sr, minFrac, searchSec);
+        // Candidate fade windows. Without --tune this is just the hand-picked
+        // value from the manifest; with it, the baker tries a spread and keeps
+        // whichever actually bakes the best seam for THIS file.
+        const candidates = tune
+            ? [...new Set([0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, job.fade].map(f => Math.floor(f * sr)))]
+                .filter(f => f > 0 && f <= Math.floor((end - start) / 4))
+                .sort((a, b) => a - b)
+            : [fade];
+
+        let choice = null;
         const s2 = snapZero(mono, start);
-        const e2 = snapZero(mono, bestE);
-        const baked = bakeCrossfade(chans, s2, e2 > s2 + fade ? e2 : end, fade);
-        const bakedSeam = seamMetric(baked, sr);
+        for (const f of candidates) {
+            const { bestE } = findBestLoopEnd(mono, start, end, f, sr, minFrac, searchSec);
+            const e2 = snapZero(mono, bestE);
+            const e = e2 > s2 + f ? e2 : end;
+            // Cap a tuned fade at 15% of the LOOP the search settled on, which
+            // can be far shorter than the master (heartbeat: an 11s loop out of
+            // a 21s file). The seam metrics always prefer a longer blend because
+            // they only look AT the wrap; they cannot see that a 3s crossfade on
+            // an 11s loop spends a quarter of it playing two uncorrelated pulse
+            // trains over each other.
+            if (tune && f > (e - s2) * 0.15) continue;
+            const out = bakeCrossfade(chans, s2, e, f);
+            const seam = seamMetric(out, sr);
+            // Score on a FIXED window so different fade lengths are comparable:
+            // the search's own NCC shrinks as its window grows and would always
+            // favour the shortest fade. This also measures the seam that is
+            // actually baked — post-snap, at the edges bakeCrossfade was handed.
+            // The `loopNCC` column used to report the pre-snap number instead,
+            // which is why `heartbeat` could show a perfect 1.000 next to a seam
+            // ratio worse than its own source: the two described different cuts.
+            const ncc = nccAt(mono, s2, e, Math.floor(0.5 * sr));
+            // Three things make a wrap audible and all three are scored:
+            // content mismatch (ncc), a level jump across the wrap
+            // (rmsContinuity, 1.0 = the two sides are equally loud), and a
+            // residual step (ratio, 1.0 = indistinguishable from ordinary
+            // sample-to-sample motion). Without the rmsContinuity term the
+            // tuner happily traded a 0.80 → 0.68 level match for a slightly
+            // tidier ratio on gentle-rain-for-relaxation.
+            const quality = ncc
+                + 0.5 * seam.rmsContinuity
+                - 0.05 * Math.min(Math.abs(seam.ratio - 1), 10);
+            if (!choice || quality > choice.quality) choice = { f, ncc, out, seam, quality };
+        }
+        if (!choice) throw new Error('no usable fade window for this file');
+
+        const { f: chosenFade, ncc, out: baked, seam: bakedSeam } = choice;
         const outSec = (baked[0].length / sr).toFixed(1);
 
         if (write) encode(outPublicPath, baked, sr);
@@ -254,7 +298,7 @@ for (const job of jobs) {
         }
 
         console.log(
-            `${job.id.padEnd(26)} ${String(origSeam.ratio).padStart(10)} ${String(bakedSeam.ratio).padStart(11)} ${String(bakedSeam.rmsContinuity).padStart(8)}  ${ncc.toFixed(3).padStart(7)}  ${outSec.padStart(6)}  ${write ? '✓ written' : '(dry)'}`
+            `${job.id.padEnd(26)} ${String(origSeam.ratio).padStart(10)} ${String(bakedSeam.ratio).padStart(11)} ${String(bakedSeam.rmsContinuity).padStart(8)}  ${ncc.toFixed(3).padStart(7)}  ${(chosenFade / sr).toFixed(1).padStart(5)}  ${outSec.padStart(6)}  ${write ? '✓ written' : '(dry)'}`
         );
     } catch (e) {
         console.log(`${job.id.padEnd(26)} ERROR: ${e.message.split('\n')[0]}`);

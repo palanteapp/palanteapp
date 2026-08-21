@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Send, Bot, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
     Zap, Flame, Mountain, Wind, Trash2, Brain,
-    Volume2, Loader2
+    Volume2, Loader2, Flag
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
 import { CrisisResourceCard } from './CrisisResourceCard';
@@ -20,6 +20,8 @@ import { STORAGE_KEYS } from '../constants/storageKeys';
 import { useTheme } from '../contexts/ThemeContext';
 import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
 import { extractAndSaveMemories } from '../utils/memoryService';
+import { analytics } from '../utils/analytics';
+import { buildAiMessageReportEvent } from '../utils/messageReport';
 import { useContinuityOpener, readCachedOpener } from '../hooks/useContinuityOpener';
 import { Capacitor } from '@capacitor/core';
 
@@ -28,6 +30,7 @@ interface CoachViewProps {
     onBack?: () => void;
     onNavigate?: (tab: string) => void;
     onFirstAIResponse?: () => void;
+    onToast?: (message: string) => void;
 }
 
 // ── Pillar config ─────────────────────────────────────────────────────────────
@@ -155,7 +158,7 @@ const formatDate = (ms: number): string => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate: _onNavigate, onFirstAIResponse }) => {
+export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, onBack, onNavigate: _onNavigate, onFirstAIResponse, onToast }) => {
     const { isDarkMode: _isDarkMode } = useTheme();
     type ViewMode = 'home' | 'chat' | 'history';
     const [view, setView] = useState<ViewMode>('home');
@@ -177,6 +180,11 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     // Voice playback: which message is currently speaking / loading audio.
     const [voiceMsgId, setVoiceMsgId] = useState<string | null>(null);
     const [voiceLoadingId, setVoiceLoadingId] = useState<string | null>(null);
+    // Reporting a bad/harmful AI reply (App Store 1.4/4.3: a visible way to flag
+    // AI output, distinct from the human-partner report flow in Profile). Tracks
+    // every message reported so far (a Set, not a single id) so reporting one
+    // message never reverts another already-reported message's button state.
+    const [reportedMsgId, setReportedMsgId] = useState<Set<string>>(new Set());
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -311,6 +319,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     // is still reachable via the icon in the chat header.
     useEffect(() => {
         if (view === 'home' && !activeSession) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- auto-starts a session on landing, mirrors a user action rather than derivable render state
             startPillarSession('open');
         }
     }, [view, activeSession, startPillarSession]);
@@ -328,6 +337,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
         const firstName = user.name ? user.name.split(' ')[0] : 'Friend';
         const upgraded = `Hey ${firstName}. ${continuityOpener}`;
         if (only.text === upgraded) return;                  // already applied
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- upgrades the greeting once the async continuity opener resolves after the session was already created
         setActiveSession({ ...activeSession, messages: [{ ...only, text: upgraded }] });
     }, [continuityOpener, activeSession, user.name]);
 
@@ -518,6 +528,22 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     // Stop any audio when the view unmounts so it can't keep playing off-screen.
     useEffect(() => () => stopSpeaking(), []);
 
+    // Report a bad/harmful AI reply. Client-side/analytics-logged only, no new
+    // moderation backend: logs enough to locate the message (session, message id,
+    // index) without putting conversation content into analytics, then confirms
+    // via the app's shared toast surface (see App.tsx / Profile.tsx onToast).
+    // Synchronous re-entrancy guard first: the disabled prop below only takes
+    // effect after React commits the next render, so without this a fast
+    // double-tap could fire the analytics event twice for the same message.
+    const handleReportMessage = useCallback((msg: ChatMessage) => {
+        if (reportedMsgId.has(msg.id)) return;
+        if (!activeSession) return;
+        haptics.selection();
+        analytics.aiMessageReported(buildAiMessageReportEvent(activeSession, msg));
+        setReportedMsgId(prev => new Set(prev).add(msg.id));
+        onToast?.('Message reported. Thank you.');
+    }, [activeSession, reportedMsgId, onToast]);
+
     const filteredSessions = sessions.filter(s => {
         if (!historySearch.trim()) return true;
         const q = historySearch.toLowerCase();
@@ -682,18 +708,31 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                     {msg.text}
                                 </div>
                                 {msg.role === 'assistant' && (
-                                    <button
-                                        onClick={() => handleSpeak(msg)}
-                                        className="mt-2 flex items-center gap-1.5 text-[#E5D6A7]/40 hover:text-[#E5D6A7]/80 active:scale-95 transition-all"
-                                        aria-label={voiceMsgId === msg.id ? 'Stop voice' : 'Hear this aloud'}
-                                    >
-                                        {voiceLoadingId === msg.id
-                                            ? <Loader2 size={14} className="animate-spin" />
-                                            : <Volume2 size={14} className={voiceMsgId === msg.id ? 'text-[#C96A3A]' : ''} />}
-                                        <span className="text-[11px] font-bold uppercase tracking-wider">
-                                            {voiceLoadingId === msg.id ? 'Loading' : voiceMsgId === msg.id ? 'Stop' : 'Listen'}
-                                        </span>
-                                    </button>
+                                    <div className="mt-2 flex items-center gap-4">
+                                        <button
+                                            onClick={() => handleSpeak(msg)}
+                                            className="flex items-center gap-1.5 text-[#E5D6A7]/40 hover:text-[#E5D6A7]/80 active:scale-95 transition-all"
+                                            aria-label={voiceMsgId === msg.id ? 'Stop voice' : 'Hear this aloud'}
+                                        >
+                                            {voiceLoadingId === msg.id
+                                                ? <Loader2 size={14} className="animate-spin" />
+                                                : <Volume2 size={14} className={voiceMsgId === msg.id ? 'text-[#C96A3A]' : ''} />}
+                                            <span className="text-[11px] font-bold uppercase tracking-wider">
+                                                {voiceLoadingId === msg.id ? 'Loading' : voiceMsgId === msg.id ? 'Stop' : 'Listen'}
+                                            </span>
+                                        </button>
+                                        <button
+                                            onClick={() => handleReportMessage(msg)}
+                                            disabled={reportedMsgId.has(msg.id)}
+                                            className="flex items-center gap-1.5 text-[#E5D6A7]/40 hover:text-[#E5D6A7]/80 active:scale-95 transition-all disabled:hover:text-[#E5D6A7]/40"
+                                            aria-label={reportedMsgId.has(msg.id) ? 'Reported' : 'Report this message'}
+                                        >
+                                            <Flag size={14} className={reportedMsgId.has(msg.id) ? 'text-[#C96A3A]' : ''} />
+                                            <span className="text-[11px] font-bold uppercase tracking-wider">
+                                                {reportedMsgId.has(msg.id) ? 'Reported' : 'Report'}
+                                            </span>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         ))}
@@ -712,6 +751,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             // so they feel fresh each morning/afternoon/evening without randomness.
                             const hour = new Date().getHours();
                             const dayOfYear = Math.floor(
+                                // eslint-disable-next-line react-hooks/purity -- deterministic seed intentionally reads the real current time/date to rotate prompts through the day
                                 (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
                             );
                             const timeBucket = hour < 12 ? 0 : hour < 17 ? 1 : 2;

@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { findLoudRange, isDualMono, bakeSeamlessLoop } from '../utils/seamlessLoop';
+import {
+    findLoudRange,
+    isDualMono,
+    bakeSeamlessLoop,
+    planLoopBuffer,
+    findBestLoopEnd,
+    mixToMono,
+    PRE_BAKED_FADE_SECONDS,
+} from '../utils/seamlessLoop';
 
 const RATE = 48000;
 
@@ -109,5 +117,111 @@ describe('bakeSeamlessLoop', () => {
         const outLength = left.length - 1.5 * RATE;
         expect(out[0][0]).toBe(left[outLength]);
         expect(out[1][0]).toBe(right[outLength]);
+    });
+});
+
+describe('mixToMono', () => {
+    it('returns the single channel untouched for mono input', () => {
+        const ch = noise(1000);
+        expect(mixToMono([ch])).toBe(ch);
+    });
+
+    it('averages channels', () => {
+        const a = new Float32Array([1, 0, -1]);
+        const b = new Float32Array([0, 1, 1]);
+        expect(Array.from(mixToMono([a, b]))).toEqual([0.5, 0.5, 0]);
+    });
+});
+
+describe('findBestLoopEnd', () => {
+    it('locks onto the repeat in a periodic signal', () => {
+        // 40 cycles of a 1200-sample period: the ideal loop end is any exact
+        // multiple of the period after the head.
+        const period = 1200;
+        const sig = new Float32Array(period * 40);
+        for (let i = 0; i < sig.length; i++) sig[i] = Math.sin((2 * Math.PI * (i % period)) / period);
+
+        const window = 600;
+        const found = findBestLoopEnd(sig, 0, sig.length, window, Math.floor(sig.length * 0.7));
+        expect(found.ncc).toBeGreaterThan(0.99);
+        // The correlation window is [end - window, end); for it to match the
+        // head, its START has to land on a period boundary.
+        expect((found.end - window) % period).toBeLessThan(8);
+    });
+
+    it('reports a weak match for uncorrelated noise', () => {
+        const sig = noise(200000);
+        const found = findBestLoopEnd(sig, 0, sig.length, 4000, Math.floor(sig.length * 0.7));
+        expect(Math.abs(found.ncc)).toBeLessThan(0.3);
+    });
+
+    it('leaves the end alone when the search range is empty', () => {
+        const sig = noise(10000);
+        const found = findBestLoopEnd(sig, 0, sig.length, 500, sig.length);
+        expect(found.end).toBe(sig.length);
+    });
+});
+
+describe('planLoopBuffer', () => {
+    it('describes the loop without copying the body', () => {
+        const input = noise(RATE * 8);
+        const plan = planLoopBuffer([input], RATE, { fadeSeconds: 1.5 });
+        expect(plan.start).toBe(0);
+        expect(plan.fade).toBe(1.5 * RATE);
+        expect(plan.length).toBe(input.length - 1.5 * RATE);
+        // Only the crossfaded head is allocated; the body stays a view.
+        expect(plan.head).not.toBeNull();
+        expect(plan.head![0].length).toBe(plan.fade);
+    });
+
+    it('matches bakeSeamlessLoop exactly', () => {
+        const input = noise(RATE * 8);
+        const baked = bakeSeamlessLoop([input], RATE, 1.5);
+        const plan = planLoopBuffer([input], RATE, { fadeSeconds: 1.5 });
+        const rebuilt = new Float32Array(plan.length);
+        rebuilt.set(input.subarray(plan.start, plan.start + plan.length));
+        rebuilt.set(plan.head![0], 0);
+        expect(Array.from(rebuilt)).toEqual(Array.from(baked[0]));
+    });
+
+    it('barely touches the head at the pre-baked fade width', () => {
+        // Files the offline baker already seam-matched get a 30ms touch-up, not
+        // a rebuild: everything past 30ms must survive byte-for-byte.
+        const input = noise(RATE * 8);
+        const plan = planLoopBuffer([input], RATE, { fadeSeconds: PRE_BAKED_FADE_SECONDS });
+        expect(plan.fade).toBe(Math.floor(PRE_BAKED_FADE_SECONDS * RATE));
+        expect(plan.length).toBe(input.length - plan.fade);
+        for (let i = plan.fade; i < plan.length; i += 997) {
+            expect(input[plan.start + i]).toBe(input[i]);
+        }
+    });
+
+    it('still wraps sample-exactly at the pre-baked fade width', () => {
+        const input = noise(RATE * 8);
+        const plan = planLoopBuffer([input], RATE, { fadeSeconds: PRE_BAKED_FADE_SECONDS });
+        // out[0] is the tail window's first sample (cos(0) = 1, sin(0) = 0) and
+        // out[last] is the one before it, so the wrap continues the waveform.
+        expect(plan.head![0][0]).toBeCloseTo(input[plan.length], 5);
+        expect(input[plan.start + plan.length - 1]).toBe(input[plan.length - 1]);
+    });
+
+    it('moves the loop end onto the repeat when searching', () => {
+        const period = 1200;
+        const sig = new Float32Array(period * 60);
+        for (let i = 0; i < sig.length; i++) sig[i] = Math.sin((2 * Math.PI * (i % period)) / period);
+
+        const blind = planLoopBuffer([sig], RATE, { fadeSeconds: 600 / RATE });
+        const searched = planLoopBuffer([sig], RATE, { fadeSeconds: 600 / RATE, search: true });
+        expect(searched.ncc).toBeGreaterThan(0.99);
+        // The blind plan cuts at the literal end; the searched one does not have
+        // to, and lands where the tail actually continues into the head.
+        expect(blind.ncc).toBe(0);
+        expect(searched.length).toBeLessThanOrEqual(blind.length);
+    });
+
+    it('reports no crossfade for a clip too short to fade', () => {
+        const plan = planLoopBuffer([noise(8)], RATE, { fadeSeconds: 1.5 });
+        expect(plan.fade).toBe(2);
+        expect(plan.length).toBe(6);
     });
 });

@@ -36,6 +36,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
     // Effect to update tab when opened
     React.useEffect(() => {
         if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to the requested tab each time the modal reopens
             setActiveTab(initialTab);
         }
     }, [isOpen, initialTab]);

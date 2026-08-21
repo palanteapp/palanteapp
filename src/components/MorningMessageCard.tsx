@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Share2, RefreshCw, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShareModal } from './ShareModal';
 import type { Quote } from '../types';
 import { generateShareImage } from '../utils/shareUtils';
+import { analytics } from '../utils/analytics';
 
 interface MorningMessageCardProps {
     intention?: string;
@@ -32,16 +33,19 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [hoveredStar, setHoveredStar] = useState<number | null>(null);
 
-    const mockQuote: Quote = {
+    // Stable per message instead of regenerating on every render.
+    const mockQuote: Quote = useMemo(() => ({
+        // eslint-disable-next-line react-hooks/purity -- id only needs to be unique per message, memoized so it's stable across re-renders
         id: `morning_msg_${Date.now()}`,
         text: message || 'Rise and shine.',
         author: 'Palante',
         category: 'Morning Message',
         intensity: 1,
         isAI: true,
-    };
+    }), [message]);
 
     const handleShare = async () => {
+        analytics.quoteShared({ isAI: true, category: mockQuote.category });
         setIsGeneratingImage(true);
         try {
             const image = await generateShareImage(mockQuote, mockQuote.id);
@@ -140,7 +144,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                             color: isDarkMode ? '#E5D6A7' : '#415D43',
                             lineHeight: 1,
                         }}>
-                            Your Partner
+                            Palante
                         </p>
                         <p style={{
                             fontSize: '10px', fontWeight: 500, letterSpacing: '0.04em',
@@ -233,7 +237,7 @@ export const MorningMessageCard: React.FC<MorningMessageCardProps> = ({
                                 display: 'flex', alignItems: 'center', gap: 5,
                                 fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em',
                             }}
-                            aria-label="Change partner tone"
+                            aria-label="Change tone"
                         >
                             <span style={{ opacity: 0.6, fontSize: '10px' }}>Tone:</span>
                             <span style={{ textTransform: 'capitalize' }}>{coachTone}</span>

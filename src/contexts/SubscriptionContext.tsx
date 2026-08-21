@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
+import { analytics } from '../utils/analytics';
 
 const RC_API_KEY_IOS = 'appl_wDTGjapNESRBZKFCnBICukFeQKy';
 
@@ -90,6 +91,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
 
   useEffect(() => {
     if (IS_BETA || !Capacitor.isNativePlatform()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- short-circuits RevenueCat init on platforms/builds that never call it, can't be known during render
       setIsLoading(false);
       return;
     }
@@ -113,31 +115,49 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
   }, [userId, refreshEntitlement, loadPrices]);
 
   const purchaseMonthly = async (): Promise<{ error?: string }> => {
+    analytics.purchaseStarted({ plan: 'monthly' });
     try {
       const offerings = await Purchases.getOfferings();
       const pkg = offerings.current?.availablePackages.find((p: { product: { identifier: string } }) => p.product.identifier === PRODUCT_MONTHLY);
-      if (!pkg) return { error: 'Monthly plan unavailable. Please try again.' };
+      if (!pkg) {
+        analytics.purchaseFailed({ plan: 'monthly', reason: 'unavailable' });
+        return { error: 'Monthly plan unavailable. Please try again.' };
+      }
       await Purchases.purchasePackage({ aPackage: pkg });
       await refreshEntitlement();
+      analytics.purchaseCompleted({ plan: 'monthly' });
       return {};
     } catch (e: unknown) {
       const err = e as { userCancelled?: boolean; message?: string };
-      if (err.userCancelled) return {};
+      if (err.userCancelled) {
+        analytics.purchaseCancelled({ plan: 'monthly' });
+        return {};
+      }
+      analytics.purchaseFailed({ plan: 'monthly', reason: err.message ?? 'unknown' });
       return { error: err.message ?? 'Purchase failed. Please try again.' };
     }
   };
 
   const purchaseAnnual = async (): Promise<{ error?: string }> => {
+    analytics.purchaseStarted({ plan: 'annual' });
     try {
       const offerings = await Purchases.getOfferings();
       const pkg = offerings.current?.availablePackages.find((p: { product: { identifier: string } }) => p.product.identifier === PRODUCT_ANNUAL);
-      if (!pkg) return { error: 'Annual plan unavailable. Please try again.' };
+      if (!pkg) {
+        analytics.purchaseFailed({ plan: 'annual', reason: 'unavailable' });
+        return { error: 'Annual plan unavailable. Please try again.' };
+      }
       await Purchases.purchasePackage({ aPackage: pkg });
       await refreshEntitlement();
+      analytics.purchaseCompleted({ plan: 'annual' });
       return {};
     } catch (e: unknown) {
       const err = e as { userCancelled?: boolean; message?: string };
-      if (err.userCancelled) return {};
+      if (err.userCancelled) {
+        analytics.purchaseCancelled({ plan: 'annual' });
+        return {};
+      }
+      analytics.purchaseFailed({ plan: 'annual', reason: err.message ?? 'unknown' });
       return { error: err.message ?? 'Purchase failed. Please try again.' };
     }
   };
@@ -146,6 +166,7 @@ export const SubscriptionProvider = ({ children, userId }: { children: ReactNode
     try {
       await Purchases.restorePurchases();
       await refreshEntitlement();
+      analytics.purchasesRestored();
       return {};
     } catch (e: unknown) {
       const err = e as { message?: string };

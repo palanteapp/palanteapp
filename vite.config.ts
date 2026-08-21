@@ -32,8 +32,10 @@ export default defineConfig({
                     // React 19 is ESM-only — do NOT manually chunk react/react-dom
                     'vendor-supabase': ['@supabase/supabase-js'],
                     'vendor-lucide': ['lucide-react'],
-                    'vendor-utils': ['uuid'],
                     'pdf-worker': ['jspdf', 'html2canvas'],
+                    'vendor-motion': ['framer-motion'],
+                    'vendor-sentry': ['@sentry/react', '@sentry/capacitor'],
+                    'vendor-analytics': ['posthog-js'],
                 }
             }
         }

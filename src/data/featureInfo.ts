@@ -118,19 +118,19 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
 
     momentum: {
         howToUse: {
-            title: "Your Accountability Partner & Progress Tracker",
+            title: "Your Accountability & Progress Tracker",
             description: "Momentum combines energy check-ins, focus management, and progress tracking to help you build sustainable habits and stay accountable to your goals.",
             steps: [
                 "Start each session with an Energy Check-In to match tasks to your current state",
                 "Add daily focus goals based on your energy level and priorities",
-                "Check in with your partner for personalized guidance",
+                "Read your morning message for personalized guidance",
                 "Track your progress and celebrate completed goals",
                 "Review weekly insights to identify patterns and optimize your routine"
             ],
             tips: [
                 "Be honest with your energy check-ins - they help match you with the right tasks",
                 "Focus on 1-3 key goals per day rather than overwhelming yourself",
-                "Use your partner for accountability, not just tracking",
+                "Use Palante for accountability, not just tracking",
                 "Celebrate small wins - progress compounds over time",
                 "Review weekly insights to spot your peak productivity windows"
             ]

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Sun, Sparkles, Check, ChevronRight, Sprout, Loader2, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { DailyMorningPractice, Quote } from '../types';
@@ -27,7 +27,8 @@ interface DailyMorningPracticeProps {
 
 export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = ({ onComplete, onRefresh, isDarkMode: _isDarkMode, existingPriming, userName, hideEnergyCheckIn: _hideEnergyCheckIn, onFinish, onStepChange, user, isFirstEver, onSkip }) => {
     const [step, setStep] = useState<'intro' | 'gratitude' | 'affirmation' | 'intention' | 'message' | 'summary'>('intro');
-    const practiceStartTime = useRef(Date.now());
+    // Lazy initializer runs exactly once on mount, not on every render.
+    const [practiceStartTime] = useState(() => Date.now());
     const [gratitudes, setGratitudes] = useState<string[]>(['', '', '']);
     const [affirmations, setAffirmations] = useState<string[]>(['', '', '']);
     const [intention, setIntention] = useState<string>('');
@@ -49,6 +50,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                 ? existingPriming.affirmations
                 : ['', '', ''];
 
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- restores in-progress practice from a passed-in record once, guarded by hasRefreshed
             setGratitudes(loadedGratitudes);
             setAffirmations(loadedAffirmations);
             setIntention(existingPriming.dailyIntention || '');
@@ -77,6 +79,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
         }
         // Show the Apple Health connect prompt once on the message step (native only)
         if (step === 'message' && Capacitor.isNativePlatform() && !localStorage.getItem(STORAGE_KEYS.HEALTH_ASKED)) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time prompt gated on external localStorage flag, not derivable from props during render
             setShowHealthPrompt(true);
         }
     }, [step, onStepChange]);
@@ -177,7 +180,7 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
             dailyIntention: intention.trim(),
             messageOfTheDay: generatedMessage
         };
-        logMindfulSession(practiceStartTime.current, Date.now());
+        logMindfulSession(practiceStartTime, Date.now());
         onComplete(primingData);
     };
 
@@ -545,12 +548,12 @@ export const DailyMorningPracticeWidget: React.FC<DailyMorningPracticeProps> = (
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold text-white mb-1">
-                                        {healthDenied ? 'Health access is off' : 'Let your partner notice how you\'re doing'}
+                                        {healthDenied ? 'Health access is off' : 'Let Palante notice how you\'re doing'}
                                     </p>
                                     <p className="text-xs leading-relaxed" style={{ color: 'rgba(229,214,167,0.60)' }}>
                                         {healthDenied
                                             ? 'Tap Open Settings, then go to Privacy & Security → Health → Palante to enable access.'
-                                            : 'Connect Apple Health so your partner can gently acknowledge your sleep and energy. Never used for anything else.'}
+                                            : 'Connect Apple Health so Palante can gently acknowledge your sleep and energy. Never used for anything else.'}
                                     </p>
                                     <div className="flex gap-2 mt-3">
                                         {healthDenied ? (

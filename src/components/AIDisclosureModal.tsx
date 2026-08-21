@@ -121,7 +121,7 @@ export const AIDisclosureModal: React.FC<AIDisclosureModalProps> = ({
                                 </div>
                                 <div className={`text-xs font-body mt-0.5 ${muted}`}>
                                     {aiEnabled
-                                        ? 'Your partner, daily messages, and reflections are generated'
+                                        ? 'Daily messages and reflections are generated'
                                         : 'Nothing you write will be sent anywhere'}
                                 </div>
                             </div>

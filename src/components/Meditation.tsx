@@ -193,7 +193,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
 
     const playGong = async () => {
         try {
-            const gong = new Audio('/sounds/gong-sfx.mp3');
+            const gong = new Audio('/sounds/gong-sfx.m4a');
             gong.volume = 0;
             await gong.play();
 
@@ -621,8 +621,8 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                     </div>
 
                     {!isActive && !intention.trim() && (
-                        <p className={`text-xs font-bold uppercase tracking-[0.2em] animate-pulse mt-2 ${isDarkMode ? 'text-pale-gold/60' : 'text-sage/60'}`}>
-                            set an intention above to get started
+                        <p className={`text-xs font-bold uppercase tracking-[0.2em] animate-pulse mt-2 text-center leading-relaxed ${isDarkMode ? 'text-pale-gold/60' : 'text-sage/60'}`}>
+                            set an intention above<br />to get started
                         </p>
                     )}
                 </div>

@@ -4,7 +4,7 @@ import { DailyMorningPracticeWidget } from './DailyMorningPracticeWidget';
 import { haptics } from '../utils/haptics';
 import { triggerConfetti } from '../utils/CelebrationEffects';
 import type { UserProfile, DailyMorningPractice } from '../types';
-import { logPractice, migrateStreakToPractice } from '../utils/practiceUtils';
+import { logPractice, migrateStreakToPractice, type MilestoneName } from '../utils/practiceUtils';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 
 interface MorningPracticeProps {
@@ -12,13 +12,16 @@ interface MorningPracticeProps {
     onClose: () => void;
     user: UserProfile;
     onUpdateUser: (updates: Partial<UserProfile>) => void;
+    /** Called when completing this practice newly crosses a total-practices milestone. */
+    onMilestone?: (milestoneName: MilestoneName) => void;
 }
 
 export const MorningPractice: React.FC<MorningPracticeProps> = ({
     isOpen,
     onClose,
     user,
-    onUpdateUser
+    onUpdateUser,
+    onMilestone
 }) => {
     const [isExiting, setIsExiting] = useState(false);
     const [currentStep, setCurrentStep] = useState<string>('intro');
@@ -33,6 +36,7 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
         } else {
             // When the modal closes while mid-exit-animation, reset isExiting so
             // the !isOpen && !isExiting guard can unmount the component.
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- resets exit-animation state in response to the external isOpen prop closing
             setIsExiting(false);
         }
     }, [isOpen]);
@@ -45,7 +49,7 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
         const otherEntries = existingEntries.filter(p => p.date !== todayDate);
 
         const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
-        const updatedPracticeData = logPractice(currentPracticeData, 'morning_practice');
+        const { data: updatedPracticeData, milestone, isNew, milestoneName } = logPractice(currentPracticeData, 'morning_practice');
 
         onUpdateUser({
             dailyMorningPractice: [...otherEntries, data],
@@ -54,6 +58,10 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
 
         haptics.success();
         triggerConfetti();
+
+        if (milestone && isNew && milestoneName) {
+            onMilestone?.(milestoneName);
+        }
     };
 
     const handleRefresh = () => {

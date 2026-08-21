@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Heart, Map, Compass, User, Maximize2, Sun, Sparkles, TrendingUp, Wind, Headphones, Flower2, Fish, Moon, MessageCircle, Mail, Users } from 'lucide-react';
+import { Heart, Map, Compass, User, Maximize2, Sun, TrendingUp, Wind, Headphones, Flower2, Fish, Moon, Mail, Users } from 'lucide-react';
 import { SlideUpModal } from './SlideUpModal';
 
 interface WelcomeOrientationModalProps {
@@ -8,7 +8,6 @@ interface WelcomeOrientationModalProps {
     onClose: () => void;
     isDarkMode: boolean;
     onNavigate: (section: string) => void;
-    partnerName?: string;
 }
 
 export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = ({
@@ -16,7 +15,6 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
     onClose,
     isDarkMode,
     onNavigate,
-    partnerName = 'Palante',
 }) => {
     const [activeTab, setActiveTab] = useState<'philosophy' | 'tour'>('philosophy');
 
@@ -67,7 +65,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                             {/* Intro */}
                             <div className="text-center">
                                 <h3 className={`text-xl font-display font-medium mb-3 ${textPrimary}`}>
-                                    Your partner in forward motion.
+                                    Built for forward motion.
                                 </h3>
                                 <p className={`text-base leading-relaxed ${textSecondary}`}>
                                     Palante is built around one idea: consistent, grounded effort compounds into something real. Not hustle. Not pressure. Small actions, taken daily, and being met exactly where you are.
@@ -133,27 +131,6 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
 
                     {activeTab === 'tour' && (
                         <div className="space-y-6 animate-fade-in">
-                            {/* Partner: lead with the differentiator */}
-                            <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-pale-gold/10 border-pale-gold/20' : 'bg-sage/10 border-sage/20'}`}>
-                                <div className="flex gap-4">
-                                    <div className={`p-2 rounded-full h-fit ${isDarkMode ? 'bg-pale-gold/20' : 'bg-sage/20'}`}>
-                                        <Sparkles size={20} className={accentColor} />
-                                    </div>
-                                    <div>
-                                        <h4 className={`text-base font-semibold mb-1 ${textPrimary}`}>Meet {partnerName}, your partner</h4>
-                                        <p className={`text-sm ${textSecondary}`}>
-                                            After every morning practice, {partnerName} writes you a personal message. Tap the chat icon anytime to talk. It knows your intentions, sees your patterns, and meets you exactly where you are.
-                                        </p>
-                                        <button
-                                            onClick={() => { onNavigate('ai-coach'); onClose(); }}
-                                            className={`mt-3 text-xs font-bold uppercase tracking-wider ${accentColor}`}
-                                        >
-                                            Open {partnerName} →
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* Navigation */}
                             <div>
                                 <h3 className={`text-base font-bold uppercase tracking-wider mb-4 ${accentColor}`}>
@@ -177,7 +154,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         Settings (gear icon, top left)
                                     </h4>
                                     <p className={`text-sm ${textSecondary}`}>
-                                        Set your name, profession, focus goal, partner name, notifications, and more. Tap to open now.
+                                        Set your name, profession, focus goal, your AI's name, notifications, and more. Tap to open now.
                                     </p>
                                 </button>
                             </div>
@@ -206,19 +183,11 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                     </button>
                                     <button
                                         onClick={() => { onNavigate('garden'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
+                                        className={`text-left p-3 rounded-xl border col-span-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Flower2 size={24} className={`mb-2 ${accentColor}`} />
                                         <h4 className={`font-medium text-sm ${textPrimary}`}>Mandala of Growth</h4>
                                         <p className={`text-xs ${textSecondary} mt-1`}>90-day practice tracker</p>
-                                    </button>
-                                    <button
-                                        onClick={() => { onNavigate('ai-coach'); onClose(); }}
-                                        className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
-                                    >
-                                        <MessageCircle size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Palante Partner</h4>
-                                        <p className={`text-xs ${textSecondary} mt-1`}>Your AI partner</p>
                                     </button>
                                 </div>
                             </div>
@@ -250,7 +219,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Headphones size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Sonic Canvas</h4>
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Sound Scapes</h4>
                                         <p className={`text-xs ${textSecondary} mt-1`}>Immersive sound mixer</p>
                                     </button>
                                     <button

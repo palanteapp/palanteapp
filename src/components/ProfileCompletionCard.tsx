@@ -65,7 +65,7 @@ export const ProfileCompletionCard: React.FC<ProfileCompletionCardProps> = ({
     onOpenProfile
 }) => {
     const [isDismissed, setIsDismissed] = useState(false);
-    const partnerName = user.coachName?.trim() || 'your partner';
+    const partnerName = user.coachName?.trim() || 'Palante';
 
     const completion = calculateCompletion(user);
     const missingFields = getMissingFields(user);

@@ -48,7 +48,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                         </div>
                         <div>
                             <h2 className={`text-2xl font-display font-medium ${textPrimary}`}>
-                                Partner Settings
+                                Palante Settings
                             </h2>
                             <p className={`text-xs font-black uppercase tracking-wider text-white`}>
                                 Personalize your guidance
@@ -56,13 +56,13 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                         </div>
                     </div>
                     <p className={`text-sm font-medium leading-relaxed ${textPrimary}`}>
-                        Set the tone of your accountability partner and how often they check in.
+                        Set Palante's tone and how often it checks in.
                     </p>
                 </div>
 
                 {/* Coach Tone Picker */}
                 <div className="mb-10">
-                    <p className={accentLabel + ' block mb-4'}>How should your partner show up?</p>
+                    <p className={accentLabel + ' block mb-4'}>How should Palante show up?</p>
                     <div className="flex flex-col gap-3">
                         {(
                             [
@@ -70,7 +70,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'nurturing' as CoachTone,
                                     label: 'Nurturing',
                                     sub: 'Warm, poetic, patient',
-                                    desc: 'No agenda, no pressure. Your partner listens first, meeting you where you are before going anywhere.',
+                                    desc: 'No agenda, no pressure. Palante listens first, meeting you where you are before going anywhere.',
                                     accent: 'rgba(229,214,167,0.85)',
                                     bg: 'rgba(229,214,167,0.08)',
                                 },
@@ -78,7 +78,7 @@ export const CoachSettingsModal: React.FC<CoachSettingsModalProps> = ({
                                     value: 'direct' as CoachTone,
                                     label: 'Direct',
                                     sub: 'Honest, clear, grounded',
-                                    desc: 'Says the real thing, plainly. No inflation, no filler. The partner who respects you enough to be straight.',
+                                    desc: 'Says the real thing, plainly. No inflation, no filler. Palante respects you enough to be straight.',
                                     accent: 'rgba(135,149,130,0.9)',
                                     bg: 'rgba(135,149,130,0.08)',
                                 },

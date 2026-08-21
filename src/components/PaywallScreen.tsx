@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { analytics } from '../utils/analytics';
 
 // ─── Feature list ─────────────────────────────────────────────────────────────
 // Written as outcomes the user lives, not features the app has.
 
 export const FEATURES = [
-    'Morning practice: intention, gratitude, a message written just for today',
-    'An AI that remembers what you said yesterday and uses it tomorrow',
+    'Morning practice: intention, gratitude, an AI-written message just for today',
     'Evening reflection to close every day with honesty',
     'Your Mandala of Growth, built ring by ring with every practice',
-    'Partner chat for the moments between practices',
     'Weekly story of your growth, written in your own words',
 ];
 
@@ -78,14 +77,18 @@ interface PaywallScreenProps {
     firstName?: string;
     practiceCount?: number;
     gratitudeCount?: number;
+    /** Where this paywall was triggered from, for the paywall_viewed funnel event. */
+    source?: 'trial_expired' | 'trial_ribbon';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName, practiceCount = 0, gratitudeCount = 0 }: PaywallScreenProps) {
+export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName, practiceCount = 0, gratitudeCount = 0, source = 'trial_expired' }: PaywallScreenProps) {
     const { purchaseMonthly, purchaseAnnual, restorePurchases, prices } = useSubscription();
     const [loading, setLoading] = useState<'monthly' | 'annual' | 'restore' | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => { analytics.paywallViewed({ source }); }, [source]);
 
     const isReturning = practiceCount > 0;
 

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Palante — today's message</title>
+<meta name="description" content="A moment from Palante, no download needed.">
+<meta name="theme-color" content="#3A3D2E">
+
+<!-- Link-preview tags: this page exists to be opened from a shared text/DM link -->
+<meta property="og:title" content="Palante">
+<meta property="og:description" content="A moment from Palante, no download needed.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --terracotta:#C96A3A;
+    --olive:#3A3D2E;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100dvh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px 20px;
+    background:var(--olive);
+    font-family:'Inter',-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .stage{
+    width:100%;
+    max-width:360px;
+    perspective:1100px;
+  }
+
+  .eyebrow{
+    text-align:center;
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:rgba(220,213,196,0.75);
+    font-weight:600;
+    margin-bottom:16px;
+  }
+
+  /* ── The card: same DNA as DashboardQuoteCard.tsx / generateShareImage ──
+     seeded art blobs behind a floating parchment quote box, dark-green
+     logo badge overlapping its top edge. */
+  .card-shell{
+    position:relative;
+    aspect-ratio:400/520;
+    border-radius:32px;
+    overflow:hidden;
+    background:#415D43;
+    transform-style:preserve-3d;
+    will-change:transform;
+    box-shadow:0 30px 60px -12px rgba(0,0,0,0.35), 0 4px 16px rgba(0,0,0,0.12);
+  }
+  .card-shell svg.art{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+  }
+  .grain{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:2;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  }
+
+  .quote-wrap{
+    position:absolute;
+    inset:0;
+    z-index:3;
+    display:flex;
+    align-items:center;
+    padding:56px 24px 24px;
+  }
+  .quote-box{
+    position:relative;
+    width:100%;
+    background:#FDFBF7;
+    border-radius:24px;
+    padding:40px 22px 30px;
+    text-align:center;
+    box-shadow:0 24px 60px rgba(0,0,0,0.22), 0 8px 20px rgba(0,0,0,0.10);
+  }
+  .badge{
+    position:absolute;
+    top:-28px;
+    left:50%;
+    transform:translateX(-50%);
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    background:#355E3B;
+    box-shadow:0 10px 24px rgba(0,0,0,0.30);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .badge img{
+    width:32px;
+    height:32px;
+    object-fit:contain;
+  }
+  .quote-text{
+    font-family:'Poppins',sans-serif;
+    font-weight:600;
+    color:#2D3E33;
+    letter-spacing:-0.02em;
+    line-height:1.4;
+    margin:0;
+    text-wrap:balance;
+  }
+
+  .handle{
+    text-align:center;
+    margin-top:20px;
+    font-size:0.95rem;
+    font-weight:800;
+    letter-spacing:0.03em;
+    color:rgba(253,251,247,0.88);
+  }
+
+  .cta{
+    display:block;
+    width:100%;
+    margin-top:26px;
+    background:var(--terracotta);
+    color:#fff;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:0.95rem;
+    padding:15px 20px;
+    border-radius:999px;
+    text-decoration:none;
+    text-align:center;
+    box-shadow:0 8px 20px rgba(201,106,58,0.35);
+  }
+
+  .fineprint{
+    margin-top:14px;
+    text-align:center;
+    font-size:0.75rem;
+    color:rgba(220,213,196,0.6);
+  }
+
+  @media (prefers-reduced-motion: no-preference){
+    .stage{ animation: rise 0.6s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+    @keyframes rise{ from{ opacity:0; transform:translateY(14px); } to{ opacity:1; transform:translateY(0); } }
+  }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="eyebrow">Today's message</div>
+
+    <div class="card-shell" id="cardShell">
+      <svg class="art" id="art" viewBox="0 0 400 520" preserveAspectRatio="xMidYMid slice"></svg>
+      <div class="grain"></div>
+      <div class="quote-wrap">
+        <div class="quote-box">
+          <div class="badge"><img src="logo-gold.png" alt=""></div>
+          <p class="quote-text" id="message"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="handle">@PALANTE.APP</div>
+
+    <!--
+      TODO before this page goes live anywhere: set a real destination.
+      No App Store listing or TestFlight public link exists yet (per
+      2026-07-28 decision — holding off on a link until one does).
+      href="#" is intentionally inert so an accidental early deploy
+      doesn't send anyone to a dead or wrong URL.
+    -->
+    <a class="cta" href="#" id="cta">Get Palante</a>
+    <div class="fineprint">No account needed to read this.</div>
+  </div>
+
+  <script>
+    // Same content type as the in-app quote card (src/data/affirmations.ts) —
+    // curated, Palante-authored lines meant to read as true for anyone.
+    // Deliberately NOT the personalized AI morning message: that voice only
+    // exists once transforming someone's own journal entry, so it can't be
+    // faked for an anonymous visitor without misrepresenting the feature.
+    var MESSAGES = [
+      "You are capable of more than you know.",
+      "What you tend to grows. Choose carefully.",
+      "You do not need to feel ready to start.",
+      "You are learning things that will not show themselves for a while.",
+      "Quiet your mind and listen to your inner wisdom.",
+      "You are exactly where you need to be to bloom.",
+      "Trust the timing of your life.",
+      "Your unique perspective is a gift to the world.",
+      "There is magic in your everyday life.",
+      "You are radiant with potential."
+    ];
+
+    var start = new Date(new Date().getFullYear(), 0, 0);
+    var diff = new Date() - start;
+    var dayOfYear = Math.floor(diff / 86400000);
+    var todays = MESSAGES[dayOfYear % MESSAGES.length];
+    document.getElementById('message').textContent = todays;
+
+    // Font size scales down as the line gets longer, same steps as
+    // getQuoteFontSize() in DashboardQuoteCard.tsx.
+    var len = todays.length;
+    var fontSize = len > 180 ? 16 : len > 140 ? 18 : len > 100 ? 20 : len > 65 ? 22 : len > 40 ? 26 : 28;
+    document.getElementById('message').style.fontSize = fontSize + 'px';
+
+    // ── Seeded art background: identical hash/colors/layout to
+    // DynamicArtBackground in DashboardQuoteCard.tsx, so the same seed
+    // produces the same blob composition there and here. ──
+    var COLORS = ['#F59E0B', '#E5D6A7', '#C96A3A', '#415D43', '#879582'];
+    function getRand(s, i) {
+      var hash = 0;
+      for (var j = 0; j < s.length; j++) hash = ((hash << 5) - hash) + s.charCodeAt(j);
+      var x = Math.sin(hash + i) * 10000;
+      return x - Math.floor(x);
+    }
+    var seed = dayOfYear + '-' + todays;
+    var svgns = 'http://www.w3.org/2000/svg';
+    var art = document.getElementById('art');
+
+    var base = document.createElementNS(svgns, 'rect');
+    base.setAttribute('width', '400');
+    base.setAttribute('height', '520');
+    base.setAttribute('fill', COLORS[Math.floor(getRand(seed, 0) * COLORS.length)]);
+    base.setAttribute('opacity', '0.85');
+    art.appendChild(base);
+
+    for (var i = 1; i <= 5; i++) {
+      var circle = document.createElementNS(svgns, 'circle');
+      circle.setAttribute('cx', 50 + getRand(seed, i * 10) * 300);
+      circle.setAttribute('cy', 50 + getRand(seed, i * 20) * 420);
+      circle.setAttribute('r', 150 + getRand(seed, i * 30) * 150);
+      circle.setAttribute('fill', COLORS[Math.floor(getRand(seed, i * 40) * COLORS.length)]);
+      circle.setAttribute('opacity', 0.18 + getRand(seed, i * 50) * 0.22);
+      art.appendChild(circle);
+    }
+
+    // ── Light parallax tilt, same feel as the in-app card's mouse/gyro
+    // response, simplified to a plain CSS transform (no physics engine
+    // needed for a static single card). Respects reduced-motion. ──
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) {
+      var shell = document.getElementById('cardShell');
+      var stage = document.getElementById('stage');
+      stage.addEventListener('mousemove', function (e) {
+        var r = stage.getBoundingClientRect();
+        var px = (e.clientX - r.left) / r.width - 0.5;
+        var py = (e.clientY - r.top) / r.height - 0.5;
+        shell.style.transform = 'rotateY(' + (px * 10) + 'deg) rotateX(' + (py * -8) + 'deg)';
+      });
+      stage.addEventListener('mouseleave', function () {
+        shell.style.transform = 'rotateY(0deg) rotateX(0deg)';
+      });
+
+      var start2 = performance.now();
+      (function breathe(now) {
+        var t = (now - start2) / 1000;
+        if (!stage.matches(':hover')) {
+          var rx = Math.sin(t * 0.22) * 3.5;
+          var ry = Math.sin(t * 0.16 + 1.2) * -2.5;
+          shell.style.transform = 'rotateY(' + rx + 'deg) rotateX(' + ry + 'deg)';
+        }
+        requestAnimationFrame(breathe);
+      })(start2);
+    }
+  </script>
+
+</body>
+</html>

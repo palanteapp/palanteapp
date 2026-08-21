@@ -405,6 +405,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             });
         }
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time procedural scene generation on mount, not derivable from props during render
         setLotuses(newLotuses);
         lotusesRef.current = newLotuses; // Sync Ref
     }, []);
@@ -425,6 +426,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             opacity: 0.8 + Math.random() * 0.2,
             driftDirection: Math.random() * Math.PI * 2 // Random direction
         }));
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time procedural scene generation on mount, not derivable from props during render
         setDriftingLotuses(newDrifting);
         driftingLotusesRef.current = newDrifting; // Sync Ref
     }, []);
@@ -470,6 +472,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     // Initialize Specific Koi Fish - STAGGERED SPAWN
     // Initialize Specific Koi Fish - STAGGERED SPAWN
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the fish scene when the unlocked count changes, procedural spawn can't run during render
         setFish([]); // Start empty
 
         if (fishCount === 0) return;
@@ -839,6 +842,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
             // Ripple Spawning logic (Rain)
             if (showRain && time - lastRippleTimeRef.current > 400) {
+                // eslint-disable-next-line react-hooks/purity -- inside the imperative rAF animation loop, not React render
                 addRipple(Math.random() * windowSizeRef.current.width, Math.random() * windowSizeRef.current.height);
                 lastRippleTimeRef.current = time; // Ensure update
             }
@@ -861,7 +865,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     const tracksRef = useRef<Array<{ audio: HTMLAudioElement; targetVol: number }>>([]);
     const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const MASTER_VOLUME = 0.40;          // user-requested 40% overall
-    const FALLBACK_SRC = '/sounds/flowing-river.mp3';
+    const FALLBACK_SRC = '/sounds/flowing-river.m4a';
     const FALLBACK_VOLUME = 0.10;        // calm default when no mix is saved
 
     useEffect(() => {
@@ -976,6 +980,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 id: nextFoodIdRef.current++,
                 x,
                 y,
+                // eslint-disable-next-line react-hooks/purity -- inside a touch event handler, not React render
                 size: 3 + Math.random() * 2
             });
             // Also add a small ripple for visual feedback
@@ -983,6 +988,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         } else {
             // Repel fish (Classic interaction)
             // Add ripples for all active fingers
+            // eslint-disable-next-line react-hooks/purity -- inside a touch event handler, not React render
             const now = performance.now();
             for (let i = 0; i < touches.length; i++) {
                 const x = touches[i].clientX;
@@ -1005,6 +1011,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 id: nextFoodIdRef.current++,
                 x,
                 y,
+                // eslint-disable-next-line react-hooks/purity -- inside a mouse event handler, not React render
                 size: 3 + Math.random() * 2
             });
             // Visual feedback
@@ -1013,6 +1020,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         } else {
             // Always add ripple and repulsion for mouse/single-tap feedback
             addRipple(x, y);
+            // eslint-disable-next-line react-hooks/purity -- inside a mouse event handler, not React render
             tapsRef.current.push({ x, y, time: performance.now() });
         }
     };

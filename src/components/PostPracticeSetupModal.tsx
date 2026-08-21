@@ -32,6 +32,7 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
     const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
     React.useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- clears selections when the modal closes so the next open starts fresh
         if (!isOpen) setSelectedInterests([]);
     }, [isOpen]);
 
@@ -108,7 +109,7 @@ export const PostPracticeSetupModal: React.FC<PostPracticeSetupModalProps> = ({
                                     What matters to you, {userName.split(' ')[0]}?
                                 </h2>
                                 <p className="text-sm mb-7 text-white/70">
-                                    Your picks shape the daily affirmations, quotes, and partner prompts you see.
+                                    Your picks shape the daily affirmations, quotes, and prompts you see.
                                 </p>
 
                                 {/* Interest chips */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wind, Flower, Music, ChevronRight, Info, X, GripVertical } from 'lucide-react';
+import { Wind, Flower, Music, ChevronRight, Info, X, GripVertical, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Mail, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
@@ -11,12 +11,19 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 import { haptics } from '../utils/haptics';
+import { WeeklyInsightsCard } from './WeeklyInsightsCard';
+import { SlideUpModal } from './SlideUpModal';
+import type { UserProfile } from '../types';
 
 type PracticeId = 'breath' | 'meditate' | 'soundscapes';
 
 interface PracticeViewProps {
     onNavigate: (section: PracticeId) => void;
     isDarkMode: boolean;
+    user?: UserProfile;
+    onOpenHighlights?: () => void;
+    highlightsBadge?: boolean;
+    onWriteLetter?: () => void;
 }
 
 interface Practice {
@@ -34,7 +41,7 @@ const PRACTICES: Practice[] = [
         title: 'Breathwork',
         subtitle: 'Regulate your nervous system',
         icon: Wind,
-        info: 'Guided breathing patterns that activate your parasympathetic nervous system, easing anxiety, sharpening focus, and bringing you back to center in minutes. Choose from Energy, Relax, or Balance breathing.',
+        info: 'Guided breathing patterns that shift you toward calm or focus through the pace and ratio of your own breath, often within minutes. Choose from Energy, Relax, or Balance breathing.',
         accent: { icon: '#E5D6A7', bg: 'rgba(229,214,167,0.13)', glow: 'rgba(229,214,167,0.08)', border: 'rgba(229,214,167,0.30)' },
     },
     {
@@ -47,7 +54,7 @@ const PRACTICES: Practice[] = [
     },
     {
         id: 'soundscapes',
-        title: 'Sonic Canvas',
+        title: 'Sound Scapes',
         subtitle: 'Immersive audio for focus or rest',
         icon: Music,
         info: 'Layer ambient sounds (rain, forest, white noise, binaural tones) to create your ideal sonic environment. Use it for deep work, sleep, meditation, or just blocking out the world for a moment.',
@@ -139,9 +146,10 @@ const SortablePracticeCard: React.FC<{
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
-export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMode }) => {
+export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMode, user, onOpenHighlights, highlightsBadge, onWriteLetter }) => {
     const [order, setOrder] = useState<PracticeId[]>(PRACTICES.map(p => p.id));
     const [infoTarget, setInfoTarget] = useState<Practice | null>(null);
+    const [showInsightsExplainer, setShowInsightsExplainer] = useState(false);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -169,7 +177,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
         <div className="px-5 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
             {/* Header */}
             <div className="mb-8 px-1">
-                <h2 className={`font-display font-medium text-3xl ${textPrimary}`}>Practice</h2>
+                <h2 className={`font-display font-medium text-3xl ${textPrimary}`}>Explore</h2>
                 <p className={`text-xs uppercase tracking-[0.25em] font-black mt-1 ${textMuted}`}>
                     The art of moving forward
                 </p>
@@ -196,6 +204,96 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
             <p className={`text-center text-xs mt-4 ${textMuted}`}>
                 Hold <GripVertical size={10} className="inline" /> to reorder
             </p>
+
+            {/* Weekly Insights */}
+            {user && (
+                <div className="mt-10">
+                    <h3 className={`text-lg font-display font-medium mb-4 ${textPrimary}`}>
+                        Weekly Insights
+                    </h3>
+                    <WeeklyInsightsCard
+                        user={user}
+                        isDarkMode={isDarkMode}
+                        onClick={() => setShowInsightsExplainer(true)}
+                    />
+                </div>
+            )}
+
+            {/* Weekly Wins */}
+            {onOpenHighlights && (
+                <div className="mt-10">
+                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                        Weekly Wins
+                    </h3>
+                    <button
+                        onClick={() => { haptics.light(); onOpenHighlights(); }}
+                        className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
+                        style={{ background: isDarkMode ? undefined : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(201,106,58,0.03) 100%)' }}
+                    >
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'rgba(201,106,58,0.15)' }}>
+                            <Award size={18} style={{ color: '#C96A3A' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <p className={`text-sm font-medium ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
+                                    This Week's Achievements
+                                </p>
+                                {highlightsBadge && (
+                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C96A3A' }} />
+                                )}
+                            </div>
+                            <p className={`text-xs ${isDarkMode ? 'text-white/45' : 'text-sage/45'}`}>
+                                Review your wins, your reflection, and what moved you forward.
+                            </p>
+                        </div>
+                        <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white/25' : 'text-sage/25'}`} />
+                    </button>
+                </div>
+            )}
+
+            {/* Letters to Your Future Self */}
+            {onWriteLetter && (() => {
+                const letters = user?.futureLetters ?? [];
+                const letterCount = letters.length;
+                const lastLetter = letters[letters.length - 1];
+                const lastWrittenLabel = lastLetter
+                    ? new Date(lastLetter.writtenDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+                    : null;
+                return (
+                    <div className="mt-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                                Letters to Your Future Self
+                            </h3>
+                            {letterCount > 0 && (
+                                <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
+                                    {letterCount} {letterCount === 1 ? 'letter' : 'letters'}
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => { haptics.light(); onWriteLetter(); }}
+                            className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
+                        >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/12' : 'bg-[#E5D6A7]/20'}`}>
+                                <Mail size={18} color="#E5D6A7" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium mb-0.5 ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
+                                    {letterCount === 0 ? 'Write your first letter' : 'Write another letter'}
+                                </p>
+                                <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
+                                    {letterCount === 0
+                                        ? 'A message from who you are now to who you\'ll become.'
+                                        : `Last written ${lastWrittenLabel}`}
+                                </p>
+                            </div>
+                            <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/25'}`} />
+                        </button>
+                    </div>
+                );
+            })()}
 
             {/* Info modal: portal */}
             {createPortal(
@@ -257,6 +355,50 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                 </AnimatePresence>,
                 document.body
             )}
+
+            {/* Weekly Insights explainer */}
+            <SlideUpModal
+                isOpen={showInsightsExplainer}
+                onClose={() => setShowInsightsExplainer(false)}
+                isDarkMode={isDarkMode}
+            >
+                <div className={`p-6 w-full max-w-sm mx-auto ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                    <div className="flex flex-col items-center text-center mb-6">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-pale-gold/20 text-pale-gold' : 'bg-sage/20 text-sage'}`}>
+                            <TrendingUp size={24} />
+                        </div>
+                        <h2 className="text-3xl font-display font-medium mb-2">Unlock Your Insights</h2>
+                        <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
+                            Once you track your focus for a few days, Palante will start spotting patterns to help you optimize your flow.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        {[
+                            { icon: Lightbulb, title: "Productivity Patterns", desc: "Discover when you do your best work." },
+                            { icon: Zap, title: "Energy Correlation", desc: "See how your mood affects your output." },
+                            { icon: GoalIcon, title: "Consistency Score", desc: "Track your streak and reliability." }
+                        ].map((item, i) => (
+                            <div key={i} className={`flex items-start gap-4 p-4 rounded-xl border ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
+                                <item.icon size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                                <div>
+                                    <h3 className="font-medium text-sm mb-0.5">{item.title}</h3>
+                                    <div className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>{item.desc}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => setShowInsightsExplainer(false)}
+                        className={`w-full py-4 mt-8 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${isDarkMode
+                            ? 'bg-pale-gold text-sage-dark hover:bg-white'
+                            : 'bg-[#1B4332] text-white hover:bg-sage-600'}`}
+                    >
+                        Got it
+                    </button>
+                </div>
+            </SlideUpModal>
         </div>
     );
 };

@@ -3,7 +3,7 @@ import type { UserProfile, ActivityType, MeditationReflection } from '../types';
 import { api } from '../lib/api';
 import { useAuth } from './AuthContext';
 import { WidgetDataSync } from '../utils/widgetDataSync';
-import { logPractice, migrateStreakToPractice, getTodayDate } from '../utils/practiceUtils';
+import { logPractice, migrateStreakToPractice, getTodayDate, type MilestoneCheckResult } from '../utils/practiceUtils';
 import { generateUserNarrative, generateMonthlyPatternInsight } from '../utils/aiService';
 import { persistProfile, loadProfileWithFallback } from '../utils/nativeStorage';
 import { createDefaultProfile } from '../utils/defaultProfile';
@@ -20,7 +20,7 @@ interface UserContextType {
     loading: boolean;
     refreshProfile: () => Promise<void>;
     updateProfile: (updatedUser: UserProfile | ((prev: UserProfile | null) => UserProfile)) => Promise<void>;
-    logActivity: (type: ActivityType) => Promise<void>;
+    logActivity: (type: ActivityType) => Promise<(MilestoneCheckResult & { totalPractices: number }) | null>;
     saveReflection: (data: { intention: string; duration: number; reflection: string; mantra: string }) => Promise<void>;
     toggleFavorite: (quoteId: string, isFavorite: boolean, meta?: { text?: string; author?: string }) => Promise<void>;
 }
@@ -245,8 +245,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const logActivity = useCallback(async (type: ActivityType) => {
         // Log activity logic rewritten to be atomic if possible, but 'logActivity' is complex.
-        // For now, we will use the functional update pattern where possible, 
+        // For now, we will use the functional update pattern where possible,
         // asking updateProfile to handle the state merge.
+
+        // Captured by the functional updater below (which runs synchronously inside
+        // updateProfile, before this function resumes) so the caller (App.tsx's
+        // handleActivity) gets the REAL milestone result instead of guessing one from
+        // a hand-computed `totalPractices + 1` — a guess that's wrong whenever `type`
+        // was already logged once today, since logPractice counts unique practice
+        // types per day, not a flat increment.
+        let milestoneResult: (MilestoneCheckResult & { totalPractices: number }) | null = null;
 
         await updateProfile(prevUser => {
             if (!prevUser) return prevUser!;
@@ -267,7 +275,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
             // Accurate Daily Streak Logic: uses local date to avoid midnight UTC boundary resets
             const yesterdayStr = getLocalYesterdayDate();
-            
+
             // Was there activity before this call today?
             const hadActivityTodayBefore = (prevUser.activityHistory || []).some(log => log.date === today);
             const hadActivityYesterday = (prevUser.activityHistory || []).some(log => log.date === yesterdayStr);
@@ -286,7 +294,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
             // Sync with new practice tracking system (Counts as a check-in)
             const currentPracticeData = prevUser.practiceData || migrateStreakToPractice(prevUser);
-            const updatedPracticeData = logPractice(currentPracticeData, type);
+            const { data: updatedPracticeData, milestone, isNew, milestoneName } = logPractice(currentPracticeData, type);
+            milestoneResult = { milestone, isNew, milestoneName, totalPractices: updatedPracticeData.totalPractices };
 
             return {
                 ...prevUser,
@@ -300,6 +309,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         if (authUser) {
             api.logActivity(authUser.id, { date: getTodayDate(), type, count: 1 }).catch(console.error);
         }
+
+        return milestoneResult;
     }, [authUser, updateProfile]);
 
     const saveReflection = useCallback(async (data: { intention: string; duration: number; reflection: string; mantra: string }) => {

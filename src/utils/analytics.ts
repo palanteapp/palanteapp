@@ -151,6 +151,19 @@ export const analytics = {
         track('coach_message_sent');
     },
 
+    // ─── AI safety ───────────────────────────────────────────────────────────
+    // Lets a user flag a bad/harmful AI-generated reply (App Store 1.4/4.3:
+    // distinct from the existing human-partner report flow in Profile, which
+    // reports a person, not model output). Deliberately excludes the message
+    // text itself, following the no-raw-content precedent set above
+    // (quoteFavorited logs a quoteId, not the quote; goalCreated logs a
+    // category, not the goal text) — id + index + session is enough to look
+    // the message up if moderation follow-up is ever needed.
+
+    aiMessageReported(props: { pillar: string; sessionId: string; messageId: string; messageIndex: number }) {
+        track('ai_message_reported', props);
+    },
+
     // ─── Navigation ──────────────────────────────────────────────────────────
 
     screenViewed(screen: string) {
@@ -169,6 +182,49 @@ export const analytics = {
 
     futureLetterDelivered() {
         track('future_letter_delivered');
+    },
+
+    // ─── Monetization ────────────────────────────────────────────────────────
+    // The one funnel nothing else here covers: paywall exposure through to a
+    // completed purchase. Without this, every growth change is a guess about
+    // whether it moved revenue, not just installs.
+
+    paywallViewed(props: { source: string }) {
+        track('paywall_viewed', props);
+    },
+
+    purchaseStarted(props: { plan: 'monthly' | 'annual' }) {
+        track('purchase_started', props);
+    },
+
+    purchaseCompleted(props: { plan: 'monthly' | 'annual' }) {
+        track('purchase_completed', props);
+    },
+
+    purchaseCancelled(props: { plan: 'monthly' | 'annual' }) {
+        track('purchase_cancelled', props);
+    },
+
+    purchaseFailed(props: { plan: 'monthly' | 'annual'; reason: string }) {
+        track('purchase_failed', props);
+    },
+
+    purchasesRestored() {
+        track('purchases_restored');
+    },
+
+    // ─── Referral ────────────────────────────────────────────────────────────
+    // Reuses the existing accountability-partner invite code rather than a
+    // separate referral code: redeeming it already links two accounts, which
+    // is a real referral signal even though not every redemption started as
+    // a growth-motivated invite (some are two existing users connecting).
+
+    referralCodeShared() {
+        track('referral_code_shared');
+    },
+
+    referralRedeemed(props: { status: string }) {
+        track('referral_redeemed', props);
     },
 
     // ─── Settings & profile ───────────────────────────────────────────────────

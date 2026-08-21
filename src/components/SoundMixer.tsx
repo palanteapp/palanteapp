@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target } from 'lucide-react';
+import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target, Heart, Bug, Cat } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
-import { loadSeamlessBuffer } from '../utils/seamlessAudio';
+import { loadSeamlessBuffer, getGaplessBounds } from '../utils/seamlessAudio';
 import { SYNTH_SOUNDS, SynthVoice, getSynthLoopBlobUrl } from '../utils/synthSounds';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
@@ -17,43 +17,52 @@ interface SoundMixerProps {
     onSaveMix?: (mix: SoundMix) => void;
     onDeleteMix?: (mixId: string) => void;
     source?: 'meditation' | 'dashboard';
+    /**
+     * This panel is a fixed overlay with its own internal scroll container, so scrolling
+     * inside it never fires a `window` scroll event. Without this, the app's scroll-aware
+     * bottom nav (hide on scroll down, show on scroll up, same as Home/Meditation) never
+     * reacts here. Wired to the internal container's scrollTop.
+     */
+    onContentScroll?: (scrollTop: number) => void;
 }
 
 interface SoundTrack {
     id: string;
     label: string;
-    category: 'Nature' | 'Focus' | 'Noise' | 'Heritage' | 'Zen' | 'Ambient' | 'Bilateral';
+    category: 'Nature' | 'Focus' | 'Noise' | 'Heritage' | 'Zen' | 'Ambient' | 'Bilateral' | 'Sleep';
     src: string;
     icon: React.ElementType;
 }
 const SOUNDS: SoundTrack[] = [
     // Nature
-    { id: 'beach', label: 'Beach & Birds', category: 'Nature', src: '/sounds/beach-and-birds.mp3', icon: Bird },
-    { id: 'rain', label: 'Gentle Rain', category: 'Nature', src: '/sounds/gentle-rain.mp3', icon: Droplets },
-    { id: 'thunder', label: 'Distant Thunder', category: 'Nature', src: '/sounds/distant-rain-and-thunder.mp3', icon: Cloud },
-    { id: 'river', label: 'Flowing River', category: 'Nature', src: '/sounds/flowing-river.mp3', icon: Waves },
-    { id: 'ocean', label: 'Ocean Waves', category: 'Nature', src: '/sounds/ocean-waves.mp3', icon: Waves },
-    { id: 'shoreline', label: 'Shoreline', category: 'Nature', src: '/sounds/shoreline.mp3', icon: Waves },
-    { id: 'waterfall', label: 'Waterfall', category: 'Nature', src: '/sounds/waterfall.mp3', icon: Droplets },
-    { id: 'wind', label: 'Calm Wind', category: 'Nature', src: '/sounds/calm-wind.mp3', icon: Wind },
-    { id: 'forest', label: 'Deep Forest', category: 'Nature', src: '/sounds/forest.mp3', icon: Trees },
-    { id: 'autumn', label: 'Autumn Wind', category: 'Nature', src: '/Autumn%20Wind.mp3', icon: Wind },
-    { id: 'birds', label: 'Birdsong', category: 'Nature', src: '/sounds/birdsong.mp3', icon: Bird },
-    { id: 'fire', label: 'Camp Fire', category: 'Nature', src: '/sounds/camp-fire.mp3', icon: Zap },
-    { id: 'whale', label: 'Whale Sounds', category: 'Nature', src: '/sounds/whale-sounds.mp3', icon: Waves },
+    { id: 'beach', label: 'Beach & Birds', category: 'Nature', src: '/sounds/beach-and-birds.m4a', icon: Bird },
+    { id: 'rain', label: 'Gentle Rain', category: 'Nature', src: '/sounds/gentle-rain.m4a', icon: Droplets },
+    { id: 'thunder', label: 'Distant Thunder', category: 'Nature', src: '/sounds/distant-rain-and-thunder.m4a', icon: Cloud },
+    { id: 'river', label: 'Flowing River', category: 'Nature', src: '/sounds/flowing-river.m4a', icon: Waves },
+    { id: 'ocean', label: 'Ocean Waves', category: 'Nature', src: '/sounds/ocean-waves.m4a', icon: Waves },
+    { id: 'shoreline', label: 'Shoreline', category: 'Nature', src: '/sounds/shoreline.m4a', icon: Waves },
+    { id: 'waterfall', label: 'Waterfall', category: 'Nature', src: '/sounds/waterfall.m4a', icon: Droplets },
+    { id: 'wind', label: 'Calm Wind', category: 'Nature', src: '/sounds/calm-wind.m4a', icon: Wind },
+    { id: 'forest', label: 'Deep Forest', category: 'Nature', src: '/sounds/forest.m4a', icon: Trees },
+    { id: 'autumn', label: 'Autumn Wind', category: 'Nature', src: '/Autumn%20Wind.m4a', icon: Wind },
+    { id: 'birds', label: 'Birdsong', category: 'Nature', src: '/sounds/birdsong.m4a', icon: Bird },
+    { id: 'fire', label: 'Camp Fire', category: 'Nature', src: '/sounds/camp-fire.m4a', icon: Zap },
+    { id: 'whale', label: 'Whale Sounds', category: 'Nature', src: '/sounds/whale-sounds.m4a', icon: Waves },
+    { id: 'cat-purring', label: 'Cat Purring', category: 'Nature', src: '/sounds/cat-purring.m4a', icon: Cat },
 
     // Ambient
-    { id: 'cafe1', label: 'Busy Cafe 1', category: 'Ambient', src: '/sounds/busy-cafe-1.mp3', icon: Coffee },
-    { id: 'cafe2', label: 'Busy Cafe 2', category: 'Ambient', src: '/sounds/busy-cafe-2.mp3', icon: Coffee },
-    { id: 'cafe3', label: 'Busy Cafe 3', category: 'Ambient', src: '/sounds/busy-cafe-3.mp3', icon: Coffee },
-    { id: 'cafe4', label: 'Busy Cafe 4', category: 'Ambient', src: '/busy-cafe-4.mp3', icon: Coffee },
+    { id: 'cafe1', label: 'Busy Cafe 1', category: 'Ambient', src: '/sounds/busy-cafe-1.m4a', icon: Coffee },
+    { id: 'cafe2', label: 'Busy Cafe 2', category: 'Ambient', src: '/sounds/busy-cafe-2.m4a', icon: Coffee },
+    { id: 'cafe3', label: 'Busy Cafe 3', category: 'Ambient', src: '/sounds/busy-cafe-3.m4a', icon: Coffee },
+    { id: 'cafe4', label: 'Busy Cafe 4', category: 'Ambient', src: '/busy-cafe-4.m4a', icon: Coffee },
 
     // Heritage
-    { id: 'coqui', label: 'Boriquen Coqui', category: 'Heritage', src: '/sounds/boriquen-coqui.mp3', icon: Moon },
-    { id: '1970', label: '1970 PR', category: 'Heritage', src: '/sounds/1970-pr.mp3', icon: Radio },
-    { id: 'kalimba', label: 'Kalimba Africa', category: 'Heritage', src: '/sounds/kalimba-africa.mp3', icon: Music },
-    { id: 'colombia', label: 'Colombia EAS', category: 'Heritage', src: '/colombia-eas.mp3', icon: Music },
-    { id: 'omgum', label: 'Om Gum Shreem Chant', category: 'Heritage', src: '/sounds/om-gum-shreem-maha-lakshmiyei-namaha.mp3', icon: Sun },
+    { id: 'coqui', label: 'Boriquen Coqui', category: 'Heritage', src: '/sounds/boriquen-coqui.m4a', icon: Moon },
+    { id: 'singing-bowl', label: 'Singing Bowl', category: 'Heritage', src: '/sounds/singing-bowl.m4a', icon: Music },
+    { id: '1970', label: '1970 PR', category: 'Heritage', src: '/sounds/1970-pr.m4a', icon: Radio },
+    { id: 'kalimba', label: 'Kalimba Africa', category: 'Heritage', src: '/sounds/kalimba-africa.m4a', icon: Music },
+    { id: 'colombia', label: 'Colombia EAS', category: 'Heritage', src: '/colombia-eas.m4a', icon: Music },
+    { id: 'omgum', label: 'Om Gum Shreem Chant', category: 'Heritage', src: '/sounds/om-gum-shreem-maha-lakshmiyei-namaha.m4a', icon: Sun },
 
     // Focus
     { id: '40hz', label: 'Binaural Gamma 40Hz', category: 'Focus', src: '/sounds/binaural-gamma-40-hz-focus.mp3', icon: Zap },
@@ -68,20 +77,28 @@ const SOUNDS: SoundTrack[] = [
     { id: 'violet', label: 'Violet Noise', category: 'Noise', src: '/sounds/violet-noise.mp3', icon: Speaker },
 
     // Zen
-    { id: 'zen', label: 'Zen Out', category: 'Zen', src: '/sounds/zen-out.mp3', icon: Music },
-    { id: 'adrift', label: 'Set Adrift', category: 'Zen', src: '/sounds/set-adrift.mp3', icon: Waves },
-    { id: 'gong', label: 'Gong Bath', category: 'Zen', src: '/sounds/gong-sfx.mp3', icon: Moon },
-    { id: 'chill1', label: 'Chill Uno', category: 'Zen', src: '/sounds/chillax-uno.mp3', icon: Music },
-    { id: 'chill2', label: 'Chill Dos', category: 'Zen', src: '/sounds/chillax-dos.mp3', icon: Music },
-    { id: 'chill3', label: 'Chill Tres', category: 'Zen', src: '/sounds/chillax-tres.mp3', icon: Music },
-    { id: 'chill4', label: 'Chill Quatro', category: 'Zen', src: '/sounds/chillax-quatro.mp3', icon: Music },
-    { id: 'chill5', label: 'Chill Cinco', category: 'Zen', src: '/Chill%20Cinco.mp3', icon: Music },
+    { id: 'zen', label: 'Zen Out', category: 'Zen', src: '/sounds/zen-out.m4a', icon: Music },
+    { id: 'adrift', label: 'Set Adrift', category: 'Zen', src: '/sounds/set-adrift.m4a', icon: Waves },
+    { id: 'gong', label: 'Gong Bath', category: 'Zen', src: '/sounds/gong-sfx.m4a', icon: Moon },
+    { id: 'chill1', label: 'Chill Uno', category: 'Zen', src: '/sounds/chillax-uno.m4a', icon: Music },
+    { id: 'chill2', label: 'Chill Dos', category: 'Zen', src: '/sounds/chillax-dos.m4a', icon: Music },
+    { id: 'chill3', label: 'Chill Tres', category: 'Zen', src: '/sounds/chillax-tres.m4a', icon: Music },
+    { id: 'chill4', label: 'Chill Cuatro', category: 'Zen', src: '/sounds/chillax-quatro.m4a', icon: Music },
+    { id: 'chill5', label: 'Chill Cinco', category: 'Zen', src: '/Chill%20Cinco.m4a', icon: Music },
 
     // Bilateral
-    { id: 'bilateral-eternal', label: 'Eternal Reflection', category: 'Bilateral', src: '/sounds/bilateral-eternal-reflection.mp3', icon: Waves },
-    { id: 'bilateral-replenished', label: 'Replenished', category: 'Bilateral', src: '/sounds/bilateral-replenished.mp3', icon: Waves },
-    { id: 'bilateral-tranquility', label: 'Tranquility', category: 'Bilateral', src: '/sounds/bilateral-tranquility.mp3', icon: Waves },
-    { id: 'bilateral-tuneup', label: 'Tune Up', category: 'Bilateral', src: '/sounds/bilateral-tune-up.mp3', icon: Waves },
+    { id: 'bilateral-eternal', label: 'Eternal Reflection', category: 'Bilateral', src: '/sounds/bilateral-eternal-reflection.m4a', icon: Waves },
+    { id: 'bilateral-replenished', label: 'Replenished', category: 'Bilateral', src: '/sounds/bilateral-replenished.m4a', icon: Waves },
+    { id: 'bilateral-tranquility', label: 'Tranquility', category: 'Bilateral', src: '/sounds/bilateral-tranquility.m4a', icon: Waves },
+    { id: 'bilateral-tuneup', label: 'Tune Up', category: 'Bilateral', src: '/sounds/bilateral-tune-up.m4a', icon: Waves },
+
+    // Sleep
+    { id: 'box-fan', label: 'Box Fan', category: 'Sleep', src: '/sounds/box-fan.m4a', icon: Wind },
+    { id: 'sleep-drone', label: 'Sleepy Time Tea', category: 'Sleep', src: '/sounds/evolving-deep-sleep-drone.m4a', icon: Moon },
+    { id: 'sleep-rain', label: 'Rainfall for Sleep', category: 'Sleep', src: '/sounds/gentle-rain-for-relaxation.m4a', icon: Droplets },
+    { id: 'heartbeat', label: 'Heartbeat', category: 'Sleep', src: '/sounds/heartbeat.m4a', icon: Heart },
+    { id: 'night-crickets', label: 'Night Crickets', category: 'Sleep', src: '/sounds/night-crickets.m4a', icon: Bug },
+    { id: 'sleep-piano', label: 'Soft Atmospheric Piano', category: 'Sleep', src: '/sounds/soft-atmospheric-piano.m4a', icon: Music },
 ];
 
 const RECIPES = [
@@ -134,21 +151,49 @@ const getAudioContext = () => {
     return win._palanteAudioContext as AudioContext;
 };
 
-// NEW: Use HTMLAudioElement for streaming large files and better stability
-// NEW: Use Web Audio API for precise mixing and iOS volume control
+// Streaming playback for the long-form pieces (8–18 min) that are far too large
+// to hold decoded: two HTMLAudioElements through Web Audio gain nodes, handing
+// off to each other at the loop point.
+//
+// The handoff is deliberately SHORT. These files are offline-baked too (see
+// scripts/bake-loops.mjs LONGFORM), so their end already continues into their
+// start; a long crossfade would blend 2.5 seconds of arbitrary mid-track audio
+// over a seam that was already matched, which is the same mistake the decoded
+// path used to make. All this crossfade has to cover is the encoder padding and
+// the imprecision of an element seek, so it runs for 400ms at the file's true
+// end, and the incoming element starts at the first real sample rather than at
+// the ~13ms of digital silence MP3 puts in front of it.
+const LOOP_CROSSFADE_SEC = 0.4;
+// Arm this far ahead of the seam, then schedule the actual fade on the audio
+// clock. Polling only has to notice the seam coming, not hit it: a busy main
+// thread can no longer push the handoff late.
+const LOOP_ARM_LEAD_SEC = 3.0;
+
 class CrossfadingSound {
     private audio1: HTMLAudioElement | null = null;
     private audio2: HTMLAudioElement | null = null;
     private sourceNode1: MediaElementAudioSourceNode | null = null;
     private sourceNode2: MediaElementAudioSourceNode | null = null;
+    // Crossfade gains, always in [0,1] — owned entirely by the loop handoff.
     private gainNode1: GainNode | null = null;
     private gainNode2: GainNode | null = null;
+    // User volume, owned entirely by the fader. Keeping the two on separate
+    // nodes is what lets a fader move land mid-handoff without cancelling the
+    // crossfade curve out from under it (they used to share one node, so a
+    // `cancelScheduledValues` from the fader could strand one element at full
+    // gain and the other at zero).
+    private masterGain: GainNode | null = null;
     private loopInterval: ReturnType<typeof setTimeout> | null = null;
+    private seekTimer: ReturnType<typeof setTimeout> | null = null;
+    private resetTimer: ReturnType<typeof setTimeout> | null = null;
     private src: string;
     public volume: number = 0.5;
     public isPlaying: boolean = false;
     private activeIndex: 1 | 2 = 1;
     private isCrossfading: boolean = false;
+    // Where real audio begins/ends inside the file, from its Xing/Info tag.
+    private headOffset = 0;
+    private trueEnd = 0;
 
     constructor(src: string) {
         this.src = src;
@@ -159,9 +204,23 @@ class CrossfadingSound {
         const ctx = getAudioContext();
         if (!ctx) return;
 
+        // Read the file's Xing/Info tag so the handoff can land on real audio
+        // instead of on encoder padding. Fire-and-forget: until it resolves the
+        // player falls back to the element's own duration and a 0 head offset,
+        // which is what it always used.
+        getGaplessBounds(this.src).then(bounds => {
+            if (!bounds) return;
+            this.headOffset = bounds.headOffset;
+            this.trueEnd = bounds.trueEnd;
+        }).catch(() => {});
+
         // Both elements loop forever; crossfading is purely gain-based, so no
         // async play() call is ever needed inside the polling callback, seek
-        // the incoming element to 0 and adjust gains immediately.
+        // the incoming element to the head offset and adjust gains immediately.
+        this.masterGain = ctx.createGain();
+        this.masterGain.gain.value = 0;
+        this.masterGain.connect(ctx.destination);
+
         this.audio1 = new Audio(this.src);
         this.audio1.loop = true;
         this.audio1.preload = 'auto';
@@ -169,7 +228,7 @@ class CrossfadingSound {
         this.gainNode1.gain.value = 0;
         this.sourceNode1 = ctx.createMediaElementSource(this.audio1);
         this.sourceNode1.connect(this.gainNode1);
-        this.gainNode1.connect(ctx.destination);
+        this.gainNode1.connect(this.masterGain);
 
         this.audio2 = new Audio(this.src);
         this.audio2.loop = true;
@@ -178,14 +237,14 @@ class CrossfadingSound {
         this.gainNode2.gain.value = 0;
         this.sourceNode2 = ctx.createMediaElementSource(this.audio2);
         this.sourceNode2.connect(this.gainNode2);
-        this.gainNode2.connect(ctx.destination);
+        this.gainNode2.connect(this.masterGain);
     }
 
     async play(startVol = 0.5) {
         this.volume = startVol;
         this.init();
         const ctx = getAudioContext();
-        if (!this.audio1 || !this.audio2 || !this.gainNode1 || !this.gainNode2 || !ctx) return;
+        if (!this.audio1 || !this.audio2 || !this.gainNode1 || !this.gainNode2 || !this.masterGain || !ctx) return;
 
         if (ctx.state === 'suspended') {
             await ctx.resume().catch(() => { });
@@ -199,16 +258,21 @@ class CrossfadingSound {
             // Start both elements now: audio2 plays silently so it is
             // already running when a crossfade is needed. This eliminates
             // the async play() latency gap that was audible at the loop point.
-            this.audio1.currentTime = 0;
-            this.audio2.currentTime = 0;
+            this.audio1.currentTime = this.headOffset;
+            this.audio2.currentTime = this.headOffset;
             await Promise.all([this.audio1.play(), this.audio2.play()]).catch(() => {});
 
+            // Element 1 is the live one, element 2 waits silently. Both sit at
+            // unity/zero on the crossfade gains; the audible fade-in is the
+            // master, so it stays under the fader's control throughout.
             const now = ctx.currentTime;
             this.gainNode1.gain.cancelScheduledValues(now);
-            this.gainNode1.gain.setValueAtTime(0, now);
-            this.gainNode1.gain.linearRampToValueAtTime(this.volume, now + 1.5);
+            this.gainNode1.gain.setValueAtTime(1, now);
             this.gainNode2.gain.cancelScheduledValues(now);
             this.gainNode2.gain.setValueAtTime(0, now);
+            this.masterGain.gain.cancelScheduledValues(now);
+            this.masterGain.gain.setValueAtTime(0, now);
+            this.masterGain.gain.linearRampToValueAtTime(this.volume, now + 1.5);
 
             if (this.loopInterval) clearInterval(this.loopInterval);
             let prevTime = -1;
@@ -222,55 +286,77 @@ class CrossfadingSound {
 
                 const cTime = activeAudio.currentTime;
                 const dur = activeAudio.duration;
+                if (!(dur > 0)) return;
+                // Prefer the tag's true end (which excludes encoder padding) and
+                // fall back to the element's reported duration.
+                const end = this.trueEnd > 0 && this.trueEnd <= dur ? this.trueEnd : dur;
 
                 // Detect a native browser loop: time jumped backward past the halfway point.
-                // This means the 50ms interval missed the crossfade window (e.g. app was
-                // backgrounded or CPU-starved) and the element looped on its own with a gap.
+                // This means the poll missed the seam entirely (e.g. app was backgrounded
+                // or CPU-starved) and the element looped on its own with a gap.
                 // Trigger the crossfade immediately so the next cycle is seamless.
-                const missedWindow = prevTime > 0 && dur > 0 && prevTime > dur * 0.5 && cTime < prevTime * 0.5;
+                const missedWindow = prevTime > 0 && prevTime > end * 0.5 && cTime < prevTime * 0.5;
                 prevTime = cTime;
 
-                if (!this.isCrossfading && dur > 0 &&
-                    (cTime > dur - 3.5 || missedWindow)) {
+                const untilSeam = end - LOOP_CROSSFADE_SEC - cTime;
+                if (this.isCrossfading || !(missedWindow || untilSeam <= LOOP_ARM_LEAD_SEC)) return;
 
-                    this.isCrossfading = true;
+                this.isCrossfading = true;
 
-                    // Seek next to start: already playing silently, so this is
-                    // synchronous: no play() call, no async latency, no gap.
-                    nextAudio.currentTime = 0;
+                // Arm now, execute later: the fade is placed on the audio clock
+                // at the exact moment the seam arrives, so polling jitter cannot
+                // drag it early or late. `missedWindow` means the seam already
+                // went by, so run immediately.
+                const delay = missedWindow ? 0 : Math.max(0, untilSeam);
+                const startAt = ctx.currentTime + delay;
 
-                    const cNow = ctx.currentTime;
-                    const steps = 65;
-                    const fadeIn = new Float32Array(steps);
-                    const fadeOut = new Float32Array(steps);
-                    const outFrom = activeGain.gain.value;
-                    for (let i = 0; i < steps; i++) {
-                        const t = (i / (steps - 1)) * (Math.PI / 2);
-                        fadeIn[i] = Math.sin(t) * this.volume;
-                        fadeOut[i] = Math.cos(t) * outFrom;
-                    }
-                    try {
-                        nextGain.gain.cancelScheduledValues(cNow);
-                        nextGain.gain.setValueCurveAtTime(fadeIn, cNow, 2.5);
-                        activeGain.gain.cancelScheduledValues(cNow);
-                        activeGain.gain.setValueCurveAtTime(fadeOut, cNow, 2.5);
-                    } catch {
-                        nextGain.gain.setValueAtTime(0, cNow);
-                        nextGain.gain.linearRampToValueAtTime(this.volume, cNow + 2.5);
-                        activeGain.gain.linearRampToValueAtTime(0, cNow + 2.5);
-                    }
-
-                    this.activeIndex = this.activeIndex === 1 ? 2 : 1;
-
-                    setTimeout(() => {
-                        // Reset the outgoing element to start so it is in position
-                        // for the next crossfade cycle (gain is already at 0).
-                        if (activeAudio && this.isPlaying) {
-                            activeAudio.currentTime = 0;
-                        }
-                        this.isCrossfading = false;
-                    }, 3000);
+                // Equal-power curves in [0,1]: the user's volume is applied
+                // downstream by masterGain, so these never need to know it.
+                const steps = 65;
+                const fadeIn = new Float32Array(steps);
+                const fadeOut = new Float32Array(steps);
+                for (let i = 0; i < steps; i++) {
+                    const t = (i / (steps - 1)) * (Math.PI / 2);
+                    fadeIn[i] = Math.sin(t);
+                    fadeOut[i] = Math.cos(t);
                 }
+                try {
+                    // No setValueAtTime anchor before the curves: the curve's
+                    // own first element already establishes the value at
+                    // startAt (0 for the fade-in, 1 for the fade-out), and
+                    // WebKit rejects setValueCurveAtTime when another event
+                    // sits inside its time range.
+                    nextGain.gain.cancelScheduledValues(startAt);
+                    nextGain.gain.setValueCurveAtTime(fadeIn, startAt, LOOP_CROSSFADE_SEC);
+                    activeGain.gain.cancelScheduledValues(startAt);
+                    activeGain.gain.setValueCurveAtTime(fadeOut, startAt, LOOP_CROSSFADE_SEC);
+                } catch {
+                    nextGain.gain.setValueAtTime(0, startAt);
+                    nextGain.gain.linearRampToValueAtTime(1, startAt + LOOP_CROSSFADE_SEC);
+                    activeGain.gain.setValueAtTime(1, startAt);
+                    activeGain.gain.linearRampToValueAtTime(0, startAt + LOOP_CROSSFADE_SEC);
+                }
+
+                this.activeIndex = this.activeIndex === 1 ? 2 : 1;
+
+                // Seek the incoming element to the first real sample at the
+                // moment its fade-in begins. An element seek is only accurate to
+                // a few tens of ms, which is exactly what the 400ms fade covers.
+                if (this.seekTimer) clearTimeout(this.seekTimer);
+                this.seekTimer = setTimeout(() => {
+                    if (this.isPlaying) nextAudio.currentTime = this.headOffset;
+                }, delay * 1000);
+
+                if (this.resetTimer) clearTimeout(this.resetTimer);
+                this.resetTimer = setTimeout(() => {
+                    // Park the outgoing element back at the head so it is in
+                    // position for the next handoff (its gain is already at 0).
+                    if (activeAudio && this.isPlaying) {
+                        activeAudio.currentTime = this.headOffset;
+                    }
+                    this.isCrossfading = false;
+                    prevTime = -1;
+                }, (delay + LOOP_CROSSFADE_SEC + 0.3) * 1000);
             }, 50);
 
         } catch (e) {
@@ -284,24 +370,26 @@ class CrossfadingSound {
             clearInterval(this.loopInterval);
             this.loopInterval = null;
         }
+        if (this.seekTimer) { clearTimeout(this.seekTimer); this.seekTimer = null; }
+        if (this.resetTimer) { clearTimeout(this.resetTimer); this.resetTimer = null; }
+        this.isCrossfading = false;
 
         const ctx = getAudioContext();
         if (!ctx) return;
 
+        // Fade the master only: the crossfade gains keep whatever handoff state
+        // they were in, so a restart does not have to untangle them.
         const now = ctx.currentTime;
-        if (this.gainNode1) {
-            this.gainNode1.gain.cancelScheduledValues(now);
-            this.gainNode1.gain.linearRampToValueAtTime(0, now + 1.0);
-        }
-        if (this.gainNode2) {
-            this.gainNode2.gain.cancelScheduledValues(now);
-            this.gainNode2.gain.linearRampToValueAtTime(0, now + 1.0);
+        if (this.masterGain) {
+            this.masterGain.gain.cancelScheduledValues(now);
+            this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+            this.masterGain.gain.linearRampToValueAtTime(0, now + 1.0);
         }
 
         setTimeout(() => {
             if (!this.isPlaying) {
-                if (this.audio1) { this.audio1.pause(); this.audio1.currentTime = 0; }
-                if (this.audio2) { this.audio2.pause(); this.audio2.currentTime = 0; }
+                if (this.audio1) { this.audio1.pause(); this.audio1.currentTime = this.headOffset; }
+                if (this.audio2) { this.audio2.pause(); this.audio2.currentTime = this.headOffset; }
             }
         }, 1100);
     }
@@ -309,23 +397,18 @@ class CrossfadingSound {
     setVolume(vol: number, instant: boolean = false) {
         this.volume = vol;
         const ctx = getAudioContext();
-        if (!ctx) return;
+        if (!ctx || !this.masterGain) return;
         const now = ctx.currentTime;
 
-        [this.gainNode1, this.gainNode2].forEach((node, i) => {
-            if (node) {
-                // Only update the gain of the currently active "buffer" (or both if fading)
-                const isActive = (i + 1) === this.activeIndex;
-                if (isActive) {
-                    node.gain.cancelScheduledValues(now);
-                    if (instant) {
-                        node.gain.setValueAtTime(vol, now);
-                    } else {
-                        node.gain.linearRampToValueAtTime(vol, now + 0.3);
-                    }
-                }
-            }
-        });
+        // One node, one owner. Nothing here touches the crossfade schedule, so
+        // dragging the fader during a loop handoff is now harmless.
+        this.masterGain.gain.cancelScheduledValues(now);
+        if (instant) {
+            this.masterGain.gain.setValueAtTime(vol, now);
+        } else {
+            this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
+            this.masterGain.gain.linearRampToValueAtTime(vol, now + 0.3);
+        }
     }
 }
 
@@ -391,9 +474,9 @@ class BufferLoopSound {
 // Facade choosing the playback strategy per sound:
 //   • synth, colored noise / binaural beats are generated procedurally and
 //              have no loop point at all (see synthSounds.ts);
-//   • buffer, short files are decoded into a seamless-loop buffer;
-//   • stream, files over the size gate in seamlessAudio.ts stream through the
-//              dual-element crossfader.
+//   • buffer, files that fit in memory are decoded once and looped by the audio
+//              thread itself (sample-accurate, no timers);
+//   • stream, the long-form pieces stream through the dual-element handoff.
 class MixerSound {
     private mode: 'undecided' | 'synth' | 'buffer' | 'stream' = 'undecided';
     private synthSound: SynthVoice | null = null;
@@ -509,7 +592,7 @@ class MixerSound {
     }
 }
 
-export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode, isVisible, onClose, user, onSaveMix, onDeleteMix, source }) => {
+export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode, isVisible, onClose, user, onSaveMix, onDeleteMix, source, onContentScroll }) => {
     const [activeSounds, setActiveSounds] = useState<Set<string>>(new Set());
     const [volumes, setVolumes] = useState<Record<string, number>>({});
     const lastHapticLevel = useRef<Record<string, number>>({});
@@ -814,7 +897,15 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
     return (
         <div
-            className="fixed inset-0 z-[60] flex flex-col pt-6 animate-fade-in backdrop-blur-xl text-white overflow-hidden bg-sage-mid"
+            // z-45, same as the Breathwork overlay: this puts the panel's background BELOW the
+            // app's persistent global header (z-50, Profile/Koi Pond/Soundscapes icons), so the
+            // header renders on top of it seamlessly instead of covering it. The background still
+            // covers the full screen (inset-0) so nothing from the page underneath shows through;
+            // only the actual CONTENT is pushed down below the header via the spacer below.
+            // (A previous version moved the whole container's top edge down instead of just the
+            // content, which left a gap where the background didn't reach and the Home page
+            // underneath showed through — do not reintroduce that.)
+            className="fixed inset-0 z-[45] flex flex-col animate-fade-in backdrop-blur-xl text-white overflow-hidden bg-sage-mid"
         >
             <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
                 <Target
@@ -825,12 +916,15 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                 />
             </div>
 
+            {/* Spacer: clears the persistent global header, matching Breathing.tsx's offset. */}
+            <div style={{ height: 'calc(env(safe-area-inset-top) + 8.5rem)' }} />
+
             {/* TOP BAR: Header & Global Controls */}
             <div className={`px-4 md:px-8 py-4 md:py-6 flex flex-col md:flex-row items-center justify-between z-10 border-b border-white/5 bg-white/5 backdrop-blur-md gap-4`}>
                 <div className="flex items-center justify-between w-full md:w-auto">
                     <div className="relative">
                         <div className="flex items-center gap-3">
-                            <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Sonic Canvas</h2>
+                            <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Sound Scapes</h2>
                             <button
                                 onClick={() => setShowHelp(!showHelp)}
                                 aria-label="Show help"
@@ -931,7 +1025,9 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
                 {/* VIEW: MIXER (Active Faders) */}
                 {view === 'mixer' && (
-                    <div className={`h-full no-scrollbar relative z-10 pb-32 transition-all duration-500 ${activeSoundList.length === 0 ? 'overflow-y-auto p-4 md:p-8' : 'overflow-x-auto flex items-center justify-center min-w-full px-2 md:px-16 gap-1 md:gap-8'}`}>
+                    <div
+                        onScroll={(e) => onContentScroll?.(e.currentTarget.scrollTop)}
+                        className={`h-full no-scrollbar relative z-10 pb-32 transition-all duration-500 ${activeSoundList.length === 0 ? 'overflow-y-auto p-4 md:p-8' : 'overflow-x-auto flex items-center justify-center min-w-full px-2 md:px-16 gap-1 md:gap-8'}`}>
                         {activeSoundList.length === 0 ? (
                             <div className="w-full flex flex-col items-center justify-start animate-fade-in py-8 md:py-16">
                                 <h3 className="text-2xl md:text-4xl font-display font-medium text-white mb-2 text-center tracking-tight">Atmospheric Control</h3>
@@ -1088,6 +1184,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                 const rect = e.currentTarget.getBoundingClientRect();
                                                 const y = e.touches[0].clientY - rect.top;
                                                 const percentage = Math.max(0, Math.min(1, 1 - (y / rect.height)));
+                                                // eslint-disable-next-line react-hooks/refs -- inside a touch event handler, not React render
                                                 updateVolume(sound.id, percentage);
                                             }}
                                             onTouchMove={(e) => {
@@ -1147,7 +1244,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
                 {/* VIEW: LIBRARY (Grid) */}
                 {view === 'library' && (
-                    <div className="h-full overflow-y-auto p-8 pb-32">
+                    <div onScroll={(e) => onContentScroll?.(e.currentTarget.scrollTop)} className="h-full overflow-y-auto p-8 pb-32">
                         <div className="max-w-4xl mx-auto space-y-12">
                             {categories.map(cat => (
                                 <div key={cat} id={`category-${cat}`} className="scroll-mt-24">
@@ -1250,7 +1347,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
                                 <Music size={32} className="text-pale-gold" />
                             </div>
-                            <h3 className="text-3xl font-display font-medium mb-2">Sonic Canvas</h3>
+                            <h3 className="text-3xl font-display font-medium mb-2">Sound Scapes</h3>
                             <p className="text-sm text-white uppercase tracking-widest font-bold">Mixing Your Environment</p>
                         </div>
                         <div className="space-y-4 mb-8 text-sm text-white/70 leading-relaxed font-body">
@@ -1276,21 +1373,21 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
                                 <Zap size={32} className="text-pale-gold" />
                             </div>
-                            <h3 className="text-3xl font-display font-medium mb-2">Audio Biohacking</h3>
+                            <h3 className="text-3xl font-display font-medium mb-2">The Sound Science</h3>
                             <p className="text-sm text-white uppercase tracking-widest font-bold">Why it works</p>
                         </div>
                         <div className="space-y-6 mb-8 text-sm text-white/70 leading-relaxed font-body">
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Binaural Beats</h4>
-                                <p className="text-sm opacity-70">By playing slightly different frequencies in each ear, we encourage 'brainwave entrainment', naturally shifting your mind into Alpha (focus) or Theta (meditation).</p>
+                                <p className="text-sm opacity-70">Playing slightly different frequencies in each ear is associated with what's sometimes called brainwave entrainment, a shift toward Alpha (focus) or Theta (meditation) that many people report feeling. Effects vary from person to person.</p>
                             </div>
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Pink & Brown Noise</h4>
-                                <p className="text-sm opacity-70">These tailored noise profiles mask distracting sharp sounds while providing a 'constant' that reduces cognitive load, allowing for sustained flow states.</p>
+                                <p className="text-sm opacity-70">These tailored noise profiles mask distracting sharp sounds and give your attention something steady to rest against, which many people find helps them settle into longer stretches of focus.</p>
                             </div>
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
                                 <h4 className="font-bold text-white mb-1">Environmental Priming</h4>
-                                <p className="text-sm opacity-70">Nature sounds trigger parasympathetic activation (rest-and-digest), lowering cortisol and helping you feel safe and grounded during deep work.</p>
+                                <p className="text-sm opacity-70">Nature sounds are linked to the body's rest-and-digest response for many people, which can make deep work feel calmer and more grounded.</p>
                             </div>
                         </div>
                         <button

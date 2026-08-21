@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { STORAGE_KEYS, SESSION_KEYS } from './constants/storageKeys';
+import { COACH_CHAT_ENABLED } from './constants/featureFlags';
 import { hasAcknowledgedAIDisclosure, recordAIDisclosureAcknowledgment } from './data/aiDisclosure';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -37,7 +38,7 @@ import type { YearForwardData } from './utils/yearForward';
 import { Logo } from './components/Logo';
 import {
   Home, TrendingUp, User as UserIcon,
-  Music, MessageCircle,
+  Music,
   Target, Fish, Layers,
   CheckCircle2
 } from 'lucide-react';
@@ -48,11 +49,11 @@ import { generateDailyDispatch, generateRecoveryDispatch, intentToTone } from '.
 import { isReviewerEmail, REVIEWER_DISPATCH_OFFSETS_MIN } from './constants/reviewer';
 import { getMomentumState } from './utils/aiService';
 import { api } from './lib/api';
-import { logPractice, checkMilestone, migrateStreakToPractice } from './utils/practiceUtils';
+import { logPractice, migrateStreakToPractice, type MilestoneName } from './utils/practiceUtils';
 import { useModalState } from './hooks/useModalState';
+import { useContinuityOpener } from './hooks/useContinuityOpener';
 import { getTodayDate, getDaysDifference } from './utils/practiceUtils';
 import { useTimeOfDay } from './hooks/useTimeOfDay';
-import { useContinuityOpener } from './hooks/useContinuityOpener';
 
 // All non-startup components lazy-loaded to reduce initial memory footprint
 const Momentum = lazy(() => import('./components/Momentum').then(m => ({ default: m.Momentum })));
@@ -109,9 +110,11 @@ function AppContent() {
   const { isPro, isLoading: subLoading, isTrialing, trialDaysRemaining } = useSubscription();
   // const [user, setUser] = useState<UserProfile | null>(null); -> Removed
 
-  // Memory-aware continuity callback, precomputed app-wide so the home card can
-  // surface it even when the user has not opened the partner chat. Shares the
-  // per-day cache with CoachView, generation happens at most once a day across both.
+  // Coach/partner chat shelved behind COACH_CHAT_ENABLED (see featureFlags.ts) for
+  // the Oct 2026 release. The single kill-switch lives inside useContinuityOpener
+  // itself (it no-ops entirely when the flag is off, so no daily AI call is spent
+  // generating a greeting nothing can surface) rather than being duplicated here
+  // and at the JSX gate below, so re-enabling the feature is a one-flag flip.
   const { continuityOpener } = useContinuityOpener(user);
   const [memoryCallbackDismissed, setMemoryCallbackDismissed] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEYS.MEMORY_CALLBACK_DISMISSED) === new Date().toISOString().slice(0, 10); }
@@ -258,6 +261,7 @@ function AppContent() {
     const cachedQuote = localStorage.getItem(STORAGE_KEYS.DAILY_QUOTE);
     if (cachedDate === today && cachedQuote) {
       try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring cached state from localStorage on mount/user-change, the standard "sync with an external system" effect
         setDailyQuote(JSON.parse(cachedQuote));
         return;
       } catch { /* fall through to fresh pick */ }
@@ -304,6 +308,7 @@ function AppContent() {
       STORAGE_KEYS.WEEKLY_HIGHLIGHTS_SHOWN
     );
     if (trigger.shouldShow) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time badge/modal trigger computed from storage on mount/user-change, not derivable from props during render
       setWeeklyAccomplishments(trigger.accomplishments);
       trigger.markShown();
       setShowWeeklyHighlights(true); // lights up the Journey tab badge
@@ -484,14 +489,6 @@ function AppContent() {
           lastNudgeTime: user.coachSettings?.lastNudgeTime,
           coachTone: defaultedTone,
         },
-        // Add focus goal as first daily focus if provided (already a human label, not a raw id)
-        dailyFocuses: userData.focusGoal ? [{
-          id: `focus-${Date.now()}`,
-          text: userData.focusGoal,
-          isCompleted: false,
-          createdAt: new Date().toISOString(),
-          order: 0
-        }] : user.dailyFocuses,
         // Parse and add interests if provided
         interests: userData.interests ? userData.interests.split(',').map(i => i.trim()) : user.interests,
         // Bio written in onboarding gives the partner real context from the very first chat
@@ -621,6 +618,28 @@ function AppContent() {
     streakDays: undefined
   });
 
+  // Single source of truth for showing a practice-count milestone celebration.
+  // Used by every call site that logs a practice (handleActivity, handleToggleGoal,
+  // handlePrimingComplete, the evening GLAD practice, and MorningPractice.tsx via its
+  // onMilestone callback) instead of each one re-deriving its own copy of this logic.
+  // Early milestones (first/three/week) get a lightweight
+  // toast instead of the full modal, since they land in quick succession for a new user.
+  const triggerMilestoneCelebration = (milestoneName: MilestoneName) => {
+    const earlyToasts: Partial<Record<MilestoneName, string>> = {
+      first: "First practice. Pa'lante.",
+      three: "Three in. You came back.",
+      week: "Seven practices. You're not stopping.",
+    };
+    if (earlyToasts[milestoneName]) {
+      triggerConfetti();
+      setToastMessage(earlyToasts[milestoneName]!);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } else {
+      setShowMilestone({ isOpen: true, milestone: milestoneName });
+    }
+  };
+
   // Ring Ceremony
   const [ringCeremony, setRingCeremony] = useState<{ isOpen: boolean; type: RingCeremonyType }>({
     isOpen: false,
@@ -724,6 +743,7 @@ function AppContent() {
       .sort((a, b) => new Date(a.scheduledDeliveryDate!).getTime() - new Date(b.scheduledDeliveryDate!).getTime());
 
     if (scheduledDue.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- checks a scheduled-delivery date against "now" on mount/user-change, can't be computed during render
       setCurrentLetter(scheduledDue[0]);
       setShowLetterRead(true);
       sessionStorage.setItem(SESSION_KEYS.LETTER_SHOWN_TODAY, 'true');
@@ -854,30 +874,37 @@ function AppContent() {
 
 
 
-  // 5. Scroll-aware navigation: hide on scroll down, show on scroll up
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      const scrollDelta = currentScrollY - lastScrollY.current;
+  // 5. Scroll-aware navigation: hide on scroll down, show on scroll up.
+  // Shared by both the window scroll listener below (Home/Momentum/Meditation/etc,
+  // which scroll the document itself) and any fixed-overlay page with its own internal
+  // scroll container (e.g. SoundMixer, which is `fixed` and scrolls internally, so it
+  // never generates a `window` scroll event) via the onContentScroll callback passed
+  // down to it. Both call sites are mutually exclusive in practice (the window doesn't
+  // scroll while a fixed overlay's internal container has focus), so sharing the same
+  // lastScrollY ref and setter is safe.
+  const updateNavVisibilityForScroll = (currentScrollY: number) => {
+    const scrollDelta = currentScrollY - lastScrollY.current;
 
-      // Only trigger if scrolled more than 40px to avoid jitter
-      if (Math.abs(scrollDelta) > 40) {
-        if (scrollDelta > 0 && currentScrollY > 100) {
-          // Scrolling down and past threshold - hide nav
-          setIsNavVisible(false);
-        } else if (scrollDelta < 0) {
-          // Scrolling up - show nav
-          setIsNavVisible(true);
-        }
-        lastScrollY.current = currentScrollY;
-      }
-
-      // Always show nav at top of page
-      if (currentScrollY < 50) {
+    // Only trigger if scrolled more than 40px to avoid jitter
+    if (Math.abs(scrollDelta) > 40) {
+      if (scrollDelta > 0 && currentScrollY > 100) {
+        // Scrolling down and past threshold - hide nav
+        setIsNavVisible(false);
+      } else if (scrollDelta < 0) {
+        // Scrolling up - show nav
         setIsNavVisible(true);
       }
-    };
+      lastScrollY.current = currentScrollY;
+    }
 
+    // Always show nav at top of page
+    if (currentScrollY < 50) {
+      setIsNavVisible(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleScroll = () => updateNavVisibilityForScroll(window.scrollY);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -885,6 +912,7 @@ function AppContent() {
   // Always restore nav + scroll to top when switching tabs so the nav bar is never
   // stranded hidden from a previous page's scroll position.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs nav visibility with the external scroll position on tab change
     setIsNavVisible(true);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
@@ -921,44 +949,19 @@ function AppContent() {
 
   const handleActivity = async (type: ActivityType) => {
     if (!user) return;
-    const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
     const oldStreak = user.streak || 0;
 
-    await logActivity(type);
+    const result = await logActivity(type);
     if (type === 'breath' || type === 'meditate' || type === 'reflect') {
       analytics.practiceCompleted({ type, streak: user.streak });
     }
-    
-    // We need the updated user state, but since logActivity just fired, 
-    // we can calculate what happened.
-    const updatedCount = currentPracticeData.totalPractices + 1;
-    const { milestone, isNew } = checkMilestone(updatedCount, currentPracticeData.milestones);
-    
-    if (milestone && isNew) {
-      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year'> = {
-        'practices_1': 'first', 'practices_3': 'three', 'practices_7': 'week',
-        'practices_14': 'fortnight', 'practices_30': 'month', 'practices_50': 'fifty',
-        'practices_90': 'quarter', 'practices_100': 'century',
-        'practices_180': 'halfyear', 'practices_200': 'twohundred', 'practices_365': 'year'
-      };
-      const name = milestoneMap[milestone] || 'week';
-      const earlyToasts: Partial<Record<typeof name, string>> = {
-        first: "First practice. Pa'lante.",
-        three: "Three in. You came back.",
-        week:  "Seven practices. You're not stopping.",
-      };
-      if (earlyToasts[name]) {
-        triggerConfetti();
-        setToastMessage(earlyToasts[name]!);
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-      } else {
-        setShowMilestone({ isOpen: true, milestone: name });
-      }
+
+    if (result?.milestone && result.isNew && result.milestoneName) {
+      triggerMilestoneCelebration(result.milestoneName);
     }
 
     // After the 3rd practice: invite to write a letter to your future self (earned, once-only)
-    if (updatedCount === 3 && (user.futureLetters ?? []).length === 0 && !localStorage.getItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN)) {
+    if (result?.totalPractices === 3 && (user.futureLetters ?? []).length === 0 && !localStorage.getItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN)) {
       setTimeout(() => {
         localStorage.setItem(STORAGE_KEYS.LETTER_PROMPT_SHOWN, 'true');
         setLetterContext('manual');
@@ -1037,12 +1040,6 @@ function AppContent() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
         break;
-      case 'coach':
-        setActiveTab('coach');
-        setToastMessage('Palante');
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-        break;
       case 'toolkit':
       case 'explore':
         setActiveTab('toolkit');
@@ -1062,47 +1059,6 @@ function AppContent() {
         break;
       default:
         console.warn('Unknown quick action ID:', id);
-    }
-  };
-
-  // Handle practice updates when a practice is completed (NO STREAK PRESSURE)
-  const _handlePracticeUpdate = (practiceType: string) => {
-    if (!user) return;
-
-    // Migrate old streak data to practice data if needed
-    const currentPracticeData = user.practiceData || migrateStreakToPractice(user);
-
-    // Log the practice (no consecutive day requirement)
-    const updatedPracticeData = logPractice(currentPracticeData, practiceType);
-
-    // Check for new milestone
-    const { milestone, isNew } = checkMilestone(updatedPracticeData.totalPractices, currentPracticeData.milestones);
-
-    // Update user with new practice data
-    const updatedUser = { ...user, practiceData: updatedPracticeData };
-    updateProfile(updatedUser);
-
-    // Trigger milestone celebration if new milestone reached
-    if (milestone && isNew) {
-      // Map practice milestones to old milestone names for celebration modal
-      const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year'> = {
-        'practices_1': 'first',
-        'practices_3': 'three',
-        'practices_7': 'week',
-        'practices_14': 'fortnight',
-        'practices_30': 'month',
-        'practices_50': 'fifty',
-        'practices_90': 'quarter',
-        'practices_100': 'century',
-        'practices_180': 'halfyear',
-        'practices_200': 'twohundred',
-        'practices_365': 'year'
-      };
-
-      setShowMilestone({
-        isOpen: true,
-        milestone: milestoneMap[milestone] || 'week'
-      });
     }
   };
 
@@ -1128,6 +1084,7 @@ function AppContent() {
 
   useEffect(() => {
     if (transcript) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs local text with the external speech-recognition transcript
       setNewFocusText((baseFocusText ? baseFocusText + ' ' : '') + transcript);
     }
   }, [transcript, baseFocusText]);
@@ -1212,38 +1169,11 @@ function AppContent() {
     if (goal && !goal.isCompleted) {
       // Handle practice update manually to ensure atomic update with goal completion
       const currentPracticeData = updatedUser.practiceData || migrateStreakToPractice(updatedUser);
-      const updatedPracticeData = logPractice(currentPracticeData, 'goal');
+      const { data: updatedPracticeData, milestone, isNew, milestoneName } = logPractice(currentPracticeData, 'goal');
       updatedUser = { ...updatedUser, practiceData: updatedPracticeData };
 
-      const { milestone, isNew } = checkMilestone(updatedPracticeData.totalPractices, currentPracticeData.milestones);
-      if (milestone && isNew) {
-        const milestoneMap: Record<string, 'first' | 'three' | 'week' | 'fortnight' | 'month' | 'fifty' | 'quarter' | 'century' | 'halfyear' | 'twohundred' | 'year'> = {
-          'practices_1': 'first',
-          'practices_3': 'three',
-          'practices_7': 'week',
-          'practices_14': 'fortnight',
-          'practices_30': 'month',
-          'practices_50': 'fifty',
-          'practices_90': 'quarter',
-          'practices_100': 'century',
-          'practices_180': 'halfyear',
-          'practices_200': 'twohundred',
-          'practices_365': 'year'
-        };
-        const name = milestoneMap[milestone] || 'week';
-        const earlyToasts: Partial<Record<typeof name, string>> = {
-          first: "First practice. Pa'lante.",
-          three: "3 practices. You're building something.",
-          week:  "7 practices. One week in.",
-        };
-        if (earlyToasts[name]) {
-          triggerConfetti();
-          setToastMessage(earlyToasts[name]!);
-          setShowToast(true);
-          setTimeout(() => setShowToast(false), 3000);
-        } else {
-          setShowMilestone({ isOpen: true, milestone: name });
-        }
+      if (milestone && isNew && milestoneName) {
+        triggerMilestoneCelebration(milestoneName);
       }
     }
 
@@ -1294,14 +1224,18 @@ function AppContent() {
         newStreak = hadActivityYesterday ? newStreak + 1 : 1;
     }
 
+    const primingPracticeResult = logPractice(user.practiceData || migrateStreakToPractice(user), 'morning_priming');
     const updatedUser: UserProfile = {
       ...user,
       dailyPriming: updatedPriming,
       points: (user.points || 0) + 5,
       streak: newStreak,
-      practiceData: logPractice(user.practiceData || migrateStreakToPractice(user), 'morning_priming')
+      practiceData: primingPracticeResult.data
     };
     updateProfile(updatedUser);
+    if (primingPracticeResult.milestone && primingPracticeResult.isNew && primingPracticeResult.milestoneName) {
+      triggerMilestoneCelebration(primingPracticeResult.milestoneName);
+    }
     setCompletionIntention(data.dailyIntention?.trim() || '');
     analytics.morningRitualCompleted({
       hadIntention: !!data.dailyIntention,
@@ -1383,6 +1317,7 @@ function AppContent() {
     if (isPro || !appUsed) return 7;
     const firstDate = localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE);
     if (!firstDate) return 0;
+    // eslint-disable-next-line react-hooks/purity -- trial countdown must read the real current time; intentionally recomputed fresh every render
     const daysSince = Math.floor((Date.now() - new Date(firstDate).getTime()) / (1000 * 60 * 60 * 24));
     return Math.max(0, 7 - daysSince);
   })();
@@ -1391,7 +1326,10 @@ function AppContent() {
   // Early paywall: user taps the trial ribbon to subscribe before their trial expires.
   const [showPaywallEarly, setShowPaywallEarly] = useState(false);
 
-  // Partner chat discovery: show once after first practice to surface the Coach tab.
+  // Coach/partner chat is shelved (COACH_CHAT_ENABLED in featureFlags.ts). This
+  // state initializes normally from localStorage; the card that reads it is
+  // gated behind the flag at its JSX usage site below, so there's nothing extra
+  // to restore here when the feature returns.
   const [showPartnerDiscovery, setShowPartnerDiscovery] = useState(
     () => !localStorage.getItem(STORAGE_KEYS.PARTNER_CHAT_DISCOVERY_SHOWN)
   );
@@ -1635,7 +1573,7 @@ function AppContent() {
         if (isToolTab) {
           return (
             <>
-              {/* Tool pages: same Target rings as Sonic Canvas */}
+              {/* Tool pages: same Target rings as Sound Scapes */}
               <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
                 <Target
                   className="absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 text-[#E8E2D9] opacity-[0.075]"
@@ -1701,7 +1639,7 @@ function AppContent() {
 {/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
-        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && !isInEveningInputFlow && activeTab !== 'breath' && activeTab !== 'coach' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
+        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && !isInEveningInputFlow && activeTab !== 'coach' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
       >
 
         {/* Top: Tagline & Logo */}
@@ -1762,19 +1700,6 @@ function AppContent() {
           >
             <Music size={16} />
           </button>
-
-          {/* 5. Partner: quiet entry to the partner, one tap away (for the moments between practices) */}
-          <button
-            onClick={() => { haptics.selection(); practiceOriginRef.current = activeTab; setActiveTab('coach'); }}
-            className={`w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md border transition-all duration-300 hover:scale-105 ${activeTab === 'coach'
-              ? isDarkMode ? 'bg-white/10 border-pale-gold text-pale-gold' : 'bg-sage border-sage text-white'
-              : headerBtnClass} `}
-            title="Partner"
-            aria-label="Open Partner chat"
-          >
-            <MessageCircle size={16} />
-          </button>
-
 
         </div>
       </header>
@@ -1959,14 +1884,20 @@ function AppContent() {
                         if (!hadActivityTodayBefore) {
                           newStreak = hadActivityYesterday ? newStreak + 1 : 1;
                         }
-                        const updatedPracticeData = logPractice(user.practiceData || migrateStreakToPractice(user), 'evening_glad');
-                        updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data], practiceData: updatedPracticeData, streak: newStreak });
+                        const eveningPracticeResult = logPractice(user.practiceData || migrateStreakToPractice(user), 'evening_glad');
+                        updateProfile({ ...user, dailyEveningPractice: [...otherEntries, data], practiceData: eveningPracticeResult.data, streak: newStreak });
                         analytics.eveningPracticeCompleted({ gratitudeCount: data.gratitude?.length ?? 0 });
                         // Cancel tonight's last-call notification: they finished the practice
                         cancelEveningLastCall();
                         triggerConfetti();
                         setShowEveningSuccess(true);
                         setTimeout(() => setShowEveningSuccess(false), 3000);
+                        // Queue the milestone celebration (if any) to fire after the evening
+                        // success overlay fades, so the two don't visually collide.
+                        if (eveningPracticeResult.milestone && eveningPracticeResult.isNew && eveningPracticeResult.milestoneName) {
+                          const milestoneName = eveningPracticeResult.milestoneName;
+                          setTimeout(() => triggerMilestoneCelebration(milestoneName), 3200);
+                        }
                         // Queue welcome to fire after the evening success overlay fades.
                         if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
                           setTimeout(() => {
@@ -2210,7 +2141,7 @@ function AppContent() {
                             Here's what's inside
                           </p>
                           <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                            Partner, garden, dispatch messages, and more. A quick look at everything available to you.
+                            Daily messages, garden, dispatch, and more. A quick look at everything available to you.
                           </p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -2317,9 +2248,11 @@ function AppContent() {
                   )}
                 </AnimatePresence>
 
-                {/* ── Partner chat discovery, shown once after first practice to surface the Coach tab ── */}
+                {/* ── Partner chat discovery, shown once after first practice to surface the Coach tab.
+                    Gated behind COACH_CHAT_ENABLED (shelved for the Oct 2026 release) — the card is
+                    kept intact, not deleted, so it's a clean re-enable later. ── */}
                 <AnimatePresence>
-                  {showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                  {COACH_CHAT_ENABLED && showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
                     <motion.div
                       key="partner-discovery"
                       className="mb-5"
@@ -2371,7 +2304,10 @@ function AppContent() {
                     (the same memory-aware line it greets you with in chat) right on
                     home, so the remembering is visible in the daily loop instead of
                     being locked in the chat tab. Only appears when there's a real
-                    callback for today, so users without history never see clutter. ── */}
+                    callback for today, so users without history never see clutter.
+                    Shelved for the Oct 2026 release via the single COACH_CHAT_ENABLED
+                    check inside useContinuityOpener itself (continuityOpener is always
+                    null while the flag is off), so no separate gate is needed here. ── */}
                 {continuityOpener && user && (user.practiceData?.totalPractices ?? 0) >= 1 && !showPartnerDiscovery && !showSignInNudge && !memoryCallbackDismissed && (
                   <motion.div
                     key="memory-callback"
@@ -2520,7 +2456,7 @@ function AppContent() {
                   const todayQuote: Quote = {
                     id: `message-of-day-${todayDate}`,
                     text: todayMessage ?? '',
-                    author: user?.coachName || 'Your Partner',
+                    author: user?.coachName || 'Palante',
                     intensity: (user?.quoteIntensity as 1 | 2 | 3) || 2,
                     category: 'morning-practice',
                     isAI: true,
@@ -2748,13 +2684,6 @@ function AppContent() {
                   }}
                   onShowTip={() => handleShowTip('Productivity')}
                   onOpenKoiPond={() => setShowKoiPond(true)}
-                  onWriteLetter={() => {
-                    setLetterContext('manual');
-                    setLetterContextDetails('');
-                    setShowLetterWrite(true);
-                  }}
-                  onOpenHighlights={() => setShowWeeklyHighlightsModal(true)}
-                  highlightsBadge={showWeeklyHighlights}
                   onOpenYearForward={async () => {
                     if (!user) return;
                     haptics.medium();
@@ -2768,11 +2697,12 @@ function AppContent() {
           )}
 
           {activeTab === 'toolkit' && (
-            <ErrorBoundary name="Practice">
+            <ErrorBoundary name="Explore">
             <PageTransition>
               <div className="min-h-screen max-w-md mx-auto">
                 <PracticeView
                   isDarkMode={isDarkMode}
+                  user={user ?? undefined}
                   onNavigate={(section) => {
                     if (section === 'soundscapes') {
                       setShowSoundMixer(true);
@@ -2781,6 +2711,13 @@ function AppContent() {
                       setActiveTab(section);
                     }
                   }}
+                  onWriteLetter={() => {
+                    setLetterContext('manual');
+                    setLetterContextDetails('');
+                    setShowLetterWrite(true);
+                  }}
+                  onOpenHighlights={() => setShowWeeklyHighlightsModal(true)}
+                  highlightsBadge={showWeeklyHighlights}
                 />
               </div>
             </PageTransition>
@@ -2798,11 +2735,6 @@ function AppContent() {
                 }}
                 onSaveReflection={handleSaveMeditationReflection}
                 onShowTip={() => handleShowTip('Meditation')}
-                onStrategize={() => {
-                  haptics.medium();
-                  setActiveTab('coach');
-                }}
-
                 user={user || undefined}
                 onOpenSoundMixer={() => {
                   setMixerSource('meditation');
@@ -2921,8 +2853,9 @@ function AppContent() {
               <Target className="absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 text-white opacity-[0.06]" />
               <Target className="absolute bottom-0 left-0 w-[90vmin] h-[90vmin] -translate-x-1/2 translate-y-1/2 text-white opacity-[0.06]" />
             </div>
-            {/* Safe-area spacer, pushes idle header below status bar */}
-            <div style={{ height: 'calc(env(safe-area-inset-top) + 1rem)' }} />
+            {/* Spacer: clears the persistent global header (Profile/Koi Pond/Soundscapes icons),
+                which now stays visible on the Breathwork screen same as it does on Meditation. */}
+            <div style={{ height: 'calc(env(safe-area-inset-top) + 8.5rem)' }} />
             <Breathing
               isDarkMode={isDarkMode}
               accentColor={isDarkMode ? 'text-pale-gold' : 'text-sage'}
@@ -2938,7 +2871,10 @@ function AppContent() {
       )}
 
       <AnimatePresence mode="wait">
-        {activeTab === 'coach' && user && (
+        {/* Defensive guard: even if a stray state transition sets activeTab to 'coach'
+            (e.g. a leftover deep link or restored nav state), COACH_CHAT_ENABLED keeps
+            the shelved chat screen from surfacing until the feature is re-enabled. */}
+        {COACH_CHAT_ENABLED && activeTab === 'coach' && user && (
           <ErrorBoundary name="Coach" onReset={() => setActiveTab('home')}>
           <motion.div
             key="coach-overlay"
@@ -2959,6 +2895,11 @@ function AppContent() {
                 haptics.selection();
               }}
               onFirstAIResponse={requestAppReview}
+              onToast={(message) => {
+                setToastMessage(message);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 2500);
+              }}
             />
           </motion.div>
           </ErrorBoundary>
@@ -2976,7 +2917,7 @@ function AppContent() {
           that switch the tab underneath while the modal stays put, which reads as a
           dead nav bar. pointer-events-none while hidden keeps the offscreen nav from
           swallowing taps mid-transition. */}
-      < nav className={`fixed left-1/2 -translate-x-1/2 z-[55] transition-all duration-300 ${isNavVisible && activeTab !== 'breath' && !isInEveningInputFlow && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0 pointer-events-none'} `}>
+      < nav className={`fixed left-1/2 -translate-x-1/2 z-[55] transition-all duration-300 ${isNavVisible && !isInEveningInputFlow && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0 pointer-events-none'} `}>
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
@@ -2992,7 +2933,6 @@ function AppContent() {
                   setActiveTab(tab.id as typeof activeTab);
                   haptics.selection();
                   analytics.screenViewed(tab.id);
-                  if (tab.id === 'coach' && showPartnerDiscovery) dismissPartnerDiscovery();
                 }}
                 aria-label={tab.label}
                 aria-current={activeTab === tab.id ? 'page' : undefined}
@@ -3007,9 +2947,6 @@ function AppContent() {
               >
                 <div className="relative">
                   <Icon size={20} className="md:w-5 md:h-5 w-5 h-5" aria-hidden="true" />
-                  {tab.id === 'coach' && showPartnerDiscovery && (
-                    <span aria-label="New" className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
-                  )}
                   {tab.id === 'momentum' && showWeeklyHighlights && (
                     <span aria-label="New highlights" className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#C96A3A] animate-pulse" />
                   )}
@@ -3055,7 +2992,7 @@ function AppContent() {
         isDarkMode={isDarkMode}
         onClose={() => { setShowWeeklyHighlightsModal(false); setShowWeeklyHighlights(false); }}
         weeklyLetter={weeklyLetterText || undefined}
-        partnerName={user?.coachName || 'Your Partner'}
+        partnerName={user?.coachName || 'Palante'}
       />
 
       {/* Legal Disclaimer Modal - First Launch (Blocks Everything) */}
@@ -3073,13 +3010,11 @@ function AppContent() {
           isOpen={showWelcomeOrientation}
           onClose={() => setShowWelcomeOrientation(false)}
           isDarkMode={isDarkMode}
-          partnerName={user?.coachName || 'Palante'}
           onNavigate={(section) => {
             if (section === 'settings') setShowProfile(true);
             if (section === 'morning-ritual') { setActiveTab('home'); setShowMorningPractice(true); }
             if (section === 'momentum') setActiveTab('momentum');
             if (section === 'reflections') setActiveTab('momentum');
-            if (section === 'ai-coach') setActiveTab('coach');
           }}
 
         />
@@ -3561,6 +3496,7 @@ function AppContent() {
                   return { ...prev, ...updates };
                 });
               }}
+              onMilestone={triggerMilestoneCelebration}
             />
           )
         }
@@ -3599,6 +3535,7 @@ function AppContent() {
       {showPaywallEarly && (
         <Suspense fallback={null}>
           <PaywallScreen
+            source="trial_ribbon"
             firstName={user?.name?.split(' ')[0]}
             practiceCount={user?.practiceData?.totalPractices ?? 0}
             gratitudeCount={(user?.dailyMorningPractice || user?.dailyPriming || [])
@@ -3617,6 +3554,7 @@ function AppContent() {
             onClose={() => setShowSoundMixer(false)}
             isDarkMode={isDarkMode}
             source={mixerSource}
+            onContentScroll={updateNavVisibilityForScroll}
             onSaveMix={(mix: Omit<SoundMix, 'id'>) => {
               if (user) {
                 const updatedMixes = [...(user.savedMixes || []), { ...mix, id: `mix-${Date.now()}` }];

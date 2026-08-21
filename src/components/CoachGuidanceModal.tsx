@@ -126,7 +126,7 @@ export const CoachGuidanceModal: React.FC<CoachGuidanceModalProps> = ({
                             className="py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-white/[0.08] border border-white/10 text-white/70 transition-all active:scale-[0.98]"
                         >
                             <Settings size={14} />
-                            <span>Partner</span>
+                            <span>Settings</span>
                         </button>
                     </div>
 

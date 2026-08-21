@@ -71,11 +71,13 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
 
     // Initialize edited texts from accomplishments
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the editable copy from freshly computed accomplishments, then the user mutates it independently
         setEditedTexts(accomplishments.map(a => a.text));
     }, [accomplishments]);
 
     // Stagger-reveal cards after modal mounts
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the stagger-reveal sequence each time the modal opens
         if (!isOpen) { setVisibleIndex(-1); return; }
         let i = 0;
         const interval = setInterval(() => {
@@ -240,7 +242,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                         className="text-xs font-bold uppercase tracking-[0.2em]"
                                         style={{ color: 'rgba(226,207,159,0.7)' }}
                                     >
-                                        A note from {partnerName || 'your partner'}
+                                        A note from {partnerName || 'Palante'}
                                     </span>
                                 </div>
                                 <p
@@ -308,9 +310,9 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                             </p>
                                             <ul className="space-y-2.5">
                                                 {[
-                                                    { title: 'The Progress Principle', src: 'Amabile, Harvard', body: 'Small wins are the single biggest driver of intrinsic motivation and daily mood. More than praise. More than incentives.' },
-                                                    { title: 'Self-Determination Theory', src: 'Deci & Ryan', body: 'Recognizing your own competence builds motivation that lasts. External rewards fade. This doesn\'t.' },
-                                                    { title: 'Positive recall loops', src: '', body: 'Deliberately revisiting wins strengthens the neural pathways tied to self-efficacy, making the next win more likely.' },
+                                                    { title: 'The Progress Principle', src: 'Amabile, Harvard', body: 'Small wins are among the strongest drivers of intrinsic motivation and daily mood researchers have found, often outweighing praise or incentives.' },
+                                                    { title: 'Self-Determination Theory', src: 'Deci & Ryan', body: 'Recognizing your own competence tends to build motivation that lasts longer than external rewards, which fade faster.' },
+                                                    { title: 'Positive recall loops', src: '', body: 'Deliberately revisiting wins is linked to a stronger sense of self-efficacy, which can make the next win easier to reach for.' },
                                                 ].map((item, idx) => (
                                                     <li key={idx} className="flex gap-2.5">
                                                         <span
@@ -493,7 +495,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                 className="font-body"
                                 style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}
                             >
-                                &mdash; {weeklyQuote.author}
+                                {weeklyQuote.author}
                             </p>
                         </motion.div>
 

@@ -16,6 +16,7 @@ const LOCAL_PLUGINS = [
     'PalanteHealthBridgePlugin',
     'PalanteAudioBridgePlugin',
     'PalanteWidgetBridgePlugin',
+    'PalanteAgeRangeBridgePlugin',
 ];
 
 try {

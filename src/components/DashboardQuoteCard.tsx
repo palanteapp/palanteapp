@@ -4,6 +4,7 @@ import { Share2, Heart, Clock, Settings, RefreshCw, Pin } from 'lucide-react';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import type { Quote } from '../types';
 import { ShareModal } from './ShareModal';
+import { analytics } from '../utils/analytics';
 // html2canvas removed: image generation now uses Canvas 2D API via shareUtils
 
 interface DashboardQuoteCardProps {
@@ -67,6 +68,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     const [localFavorited, setLocalFavorited] = useState<boolean | null>(null);
     const effectiveFavorited = localFavorited !== null ? localFavorited : (isFavorited ?? false);
     // Sync local back to prop whenever parent confirms the toggle
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the optimistic override once the parent's confirmed value arrives
     useEffect(() => { setLocalFavorited(null); }, [isFavorited]);
     const [showShareModal, setShowShareModal] = useState(false);
     const [gyroPermitted, setGyroPermitted] = useState(false);
@@ -109,6 +111,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
     };
 
     const handleShare = async () => {
+        analytics.quoteShared({ isAI: !!quote.isAI, category: quote.category });
         setIsGeneratingImage(true);
         try {
             const { generateShareImage } = await import('../utils/shareUtils');
@@ -246,6 +249,7 @@ export const DashboardQuoteCard: React.FC<DashboardQuoteCardProps> = ({
         const requestPermission = DOE.requestPermission;
         if (typeof requestPermission !== 'function') {
             // Android, desktop, or older iOS, events fire freely
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- feature-detects a platform API on mount, can't be known during render
             setGyroPermitted(true);
             return;
         }

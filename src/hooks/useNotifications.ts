@@ -71,6 +71,7 @@ export const useNotifications = () => {
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- checks native notification permission on mount, can't be known during render
         checkPermission();
     }, [checkPermission]);
 

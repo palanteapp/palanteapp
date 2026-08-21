@@ -3,6 +3,6 @@ export const en = {
         language: 'Language',
         languageEnglish: 'English',
         languageSpanish: 'Español',
-        languageHelp: 'Choose the language your partner writes and speaks in.',
+        languageHelp: 'Choose the language Palante writes and speaks in.',
     },
 } as const;

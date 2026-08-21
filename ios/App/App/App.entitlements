@@ -8,5 +8,9 @@
 	</array>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
+	<!-- Requires the "Declared Age Range" capability enabled for this App ID in the
+	     Apple Developer Portal before it works in TestFlight/production builds. -->
+	<key>com.apple.developer.declared-age-range</key>
+	<true/>
 </dict>
 </plist>
