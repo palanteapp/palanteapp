@@ -219,81 +219,69 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                 </div>
             )}
 
-            {/* Weekly Wins */}
-            {onOpenHighlights && (
-                <div className="mt-10">
-                    <h3 className={`text-xs font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                        Weekly Wins
-                    </h3>
-                    <button
-                        onClick={() => { haptics.light(); onOpenHighlights(); }}
-                        className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
-                        style={{ background: isDarkMode ? undefined : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(201,106,58,0.03) 100%)' }}
-                    >
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'rgba(201,106,58,0.15)' }}>
-                            <Award size={18} style={{ color: '#C96A3A' }} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <p className={`text-sm font-medium ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
-                                    This Week's Achievements
-                                </p>
-                                {highlightsBadge && (
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C96A3A' }} />
-                                )}
-                            </div>
-                            <p className={`text-xs ${isDarkMode ? 'text-white/45' : 'text-sage/45'}`}>
-                                Review your wins, your reflection, and what moved you forward.
-                            </p>
-                        </div>
-                        <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white/25' : 'text-sage/25'}`} />
-                    </button>
-                </div>
-            )}
-
-            {/* Letters to Your Future Self */}
-            {onWriteLetter && (() => {
-                const letters = user?.futureLetters ?? [];
-                const letterCount = letters.length;
-                const lastLetter = letters[letters.length - 1];
-                const lastWrittenLabel = lastLetter
-                    ? new Date(lastLetter.writtenDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
-                    : null;
-                return (
-                    <div className="mt-10">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                                Letters to Your Future Self
-                            </h3>
-                            {letterCount > 0 && (
-                                <span className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>
-                                    {letterCount} {letterCount === 1 ? 'letter' : 'letters'}
-                                </span>
-                            )}
-                        </div>
+            {/* Weekly Wins + Letters to Your Future Self: both single-row link-outs,
+                folded under one section since each card's own title already says
+                what it is — a repeated eyebrow per card was just extra scroll. */}
+            {(onOpenHighlights || onWriteLetter) && (
+                <div className="mt-10 flex flex-col gap-3">
+                    {onOpenHighlights && (
                         <button
-                            onClick={() => { haptics.light(); onWriteLetter(); }}
+                            onClick={() => { haptics.light(); onOpenHighlights(); }}
                             className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
+                            style={{ background: isDarkMode ? undefined : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(201,106,58,0.03) 100%)' }}
                         >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/12' : 'bg-[#E5D6A7]/20'}`}>
-                                <Mail size={18} color="#E5D6A7" />
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                                style={{ background: 'rgba(201,106,58,0.15)' }}>
+                                <Award size={18} style={{ color: '#C96A3A' }} />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium mb-0.5 ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
-                                    {letterCount === 0 ? 'Write your first letter' : 'Write another letter'}
-                                </p>
-                                <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
-                                    {letterCount === 0
-                                        ? 'A message from who you are now to who you\'ll become.'
-                                        : `Last written ${lastWrittenLabel}`}
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <p className={`text-sm font-medium ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
+                                        This Week's Achievements
+                                    </p>
+                                    {highlightsBadge && (
+                                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#C96A3A' }} />
+                                    )}
+                                </div>
+                                <p className={`text-xs ${isDarkMode ? 'text-white/45' : 'text-sage/45'}`}>
+                                    Review your wins, your reflection, and what moved you forward.
                                 </p>
                             </div>
-                            <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/25'}`} />
+                            <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white/25' : 'text-sage/25'}`} />
                         </button>
-                    </div>
-                );
-            })()}
+                    )}
+
+                    {onWriteLetter && (() => {
+                        const letters = user?.futureLetters ?? [];
+                        const letterCount = letters.length;
+                        const lastLetter = letters[letters.length - 1];
+                        const lastWrittenLabel = lastLetter
+                            ? new Date(lastLetter.writtenDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+                            : null;
+                        return (
+                            <button
+                                onClick={() => { haptics.light(); onWriteLetter(); }}
+                                className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
+                            >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/12' : 'bg-[#E5D6A7]/20'}`}>
+                                    <Mail size={18} color="#E5D6A7" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-medium mb-0.5 ${isDarkMode ? 'text-white/85' : 'text-sage-dark'}`}>
+                                        {letterCount === 0 ? 'Write your first letter' : 'Write another letter'}
+                                    </p>
+                                    <p className={`text-xs ${isDarkMode ? 'text-white' : 'text-sage/45'}`}>
+                                        {letterCount === 0
+                                            ? 'A message from who you are now to who you\'ll become.'
+                                            : `Last written ${lastWrittenLabel}${letterCount > 1 ? ` · ${letterCount} letters` : ''}`}
+                                    </p>
+                                </div>
+                                <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-sage/25'}`} />
+                            </button>
+                        );
+                    })()}
+                </div>
+            )}
 
             {/* Info modal: portal */}
             {createPortal(
@@ -345,7 +333,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
 
                                 <button
                                     onClick={() => { setInfoTarget(null); haptics.medium(); onNavigate(infoTarget.id); }}
-                                    className={`mt-7 w-full py-4 rounded-[2rem] font-display font-semibold text-sm uppercase tracking-widest transition-all active:scale-[0.98] bg-[#1B4332] text-white shadow-lg`}
+                                    className={`mt-7 w-full py-4 rounded-[2rem] font-display font-semibold text-sm uppercase tracking-widest transition-all active:scale-[0.98] bg-terracotta-500 text-white shadow-lg`}
                                 >
                                     Open {infoTarget.title}
                                 </button>
@@ -393,7 +381,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                         onClick={() => setShowInsightsExplainer(false)}
                         className={`w-full py-4 mt-8 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${isDarkMode
                             ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                            : 'bg-[#1B4332] text-white hover:bg-sage-600'}`}
+                            : 'bg-terracotta-500 text-white hover:bg-sage-600'}`}
                     >
                         Got it
                     </button>

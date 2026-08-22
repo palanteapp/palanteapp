@@ -2,15 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>com.apple.developer.declared-age-range</key>
+	<true/>
+	<key>com.apple.developer.healthkit</key>
+	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.move.palante</string>
 	</array>
-	<key>com.apple.developer.healthkit</key>
-	<true/>
-	<!-- Requires the "Declared Age Range" capability enabled for this App ID in the
-	     Apple Developer Portal before it works in TestFlight/production builds. -->
-	<key>com.apple.developer.declared-age-range</key>
-	<true/>
 </dict>
 </plist>

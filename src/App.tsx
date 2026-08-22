@@ -36,11 +36,12 @@ import type { RingCeremonyType } from './components/RingCeremony';
 import type { GrowthStoryData } from './utils/aiService';
 import type { YearForwardData } from './utils/yearForward';
 import { Logo } from './components/Logo';
+import { HomeNudgeCard, GradientNudgeCard } from './components/HomeNudgeCards';
 import {
   Home, TrendingUp, User as UserIcon,
   Music,
   Target, Fish, Layers,
-  CheckCircle2
+  CheckCircle2, Clock, Moon, ShieldCheck
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { CoachSettings, WeeklyReport, DailyPriming } from './types';
@@ -1924,6 +1925,29 @@ function AppContent() {
             {/* Derived helpers for Beat 3 */}
             const hasPendingGoals = (user?.dailyFocuses || []).some(f => !f.isCompleted);
             const hasAnyGoals = (user?.dailyFocuses || []).length > 0;
+
+            // ── Nudge priority queue ─────────────────────────────────────────────
+            // These promo/setup cards used to render independently of each other, so a
+            // few days into using the app it was possible to see up to 6 of them
+            // stacked back to back before reaching any real content (Mandala, Message
+            // of the Day, Goals). Resolving to a single winner keeps the same relative
+            // priority order they already rendered in, but shows at most one at a time.
+            const canShareDay1 = (user?.practiceData?.totalPractices ?? 0) === 1 && !shareDayOneDismissed;
+            const canQuickTour = (user?.practiceData?.totalPractices ?? 0) >= 1 && !quickTourDismissed;
+            const canProfileNudge = showProfileNudge;
+            const canInterests = showInterestsCard && !!user && (user.practiceData?.totalPractices ?? 0) >= 1;
+            const canPartnerDiscovery = COACH_CHAT_ENABLED && showPartnerDiscovery && !!user && (user.practiceData?.totalPractices ?? 0) >= 1;
+            const canMemoryCallback = !!continuityOpener && !!user && (user.practiceData?.totalPractices ?? 0) >= 1 && !memoryCallbackDismissed;
+            const canSignInNudge = showSignInNudge && !!user;
+            const activeHomeNudge = canShareDay1 ? 'shareDay1'
+              : canQuickTour ? 'quickTour'
+              : canProfileNudge ? 'profileNudge'
+              : canInterests ? 'interests'
+              : canPartnerDiscovery ? 'partnerDiscovery'
+              : canMemoryCallback ? 'memoryCallback'
+              : canSignInNudge ? 'signInNudge'
+              : null;
+
             return (
               <div className="min-h-screen px-6 pb-12 max-w-md mx-auto">
 
@@ -1967,7 +1991,7 @@ function AppContent() {
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-pale-gold/15 text-pale-gold' : 'bg-[#C96A3A]/10 text-[#C96A3A]'}`}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          <Clock size={14} strokeWidth={2.5} />
                         </div>
                         <div className="text-left">
                           <p className={`text-xs font-black uppercase tracking-[0.15em] mb-0.5 ${isDarkMode ? 'text-white/50' : 'text-[#C96A3A]/70'}`}>Morning Practice</p>
@@ -2009,7 +2033,7 @@ function AppContent() {
                   >
                     <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.07] border border-white/[0.10]' : 'bg-white border border-sage/20 shadow-sm'}`}>
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-pale-gold/15' : 'bg-sage/10'}`}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isDarkMode ? '#E5D6A7' : '#5A7A5C'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        <Moon size={16} color={isDarkMode ? '#E5D6A7' : '#5A7A5C'} strokeWidth={2} />
                       </div>
                       <div>
                         <p className={`text-xs font-black uppercase tracking-[0.15em] mb-0.5 ${isDarkMode ? 'text-white/50' : 'text-sage/50'}`}>Evening Practice</p>
@@ -2077,8 +2101,7 @@ function AppContent() {
 
                 {/* ── Share Day 1 card, shown once after first practice ── */}
                 <AnimatePresence>
-                  {(user?.practiceData?.totalPractices ?? 0) === 1
-                    && !shareDayOneDismissed && (
+                  {activeHomeNudge === 'shareDay1' && (
                     <motion.div
                       key="share-day1"
                       className="mb-5"
@@ -2087,46 +2110,22 @@ function AppContent() {
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.4 }}
                     >
-                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/12 shadow-sm'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Day 1 done.
-                          </p>
-                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                            Someone you know might need this too.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => {
-                              haptics.light();
-                              setShowDay1ShareModal(true);
-                            }}
-                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
-                            style={{ background: '#C96A3A' }}
-                          >
-                            Share →
-                          </button>
-                          <button
-                            onClick={() => {
-                              dismissShareDayOne();
-                              haptics.light();
-                            }}
-                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
-                            aria-label="Dismiss"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
+                      <HomeNudgeCard
+                        isDarkMode={isDarkMode}
+                        title="Day 1 done."
+                        subtitle="Someone you know might need this too."
+                        ctaLabel="Share →"
+                        onCta={() => { haptics.light(); setShowDay1ShareModal(true); }}
+                        onDismiss={() => { dismissShareDayOne(); haptics.light(); }}
+                        lightBorderOpacity="12"
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 {/* ── Quick Tour card, shown after practice 1 until dismissed ── */}
                 <AnimatePresence>
-                  {(user?.practiceData?.totalPractices ?? 0) >= 1
-                    && !quickTourDismissed && (
+                  {activeHomeNudge === 'quickTour' && (
                     <motion.div
                       key="quick-tour"
                       className="mb-5"
@@ -2135,39 +2134,21 @@ function AppContent() {
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.35 }}
                     >
-                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Here's what's inside
-                          </p>
-                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                            Daily messages, garden, dispatch, and more. A quick look at everything available to you.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => { dismissQuickTour(); setShowWelcomeOrientation(true); }}
-                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
-                            style={{ background: '#C96A3A' }}
-                          >
-                            Take a look →
-                          </button>
-                          <button
-                            onClick={dismissQuickTour}
-                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
-                            aria-label="Dismiss"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
+                      <HomeNudgeCard
+                        isDarkMode={isDarkMode}
+                        title="Here's what's inside"
+                        subtitle="Daily messages, garden, dispatch, and more. A quick look at everything available to you."
+                        ctaLabel="Take a look →"
+                        onCta={() => { dismissQuickTour(); setShowWelcomeOrientation(true); }}
+                        onDismiss={dismissQuickTour}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 {/* ── Profile completion nudge (after first practice) ── */}
                 <AnimatePresence>
-                  {showProfileNudge && (
+                  {activeHomeNudge === 'profileNudge' && (
                     <motion.div
                       key="profile-nudge"
                       className="mb-5"
@@ -2176,32 +2157,15 @@ function AppContent() {
                       exit={{ opacity: 0, y: 10 }}
                       transition={{ duration: 0.4 }}
                     >
-                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Make it yours
-                          </p>
-                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                            Tell Palante about yourself so every message fits exactly where you are.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => { dismissProfileNudge(); setShowProfile(true); }}
-                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
-                            style={{ background: '#C96A3A' }}
-                          >
-                            Set up →
-                          </button>
-                          <button
-                            onClick={dismissProfileNudge}
-                            className={`text-xs p-1 ${isDarkMode ? 'text-white' : 'text-sage'}`}
-                            aria-label="Dismiss"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
+                      <HomeNudgeCard
+                        isDarkMode={isDarkMode}
+                        variant="full"
+                        title="Make it yours"
+                        subtitle="Tell Palante about yourself so every message fits exactly where you are."
+                        ctaLabel="Set up →"
+                        onCta={() => { dismissProfileNudge(); setShowProfile(true); }}
+                        onDismiss={dismissProfileNudge}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2209,7 +2173,7 @@ function AppContent() {
                 {/* ── Personalize-your-content card, replaces the old first-run interests modal.
                     Deferred until partner discovery card is dismissed to avoid setup-card pile-up. ── */}
                 <AnimatePresence>
-                  {showInterestsCard && !showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                  {activeHomeNudge === 'interests' && (
                     <motion.div
                       key="interests-card"
                       className="mb-5"
@@ -2218,32 +2182,15 @@ function AppContent() {
                       exit={{ opacity: 0, y: 10 }}
                       transition={{ duration: 0.4 }}
                     >
-                      <div className={`rounded-2xl px-5 py-4 flex items-center gap-4 ${isDarkMode ? 'bg-white/[0.06] border border-white/[0.10]' : 'bg-white border border-[#C96A3A]/10 shadow-sm'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold mb-0.5 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                            Make your content fit
-                          </p>
-                          <p className={`text-xs leading-snug ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                            Tell Palante what you're into and your daily words will follow.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => { haptics.light(); setShowPostPracticeSetup(true); }}
-                            className="px-3 py-2 rounded-xl text-xs font-bold text-white"
-                            style={{ background: '#C96A3A' }}
-                          >
-                            Personalize →
-                          </button>
-                          <button
-                            onClick={dismissInterestsCard}
-                            className={`text-xs p-1 ${isDarkMode ? 'text-white' : 'text-sage'}`}
-                            aria-label="Dismiss"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
+                      <HomeNudgeCard
+                        isDarkMode={isDarkMode}
+                        variant="full"
+                        title="Make your content fit"
+                        subtitle="Tell Palante what you're into and your daily words will follow."
+                        ctaLabel="Personalize →"
+                        onCta={() => { haptics.light(); setShowPostPracticeSetup(true); }}
+                        onDismiss={dismissInterestsCard}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2252,7 +2199,7 @@ function AppContent() {
                     Gated behind COACH_CHAT_ENABLED (shelved for the Oct 2026 release) — the card is
                     kept intact, not deleted, so it's a clean re-enable later. ── */}
                 <AnimatePresence>
-                  {COACH_CHAT_ENABLED && showPartnerDiscovery && user && (user.practiceData?.totalPractices ?? 0) >= 1 && (
+                  {user && activeHomeNudge === 'partnerDiscovery' && (
                     <motion.div
                       key="partner-discovery"
                       className="mb-5"
@@ -2261,41 +2208,15 @@ function AppContent() {
                       exit={{ opacity: 0, y: 10 }}
                       transition={{ duration: 0.4 }}
                     >
-                      <div
-                        className="rounded-2xl px-5 py-4"
-                        style={{
-                          background: isDarkMode
-                            ? 'linear-gradient(135deg, rgba(201,106,58,0.18) 0%, rgba(65,93,67,0.40) 100%)'
-                            : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(250,247,243,1) 100%)',
-                          border: isDarkMode ? '1px solid rgba(201,106,58,0.30)' : '1px solid rgba(201,106,58,0.20)',
-                        }}
-                      >
-                        <p className={`text-xs font-black uppercase tracking-[0.18em] mb-1`} style={{ color: isDarkMode ? '#FFFFFF' : '#C96A3A' }}>
-                          Your Partner
-                        </p>
-                        <p className={`text-sm font-bold mb-1 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                          {user.coachName || 'Your partner'} remembers everything you just shared.
-                        </p>
-                        <p className={`text-xs leading-relaxed mb-3 ${isDarkMode ? 'text-white/60' : 'text-sage/60'}`}>
-                          Ask a question, go deeper on your intention, or just talk. They're here between practices too.
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => { haptics.light(); dismissPartnerDiscovery(); setActiveTab('coach'); }}
-                            className="px-4 py-2 rounded-xl text-xs font-bold text-white"
-                            style={{ background: '#C96A3A' }}
-                          >
-                            Talk to {user.coachName || 'your partner'} →
-                          </button>
-                          <button
-                            onClick={() => { haptics.light(); dismissPartnerDiscovery(); }}
-                            className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
-                            aria-label="Dismiss"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
+                      <GradientNudgeCard
+                        isDarkMode={isDarkMode}
+                        eyebrow="Your Partner"
+                        title={`${user.coachName || 'Your partner'} remembers everything you just shared.`}
+                        body="Ask a question, go deeper on your intention, or just talk. They're here between practices too."
+                        ctaLabel={`Talk to ${user.coachName || 'your partner'} →`}
+                        onCta={() => { haptics.light(); dismissPartnerDiscovery(); setActiveTab('coach'); }}
+                        onDismiss={() => { haptics.light(); dismissPartnerDiscovery(); }}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2308,7 +2229,7 @@ function AppContent() {
                     Shelved for the Oct 2026 release via the single COACH_CHAT_ENABLED
                     check inside useContinuityOpener itself (continuityOpener is always
                     null while the flag is off), so no separate gate is needed here. ── */}
-                {continuityOpener && user && (user.practiceData?.totalPractices ?? 0) >= 1 && !showPartnerDiscovery && !showSignInNudge && !memoryCallbackDismissed && (
+                {user && activeHomeNudge === 'memoryCallback' && (
                   <motion.div
                     key="memory-callback"
                     className="mb-5"
@@ -2316,44 +2237,21 @@ function AppContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4 }}
                   >
-                    <div
-                      className="rounded-2xl px-5 py-4"
-                      style={{
-                        background: isDarkMode
-                          ? 'linear-gradient(135deg, rgba(201,106,58,0.18) 0%, rgba(65,93,67,0.40) 100%)'
-                          : 'linear-gradient(135deg, rgba(201,106,58,0.08) 0%, rgba(250,247,243,1) 100%)',
-                        border: isDarkMode ? '1px solid rgba(201,106,58,0.30)' : '1px solid rgba(201,106,58,0.20)',
-                      }}
-                    >
-                      <p className="text-xs font-black uppercase tracking-[0.18em] mb-1.5" style={{ color: isDarkMode ? '#FFFFFF' : '#C96A3A' }}>
-                        {user.coachName || 'Your partner'}
-                      </p>
-                      <p className={`text-sm font-bold mb-3 leading-snug ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                        {continuityOpener}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { haptics.light(); dismissMemoryCallback(); practiceOriginRef.current = activeTab; setActiveTab('coach'); }}
-                          className="px-4 py-2 rounded-xl text-xs font-bold text-white"
-                          style={{ background: '#C96A3A' }}
-                        >
-                          Continue with {user.coachName || 'your partner'} →
-                        </button>
-                        <button
-                          onClick={() => { haptics.light(); dismissMemoryCallback(); }}
-                          className={`text-xs p-1 ${isDarkMode ? 'text-white/40' : 'text-sage/40'}`}
-                          aria-label="Dismiss"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
+                    <GradientNudgeCard
+                      isDarkMode={isDarkMode}
+                      eyebrow={user.coachName || 'Your partner'}
+                      title={continuityOpener}
+                      ctaLabel={`Continue with ${user.coachName || 'your partner'} →`}
+                      onCta={() => { haptics.light(); dismissMemoryCallback(); practiceOriginRef.current = activeTab; setActiveTab('coach'); }}
+                      onDismiss={() => { haptics.light(); dismissMemoryCallback(); }}
+                    />
                   </motion.div>
                 )}
 
                 {/* ── Profile completion card, persistent until 90% complete or dismissed 3x.
-                    Suppressed while partner discovery or sign-in nudge is active. ── */}
-                {user && (user.practiceData?.totalPractices ?? 0) >= 1 && !showPartnerDiscovery && !showSignInNudge && (
+                    Suppressed while any other Home nudge is active, so it never stacks
+                    with the "Make it yours" prompt or the other promo cards above. ── */}
+                {user && (user.practiceData?.totalPractices ?? 0) >= 1 && activeHomeNudge === null && (
                   <Suspense fallback={null}>
                     <ProfileCompletionCard
                       user={user}
@@ -2365,7 +2263,7 @@ function AppContent() {
 
                 {/* ── Sign-in nudge, shown after 2+ sessions with no account ── */}
                 <AnimatePresence>
-                  {showSignInNudge && user && (
+                  {user && activeHomeNudge === 'signInNudge' && (
                     <motion.div
                       key="signin-nudge"
                       className="mb-5"
@@ -2377,7 +2275,7 @@ function AppContent() {
                       <div className={`rounded-2xl px-5 py-4 border ${isDarkMode ? 'bg-terracotta-500/15 border-terracotta-500/30' : 'bg-[#C96A3A]/8 border-[#C96A3A]/20 shadow-sm'}`}>
                         <div className="flex items-start gap-3">
                           <div className="text-[#C96A3A] mt-0.5 shrink-0">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            <ShieldCheck size={18} strokeWidth={2} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>

@@ -190,40 +190,56 @@ export const Momentum: React.FC<MomentumProps> = ({
                 </div>
             </div>
 
-            {/* ── Today's Intention + Total Practices Hero ── */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                {/* Today's Intention */}
-                <div className={`relative rounded-2xl p-5 overflow-hidden min-w-0 ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
-                    <div className="flex flex-col items-start mb-3 gap-1.5">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
-                            <GoalIcon size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+            {/* Coach Card - Premium Glass */}
+            <div className="mb-5">
+                <CoachCard
+                    userName={user.name}
+                    focusCount={dailyFocuses.length}
+                    completedCount={completedCount}
+                    isDarkMode={isDarkMode}
+                    totalPractices={user.practiceData?.totalPractices || 0}
+                    lastActivityDate={user.practiceData?.lastActivityDate || user.lastGoalCompletionDate}
+                    onShowTip={onShowTip}
+                />
+            </div>
+
+            {/* ── Today's Intention + Total Practices (merged card) ── */}
+            <div className={`relative rounded-2xl p-5 mb-5 overflow-hidden flex items-stretch gap-4 ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                {/* Intention */}
+                <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
+                            <GoalIcon size={14} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
                         <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
                     </div>
                     <p
-                        className={`font-display font-bold leading-tight mb-0.5 break-words ${(todaysIntention?.length ?? 0) > 14 ? 'text-base' : 'text-xl'} ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}
+                        className={`font-display font-bold leading-tight break-words ${(todaysIntention?.length ?? 0) > 20 ? 'text-base' : 'text-xl'} ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}
                     >
                         {todaysIntention || 'Not set'}
                     </p>
-                    <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                    <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         today's word
-                    </p>
+                    </span>
                 </div>
 
-                {/* Total Practices */}
-                <div className={`relative rounded-2xl p-5 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
-                    <div className="flex flex-col items-start mb-3 gap-1.5">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
-                            <TrendingUp size={18} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                {/* Divider */}
+                <div className="w-px flex-shrink-0" style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(53,94,59,0.12)' }} />
+
+                {/* Practices */}
+                <div className="flex-shrink-0 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
+                            <TrendingUp size={14} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
                         </div>
                         <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Practices</span>
                     </div>
-                    <p className={`text-4xl font-display font-bold leading-none mb-0.5 ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                    <p className={`text-xl font-display font-bold leading-tight ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
                         {(user.practiceData?.totalPractices || 0).toLocaleString()}
                     </p>
-                    <p className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                    <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
                         completed
-                    </p>
+                    </span>
                 </div>
             </div>
 
@@ -231,7 +247,7 @@ export const Momentum: React.FC<MomentumProps> = ({
             {yearForwardReady && onOpenYearForward && (
                 <button
                     onClick={() => { haptics.medium(); onOpenYearForward(); }}
-                    className="w-full rounded-2xl px-5 py-4 mb-6 flex items-center gap-4 text-left transition-all active:scale-[0.98] relative overflow-hidden"
+                    className="w-full rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 text-left transition-all active:scale-[0.98] relative overflow-hidden"
                     style={{
                         background: isDarkMode
                             ? 'linear-gradient(135deg, rgba(201,106,58,0.18), rgba(229,214,167,0.06))'
@@ -258,7 +274,7 @@ export const Momentum: React.FC<MomentumProps> = ({
             {(user.practiceData?.totalPractices || 0) < 30 && (
                 <button
                     onClick={() => onOpenKoiPond?.()}
-                    className={`w-full rounded-2xl px-5 py-3 mb-6 flex items-center gap-3 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}
+                    className={`w-full rounded-2xl px-5 py-3 mb-5 flex items-center gap-3 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}
                 >
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#4A7050]/40' : 'bg-[#4A7050]/15'}`}>
                         <Fish size={16} color={isDarkMode ? '#7AAD80' : '#4A7050'} />
@@ -285,19 +301,6 @@ export const Momentum: React.FC<MomentumProps> = ({
                     </div>
                 </button>
             )}
-
-            {/* Coach Card - Premium Glass */}
-            <div className="mb-10">
-                <CoachCard
-                    userName={user.name}
-                    focusCount={dailyFocuses.length}
-                    completedCount={completedCount}
-                    isDarkMode={isDarkMode}
-                    totalPractices={user.practiceData?.totalPractices || 0}
-                    lastActivityDate={user.practiceData?.lastActivityDate || user.lastGoalCompletionDate}
-                    onShowTip={onShowTip}
-                />
-            </div>
 
             {/* 1. Active Goals Management */}
             <div className="mb-10">

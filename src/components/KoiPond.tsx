@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { readJSON } from '../utils/safeStorage';
-import { Settings, X, Volume2, VolumeX, Eye, EyeOff } from 'lucide-react';
+import { Settings, X, Volume2, VolumeX, Eye, EyeOff, HelpCircle, Fish as FishIcon } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { haptics } from '../utils/haptics';
 import { RippleLayer, type RippleLayerRef } from './RippleLayer';
+import { SlideUpModal } from './SlideUpModal';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SOUND_SOURCES } from '../constants/soundSources';
 import { isSynthSound, getSynthLoopBlobUrl, SYNTH_SOUNDS } from '../utils/synthSounds';
@@ -238,6 +239,30 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         const hideTimer = setTimeout(() => setShowEmptyHint(false), 11800);
         return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
     }, [earnedKoi]);
+
+    // Persistent "Help" affordance, same pattern as Sound Scapes' — a fading ambient
+    // hint alone wasn't discoverable enough, so this is the always-there way in.
+    const [showHelp, setShowHelp] = useState(false);
+
+    // One-time-ever hint teaching the tap-to-feed gesture: nothing on this screen
+    // otherwise signals that the water itself is tappable, and "Observe and relax"
+    // arguably suggests the opposite. Shown once, the first time there's a fish to
+    // feed; dismissed either by its own timeout or the moment the user actually taps.
+    const [showFeedHint, setShowFeedHint] = useState(false);
+    const dismissFeedHint = () => {
+        localStorage.setItem('koiFeedHintSeen', 'true');
+        setShowFeedHint(false);
+    };
+    useEffect(() => {
+        if (!earnedKoi || localStorage.getItem('koiFeedHintSeen')) return;
+        const showTimer = setTimeout(() => setShowFeedHint(true), 1800);
+        return () => clearTimeout(showTimer);
+    }, [earnedKoi]);
+    useEffect(() => {
+        if (!showFeedHint) return;
+        const hideTimer = setTimeout(dismissFeedHint, 8000);
+        return () => clearTimeout(hideTimer);
+    }, [showFeedHint]);
 
 
     // Fish State (Required for Mounting DOM Elements)
@@ -970,6 +995,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
     const handleTouchStart = (e: React.TouchEvent) => {
         haptics.light();
+        if (showFeedHint) dismissFeedHint();
         const touches = e.touches;
 
         if (showFeeding && touches.length === 1) {
@@ -1001,6 +1027,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return; // Only left click
+        if (showFeedHint) dismissFeedHint();
 
         const x = e.clientX;
         const y = e.clientY;
@@ -1408,13 +1435,20 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             </div>
 
             {/* Controls Text Only */}
-            <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-40 text-center pointer-events-none transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center text-center pointer-events-none transition-opacity duration-500 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
                 <h1 className={`text-2xl font-display font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
                     Koi Pond
                 </h1>
                 <p className={`text-sm mt-1 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>
                     {earnedKoi ? 'Observe and relax' : 'Your pond is alive'}
                 </p>
+                <button
+                    onClick={() => setShowHelp(true)}
+                    className={`pointer-events-auto flex items-center gap-1 px-2.5 py-1 rounded-full border transition-all duration-300 ${isDarkMode ? 'border-white/10 text-white/70 hover:text-white hover:bg-white/10' : 'border-sage/20 text-sage/70 hover:text-sage hover:bg-sage/10'}`}
+                >
+                    <HelpCircle size={12} />
+                    <span className="text-xs font-medium">How it Works</span>
+                </button>
             </div>
 
             {/* ── EMPTY STATE, ambient bottom hint, fades in then auto-hides ── */}
@@ -1440,6 +1474,28 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             Day {streak}
                         </span>
                     </div>
+                </div>
+            )}
+
+            {/* ── One-time tap-to-feed hint, same fade treatment as the empty-state hint above ── */}
+            {earnedKoi && (
+                <div
+                    className="fixed bottom-28 inset-x-0 z-[45] flex justify-center pointer-events-none px-8"
+                    style={{
+                        opacity: showFeedHint ? 1 : 0,
+                        transition: 'opacity 1.4s ease-in-out',
+                    }}
+                >
+                    <span
+                        className="text-sm font-medium tracking-widest uppercase text-center"
+                        style={{
+                            letterSpacing: '0.12em',
+                            color: 'rgba(229,214,167,0.38)',
+                            textShadow: '0 1px 8px rgba(0,0,0,0.4)',
+                        }}
+                    >
+                        Tap the water to feed your fish
+                    </span>
                 </div>
             )}
 
@@ -1526,6 +1582,32 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     </div>
                 </div>
             )}
+
+            <SlideUpModal isOpen={showHelp} onClose={() => setShowHelp(false)} isDarkMode={isDarkMode} title="How to Use">
+                <div className={`p-8 pb-12 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                    <div className="flex flex-col items-center text-center mb-8">
+                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mb-4 ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`}>
+                            <FishIcon size={32} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
+                        </div>
+                        <h3 className="text-3xl font-display font-medium mb-2">Koi Pond</h3>
+                        <p className={`text-sm uppercase tracking-widest font-bold ${isDarkMode ? 'text-white' : 'text-sage-dark/60'}`}>A Living Reward</p>
+                    </div>
+                    <div className={`space-y-4 mb-8 text-sm leading-relaxed font-body ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
+                        <p>Your pond grows and changes as your practice does. Here's what you can do with it.</p>
+                        <ul className="space-y-3 list-none">
+                            <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>01.</span> Tap or click the water to feed your fish and send out ripples.</li>
+                            <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>02.</span> Use the gear icon to show or hide fish, lily pads, lotus, particles, and rain.</li>
+                            <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>03.</span> More koi arrive as your streak and total practices grow.</li>
+                        </ul>
+                    </div>
+                    <button
+                        onClick={() => setShowHelp(false)}
+                        className={`w-full py-5 rounded-[2.5rem] font-black text-xs tracking-widest uppercase shadow-lg ${isDarkMode ? 'bg-pale-gold text-sage-dark shadow-pale-gold/10' : 'bg-terracotta-500 text-white shadow-terracotta-500/20'}`}
+                    >
+                        Back to the Pond
+                    </button>
+                </div>
+            </SlideUpModal>
         </div>
     );
 };

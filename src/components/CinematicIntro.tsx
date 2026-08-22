@@ -235,7 +235,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.52 }}
                         >
-                            Move forward, with intention.
+                            Move forward with intention.
                         </motion.p>
 
                         {/* CTA */}

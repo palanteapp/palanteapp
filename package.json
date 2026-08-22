@@ -17,7 +17,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "sync:ios": "npx cap sync ios && node scripts/patch-capacitor-config.cjs"
+    "sync:ios": "LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx cap sync ios && node scripts/patch-capacitor-config.cjs"
   },
   "dependencies": {
     "@babel/core": "^7.29.0",

@@ -38,26 +38,28 @@ export const WeeklyInsightsCard: React.FC<WeeklyInsightsCardProps> = ({ user, is
     const textPrimary = isDarkMode ? 'text-white' : 'text-sage-dark';
     const textSecondary = isDarkMode ? 'text-white' : 'text-sage-dark/60';
 
+    // Before any insights exist, this is really just another link row — same shape
+    // (boxed icon, title/subtitle, chevron) as the cards it sits next to in Explore,
+    // so it doesn't read as a mismatched, more heavily-padded block above them.
     if (insights.length === 0) {
         return (
             <div
                 onClick={onClick}
-                className={`w-full p-6 rounded-2xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'} ${onClick ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99] hover:bg-white/10' : ''}`}
+                className={`w-full rounded-2xl px-5 py-4 flex items-center gap-4 text-left transition-all ${onClick ? 'active:scale-[0.98] cursor-pointer' : ''} ${isDarkMode ? 'glass-surface border border-white/10 hover:border-white/20' : 'bg-white/70 border border-sage/15 shadow-sm hover:shadow-md'}`}
             >
-                <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp size={20} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
-                    <h3 className={`text-lg font-display font-medium ${textPrimary}`}>
-                        Weekly Insights
-                    </h3>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-pale-gold/12' : 'bg-sage/15'}`}>
+                    <TrendingUp size={18} className={isDarkMode ? 'text-pale-gold' : 'text-sage'} />
                 </div>
-                <p className={`text-sm ${textSecondary}`}>
-                    Keep using Palante to unlock personalized insights about your productivity patterns!
-                </p>
+                <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium mb-0.5 ${textPrimary}`}>
+                        Weekly Insights
+                    </p>
+                    <p className={`text-xs ${textSecondary}`}>
+                        Keep using Palante to unlock personalized insights about your productivity patterns!
+                    </p>
+                </div>
                 {onClick && (
-                    <div className={`mt-3 text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
-                        <span>See What's Coming</span>
-                        <ChevronRight size={12} />
-                    </div>
+                    <ChevronRight size={16} className={`flex-shrink-0 ${isDarkMode ? 'text-white/25' : 'text-sage/25'}`} />
                 )}
             </div>
         );

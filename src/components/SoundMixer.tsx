@@ -923,17 +923,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             <div className={`px-4 md:px-8 py-4 md:py-6 flex flex-col md:flex-row items-center justify-between z-10 border-b border-white/5 bg-white/5 backdrop-blur-md gap-4`}>
                 <div className="flex items-center justify-between w-full md:w-auto">
                     <div className="relative">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Sound Scapes</h2>
-                            <button
-                                onClick={() => setShowHelp(!showHelp)}
-                                aria-label="Show help"
-                                className="p-1.5 rounded-full hover:bg-white/10 text-white hover:text-white transition-all duration-300"
-                                title="Show Help"
-                            >
-                                <HelpCircle size={14} />
-                            </button>
-                        </div>
+                        <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Sound Scapes</h2>
                         <div className="flex items-center gap-2.5 mt-0.5">
                             <div className="flex gap-1">
                                 {[...Array(3)].map((_, i) => (
@@ -944,6 +934,13 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                 {activeSounds.size > 0 ? `${activeSounds.size} ACTIVE` : 'READY'}
                             </p>
                         </div>
+                        <button
+                            onClick={() => setShowHelp(!showHelp)}
+                            className="mt-2 flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
+                        >
+                            <HelpCircle size={12} />
+                            <span className="text-xs font-medium">How it Works</span>
+                        </button>
                     </div>
 
                     <div className="flex md:hidden items-center gap-2">
