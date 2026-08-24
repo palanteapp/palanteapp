@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { analytics } from '../utils/analytics';
+import { ENTRANCE_EASE, STAGGER } from '../constants/motion';
 
 // ─── Feature list ─────────────────────────────────────────────────────────────
 // Written as outcomes the user lives, not features the app has.
@@ -171,21 +172,26 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
             {onDismiss && (
                 <button
                     onClick={onDismiss}
-                    className="absolute top-12 right-5 z-10 p-2 rounded-full"
-                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                    className="absolute right-5 z-10 p-2 rounded-full"
+                    style={{ background: 'rgba(255,255,255,0.08)', top: 'calc(env(safe-area-inset-top) + 0.5rem)' }}
                     aria-label="Close"
                 >
                     <X size={18} color="#FAF7F3" />
                 </button>
             )}
 
-            <div className="flex-1 overflow-y-auto px-6 pt-14 pb-10">
+            {/* pt-14 was a fixed 56px guess at the status bar; on a Dynamic Island phone the
+                mandala rode up under it. Offset from env(safe-area-inset-top) instead. */}
+            <div
+                className="flex-1 overflow-y-auto px-6 pb-10"
+                style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+            >
 
                 {/* Mandala */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.7 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    transition={{ duration: 0.9, ease: ENTRANCE_EASE }}
                     className="flex justify-center mb-7"
                 >
                     <GhostMandala filledRings={filledRings} />
@@ -196,7 +202,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                     <motion.div
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15, duration: 0.5 }}
+                        transition={{ delay: STAGGER.base, duration: 0.5, ease: ENTRANCE_EASE }}
                         className="flex justify-center gap-4 mb-5"
                     >
                         {[
@@ -208,7 +214,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                                 className="flex flex-col items-center px-5 py-2 rounded-xl"
                                 style={{ background: 'rgba(201,106,58,0.1)', border: '1px solid rgba(201,106,58,0.2)' }}
                             >
-                                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#C96A3A', fontSize: '20px', lineHeight: 1.1 }}>
+                                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#C96A3A', fontSize: '30px', lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>
                                     {value}
                                 </span>
                                 <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 400, color: 'rgba(250,247,243,0.5)', fontSize: '11px', marginTop: 2 }}>
@@ -223,7 +229,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                 <motion.div
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2, duration: 0.5 }}
+                    transition={{ delay: STAGGER.base * 2, duration: 0.5, ease: ENTRANCE_EASE }}
                     className="text-center mb-7"
                 >
                     <h1
@@ -249,7 +255,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                 <motion.div
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.5 }}
+                    transition={{ delay: STAGGER.base * 3, duration: 0.5, ease: ENTRANCE_EASE }}
                     className="rounded-2xl p-5 mb-6"
                     style={{ background: 'rgba(250,247,243,0.05)', border: '1px solid rgba(229,214,167,0.15)' }}
                 >
@@ -275,7 +281,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                 <motion.div
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.38, duration: 0.5 }}
+                    transition={{ delay: STAGGER.base * 4, duration: 0.5, ease: ENTRANCE_EASE }}
                     className="mb-3"
                 >
                     <div className="flex justify-center mb-2">
@@ -323,7 +329,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                 <motion.div
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.44, duration: 0.5 }}
+                    transition={{ delay: STAGGER.base * 5, duration: 0.5, ease: ENTRANCE_EASE }}
                     className="mb-6"
                 >
                     <button
@@ -363,7 +369,7 @@ export function PaywallScreen({ onDismiss, onShowPrivacy, onShowTerms, firstName
                     <motion.div
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5, duration: 0.4 }}
+                        transition={{ delay: STAGGER.base * 6, duration: 0.4, ease: ENTRANCE_EASE }}
                         className="mb-5 rounded-xl px-4 py-3 flex items-start gap-3"
                         style={{ background: 'rgba(250,247,243,0.06)', border: '1px solid rgba(250,247,243,0.10)' }}
                     >

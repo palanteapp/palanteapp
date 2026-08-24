@@ -27,7 +27,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
     const tabInactiveBg = isDarkMode ? 'bg-white/5 border-white/10' : 'bg-sage-mid/5 border-sage-dark/10';
 
     return (
-        <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode} showCloseButton={false}>
+        <SlideUpModal isOpen={isOpen} onClose={onClose} isDarkMode={isDarkMode} showCloseButton={false} emphasis="present">
             <div className={`flex flex-col h-full ${bgClass} ${textPrimary}`}>
                 {/* Header */}
                 <div className="sticky top-0 z-10 backdrop-blur-xl bg-inherit/95 border-b border-white/10 px-6 pt-4 pb-4">

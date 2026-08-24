@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { haptics } from '../utils/haptics';
+import { ENTRANCE_EASE, SHEET_SPRING, STAGGER } from '../constants/motion';
 
 export type EssentialToolId =
     | 'breath' | 'meditate' | 'soundscapes' | 'toolkit';
@@ -180,12 +181,12 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                             key={id}
                             initial={{ opacity: 0, y: 12 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.06, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            transition={{ delay: i * STAGGER.base, duration: 0.35, ease: ENTRANCE_EASE }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => { haptics.medium(); onNavigate(id); }}
                             className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-5 px-2 rounded-[2rem] border transition-all ${
                                 isDarkMode
-                                    ? 'bg-[#1B4332]/50 border-white/10 shadow-xl backdrop-blur-md hover:bg-[#1B4332]/70'
+                                    ? 'bg-sage-dark/50 border-white/10 shadow-xl backdrop-blur-md hover:bg-sage-dark/70'
                                     : 'bg-white/60 border-sage/10 shadow-spa backdrop-blur-md hover:bg-sage/5'
                             }`}
                         >
@@ -224,7 +225,7 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                 initial={{ y: 60, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 exit={{ y: 60, opacity: 0 }}
-                                transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+                                transition={SHEET_SPRING}
                                 className="w-full max-w-md rounded-t-[3rem] overflow-hidden relative shadow-2xl"
                                 style={{ background: '#415D43', paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}
                                 onClick={(e) => e.stopPropagation()}

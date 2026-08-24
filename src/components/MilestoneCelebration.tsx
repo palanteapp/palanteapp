@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, Flame, Trophy, Award, PartyPopper, Compass } from 'lucide-react';
 import { triggerConfetti } from '../utils/CelebrationEffects';
 import { haptics } from '../utils/haptics';
 import { getMilestoneDetails, getStreakMilestoneDetails } from '../utils/practiceUtils';
+import { SHEET_SPRING } from '../constants/motion';
 
 const getMilestoneIcon = (iconName: string, size = 96) => {
     switch (iconName) {
@@ -33,15 +35,18 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
     // would have crashed the celebration.
     useEffect(() => {
         if (!isOpen) return;
-        triggerConfetti();
+        // Haptic lands immediately; confetti and the success chime arrive together
+        // a beat later. All three landing in the same instant read as a pile of
+        // unrelated cues rather than one composed arrival.
         haptics.success();
-        // Optional: Play success sound
-        const audio = new Audio('/success.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
+        const t = setTimeout(() => {
+            triggerConfetti();
+            const audio = new Audio('/success.mp3');
+            audio.volume = 0.3;
+            audio.play().catch(() => {});
+        }, 100);
+        return () => clearTimeout(t);
     }, [isOpen]);
-
-    if (!isOpen) return null;
 
     // getMilestoneDetails has no fallback for an unknown key, so it returns undefined for a
     // missing milestone and the first property read below would throw. That is reachable:
@@ -51,20 +56,32 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
         ? getStreakMilestoneDetails(streakDays)
         : milestone && getMilestoneDetails(milestone);
 
-    if (!finalDetails) return null;
-
     // Streak milestones carry their count in streakDays; practice milestones carry it in
     // details.days. Exactly one of the two is set on any given branch, and the `|| 0` is
     // only there to satisfy the type, not because a zero is reachable.
-    const displayDays = streakDays || finalDetails.days || 0;
+    const displayDays = streakDays || finalDetails?.days || 0;
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fade-in">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={onClose} />
+        <AnimatePresence>
+            {isOpen && finalDetails && (
+                <motion.div
+                    className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={onClose} />
 
-            {/* Modal Container */}
-            <div className="relative z-10 w-full max-w-md bg-gradient-to-br from-[#1B4332] to-[#2a3025] rounded-[2.5rem] overflow-hidden shadow-2xl animate-slide-up border border-white/10">
+                    {/* Modal Container */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 24, scale: 0.96 }}
+                        transition={SHEET_SPRING}
+                        className="relative z-10 w-full max-w-md bg-gradient-to-br from-sage-dark to-[#2a3025] rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10"
+                    >
                 {/* Close button */}
                 <button
                     onClick={onClose}
@@ -147,7 +164,9 @@ export const MilestoneCelebration: React.FC<MilestoneCelebrationProps> = ({
                         <span>Share Visual Card</span>
                     </button>
                 </div>
-            </div>
-        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 };

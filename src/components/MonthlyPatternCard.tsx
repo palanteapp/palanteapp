@@ -69,7 +69,7 @@ export const MonthlyPatternCard: React.FC<MonthlyPatternCardProps> = ({
                 className="relative w-full mb-6 overflow-hidden rounded-3xl"
             >
                 {/* Rich dark background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#1B4332] via-[#1F3824] to-[#0f2419]" />
+                <div className="absolute inset-0 bg-gradient-to-br from-sage via-sage-dark to-[#0f2419]" />
 
                 {/* Decorative glows */}
                 <div className="absolute top-0 right-0 w-48 h-48 bg-pale-gold/10 rounded-full blur-3xl -translate-y-1/3 translate-x-1/3 pointer-events-none" />

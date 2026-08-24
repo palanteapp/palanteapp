@@ -12,6 +12,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { createPortal } from 'react-dom';
 import { haptics } from '../utils/haptics';
 import { WeeklyInsightsCard } from './WeeklyInsightsCard';
+import { PageHeader } from './PageHeader';
 import { SlideUpModal } from './SlideUpModal';
 import type { UserProfile } from '../types';
 
@@ -173,15 +174,15 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
     const textMuted   = isDarkMode ? 'text-white' : 'text-sage/55';
     const overlayBg   = isDarkMode ? 'bg-[#0f1f15]/96' : 'bg-ivory/97';
 
+    // px-5 was the odd gutter out: Progress and Home both use px-6, so the tab
+    // bar's content edge shifted by 4px as you swiped between tabs.
     return (
-        <div className="px-5 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
-            {/* Header */}
-            <div className="mb-8 px-1">
-                <h2 className={`font-display font-medium text-3xl ${textPrimary}`}>Explore</h2>
-                <p className={`text-xs uppercase tracking-[0.25em] font-black mt-1 ${textMuted}`}>
-                    The art of moving forward
-                </p>
-            </div>
+        <div className="px-6 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
+            {/* Header — shared PageHeader pattern (see PageHeader.tsx) */}
+            <PageHeader
+                title="Explore"
+                eyebrow={<span>The art of moving forward</span>}
+            />
 
             {/* Sortable practice cards */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -211,7 +212,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
             {(user || onOpenHighlights || onWriteLetter) && (
                 <div className="mt-10">
                     <h3 className={`text-lg font-display font-medium mb-4 ${textPrimary}`}>
-                        Weekly Insights
+                        Reflections
                     </h3>
                     <div className="flex flex-col gap-3">
                     {user && (

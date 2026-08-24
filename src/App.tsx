@@ -231,14 +231,18 @@ function AppContent() {
       if (!q) return;
       setDailyQuote(q);
       localStorage.setItem(STORAGE_KEYS.DAILY_QUOTE, JSON.stringify(q));
-      localStorage.setItem(STORAGE_KEYS.QUOTE_DATE, new Date().toISOString().split('T')[0]);
+      localStorage.setItem(STORAGE_KEYS.QUOTE_DATE, getTodayDate());
       if (force) haptics.light();
     };
 
     // When the user has an active daily intention and prefers AI or mix, generate a
-    // personalized affirmation instead of pulling from the static pool.
+    // personalized affirmation instead of pulling from the static pool. Local date:
+    // dailyPriming entries are stored with a local date (DailyMorningPracticeWidget),
+    // so comparing against a UTC "today" silently missed a same-day intention for
+    // anyone east of UTC in the morning, falling back to a generic quote instead of
+    // the personalized one.
     const hasDailyIntention = (activeUser.dailyPriming || [])
-      .some(p => p.date === new Date().toISOString().split('T')[0] && p.dailyIntention?.trim());
+      .some(p => p.date === getTodayDate() && p.dailyIntention?.trim());
     const wantsAI = activeUser.sourcePreference === 'ai' || activeUser.sourcePreference === 'mix';
 
     if (force && hasDailyIntention && wantsAI) {
@@ -257,7 +261,7 @@ function AppContent() {
   // Load daily quote on mount: restore cached quote from today or pick a fresh one
   useEffect(() => {
     if (!user) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDate();
     const cachedDate = localStorage.getItem(STORAGE_KEYS.QUOTE_DATE);
     const cachedQuote = localStorage.getItem(STORAGE_KEYS.DAILY_QUOTE);
     if (cachedDate === today && cachedQuote) {
@@ -626,6 +630,16 @@ function AppContent() {
   // Early milestones (first/three/week) get a lightweight
   // toast instead of the full modal, since they land in quick succession for a new user.
   const triggerMilestoneCelebration = (milestoneName: MilestoneName) => {
+    // 90 total practices is the one practice-count threshold that coincides with a
+    // ring-ceremony threshold (the "fullbloom" ring, see the ring-ceremony effect
+    // below) — and only on its very first crossing, since ring ceremonies re-fire
+    // every 90-day cycle but this milestone only fires once, ever. On that one
+    // shared crossing, skip this celebration and let the full-screen ring ceremony
+    // (which covers the same 90-practice moment with its own dedicated copy) be the
+    // only one that fires, ~900ms later, instead of both firing on top of each other.
+    if (milestoneName === 'quarter' && !localStorage.getItem(STORAGE_KEYS.FULLBLOOM_CEREMONY_SHOWN)) {
+      return;
+    }
     const earlyToasts: Partial<Record<MilestoneName, string>> = {
       first: "First practice. Pa'lante.",
       three: "Three in. You came back.",
@@ -971,7 +985,14 @@ function AppContent() {
       analytics.practiceCompleted({ type, streak: user.streak });
     }
 
+    // Practice-count and streak-day milestones are two different counters that can
+    // land on the same number on the same day (e.g. one practice/day for a week
+    // crosses both "7 total practices" and "7-day streak" at once). Only fire one
+    // celebration for that single event: the practice-count milestone below takes
+    // priority, and the streak-day check further down is skipped when it already fired.
+    let practiceMilestoneFired = false;
     if (result?.milestone && result.isNew && result.milestoneName) {
+      practiceMilestoneFired = true;
       triggerMilestoneCelebration(result.milestoneName);
     }
 
@@ -991,9 +1012,12 @@ function AppContent() {
     // Also check for STREAK milestones (7, 30, 100 days)
     // Note: UserContext updates streak during logActivity
     // If it was their first activity today, streak incremented.
-    const today = new Date().toISOString().split('T')[0];
+    // Local date: activityHistory entries are written with getTodayDate() (local) in
+    // UserContext.logActivity, so comparing against a UTC "today" could miss today's
+    // own entry for anyone east of UTC in the morning.
+    const today = getTodayDate();
     const hadActivityTodayBefore = (user.activityHistory || []).some(log => log.date === today);
-    if (!hadActivityTodayBefore) {
+    if (!practiceMilestoneFired && !hadActivityTodayBefore) {
       const newStreak = oldStreak + 1;
       if (newStreak === 7 || newStreak === 30 || newStreak === 100 || newStreak === 365) {
         setShowMilestone({ isOpen: true, milestone: null, streakDays: newStreak });
@@ -1163,15 +1187,8 @@ function AppContent() {
   const handleToggleGoal = async (focusId: string) => {
     if (!user || !user.dailyFocuses) return;
 
-    // Trigger haptics & confetti
     const goal = user.dailyFocuses.find(f => f.id === focusId);
-    if (goal) {
-      if (!goal.isCompleted) {
-        triggerConfetti(); // Confetti + Haptics
-      } else {
-        haptics.light(); // Un-check
-      }
-    }
+    const isCompleting = !!goal && !goal.isCompleted;
 
     // Toggle Goal
     const updatedFocuses = user.dailyFocuses.map(f =>
@@ -1179,17 +1196,28 @@ function AppContent() {
     );
 
     let updatedUser = { ...user, dailyFocuses: updatedFocuses };
+    let crossedMilestone: MilestoneName | null = null;
 
     // Update practice count if goal was just completed (not uncompleted)
-    if (goal && !goal.isCompleted) {
+    if (isCompleting) {
       // Handle practice update manually to ensure atomic update with goal completion
       const currentPracticeData = updatedUser.practiceData || migrateStreakToPractice(updatedUser);
       const { data: updatedPracticeData, milestone, isNew, milestoneName } = logPractice(currentPracticeData, 'goal');
       updatedUser = { ...updatedUser, practiceData: updatedPracticeData };
+      if (milestone && isNew && milestoneName) crossedMilestone = milestoneName;
+    }
 
-      if (milestone && isNew && milestoneName) {
-        triggerMilestoneCelebration(milestoneName);
+    // Trigger haptics & confetti. Milestone celebration fires its own confetti, so
+    // this same completion must not also fire the plain one — that was two bursts
+    // back to back whenever completing a goal happened to cross a milestone.
+    if (isCompleting) {
+      if (crossedMilestone) {
+        triggerMilestoneCelebration(crossedMilestone);
+      } else {
+        triggerConfetti(); // Confetti + Haptics
       }
+    } else {
+      haptics.light(); // Un-check
     }
 
     updateProfile(updatedUser);
@@ -1203,8 +1231,14 @@ function AppContent() {
     localStorage.setItem(STORAGE_KEYS.APP_USED, 'true');
     setAppUsed(true);
     // Record date of very first practice so the evening prompt is suppressed on Day 1.
+    // Local date, not UTC: every read site (isFirstPracticeDay, trialDaysLeft, the
+    // weekly-letter day-7 check, the notification-ask gate) already compares this
+    // against a locally-computed "today". Writing it in UTC meant anyone practicing
+    // near midnight in a timezone ahead of UTC got a date one calendar day behind
+    // their own — silently un-suppressing the evening prompt on day 1, or expiring
+    // the 7-day trial a day early.
     if (!localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE)) {
-      localStorage.setItem(STORAGE_KEYS.FIRST_PRACTICE_DATE, new Date().toISOString().split('T')[0]);
+      localStorage.setItem(STORAGE_KEYS.FIRST_PRACTICE_DATE, getTodayDate());
     }
     // Guard against the morning ritual re-appearing if the user context is momentarily stale
     // (e.g. React re-render before updateProfile propagates). Cleared automatically each session.
@@ -1876,8 +1910,10 @@ function AppContent() {
                       }
                       onStepChange={setEveningStep}
                       onComplete={(data) => {
+                        // Local date, matching every read site — see the comment on the
+                        // other write site in handlePrimingComplete.
                         if (!localStorage.getItem(STORAGE_KEYS.FIRST_PRACTICE_DATE)) {
-                          localStorage.setItem(STORAGE_KEYS.FIRST_PRACTICE_DATE, new Date().toISOString().split('T')[0]);
+                          localStorage.setItem(STORAGE_KEYS.FIRST_PRACTICE_DATE, getTodayDate());
                         }
                         const existingEntries = user.dailyEveningPractice || [];
                         const otherEntries = existingEntries.filter(p => p.date !== todayDate);
@@ -1901,14 +1937,21 @@ function AppContent() {
                         analytics.eveningPracticeCompleted({ gratitudeCount: data.gratitude?.length ?? 0 });
                         // Cancel tonight's last-call notification: they finished the practice
                         cancelEveningLastCall();
-                        triggerConfetti();
+                        const crossedMilestone = eveningPracticeResult.milestone && eveningPracticeResult.isNew
+                          ? eveningPracticeResult.milestoneName
+                          : undefined;
+                        // Skip the plain burst when this same completion also crosses a
+                        // milestone: the queued celebration below fires its own confetti a
+                        // moment later, so firing both meant two bursts a few seconds apart.
+                        if (!crossedMilestone) {
+                          triggerConfetti();
+                        }
                         setShowEveningSuccess(true);
                         setTimeout(() => setShowEveningSuccess(false), 3000);
                         // Queue the milestone celebration (if any) to fire after the evening
                         // success overlay fades, so the two don't visually collide.
-                        if (eveningPracticeResult.milestone && eveningPracticeResult.isNew && eveningPracticeResult.milestoneName) {
-                          const milestoneName = eveningPracticeResult.milestoneName;
-                          setTimeout(() => triggerMilestoneCelebration(milestoneName), 3200);
+                        if (crossedMilestone) {
+                          setTimeout(() => triggerMilestoneCelebration(crossedMilestone), 3200);
                         }
                         // Queue welcome to fire after the evening success overlay fades.
                         if (!localStorage.getItem(STORAGE_KEYS.WELCOME_SHOWN)) {
@@ -1969,7 +2012,14 @@ function AppContent() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <h1 className={`text-4xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                  {/* Home has no "Home" page title on purpose — the greeting IS its
+                      header, and it is a far more specific label than the generic tab
+                      name would be. It stays centered with a conversational sub-line
+                      rather than an uppercase eyebrow, but it now shares the same
+                      text-3xl title scale as Progress, Explore and Home's own
+                      morning-flow greeting above. At text-4xl it wrapped mid-phrase
+                      ("Good morning, / Michael.") on a 402pt screen. */}
+                  <h1 className={`text-3xl font-display font-medium tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
                     {getGreeting()}, {firstName}.
                   </h1>
                   <p className={`text-base font-sans ${isDarkMode ? 'text-white' : 'text-sage/50'}`}>

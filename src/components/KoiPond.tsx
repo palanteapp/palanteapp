@@ -15,6 +15,128 @@ import type { SoundMix } from '../types';
 /** Name of the user-saved mix the pond plays by default (case-insensitive match). */
 const POND_MIX_NAME = 'koi pond vibes';
 
+// Each pond layer used to be a single `new Audio(src); audio.loop = true` — a bare
+// HTMLAudioElement with no crossfade at all. Native loop=true restart isn't guaranteed
+// glitch-free at the OS decoder level (the same issue Soundscapes' background playback
+// had, and was fixed there with a two-element crossfade — see BackgroundCrossfade in
+// SoundMixer.tsx). Here it's worse: the pond plays constantly in the foreground, not just
+// while backgrounded, so every loop wrap of every layer was exposed to the glitch.
+//
+// This is the same technique ported to a layered mix: `volume`/`muted` are real property
+// accessors, not methods, so the handful of external call sites that already do
+// `audio.volume = x` / `audio.muted = x` (the fade-in, the mute toggle) only need the
+// field renamed from `audio` to this crossfade wrapper — nothing about how they fade
+// needs to change.
+const POND_LOOP_CROSSFADE_SEC = 0.4;
+const POND_LOOP_ARM_LEAD_SEC = 3.0;
+
+class PondTrackCrossfade {
+    private a: HTMLAudioElement;
+    private b: HTMLAudioElement;
+    private activeIsA = true;
+    private crossfading = false;
+    private _volume = 0;
+    private _muted = false;
+    private pollTimer: ReturnType<typeof setInterval> | null = null;
+    private fadeTimer: ReturnType<typeof setInterval> | null = null;
+    private seekTimer: ReturnType<typeof setTimeout> | null = null;
+    private prevTime = -1;
+
+    constructor(src: string) {
+        this.a = new Audio(src);
+        this.a.loop = true;
+        this.a.volume = 0;
+        this.b = new Audio(src);
+        this.b.loop = true;
+        this.b.volume = 0;
+    }
+
+    get volume() { return this._volume; }
+    set volume(v: number) {
+        this._volume = v;
+        if (this.crossfading) return; // in-flight curve reads _volume live, see beginCrossfade
+        this.activeEl().volume = this._muted ? 0 : v;
+    }
+
+    get muted() { return this._muted; }
+    set muted(m: boolean) {
+        this._muted = m;
+        // Native mute is instant regardless of crossfade state, matching how the plain
+        // HTMLAudioElement version muted immediately rather than fading out.
+        this.a.muted = m;
+        this.b.muted = m;
+    }
+
+    private activeEl() { return this.activeIsA ? this.a : this.b; }
+    private nextEl() { return this.activeIsA ? this.b : this.a; }
+
+    /** Fire-and-forget, matching the original `audio.play().catch(() => {})`. */
+    start() {
+        Promise.all([this.a.play(), this.b.play()]).catch(() => {});
+        this.pollTimer = setInterval(() => this.tick(), 50);
+    }
+
+    private tick() {
+        if (this.crossfading) return;
+        const active = this.activeEl();
+        const dur = active.duration;
+        if (!(dur > 0)) return;
+        const cTime = active.currentTime;
+
+        // Native loop already wrapped (a throttled/busy tick missed the seam window
+        // entirely): catch up immediately instead of leaving the gap.
+        const missedWindow = this.prevTime > 0 && this.prevTime > dur * 0.5 && cTime < this.prevTime * 0.5;
+        this.prevTime = cTime;
+
+        const untilSeam = dur - cTime;
+        if (missedWindow || untilSeam <= POND_LOOP_ARM_LEAD_SEC) {
+            this.beginCrossfade(missedWindow ? 0 : Math.max(0, untilSeam));
+        }
+    }
+
+    private beginCrossfade(delay: number) {
+        this.crossfading = true;
+        const active = this.activeEl();
+        const next = this.nextEl();
+
+        if (this.seekTimer) clearTimeout(this.seekTimer);
+        this.seekTimer = setTimeout(() => {
+            next.currentTime = 0;
+            const steps = 20;
+            const stepMs = (POND_LOOP_CROSSFADE_SEC * 1000) / steps;
+            let i = 0;
+            if (this.fadeTimer) clearInterval(this.fadeTimer);
+            this.fadeTimer = setInterval(() => {
+                i++;
+                const t = (i / steps) * (Math.PI / 2);
+                const vol = this._muted ? 0 : this._volume;
+                next.volume = Math.sin(t) * vol;
+                active.volume = Math.cos(t) * vol;
+                if (i >= steps) {
+                    if (this.fadeTimer) clearInterval(this.fadeTimer);
+                    this.fadeTimer = null;
+                    active.volume = 0;
+                    active.currentTime = 0;
+                    next.volume = this._muted ? 0 : this._volume;
+                    this.activeIsA = !this.activeIsA;
+                    this.crossfading = false;
+                    this.prevTime = -1;
+                }
+            }, stepMs);
+        }, delay * 1000);
+    }
+
+    stop() {
+        if (this.pollTimer) clearInterval(this.pollTimer);
+        if (this.fadeTimer) clearInterval(this.fadeTimer);
+        if (this.seekTimer) clearTimeout(this.seekTimer);
+        this.a.pause();
+        this.a.src = '';
+        this.b.pause();
+        this.b.src = '';
+    }
+}
+
 interface KoiPondProps {
     totalPractices?: number;
     isDarkMode: boolean;
@@ -93,6 +215,12 @@ interface Fish {
     isEating?: boolean;
     eatTimer?: number;
     targetFoodId?: number | null;
+    /** Set once when the fish first fades in, so the loop stops re-writing opacity every frame. */
+    didFadeIn?: boolean;
+    /** Accumulated tail-sway phase, in radians. Stepped by a small increment each frame rather
+     *  than recomputed from absolute time * currentSpeed — see the comment at its call site for
+     *  why that distinction matters. */
+    tailPhase?: number;
 }
 
 interface FoodPellet {
@@ -143,24 +271,27 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
     return (
         <svg width="60" height="90" viewBox="0 0 60 90" className="overflow-visible opacity-90">
             <g transform="translate(30, 45)">
-                {/* Tail - CSS Animation */}
-                <g style={{ animation: 'swimTail 2s ease-in-out infinite alternate', transformOrigin: '0 25px' }}>
+                {/* Depth shadow, drawn as plain shapes rather than a CSS drop-shadow filter.
+                    A `filter` on the wrapper forces WebKit to re-rasterize a blurred surface
+                    every single frame, because the tail/fin below animate continuously. */}
+                <ellipse cx="8" cy="13" rx="17" ry="37" fill="#000" opacity="0.10" />
+                <ellipse cx="7" cy="11" rx="14.5" ry="33" fill="#000" opacity="0.16" />
+
+                {/* Tail — rotation driven by the shared rAF clock via --koi-tail (see animate()).
+                    Beat rate is tied to the fish's real speed, so the body and tail stay in phase. */}
+                <g style={{ transform: 'rotate(var(--koi-tail, 0deg))', transformOrigin: '0 25px' }}>
                     <path d="M0,25 Q10,35 12,50 L0,45 L-12,50 Q-10,35 0,25" fill={body} opacity="0.9" />
                 </g>
 
-                {/* Left Fin - Independent Flutter */}
-                <g style={{ animation: 'finFlutterLeft 3s ease-in-out infinite alternate', transformOrigin: '-12px 5px' }}>
+                {/* Left Fin — same clock, counter-phase to the tail */}
+                <g style={{ transform: 'rotate(var(--koi-fin-l, 0deg))', transformOrigin: '-12px 5px' }}>
                     <path d="M-12,0 Q-22,5 -25,15 Q-15,10 -12,5" fill={body} opacity="0.8" />
                 </g>
 
-                {/* Right Fin - Independent Flutter */}
-                <g style={{ animation: 'finFlutterRight 3s ease-in-out infinite alternate', transformOrigin: '12px 5px', animationDelay: '0.2s' }}>
+                {/* Right Fin */}
+                <g style={{ transform: 'rotate(var(--koi-fin-r, 0deg))', transformOrigin: '12px 5px' }}>
                     <path d="M12,0 Q22,5 25,15 Q15,10 12,5" fill={body} opacity="0.8" />
                 </g>
-
-                {/* Subtle Fin Ripples (Rings) */}
-                <circle cx="-15" cy="8" r="8" fill="none" stroke="white" opacity="0.05" style={{ animation: 'finRingRipple 3s ease-out infinite' }} />
-                <circle cx="15" cy="8" r="8" fill="none" stroke="white" opacity="0.05" style={{ animation: 'finRingRipple 3s ease-out infinite', animationDelay: '0.2s' }} />
 
                 {/* Body */}
                 <ellipse cx="0" cy="0" rx="12" ry="30" fill={body} />
@@ -217,6 +348,17 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
 
 
 const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
+
+/** Caustics are soft, slow-moving blobs, so they are rendered into a half-resolution backing
+ *  store and upscaled by the compositor. Quartering the pixel count is invisible here. */
+/** Base angular frequency of the koi tail sway, in rad/ms.
+ *  0.00157 rad/ms ~= 1.57 rad/s ~= one full sway every 4 seconds. Koi tails undulate slowly;
+ *  anything meaningfully faster than this reads as flickering rather than swimming. */
+const TAIL_BASE_OMEGA = 0.00157;
+
+const CAUSTIC_SCALE = 0.5;
+const CAUSTIC_SPRITE_R = 96;
+const FOOD_SPRITE_R = 16;
 
 export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 0, points: _points = 0, totalPractices = 0, savedMixes = [] }) => {
     const fishCount = getFishCount(streak, totalPractices);
@@ -291,6 +433,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     const isMutedRef = useRef(false); // Track mute state for async audio loops
     const [isLoaded, setIsLoaded] = useState(false); // For fade-in transition
     const lastTimeRef = useRef<number | undefined>(undefined);
+    const dtSmoothRef = useRef(1);
     const requestRef = useRef<number | undefined>(undefined);
     const windowSizeRef = useRef({ width: window.innerWidth, height: window.innerHeight });
     const tapsRef = useRef<{ x: number, y: number, time: number }[]>([]);
@@ -301,13 +444,59 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     useEffect(() => {
         const handleResize = () => {
             windowSizeRef.current = { width: window.innerWidth, height: window.innerHeight };
+            // The sakura/food canvas's width/height attributes (its actual pixel
+            // backing store) were only ever set once at mount. Without updating them
+            // here too, a resize (device rotation, iPad split-view, a keyboard-driven
+            // viewport change) left the canvas drawing into a raster sized for the OLD
+            // viewport — a blank strip along whichever edge grew, where no petals or
+            // food pellets ever rendered, since the draw loop below reads its size
+            // straight off these attributes.
+            const canvas = canvasRef.current;
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
         };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Initialize caustic light patches
+    // Initialize caustic light patches + pre-rendered sprites.
+    //
+    // The caustics used to build a fresh createRadialGradient() for all 24 patches on every
+    // frame and fill a large ellipse with it. Gradient fills are per-pixel work and this was
+    // roughly 8x full-screen overdraw per frame. One gradient is baked into an offscreen
+    // sprite here instead, and the loop just blits it, which is a texture copy.
     useEffect(() => {
+        const cs = document.createElement('canvas');
+        cs.width = cs.height = CAUSTIC_SPRITE_R * 2;
+        const cctx = cs.getContext('2d');
+        if (cctx) {
+            const g = cctx.createRadialGradient(CAUSTIC_SPRITE_R, CAUSTIC_SPRITE_R, 0, CAUSTIC_SPRITE_R, CAUSTIC_SPRITE_R, CAUSTIC_SPRITE_R);
+            g.addColorStop(0, 'rgba(190,230,170,1)');
+            g.addColorStop(0.45, 'rgba(170,215,150,0.35)');
+            g.addColorStop(1, 'rgba(170,215,150,0)');
+            cctx.fillStyle = g;
+            cctx.fillRect(0, 0, CAUSTIC_SPRITE_R * 2, CAUSTIC_SPRITE_R * 2);
+        }
+        causticSpriteRef.current = cs;
+
+        // Same trick for food pellets: ctx.shadowBlur is one of the slowest 2D canvas
+        // operations, and it was being set per pellet, per frame, while the user is tapping.
+        const fs = document.createElement('canvas');
+        fs.width = fs.height = FOOD_SPRITE_R * 2;
+        const fctx = fs.getContext('2d');
+        if (fctx) {
+            const g = fctx.createRadialGradient(FOOD_SPRITE_R, FOOD_SPRITE_R, 0, FOOD_SPRITE_R, FOOD_SPRITE_R, FOOD_SPRITE_R);
+            g.addColorStop(0, 'rgba(255,255,255,0.95)');
+            g.addColorStop(0.30, '#E5D6A7');
+            g.addColorStop(0.55, 'rgba(229,214,167,0.5)');
+            g.addColorStop(1, 'rgba(229,214,167,0)');
+            fctx.fillStyle = g;
+            fctx.fillRect(0, 0, FOOD_SPRITE_R * 2, FOOD_SPRITE_R * 2);
+        }
+        foodSpriteRef.current = fs;
+
         const { width, height } = windowSizeRef.current;
         causticPatchesRef.current = Array.from({ length: 24 }, () => ({
             cx: Math.random() * width,
@@ -349,6 +538,9 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     }
     const causticCanvasRef = useRef<HTMLCanvasElement>(null);
     const causticPatchesRef = useRef<CausticPatch[]>([]);
+    const causticSpriteRef = useRef<HTMLCanvasElement | null>(null);
+    const foodSpriteRef = useRef<HTMLCanvasElement | null>(null);
+    const frameCountRef = useRef(0);
 
     // Particle System Refs
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -387,7 +579,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     }, [ripples]);
     */
 
-    // Transition Effect: Fade in after mount (3 seconds)
+    // Transition Effect: Fade in after mount (1.1s)
     useEffect(() => {
         const timer = setTimeout(() => setIsLoaded(true), 100);
         // Keep screen awake while pond is active
@@ -493,9 +685,6 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
 
     // Initialize Specific Koi Fish - STAGGERED SPAWN
-    // Initialize Specific Koi Fish - STAGGERED SPAWN
-    // Initialize Specific Koi Fish - STAGGERED SPAWN
-    // Initialize Specific Koi Fish - STAGGERED SPAWN
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the fish scene when the unlocked count changes, procedural spawn can't run during render
         setFish([]); // Start empty
@@ -527,7 +716,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 // SCALE: Reduced by 15% (Range ~1.28 - 2.3)
                 scale: 1.275 + Math.random() * 1.02,
                 spawnTime: i * 2000, // Stagger 2s
-                isActive: false
+                isActive: false,
+                tailPhase: i * 1.7, // per-fish offset so they don't sway in lockstep
             };
         });
 
@@ -538,16 +728,29 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
 
     // Animation Loop
     const lastRippleTimeRef = useRef(0);
+    const rainGapRef = useRef(400);
     const startTimeRef = useRef<number | null>(null);
+
 
     const animate = (time: number) => {
         if (startTimeRef.current === null) startTimeRef.current = time;
         const elapsed = time - startTimeRef.current;
+        frameCountRef.current++;
 
         if (lastTimeRef.current !== undefined) {
             const delta = time - lastTimeRef.current;
             // Cap delta to prevent huge jumps if tab was inactive (e.g. max 50ms)
-            const dt = Math.min(delta, 50) / 16.67;
+            const rawDt = Math.min(delta, 50) / 16.67;
+            // Low-pass the timestep. A frame that arrives 3ms late would otherwise translate
+            // straight into a 3ms-worth jump in position, which reads as a stutter even when
+            // the frame itself was delivered. Smoothing trades exact time-accuracy (irrelevant
+            // for ambient drift) for visibly even spacing between frames.
+            dtSmoothRef.current += (rawDt - dtSmoothRef.current) * 0.25;
+            const dt = dtSmoothRef.current;
+
+            // Expired taps are shared by every fish, so filter once per frame rather than
+            // rebuilding the array once per fish per frame.
+            tapsRef.current = tapsRef.current.filter(t => time - t.time < 1000);
 
             // 1. Update Fish (Direct Manipulation)
             fishRef.current.forEach(f => {
@@ -576,14 +779,11 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 }
                 const moveSpeed = speed * dt * speedMultiplier;
 
-                // --- Repulsion Logic ---
-                // Clean up old taps (older than 1 second)
-                const now_time = performance.now();
-                tapsRef.current = tapsRef.current.filter(t => now_time - t.time < 1000);
-
+                // --- Repulsion Logic --- (tap list already pruned once per frame above)
                 let repulsionAngle = 0;
                 let repulsionStrength = 0;
                 const REPULSION_RADIUS = 200;
+
 
                 tapsRef.current.forEach(tap => {
                     const dx = x - tap.x;
@@ -724,9 +924,38 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 // Update DOM Direct
                 const el = fishElementsRef.current.get(f.id);
                 if (el) {
-                    // Start visible only if active
-                    el.style.opacity = '1';
+                    // Fade in once on activation rather than re-writing opacity every frame.
+                    if (!f.didFadeIn) { el.style.opacity = '1'; f.didFadeIn = true; }
                     el.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) rotate(${angle * (180 / Math.PI) + 90}deg) scale(${f.scale})`;
+
+                    // Tail/fin sway on the SAME clock as the body, at a rate gently coupled to how
+                    // fast this fish is actually moving. Previously these were CSS @keyframes on a
+                    // separate free-running clock, so a fish drifting through open water swayed at
+                    // exactly the same rate as one darting back on-screen.
+                    //
+                    // PACING: a real koi's tail is a slow, lazy undulation, not a flick. Base
+                    // period is ~4s per full sway, stretching to ~4.4s in open water and only
+                    // tightening to ~3.2s when the fish is actually moving briskly. sin() is
+                    // used directly because its velocity is zero at the extremes and greatest
+                    // mid-stroke, which is the natural ease-in-out of a real tail stroke.
+                    // Amplitude stays modest (+/-13deg) so it reads as a sway, not a twitch.
+                    //
+                    // PHASE MUST ACCUMULATE, NOT BE RECOMPUTED FROM ABSOLUTE TIME: this used to be
+                    // `time * TAIL_BASE_OMEGA * currentSpeedFactor`, recomputed fresh every frame.
+                    // speedMultiplier changes constantly as the fish moves between open water and
+                    // pond edges, and multiplying a *changing* rate by the *absolute* elapsed time
+                    // makes the phase jump every time the rate changes (by time * omega * delta-
+                    // factor, which grows the longer the pond has been open) instead of smoothly
+                    // changing its speed of change. That's what read as flickering/snapping rather
+                    // than swimming. Stepping the phase by a small increment each frame keeps it
+                    // continuous no matter how often the rate changes.
+                    const angularStep = TAIL_BASE_OMEGA * (0.75 + speedMultiplier * 0.25) * dt * 16.6667;
+                    f.tailPhase = (f.tailPhase ?? 0) + angularStep;
+                    const beat = f.tailPhase;
+                    el.style.setProperty('--koi-tail', `${Math.sin(beat) * 13}deg`);
+                    // Pectoral fins paddle even slower than the tail, and slightly out of phase.
+                    el.style.setProperty('--koi-fin-l', `${16 + Math.sin(beat * 0.55) * 15}deg`);
+                    el.style.setProperty('--koi-fin-r', `${-16 - Math.sin(beat * 0.55 + 0.7) * 15}deg`);
                 }
             });
 
@@ -774,30 +1003,30 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 }
             });
 
-            // 3.5 Caustic light shimmer
-            if (causticCanvasRef.current) {
-                const ctx = causticCanvasRef.current.getContext('2d');
+            // 3.5 Caustic light shimmer.
+            // Redrawn on every other frame only: the patches oscillate at ~0.0002 rad/ms, so a
+            // 30Hz update is indistinguishable from 60Hz and halves the fill cost.
+            const cCanvas = causticCanvasRef.current;
+            const cSprite = causticSpriteRef.current;
+            if (cCanvas && cSprite && frameCountRef.current % 2 === 0) {
+                const ctx = cCanvas.getContext('2d');
                 if (ctx) {
-                    ctx.clearRect(0, 0, causticCanvasRef.current.width, causticCanvasRef.current.height);
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+                    // Work in CSS pixels; the backing store is half-size.
+                    ctx.setTransform(CAUSTIC_SCALE, 0, 0, CAUSTIC_SCALE, 0, 0);
                     causticPatchesRef.current.forEach(p => {
                         const x = p.cx + p.ax * Math.sin(time * p.fx + p.px);
                         const y = p.cy + p.ay * Math.sin(time * p.fy + p.py);
                         const xRad = p.r * (0.85 + 0.15 * Math.sin(time * 0.0002 + p.px));
                         const yRad = p.r * 0.55 * (0.85 + 0.15 * Math.cos(time * 0.00015 + p.py));
                         const tilt = Math.sin(time * 0.0001 + p.px) * 0.6;
-                        const grad = ctx.createRadialGradient(x, y, 0, x, y, Math.max(xRad, yRad));
-                        grad.addColorStop(0,   `rgba(190,230,170,${p.intensity})`);
-                        grad.addColorStop(0.45, `rgba(170,215,150,${p.intensity * 0.35})`);
-                        grad.addColorStop(1,    'rgba(0,0,0,0)');
                         ctx.save();
                         ctx.translate(x, y);
                         ctx.rotate(tilt);
                         ctx.scale(1, yRad / xRad);
-                        ctx.translate(-x, -y);
-                        ctx.fillStyle = grad;
-                        ctx.beginPath();
-                        ctx.ellipse(x, y, xRad, xRad, 0, 0, Math.PI * 2);
-                        ctx.fill();
+                        ctx.globalAlpha = p.intensity;
+                        ctx.drawImage(cSprite, -xRad, -xRad, xRad * 2, xRad * 2);
                         ctx.restore();
                     });
                 }
@@ -809,27 +1038,16 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 if (ctx) {
                     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-                    // Draw Food Pellets (Pale Gold)
-                    foodRef.current.forEach(p => {
-                        ctx.save();
-                        // Glow effect
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = 'rgba(229, 214, 167, 0.6)';
-                        ctx.fillStyle = '#E5D6A7'; // Pale Gold
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                        ctx.fill();
+                    // Draw Food Pellets (Pale Gold) from the pre-baked glow sprite.
+                    const fSprite = foodSpriteRef.current;
+                    if (fSprite) {
+                        foodRef.current.forEach(p => {
+                            const r = p.size * 3;
+                            ctx.drawImage(fSprite, p.x - r, p.y - r, r * 2, r * 2);
+                        });
+                    }
 
-                        // Core shine
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.globalAlpha = 0.4;
-                        ctx.beginPath();
-                        ctx.arc(p.x - p.size * 0.2, p.y - p.size * 0.2, p.size * 0.3, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    });
-
-                    if (showParticles) {
+                    if (showParticlesRef.current) {
                         const gx = gravityRef.current.x;
                         const gy = gravityRef.current.y;
                         const { width: winW, height: winH } = windowSizeRef.current;
@@ -865,29 +1083,66 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 }
             }
 
-            // Ripple Spawning logic (Rain)
-            if (showRain && time - lastRippleTimeRef.current > 400) {
+            // Ripple Spawning logic (Rain).
+            // This is now the ONLY rain spawner. There used to be a second, independent
+            // setInterval(100ms) doing the same job, so rain produced roughly twice the
+            // intended droplets and each ripple costs a React state update in RippleLayer.
+            // Intervals are also not vsync-aligned, so a droplet could mount mid-frame.
+            if (showRainRef.current && time - lastRippleTimeRef.current > rainGapRef.current) {
                 // eslint-disable-next-line react-hooks/purity -- inside the imperative rAF animation loop, not React render
                 addRipple(Math.random() * windowSizeRef.current.width, Math.random() * windowSizeRef.current.height);
-                lastRippleTimeRef.current = time; // Ensure update
+                lastRippleTimeRef.current = time;
+                // Jitter the next gap so the rain sounds/looks sporadic rather than metronomic.
+                // eslint-disable-next-line react-hooks/purity -- inside the imperative rAF animation loop, not React render
+                rainGapRef.current = 260 + Math.random() * 420;
             }
         }
 
         lastTimeRef.current = time;
-        requestRef.current = requestAnimationFrame(animate);
+        // Rescheduling is owned by the mount effect below, so the loop always re-enters through
+        // the current closure instead of pinning whichever one started it.
     };
 
+    // The loop reads these through refs so it can be started exactly once. It used to depend on
+    // [showRain], which meant (a) toggling "Nature Particles" did nothing until rain was also
+    // toggled, because the running closure still held the old showParticles, and (b) every
+    // restart left a stale lastTimeRef behind, producing one oversized dt and a visible lurch.
+    const showRainRef = useRef(showRain);
+    const showParticlesRef = useRef(showParticles);
+    useEffect(() => { showRainRef.current = showRain; }, [showRain]);
+    useEffect(() => { showParticlesRef.current = showParticles; }, [showParticles]);
+
+    const animateRef = useRef(animate);
+    animateRef.current = animate;
+
     useEffect(() => {
-        requestRef.current = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(requestRef.current!);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [showRain]); // Depend on showRain to restart if toggled, or keep Ref updated
+        const tick = (t: number) => {
+            animateRef.current(t);
+            requestRef.current = requestAnimationFrame(tick);
+        };
+        requestRef.current = requestAnimationFrame(tick);
+
+        // Coming back from the background leaves a stale lastTime behind. Without this the first
+        // frame after resuming computes a huge delta, clamps it, and jumps every element forward
+        // at once, which is the lurch you see on returning to the pond.
+        const onVisibility = () => {
+            if (!document.hidden) {
+                lastTimeRef.current = undefined;
+                dtSmoothRef.current = 1;
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => {
+            if (requestRef.current !== undefined) cancelAnimationFrame(requestRef.current);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+    }, []);
 
     // 3. Pond audio: plays the user's saved "koi pond vibes" mix (multiple looping
     //    layers at 40% master volume). Each layer loops seamlessly (baked files or
     //    procedurally-rendered synth blobs). Falls back to a single river track if the
     //    mix isn't found, so the pond is never silent.
-    const tracksRef = useRef<Array<{ audio: HTMLAudioElement; targetVol: number }>>([]);
+    const tracksRef = useRef<Array<{ crossfade: PondTrackCrossfade; targetVol: number }>>([]);
     const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const MASTER_VOLUME = 0.40;          // user-requested 40% overall
     const FALLBACK_SRC = '/sounds/flowing-river.m4a';
@@ -921,20 +1176,18 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             return out.length ? out : [{ src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
         };
 
-        const created: HTMLAudioElement[] = [];
+        const created: PondTrackCrossfade[] = [];
         buildTracks().then(tracks => {
             if (cancelled) {
                 // Effect was torn down mid-build, don't start anything.
                 return;
             }
             tracks.forEach(({ src, vol }) => {
-                const audio = new Audio(src);
-                audio.loop = true;
-                audio.volume = 0;
-                audio.muted = isMutedRef.current;
-                created.push(audio);
-                tracksRef.current.push({ audio, targetVol: vol });
-                audio.play().catch(() => {});
+                const crossfade = new PondTrackCrossfade(src);
+                crossfade.muted = isMutedRef.current;
+                created.push(crossfade);
+                tracksRef.current.push({ crossfade, targetVol: vol });
+                crossfade.start();
             });
 
             if (isMutedRef.current) return;
@@ -944,8 +1197,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             fadeIntervalRef.current = setInterval(() => {
                 t = Math.min(t + 1, steps);
                 const k = t / steps;
-                tracksRef.current.forEach(({ audio, targetVol }) => {
-                    audio.volume = isMutedRef.current ? 0 : targetVol * k;
+                tracksRef.current.forEach(({ crossfade, targetVol }) => {
+                    crossfade.volume = isMutedRef.current ? 0 : targetVol * k;
                 });
                 if (t >= steps) {
                     clearInterval(fadeIntervalRef.current!);
@@ -957,7 +1210,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         return () => {
             cancelled = true;
             if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
-            created.forEach(a => { a.pause(); a.src = ''; });
+            created.forEach(cf => cf.stop());
             tracksRef.current = [];
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -975,16 +1228,16 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
 
         if (newState) {
-            tracks.forEach(({ audio }) => { audio.volume = 0; audio.muted = true; });
+            tracks.forEach(({ crossfade }) => { crossfade.volume = 0; crossfade.muted = true; });
         } else {
-            tracks.forEach(({ audio }) => { audio.muted = false; });
+            tracks.forEach(({ crossfade }) => { crossfade.muted = false; });
             // Fade every layer back to its target together.
             let step = 0;
             const steps = 15;
             fadeIntervalRef.current = setInterval(() => {
                 step = Math.min(step + 1, steps);
                 const k = step / steps;
-                tracks.forEach(({ audio, targetVol }) => { audio.volume = targetVol * k; });
+                tracks.forEach(({ crossfade, targetVol }) => { crossfade.volume = targetVol * k; });
                 if (step >= steps) {
                     clearInterval(fadeIntervalRef.current!);
                     fadeIntervalRef.current = null;
@@ -1052,34 +1305,24 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         }
     };
 
-    // Rain Logic
-    useEffect(() => {
-        if (!showRain) return;
-
-        const interval = setInterval(() => {
-            // Random chance for rain drop (sporadic)
-            if (Math.random() < 0.3) {
-                const x = Math.random() * window.innerWidth;
-                const y = Math.random() * window.innerHeight;
-                addRipple(x, y);
-            }
-        }, 100); // Check every 100ms
-
-        return () => clearInterval(interval);
-    }, [showRain, addRipple]);
+    // Rain droplet spawning lives in the rAF loop now (see "Ripple Spawning logic" above).
+    // The setInterval that used to be here ran a second, unsynchronised spawner on top of it.
 
 
 
     return (
         // Wrapper starts Black, transitions content opacity
         <div
-            className="fixed inset-0 z-50 bg-black/20 transition-colors duration-[3000ms] overflow-hidden cursor-pointer"
+            className="fixed inset-0 z-50 bg-black/20 transition-colors duration-[1100ms] overflow-hidden cursor-pointer"
             onTouchStart={handleTouchStart}
             onMouseDown={handleMouseDown}
         >
 
-            {/* Main Content Container - Fades In (3 seconds) */}
-            <div className={`absolute inset-0 transition-opacity duration-[3000ms] ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'} ${bgClass}`}>
+            {/* Main Content Container - Fades In. Was 3000ms: a real reveal should
+                commit quickly and let the pond's own ambient motion carry the calm
+                afterward, rather than making the user wait through mostly-empty
+                screen time for the calm to even begin. */}
+            <div className={`absolute inset-0 transition-opacity duration-[1100ms] ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'} ${bgClass}`}>
 
                 {/* Animation Styles */}
                 <style>{`
@@ -1089,25 +1332,16 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         75% { transform: rotate(-3deg) skewY(-2deg); }
                         100% { transform: rotate(0deg) skewY(0deg); }
                     }
+                    /* swimTail / paddleFins / finFlutterLeft / finFlutterRight / finRingRipple
+                       removed. Tail and fin rotation is now driven from the rAF loop via CSS
+                       custom properties so it shares one clock with the body. finRingRipple was
+                       animating stroke-width, which is not compositable and forced an SVG repaint
+                       every frame per fish, for two rings at 0.05 opacity.
+                       swimTail is kept only for the one-off celebration card, which sits on a
+                       solid scrim and is not part of the live scene. */
                     @keyframes swimTail {
                          0% { transform: rotate(15deg); }
                          100% { transform: rotate(-15deg); }
-                    }
-                    @keyframes paddleFins {
-                         0% { transform: rotate(5deg); }
-                         100% { transform: rotate(-5deg); }
-                    }
-                    @keyframes finFlutterLeft {
-                        0% { transform: rotate(0deg); } /* Flat against body */
-                        100% { transform: rotate(35deg); } /* Extended out */
-                    }
-                    @keyframes finFlutterRight {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(-35deg); }
-                    }
-                    @keyframes finRingRipple {
-                        0% { transform: scale(0.5); opacity: 0.08; stroke-width: 2; }
-                        100% { transform: scale(2.5); opacity: 0; stroke-width: 0; }
                     }
                     @keyframes ripple {
                         0% { transform: scale(0); opacity: 0.5; }
@@ -1161,9 +1395,9 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 {/* 0.7 Caustic light shimmer canvas (Z-3) */}
                 <canvas
                     ref={causticCanvasRef}
-                    width={window.innerWidth}
-                    height={window.innerHeight}
-                    className="absolute inset-0 pointer-events-none z-[3]"
+                    width={Math.round(window.innerWidth * CAUSTIC_SCALE)}
+                    height={Math.round(window.innerHeight * CAUSTIC_SCALE)}
+                    className="absolute inset-0 w-full h-full pointer-events-none z-[3]"
                     style={{ mixBlendMode: 'screen' }}
                 />
 
@@ -1186,7 +1420,9 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             pointerEvents: 'none',
                             // remove transition to prevent fighting with JS loop
                             transition: 'opacity 0.5s ease-in-out',
-                            filter: 'drop-shadow(8px 16px 16px rgba(0,0,0,0.5))',
+                            // NO CSS `filter` here: the SVG children repaint every frame, which
+                            // would force a blurred drop-shadow surface to be re-rasterized each
+                            // time. The shadow is drawn inside the SVG instead.
                             willChange: 'transform',
                         }}
                     >
@@ -1197,18 +1433,24 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 {/* 2. Lily Pads Layer (Background Images) - NOW SIBLING Z-10 */}
                 {/* This fixes the stacking context issue. Now Z-10 > Z-5 definitively. */}
                 {showLilyPads && (
-                    <div className="absolute inset-0 opacity-80 z-[10] pointer-events-none transition-opacity duration-1000" style={{ filter: 'drop-shadow(15px 15px 10px rgba(0,0,0,0.4))' }}>
+                    /* The drop-shadow used to live on this full-viewport `inset-0` container.
+                       Because the three images inside animate continuously, that made WebKit
+                       re-rasterize a screen-sized blurred filter surface on every frame, and it
+                       also prevented the children from being promoted to compositor layers.
+                       The shadow now sits on each image, where it is bounded by the image box
+                       and can be cached in that image's own layer. */
+                    <div className="absolute inset-0 opacity-80 z-[10] pointer-events-none transition-opacity duration-1000">
                         {/* Top Right */}
                         <div className={`absolute top-0 right-0 w-[80vmin] h-[80vmin] translate-x-1/3 -translate-y-1/3 rotate-12`}>
-                            <img src="/assets/lily-pads.png" alt="" className="w-full h-full object-contain" style={{ animation: 'floatLilyPad 25s ease-in-out infinite' }} />
+                            <img src="/assets/lily-pads.png" alt="" className="w-full h-full object-contain" style={{ animation: 'floatLilyPad 25s ease-in-out infinite', filter: 'drop-shadow(8px 8px 6px rgba(0,0,0,0.4))', willChange: 'transform' }} />
                         </div>
                         {/* Bottom Left */}
                         <div className={`absolute bottom-0 left-0 w-[65vmin] h-[65vmin]-translate-x-1/3 translate-y-1/3 -rotate-45`}>
-                            <img src="/assets/lily-pads.png" alt="" className="w-full h-full object-contain" style={{ animation: 'floatLilyPad 30s ease-in-out infinite reverse' }} />
+                            <img src="/assets/lily-pads.png" alt="" className="w-full h-full object-contain" style={{ animation: 'floatLilyPad 30s ease-in-out infinite reverse', filter: 'drop-shadow(8px 8px 6px rgba(0,0,0,0.4))', willChange: 'transform' }} />
                         </div>
                         {/* Center */}
                         <div className={`absolute top-1/2 left-1/2 w-[50vmin] h-[50vmin]-translate-x-1/2 -translate-y-1/2 rotate-180`}>
-                            <img src="/assets/lily-pads.png" alt="" className="w-full h-full object-contain" style={{ animation: 'floatLilyPad 35s ease-in-out infinite' }} />
+                            <img src="/assets/lily-pads.png" alt="" className="w-full h-full object-contain" style={{ animation: 'floatLilyPad 35s ease-in-out infinite', filter: 'drop-shadow(8px 8px 6px rgba(0,0,0,0.4))', willChange: 'transform' }} />
                         </div>
                     </div>
                 )}
@@ -1235,7 +1477,9 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             pointerEvents: 'none',
                             zIndex: 15,
                             transition: 'opacity 1s ease-in-out',
-                            filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.2))',
+                            // Filter removed: 12 of these move every frame, and a blurred filter
+                            // surface per element is 12 re-rasterizations per frame for a shadow
+                            // that reads at 0.2 alpha behind a 40px flower.
                             willChange: 'transform',
                         }}
                     >
@@ -1259,15 +1503,31 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 {showLilyPads && lotuses.filter(l => l.type === 'lilypad').map(l => (
                     <div
                         key={l.id}
+                        ref={el => {
+                            // Was missing entirely: the physics loop below already mutates
+                            // every lotus (both types) via lotusElementsRef.current.get(l.id)
+                            // every frame, but with no ref registered here that lookup always
+                            // returned undefined and silently no-opped for lily pads. They only
+                            // moved when React happened to re-render for an unrelated reason
+                            // (a tap, a hint timer), which dumped several frames of accumulated
+                            // drift into one jump — the "catching up to itself" stutter.
+                            if (el) lotusElementsRef.current.set(l.id, el);
+                            else lotusElementsRef.current.delete(l.id);
+                        }}
                         style={{
                             position: 'absolute',
-                            left: l.x,
-                            top: l.y,
-                            transform: `translate(-50%, -50%) rotate(${l.rotation}deg) scale(${l.scale})`,
+                            left: 0,
+                            top: 0,
+                            // Matches the loop format exactly (no centering offset): the loop
+                            // writes translate3d(x,y,0) rotate(...) scale(...) verbatim, same
+                            // as the Lotus layer below.
+                            transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: 0.85,
                             zIndex: 10,
-                            // Enhanced Shadow
-                            filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.2))'
+                            // Filter dropped: now rAF-transformed every frame same as the Lotus
+                            // layer below, so a per-frame blurred drop-shadow surface is the
+                            // same real cost that layer's own comment already calls out.
+                            willChange: 'transform',
                         }}
                     >
                         <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1292,7 +1552,8 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             transform: `translate3d(${l.x}px, ${l.y}px, 0) rotate(${l.rotation}deg) scale(${l.scale})`,
                             opacity: 0.95,
                             zIndex: 20,
-                            filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.08))',
+                            // Filter removed: these are rAF-transformed every frame and the shadow
+                            // was 0.08 alpha, i.e. a per-frame blur pass for something invisible.
                             willChange: 'transform',
                         }}
                     >
@@ -1317,7 +1578,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     ref={canvasRef}
                     width={window.innerWidth}
                     height={window.innerHeight}
-                    className={`absolute inset-0 pointer-events-none z-[4] transition-opacity duration-1000 opacity-100`}
+                    className={`absolute inset-0 w-full h-full pointer-events-none z-[4] transition-opacity duration-1000 opacity-100`}
                 />
             </div>
 
@@ -1337,9 +1598,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 <Eye size={20} />
             </button>
 
-            {/* Top Control Bar */}
+            {/* Top Control Bar.
+                No backdrop-blur: a backdrop-filter over a scene that repaints every frame forces
+                WebKit to re-snapshot and re-blur its backdrop every frame. A flat scrim reads
+                near-identically over the pond and costs nothing. */}
             <div
-                className={`fixed bottom-12 left-1/2 -translate-x-1/2 p-2 px-4 rounded-full bg-black/20 backdrop-blur-md z-50 flex gap-4 transition-all duration-500 transform pointer-events-auto ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+                className={`fixed bottom-12 left-1/2 -translate-x-1/2 p-2 px-4 rounded-full bg-black/35 z-50 flex gap-4 transition-all duration-500 transform pointer-events-auto ${showControls ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
                     }`}
             >
                 <div className="relative">
@@ -1354,10 +1618,14 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         <Settings size={14} />
                     </button>
                     {/* Centered Dropdown - Opens Upwards */}
-                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-48 rounded-2xl border backdrop-blur-xl transition-all duration-300 origin-bottom overflow-hidden ${isSettingsOpen
+                    {/* backdrop-blur-xl removed. This panel stays mounted so it can transition,
+                        so its backdrop-filter was re-blurring the animating pond behind it on
+                        every frame even while the menu was closed. At 97% opacity the blur was
+                        doing nothing visible anyway. */}
+                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-48 rounded-2xl border transition-all duration-300 origin-bottom overflow-hidden ${isSettingsOpen
                         ? 'opacity-100 scale-100'
                         : 'opacity-0 scale-95 pointer-events-none'
-                        } ${isDarkMode ? 'bg-sage-mid/90 border-white/10' : 'bg-white/90 border-sage/10'}`}>
+                        } ${isDarkMode ? 'bg-sage-mid/97 border-white/10' : 'bg-white/97 border-sage/10'}`}>
                         <div className="p-2 space-y-1 text-left">
                             {[
                                 { label: 'Fish', state: showFish, setter: setShowFish },
@@ -1499,11 +1767,14 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 </div>
             )}
 
-            {/* ── FIRST-KOI ARRIVAL CELEBRATION ── */}
+            {/* ── FIRST-KOI ARRIVAL CELEBRATION ──
+                 Solid scrim instead of backdrop-filter: this covers the full viewport over a
+                 scene that repaints every frame, so the blur was the single most expensive
+                 thing on screen while the celebration was up. */}
             {showFirstArrival && (
                 <div
                     className="fixed inset-0 z-[60] flex items-center justify-center p-8"
-                    style={{ background: 'rgba(10,26,14,0.75)', backdropFilter: 'blur(8px)' }}
+                    style={{ background: 'rgba(10,26,14,0.93)' }}
                     onClick={dismissFirstArrival}
                 >
                     <div

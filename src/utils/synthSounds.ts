@@ -56,7 +56,14 @@ function ensureNoiseWorklet(ctx: BaseAudioContext): Promise<boolean> {
 
 // ── Fallback noise generator (mirrors the worklet math, runs once) ───────────
 // Output trim must match NOISE_TRIM in public/audio/noise-processor.js.
-const NOISE_TRIM: Record<NoiseColor, number> = { white: 0.30, pink: 0.90, brown: 0.90, violet: 0.45 };
+// Pink/brown are capped at 1/sqrt(2) (~0.707): bakeSeamlessLoop's equal-power
+// crossfade sums two overlapped windows of this same trimmed signal, and can
+// peak at amplitude*sqrt(2) when they align. Pink/brown are heavily low-passed
+// (strongly correlated sample-to-sample), so a peak collision at the loop seam
+// isn't one inaudible sample, it's a sustained run of clipped samples, audible
+// as a crackle every loop. At 0.90 that overlap regularly exceeded [-1, 1] and
+// got hard-clipped in encodeWav. White/violet stay well under the ceiling already.
+const NOISE_TRIM: Record<NoiseColor, number> = { white: 0.30, pink: 0.65, brown: 0.65, violet: 0.45 };
 
 function fillNoise(out: Float32Array, color: NoiseColor): void {
     const trim = NOISE_TRIM[color];
@@ -114,12 +121,12 @@ export class SynthVoice {
         this.spec = spec;
     }
 
-    async play(ctx: AudioContext, startVol: number): Promise<void> {
+    async play(ctx: AudioContext, startVol: number, destination?: AudioNode): Promise<void> {
         this.teardownSources();
         if (!this.gain) {
             this.gain = ctx.createGain();
             this.gain.gain.value = 0;
-            this.gain.connect(ctx.destination);
+            this.gain.connect(destination ?? ctx.destination);
         }
 
         if (this.spec.kind === 'binaural') {

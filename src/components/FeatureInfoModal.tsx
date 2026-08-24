@@ -45,7 +45,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
     const textPrimary = 'text-white';
     const textSecondary = 'text-white'; // Full opacity for readability
     const accentColor = 'text-white font-black text-[12px]'; // Darker, bolder Terracotta
-    const tabActiveBg = 'bg-[#E5D6A7] shadow-sm border-[#E5D6A7] text-[#1B4332]';
+    const tabActiveBg = 'bg-[#E5D6A7] shadow-sm border-[#E5D6A7] text-sage-dark';
     const tabInactiveBg = 'bg-transparent border-white/10 text-white';
 
     return (
@@ -110,7 +110,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                                 <div className="space-y-3">
                                     {howToUse.steps.map((step, index) => (
                                         <div key={index} className="flex gap-4 p-4 rounded-2xl bg-white/[0.06] border border-white/10">
-                                            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#E5D6A7] flex items-center justify-center text-sm font-black text-[#1B4332] shadow-sm">
+                                            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#E5D6A7] flex items-center justify-center text-sm font-black text-sage-dark shadow-sm">
                                                 {index + 1}
                                             </div>
                                             <p className="text-base leading-relaxed pt-1.5 font-medium text-white/80">
@@ -161,7 +161,7 @@ export const FeatureInfoModal: React.FC<FeatureInfoModalProps> = ({
                                     {theScience.benefits.map((benefit, index) => (
                                         <div key={index} className="flex gap-4 p-4 rounded-2xl bg-white/[0.06] border border-white/10">
                                             <div className="w-8 h-8 rounded-xl bg-[#E5D6A7] flex items-center justify-center flex-shrink-0 shadow-sm">
-                                                <span className="text-[#1B4332] font-black text-sm">✓</span>
+                                                <span className="text-sage-dark font-black text-sm">✓</span>
                                             </div>
                                             <p className="text-sm font-medium pt-1.5 text-white/80">
                                                 {benefit}

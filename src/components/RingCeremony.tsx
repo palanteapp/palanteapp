@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { triggerConfetti } from '../utils/CelebrationEffects';
 import { haptics } from '../utils/haptics';
+import { ENTRANCE_EASE, STAGGER } from '../constants/motion';
 
 export type RingCeremonyType = 'ring1' | 'ring2' | 'ring3' | 'fullbloom';
 
@@ -117,7 +118,7 @@ const MandalaRings: React.FC<{ ringsComplete: number; totalRings: number; accent
                     filter={i === ringsComplete - 1 ? 'url(#ringGlow)' : undefined}
                     initial={{ pathLength: 0, opacity: 0 }}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 1.4, delay: i * 0.2, ease: 'easeOut' }}
+                    transition={{ duration: 1.4, delay: i * STAGGER.ceremony, ease: 'easeOut' }}
                     strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * radii[i + 1]}`}
                     strokeDashoffset="0"
@@ -137,7 +138,7 @@ const MandalaRings: React.FC<{ ringsComplete: number; totalRings: number; accent
                         fill={accentColor}
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 0.9 }}
-                        transition={{ duration: 0.4, delay: 1.2 + i * 0.04, ease: 'backOut' }}
+                        transition={{ duration: 0.4, delay: 1.2 + i * STAGGER.tight, ease: 'backOut' }}
                     />
                 );
             })}
@@ -178,7 +179,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.6 }}
+                    transition={{ duration: 0.6, ease: ENTRANCE_EASE }}
                 >
                     {/* Background glow bloom */}
                     <motion.div
@@ -219,7 +220,7 @@ export const RingCeremony: React.FC<RingCeremonyProps> = ({
                             className="mb-8"
                             initial={{ opacity: 0, scale: 0.7 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.2, duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            transition={{ delay: 0.2, duration: 0.9, ease: ENTRANCE_EASE }}
                         >
                             <MandalaRings
                                 ringsComplete={ceremony.ringsComplete}

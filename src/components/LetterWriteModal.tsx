@@ -72,6 +72,7 @@ export const LetterWriteModal: React.FC<LetterWriteModalProps> = ({
             onClose={onClose}
             isDarkMode={isDarkMode}
             showCloseButton={false}
+            emphasis="present"
         >
             <div className="p-8 pb-12">
                 {/* Close Button */}

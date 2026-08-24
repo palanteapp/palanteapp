@@ -9,8 +9,12 @@
 // color is passed via processorOptions: 'white' | 'pink' | 'brown' | 'violet'.
 
 // Output trim per color so all four sit at roughly equal perceived loudness
-// (~0.18 RMS) with headroom. Mirrored in synthSounds.ts fillNoise().
-const NOISE_TRIM = { white: 0.30, pink: 0.90, brown: 0.90, violet: 0.45 };
+// with headroom. Mirrored in synthSounds.ts fillNoise() — pink/brown are
+// capped at 1/sqrt(2) (~0.707) so the offline-baked loop path's equal-power
+// crossfade (bakeSeamlessLoop) can never sum two overlapped peaks past [-1, 1]
+// and hard-clip at the loop seam. This worklet never loops itself, but the
+// two trims must match or the same color sounds louder live than backgrounded.
+const NOISE_TRIM = { white: 0.30, pink: 0.65, brown: 0.65, violet: 0.45 };
 
 class NoiseProcessor extends AudioWorkletProcessor {
     constructor(options) {

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Plus, Settings, TrendingUp, Goal as GoalIcon, Lightbulb, Sparkles, Fish, ChevronRight } from 'lucide-react';
 import { buildYearForwardData, hasEnoughForYearForward } from '../utils/yearForward';
 import { CoachCard } from './CoachCard';
+import { PageHeader } from './PageHeader';
 import { FocusItem } from './FocusItem';
 import { CelebrationModal } from './CelebrationModal';
 import { CoachSettingsModal } from './CoachSettingsModal';
@@ -97,16 +98,6 @@ export const Momentum: React.FC<MomentumProps> = ({
 
         const isCompleting = !focusToToggle.isCompleted;
 
-        if (isCompleting) {
-            triggerHaptic();
-            triggerConfetti();
-
-            if (bellRef.current) {
-                bellRef.current.currentTime = 0;
-                bellRef.current.play().catch(e => console.error(e));
-            }
-        }
-
         const updatedFocuses = dailyFocuses.map(f =>
             f.id === id ? { ...f, isCompleted: isCompleting } : f
         );
@@ -115,18 +106,36 @@ export const Momentum: React.FC<MomentumProps> = ({
 
         if (isCompleting) {
             const allCompleted = updatedFocuses.length > 0 && updatedFocuses.every(f => f.isCompleted);
+            let celebratingAllDone = false;
             if (allCompleted) {
                 // A gentle "you lived your intention today" moment, once per day, no streaks or badges.
-                const today = new Date().toISOString().split('T')[0];
+                const today = getTodayDate();
                 if (user.lastGoalCompletionDate !== today) {
                     updatedUser.lastGoalCompletionDate = today;
-                    setShowCelebration(true);
+                    celebratingAllDone = true;
                 }
-            } else if (updatedUser.coachSettings?.tipsEnabled !== false) {
-                // Gentle tip on a single completion, if tips are enabled (default true).
-                setTimeout(() => {
-                    onShowTip?.();
-                }, 500);
+            }
+
+            if (celebratingAllDone) {
+                // CelebrationModal fires its own independent confetti for "all goals
+                // done" — firing the plain burst below too meant two different
+                // confetti systems running on top of each other for the same event.
+                setShowCelebration(true);
+            } else {
+                triggerHaptic();
+                triggerConfetti();
+
+                if (bellRef.current) {
+                    bellRef.current.currentTime = 0;
+                    bellRef.current.play().catch(e => console.error(e));
+                }
+
+                if (!allCompleted && updatedUser.coachSettings?.tipsEnabled !== false) {
+                    // Gentle tip on a single completion, if tips are enabled (default true).
+                    setTimeout(() => {
+                        onShowTip?.();
+                    }, 500);
+                }
             }
         }
 
@@ -168,26 +177,31 @@ export const Momentum: React.FC<MomentumProps> = ({
 
     return (
         <div className="w-full flex flex-col px-6 pt-6 pb-32 animate-fade-in max-w-md mx-auto">
-            {/* 0. Header Area */}
-            <div className="w-full mb-8">
-                <h2 className={`text-3xl font-display font-medium ${textPrimary}`}>Progress</h2>
-                <p className={`text-xs uppercase tracking-[0.18em] font-black mt-2 mb-3 ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>Progress & Growth</p>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => { haptics.light(); setShowCoachGuidance(true); }}
-                        className={`p-2.5 rounded-2xl transition-all ${isDarkMode ? 'glass-surface text-white/80 hover:bg-white/10' : 'bg-sage/10 text-sage hover:bg-sage/20'}`}
-                    >
-                        <Lightbulb size={17} />
-                    </button>
-                    <button
-                        onClick={() => { haptics.light(); setShowSettings(true); }}
-                        className="flex items-center gap-1.5 px-4 py-3 rounded-2xl transition-all active:scale-95 bg-pale-gold text-sage-dark hover:brightness-105"
-                    >
-                        <Settings size={14} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Palante Settings</span>
-                    </button>
-                </div>
-            </div>
+            {/* 0. Header Area — shared PageHeader pattern (see PageHeader.tsx).
+                The eyebrow used to read "Progress & Growth", which just restated the
+                title above it. */}
+            <PageHeader
+                title="Progress"
+                eyebrow={<span>Everything you&apos;ve built</span>}
+                actions={
+                    <>
+                        <button
+                            onClick={() => { haptics.light(); setShowCoachGuidance(true); }}
+                            className="p-2.5 rounded-2xl transition-all glass-surface text-white/80 hover:bg-white/10"
+                            aria-label="How Progress works"
+                        >
+                            <Lightbulb size={17} />
+                        </button>
+                        <button
+                            onClick={() => { haptics.light(); setShowSettings(true); }}
+                            className="flex items-center gap-1.5 px-4 py-3 rounded-2xl transition-all active:scale-95 bg-pale-gold text-sage-dark hover:brightness-105"
+                        >
+                            <Settings size={14} />
+                            <span className="text-xs font-bold uppercase tracking-wider">Palante Settings</span>
+                        </button>
+                    </>
+                }
+            />
 
             {/* Coach Card - Premium Glass */}
             <div className="mb-5">
@@ -233,7 +247,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                         </div>
                         <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Practices</span>
                     </div>
-                    <p className={`text-xl font-display font-bold leading-tight ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                    <p className={`text-3xl font-display font-bold leading-tight tabular-nums ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
                         {(user.practiceData?.totalPractices || 0).toLocaleString()}
                     </p>
                     <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
@@ -371,7 +385,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                                 onClick={() => handleAddFocus()}
                                 className={`flex-1 py-3 rounded-xl font-medium transition-all ${isDarkMode
                                     ? 'bg-pale-gold text-sage-dark hover:bg-white'
-                                    : 'bg-[#1B4332] text-white hover:bg-sage-600 shadow-lg'}`}
+                                    : 'bg-sage-dark text-white hover:bg-sage shadow-lg'}`}
                             >
                                 Create Focus
                             </button>

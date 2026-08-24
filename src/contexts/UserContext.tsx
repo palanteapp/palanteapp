@@ -214,6 +214,36 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
+    // Streak Staleness Check: a streak represents unbroken daily activity, but the
+    // only place that ever computed a fresh value was logActivity itself — see its
+    // own comment a few lines below ("streak resetting to 0 happens if a day passes
+    // without activity, usually checked on app launch"), a check that was never
+    // actually written anywhere. Without it, a broken streak just sits at its last
+    // value forever: shown in Profile, fed into AI prompts ("Current streak: N
+    // days"), and pushed to the home-screen widget — all claiming a streak that's
+    // actually long gone. Runs once per profile load, which is exactly the "app
+    // launch" moment the original comment already assumed this would happen at.
+    useEffect(() => {
+        const currentUser = userRef.current;
+        if (!currentUser || !currentUser.streak) return;
+
+        const today = getTodayDate();
+        const yesterday = getLocalYesterdayDate();
+        const hasRecentActivity = (currentUser.activityHistory || []).some(
+            log => log.date === today || log.date === yesterday
+        );
+        if (hasRecentActivity) return;
+
+        const updated = { ...currentUser, streak: 0 };
+        setUser(updated);
+        userRef.current = updated;
+        persistProfile(updated);
+        if (authUser) {
+            api.updateProfile(authUser.id, updated).catch(() => {});
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
+
     // Core Update Logic
     const updateProfile = useCallback(async (updateInput: UserProfile | ((prev: UserProfile | null) => UserProfile)) => {
 

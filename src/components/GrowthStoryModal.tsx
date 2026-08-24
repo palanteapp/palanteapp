@@ -24,6 +24,7 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
 
     useEffect(() => {
         if (!isOpen || !data) return;
+        let cancelled = false;
         // eslint-disable-next-line react-hooks/set-state-in-effect -- resets and kicks off the async memoir generation each time the modal opens with new data
         setMemoir(null);
         setStats(null);
@@ -33,10 +34,16 @@ export const GrowthStoryModal: React.FC<GrowthStoryModalProps> = ({
         setTimeout(() => triggerConfetti(), 800);
 
         generateGrowthStory(data).then(result => {
+            // Guards against a reopen-with-new-data racing ahead of an in-flight
+            // generation: without this, the stale call's result could land after
+            // the newer one and silently overwrite it.
+            if (cancelled) return;
             setMemoir(result.memoir);
             setStats(result.stats);
             setLoading(false);
         });
+
+        return () => { cancelled = true; };
     }, [isOpen, data]);
 
     const firstName = data?.firstName || 'you';

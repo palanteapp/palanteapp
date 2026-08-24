@@ -21,6 +21,7 @@ import { MonthlyPatternCard } from './MonthlyPatternCard';
 import { AIDisclosureModal } from './AIDisclosureModal';
 import { useTranslation } from '../i18n/useTranslation';
 import { analytics } from '../utils/analytics';
+import { PageHeader } from './PageHeader';
 
 interface ProfileProps {
     user: UserProfile;
@@ -440,15 +441,20 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                 style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
                 className={`px-6 pb-6 flex items-center justify-between shrink-0 border-b ${isDarkMode ? 'bg-sage-mid border-white/10' : 'bg-warm-gray-green border-sage/10'}`}
             >
-                <div className="flex flex-col">
-                    <h2 className={`text-2xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Settings</h2>
-                    <div className="flex items-center gap-2 mt-1">
-                        <div className={`w-2 h-2 rounded-full transition-all duration-300 ${saveStatus === 'saving' ? 'bg-amber animate-pulse scale-125' : saveStatus === 'saved' ? 'bg-[#98B07D]' : 'bg-white/10'}`} />
-                        <span className={`text-xs uppercase tracking-widest font-black transition-colors ${saveStatus === 'saving' ? 'text-amber' : saveStatus === 'saved' ? 'text-[#98B07D]' : (isDarkMode ? 'text-white' : 'text-sage-dark/30')}`}>
-                            {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Synced to Cloud' : 'Settings Up to Date'}
-                        </span>
-                    </div>
-                </div>
+                {/* Shared PageHeader pattern (see PageHeader.tsx) — the save-status
+                    line rides in the eyebrow slot, same as Soundscapes' play status. */}
+                <PageHeader
+                    variant="panel"
+                    title="Settings"
+                    eyebrow={
+                        <>
+                            <div className={`w-2 h-2 rounded-full transition-all duration-300 ${saveStatus === 'saving' ? 'bg-amber animate-pulse scale-125' : saveStatus === 'saved' ? 'bg-[#98B07D]' : 'bg-white/10'}`} />
+                            <span className={`transition-colors ${saveStatus === 'saving' ? 'text-amber' : saveStatus === 'saved' ? 'text-[#98B07D]' : ''}`}>
+                                {saveStatus === 'saving' ? 'Syncing...' : saveStatus === 'saved' ? 'Synced to Cloud' : 'Settings Up to Date'}
+                            </span>
+                        </>
+                    }
+                />
                 <button
                     onClick={() => { performSave(); onClose(); }}
                     className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-sage/10 hover:bg-sage/20 text-sage-dark'}`}

@@ -46,7 +46,9 @@ export const FocusItem: React.FC<FocusItemProps> = ({
     const handleTouchEnd = () => {
         const threshold = 100;
         if (swipeOffset > threshold) {
-            if (!focus.isCompleted) haptics.success();
+            // No local haptic here on completion: onToggle's parent handler already
+            // fires exactly one (via triggerConfetti or the milestone celebration),
+            // so this used to double-buzz every completion.
             onToggle(focus.id);
         } else if (swipeOffset < -threshold) {
             haptics.medium();
@@ -179,7 +181,8 @@ export const FocusItem: React.FC<FocusItemProps> = ({
                     <button
                         onClick={() => {
                             if (!isEditing) {
-                                if (!focus.isCompleted) haptics.success();
+                                // Same as the swipe path above: the parent handler already
+                                // fires one haptic on completion.
                                 onToggle(focus.id);
                             }
                         }}

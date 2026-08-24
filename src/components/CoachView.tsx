@@ -639,7 +639,13 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
             {/* ── CHAT VIEW ──────────────────────────────────────────────── */}
             {view === 'chat' && activeSession && (
                 <>
-                    <header className="relative z-20 px-6 pt-14 pb-4">
+                    {/* pt-14 was a fixed 56px guess at the status bar; on a Dynamic Island
+                        phone that tucked the back button under the island. Offset from
+                        env(safe-area-inset-top) like Settings and the other fixed headers. */}
+                    <header
+                        className="relative z-20 px-6 pb-4"
+                        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+                    >
                         <div className="flex items-center justify-between mb-5">
                             {/* Back button now exits Coach entirely (no more pillar-picker home to return to). */}
                             <button
@@ -701,7 +707,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 <div className={`
                                     max-w-[82%] text-lg leading-relaxed font-body break-words min-w-0
                                     ${msg.role === 'user'
-                                        ? 'px-7 py-4 rounded-[2rem] bg-[#E5D6A7] text-[#1B4332] font-semibold shadow-lg'
+                                        ? 'px-7 py-4 rounded-[2rem] bg-[#E5D6A7] text-sage-dark font-semibold shadow-lg'
                                         : 'text-white font-medium opacity-90'
                                     }
                                 `}>
@@ -884,7 +890,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                     className={`w-12 h-12 flex items-center justify-center rounded-full transition-all
                                         ${!inputText.trim() || isTyping
                                             ? 'opacity-0 scale-50'
-                                            : 'bg-[#E5D6A7] text-[#1B4332] shadow-xl hover:scale-105 active:scale-95'
+                                            : 'bg-[#E5D6A7] text-sage-dark shadow-xl hover:scale-105 active:scale-95'
                                         }`}
                                 >
                                     <Send size={18} strokeWidth={3} />
@@ -946,7 +952,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                     onKeyDown={(e) => { if (!isPending && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); resumeSession(s); } }}
                                     className={`w-full flex items-center gap-5 px-6 py-5 rounded-[2.5rem] bg-white/5 border-2 text-left transition-all active:scale-[0.98] hover:bg-white/10 cursor-pointer ${isPending ? 'border-red-400/60 bg-red-400/5' : 'border-[#E5D6A7]/10'}`}
                                 >
-                                    <div className="w-12 h-12 rounded-2xl bg-[#E5D6A7] flex items-center justify-center text-[#1B4332] flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-2xl bg-[#E5D6A7] flex items-center justify-center text-sage-dark flex-shrink-0">
                                         {pillarIcon(s.pillar, 20)}
                                     </div>
                                     <div className="flex-1 min-w-0">

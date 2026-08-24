@@ -5,6 +5,7 @@ import { LEGAL_DISCLAIMER } from '../data/legalDisclaimer';
 import type { ContentType, QuoteSource, PrimaryIntent } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAgeRangeGate } from '../hooks/useAgeRangeGate';
+import { ENTRANCE_EASE } from '../constants/motion';
 
 interface CinematicIntroProps {
     onComplete: (userData: {
@@ -179,7 +180,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                             className="mb-7 relative"
                             initial={{ opacity: 0, scale: 0.82 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.9, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            transition={{ duration: 0.9, ease: ENTRANCE_EASE }}
                         >
                             <motion.div
                                 className="absolute inset-0 m-auto rounded-full"
@@ -278,7 +279,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: ENTRANCE_EASE }}
                     >
                         <div className="w-full max-w-sm">
                             <div className="flex justify-center mb-10">
@@ -420,7 +421,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: ENTRANCE_EASE }}
                     >
                         <div className="w-full max-w-sm">
                             <div className="flex justify-center mb-10">
@@ -507,7 +508,7 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                         initial={{ opacity: 0, x: 44 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -44 }}
-                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: ENTRANCE_EASE }}
                     >
                         <div className="w-full max-w-sm">
                             <div className="flex justify-center mb-10">

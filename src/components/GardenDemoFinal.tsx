@@ -200,12 +200,16 @@ function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; de
       transition={{ duration: 1.4, delay, ease: 'easeOut' }}
       style={{ originX: '0px', originY: '0px' }}
     >
-      {/* ── Ripple waves, 3 staggered rings that pulse outward from center ── */}
+      {/* ── Ripple waves, 3 staggered rings that pulse outward from center ──
+           No static `r` prop: Framer Motion needs to own this value from the
+           start via initial/animate alone, matching the ripple block later in
+           this file (see its comment on reliable Framer Motion looping) — the
+           redundant static r={0} here raced with Framer Motion's own write to
+           the same attribute and intermittently left it "r=undefined" on mount. */}
       {[0, 1, 2].map((i) => (
         <motion.circle
           key={`ripple-${i}`}
           cx={0} cy={0}
-          r={0}
           fill="none"
           stroke={accent}
           strokeWidth={0.6}
@@ -222,9 +226,15 @@ function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; de
 
       {/* ── Scaled-down petal group (75% size, 50% opacity) ── */}
       <g transform="scale(0.75)" opacity={0.5}>
-        {/* ── Warm ambient glow (breathes slowly) ── */}
-        <motion.circle cx={0} cy={0} r={22}
+        {/* ── Warm ambient glow (breathes slowly) ──
+             Explicit `initial` (no static r prop): a 3-value out-and-back keyframe
+             array on `r` with `repeat: Infinity` and no initial left Framer Motion
+             to infer a starting value from the static prop, which intermittently
+             wrote "r=undefined" to the DOM on mount/remount (see the ripple block
+             above for the same fix, and its own note on this reliability issue). */}
+        <motion.circle cx={0} cy={0}
           fill={fill} fillOpacity={0.13}
+          initial={{ r: 22, opacity: 0.13 }}
           animate={{ r: [19, 24, 19], opacity: [0.13, 0.22, 0.13] }}
           transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
         />
@@ -255,8 +265,9 @@ function CenterPiece({ fill, accent, delay }: { fill: string; accent: string; de
         />
 
         {/* ── Breathing pulse ring ── */}
-        <motion.circle cx={0} cy={0} r={21} fill="none"
+        <motion.circle cx={0} cy={0} fill="none"
           stroke={accent} strokeWidth={0.55}
+          initial={{ r: 21, opacity: 0.45 }}
           animate={{ r: [19, 24, 19], opacity: [0.45, 0, 0.45] }}
           transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
         />
@@ -408,8 +419,9 @@ export const GardenDemoFinal: React.FC<Props> = ({ isDarkMode, completedDays = 9
           </g>
 
           {/* Breathing pulse */}
-          <motion.circle cx={CX} cy={CY} r={6}
+          <motion.circle cx={CX} cy={CY}
             fill="none" stroke={pal.G} strokeWidth="1" strokeOpacity={0.45}
+            initial={{ r: 6, opacity: 0.45 }}
             animate={{ r: [6, 20, 6], opacity: [0.45, 0, 0.45] }}
             transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
           />
@@ -603,8 +615,9 @@ export const MandalaOnlySVG: React.FC<MandalaOnlySVGProps> = ({
       </g>
 
       {/* Subtle breathing pulse */}
-      <motion.circle cx={CX} cy={CY} r={6}
+      <motion.circle cx={CX} cy={CY}
         fill="none" stroke={pal.G} strokeWidth="1" strokeOpacity={0.45}
+        initial={{ r: 6, opacity: 0.45 }}
         animate={{ r: [6, 20, 6], opacity: [0.45, 0, 0.45] }}
         transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
       />

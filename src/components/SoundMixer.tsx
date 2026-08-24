@@ -8,6 +8,7 @@ import { SYNTH_SOUNDS, SynthVoice, getSynthLoopBlobUrl } from '../utils/synthSou
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SlideUpModal } from './SlideUpModal';
+import { PageHeader } from './PageHeader';
 
 interface SoundMixerProps {
     isDarkMode: boolean; // Kept for interface compatibility
@@ -177,6 +178,29 @@ const getAudioContext = () => {
     return win._palanteAudioContext as AudioContext;
 };
 
+// Shared master limiter: every voice class below (CrossfadingSound, BufferLoopSound,
+// SynthVoice) used to connect straight to ctx.destination. Each track is individually
+// leveled with enough headroom for its OWN runtime crossfade (see seamlessLoop.ts /
+// bake-loops.mjs), but nothing accounted for what happens when a user runs several
+// loud layers at once — e.g. two ambient loops plus a full-scale binaural tone — which
+// can sum past 0dBFS with no ceiling to catch it. A single shared DynamicsCompressorNode
+// tuned as a fast limiter sits between every voice and the speakers, catching that case
+// without audibly coloring normal single- or few-layer playback.
+const getMasterLimiter = (ctx: AudioContext): AudioNode => {
+    const win = window as { _palanteMasterLimiter?: DynamicsCompressorNode };
+    if (!win._palanteMasterLimiter) {
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -3;   // matches the -3dB ceiling bake-loops.mjs levels every track to
+        limiter.knee.value = 0;         // hard knee: a limiter, not a musical compressor
+        limiter.ratio.value = 20;       // ~brickwall above threshold
+        limiter.attack.value = 0.003;   // fast enough to catch a sudden multi-layer peak
+        limiter.release.value = 0.25;
+        limiter.connect(ctx.destination);
+        win._palanteMasterLimiter = limiter;
+    }
+    return win._palanteMasterLimiter;
+};
+
 // Streaming playback for the long-form pieces (8–18 min) that are far too large
 // to hold decoded: two HTMLAudioElements through Web Audio gain nodes, handing
 // off to each other at the loop point.
@@ -245,7 +269,7 @@ class CrossfadingSound {
         // the incoming element to the head offset and adjust gains immediately.
         this.masterGain = ctx.createGain();
         this.masterGain.gain.value = 0;
-        this.masterGain.connect(ctx.destination);
+        this.masterGain.connect(getMasterLimiter(ctx));
 
         this.audio1 = new Audio(this.src);
         this.audio1.loop = true;
@@ -454,7 +478,7 @@ class BufferLoopSound {
         if (!this.gainNode) {
             this.gainNode = ctx.createGain();
             this.gainNode.gain.value = 0;
-            this.gainNode.connect(ctx.destination);
+            this.gainNode.connect(getMasterLimiter(ctx));
         }
         // Source nodes are single-use; silence any previous one and start fresh.
         if (this.sourceNode) {
@@ -656,7 +680,7 @@ class MixerSound {
         if (token !== this.playToken) return;
 
         if (this.mode === 'synth' && this.synthSound) {
-            this.synthSound.play(ctx, this.volume);
+            this.synthSound.play(ctx, this.volume, getMasterLimiter(ctx));
             // Pre-render the background loop blob so it's ready if the app backgrounds.
             const spec = SYNTH_SOUNDS[this.id];
             if (spec) getSynthLoopBlobUrl(this.id, spec, ctx.sampleRate).catch(() => {});
@@ -1124,19 +1148,25 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             {/* TOP BAR: Header & Global Controls */}
             <div className={`px-4 md:px-8 py-4 md:py-6 flex flex-col md:flex-row items-center justify-between z-10 border-b border-white/5 bg-white/5 backdrop-blur-md gap-4`}>
                 <div className="flex items-center justify-between w-full md:w-auto">
-                    <div className="relative">
-                        <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Soundscapes</h2>
-                        <div className="flex items-center gap-2.5 mt-0.5">
-                            <div className="flex gap-1">
-                                {[...Array(3)].map((_, i) => (
-                                    <div key={i} className={`w-0.5 h-2 rounded-full transition-all duration-500 ${activeSounds.size > 0 ? 'bg-pale-gold animate-pulse' : 'bg-white/10'}`} style={{ animationDelay: `${i * 0.2}s` }} />
-                                ))}
-                            </div>
-                            <p className="text-[11px] text-white/70 uppercase tracking-[0.2em] font-bold">
-                                {activeSounds.size > 0 ? `${activeSounds.size} playing` : 'Ready'}
-                            </p>
-                        </div>
-                    </div>
+                    {/* Shared PageHeader pattern (see PageHeader.tsx) — this screen's
+                        title/eyebrow treatment is the one the component standardized on. */}
+                    <PageHeader
+                        variant="panel"
+                        className="relative"
+                        title="Soundscapes"
+                        eyebrow={
+                            <>
+                                <div className="flex gap-1">
+                                    {[...Array(3)].map((_, i) => (
+                                        <div key={i} className={`w-0.5 h-2 rounded-full transition-all duration-500 ${activeSounds.size > 0 ? 'bg-pale-gold animate-pulse' : 'bg-white/10'}`} style={{ animationDelay: `${i * 0.2}s` }} />
+                                    ))}
+                                </div>
+                                <span>
+                                    {activeSounds.size > 0 ? `${activeSounds.size} playing` : 'Ready'}
+                                </span>
+                            </>
+                        }
+                    />
 
                     {/* Help moved out of its own stacked row and in beside Close: on a phone
                         that row cost ~40pt of the little vertical space this panel has, and

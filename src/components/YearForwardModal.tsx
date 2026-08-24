@@ -52,13 +52,22 @@ export const YearForwardModal: React.FC<YearForwardModalProps> = ({ isOpen, data
 
     useEffect(() => {
         if (!isOpen || !data) return;
+        let cancelled = false;
         // eslint-disable-next-line react-hooks/set-state-in-effect -- resets and kicks off the async letter generation each time the modal opens with new data
         setLetter(null);
         setLoading(true);
         haptics.success();
         generateYearForwardLetter(data)
-            .then(text => setLetter(text))
-            .finally(() => setLoading(false));
+            .then(text => {
+                // Guards against a reopen-with-new-data racing ahead of an in-flight
+                // generation: without this, the stale call's result could land after
+                // the newer one and silently overwrite it.
+                if (cancelled) return;
+                setLetter(text);
+            })
+            .finally(() => { if (!cancelled) setLoading(false); });
+
+        return () => { cancelled = true; };
     }, [isOpen, data]);
 
     if (!data) return null;

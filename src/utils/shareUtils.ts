@@ -589,7 +589,7 @@ export async function generateMilestoneShareImage(params: {
 
     // ── Background ───────────────────────────────────────────────────────────
     const bgGrad = ctx.createLinearGradient(0, 0, W * 0.4, H);
-    bgGrad.addColorStop(0, '#1B4332');
+    bgGrad.addColorStop(0, '#1F3824');
     bgGrad.addColorStop(1, '#252E22');
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
@@ -722,7 +722,7 @@ export async function generateMilestoneShareImage(params: {
     ctx.arc(W / 2 - 70, cursor + brandR, brandR, 0, Math.PI * 2);
     ctx.fill();
     ctx.font         = '800 22px Inter, sans-serif';
-    ctx.fillStyle    = '#1B4332';
+    ctx.fillStyle    = '#1F3824';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('P', W / 2 - 70, cursor + brandR + 1);

@@ -57,7 +57,14 @@ export const MorningPractice: React.FC<MorningPracticeProps> = ({
         });
 
         haptics.success();
-        triggerConfetti();
+        // Skip here when this same completion also crosses a milestone: onMilestone
+        // below fires its own confetti (a toast for early milestones, or the full
+        // MilestoneCelebration modal), so firing unconditionally too meant every
+        // milestone day — including a brand-new user's very first practice, right
+        // after onboarding — got two confetti bursts back to back.
+        if (!(milestone && isNew && milestoneName)) {
+            triggerConfetti();
+        }
 
         if (milestone && isNew && milestoneName) {
             onMilestone?.(milestoneName);
