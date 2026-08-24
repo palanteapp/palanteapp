@@ -471,6 +471,108 @@ class BufferLoopSound {
     }
 }
 
+// Background loop crossfade: iOS suspends the AudioContext once the app is
+// hidden, so neither BufferLoopSound (audio-thread loop) nor CrossfadingSound
+// (GainNode automation) can run — nothing routed through a suspended context
+// produces sound. AVAudioSession keeps a plain HTMLAudioElement playing, but a
+// single element's native `loop = true` restart is not guaranteed glitch-free
+// at the OS decoder level (that's what the foreground dual-element handoff
+// above exists to hide). This is the same technique, ported to run on a plain
+// JS timer against `element.volume` instead of GainNode curves, since that's
+// all that's available once the audio graph itself is asleep.
+class BackgroundCrossfade {
+    private audio1: HTMLAudioElement;
+    private audio2: HTMLAudioElement;
+    private activeIndex: 1 | 2 = 1;
+    private isCrossfading = false;
+    private targetVol: number;
+    private pollTimer: ReturnType<typeof setInterval> | null = null;
+    private fadeTimer: ReturnType<typeof setInterval> | null = null;
+    private seekTimer: ReturnType<typeof setTimeout> | null = null;
+    private prevTime = -1;
+
+    constructor(src: string, vol: number) {
+        this.targetVol = Math.min(1, Math.max(0, vol));
+        this.audio1 = new Audio(src);
+        this.audio1.loop = true;
+        this.audio1.volume = this.targetVol;
+        this.audio2 = new Audio(src);
+        this.audio2.loop = true;
+        this.audio2.volume = 0;
+    }
+
+    async start() {
+        await Promise.all([this.audio1.play(), this.audio2.play()]).catch(() => {});
+        this.pollTimer = setInterval(() => this.tick(), 50);
+    }
+
+    private tick() {
+        if (this.isCrossfading) return;
+        const active = this.activeIndex === 1 ? this.audio1 : this.audio2;
+        const dur = active.duration;
+        if (!(dur > 0)) return;
+        const cTime = active.currentTime;
+
+        // Native loop already wrapped (a throttled/busy tick missed the seam
+        // window entirely): catch up immediately instead of leaving the gap.
+        const missedWindow = this.prevTime > 0 && this.prevTime > dur * 0.5 && cTime < this.prevTime * 0.5;
+        this.prevTime = cTime;
+
+        const untilSeam = dur - cTime;
+        if (missedWindow || untilSeam <= LOOP_ARM_LEAD_SEC) {
+            this.beginCrossfade(missedWindow ? 0 : Math.max(0, untilSeam));
+        }
+    }
+
+    private beginCrossfade(delay: number) {
+        this.isCrossfading = true;
+        const active = this.activeIndex === 1 ? this.audio1 : this.audio2;
+        const next = this.activeIndex === 1 ? this.audio2 : this.audio1;
+
+        if (this.seekTimer) clearTimeout(this.seekTimer);
+        this.seekTimer = setTimeout(() => {
+            next.currentTime = 0;
+            const steps = 20;
+            const stepMs = (LOOP_CROSSFADE_SEC * 1000) / steps;
+            let i = 0;
+            if (this.fadeTimer) clearInterval(this.fadeTimer);
+            this.fadeTimer = setInterval(() => {
+                i++;
+                const t = (i / steps) * (Math.PI / 2);
+                next.volume = Math.sin(t) * this.targetVol;
+                active.volume = Math.cos(t) * this.targetVol;
+                if (i >= steps) {
+                    if (this.fadeTimer) clearInterval(this.fadeTimer);
+                    this.fadeTimer = null;
+                    active.volume = 0;
+                    active.currentTime = 0;
+                    next.volume = this.targetVol;
+                    this.activeIndex = this.activeIndex === 1 ? 2 : 1;
+                    this.isCrossfading = false;
+                    this.prevTime = -1;
+                }
+            }, stepMs);
+        }, delay * 1000);
+    }
+
+    setVolume(vol: number) {
+        this.targetVol = Math.min(1, Math.max(0, vol));
+        if (this.isCrossfading) return; // let the in-flight curve finish; it reads targetVol on its own
+        const active = this.activeIndex === 1 ? this.audio1 : this.audio2;
+        active.volume = this.targetVol;
+    }
+
+    stop() {
+        if (this.pollTimer) clearInterval(this.pollTimer);
+        if (this.fadeTimer) clearInterval(this.fadeTimer);
+        if (this.seekTimer) clearTimeout(this.seekTimer);
+        this.audio1.pause();
+        this.audio1.src = '';
+        this.audio2.pause();
+        this.audio2.src = '';
+    }
+}
+
 // Facade choosing the playback strategy per sound:
 //   • synth, colored noise / binaural beats are generated procedurally and
 //              have no loop point at all (see synthSounds.ts);
@@ -548,12 +650,15 @@ class MixerSound {
         this.synthSound?.setVolume(getAudioContext(), vol, instant);
         this.bufferSound?.setVolume(getAudioContext(), vol, instant);
         this.streamSound?.setVolume(vol, instant);
+        this.bgCrossfade?.setVolume(vol);
     }
 
     // ── Background-safe playback ─────────────────────────────────────────────
     // Web Audio API is suspended by iOS when the app backgrounds, but plain
     // HTMLAudioElement with loop=true continues when AVAudioSession is .playback.
-    private bgAudio: HTMLAudioElement | null = null;
+    // Crossfaded via BackgroundCrossfade so the loop wrap stays seamless even
+    // though the audio graph itself is asleep — see that class for why.
+    private bgCrossfade: BackgroundCrossfade | null = null;
 
     enterBackground(vol: number) {
         this.leaveBackground();
@@ -567,27 +672,22 @@ class MixerSound {
             getSynthLoopBlobUrl(this.id, spec, sr).then(url => {
                 // Bail if we returned to the foreground or stopped while rendering.
                 if (!this.isPlaying || document.visibilityState === 'visible') return;
-                const a = new Audio(url);
-                a.loop = true;
-                a.volume = clamped;
-                a.play().catch(() => {});
-                this.bgAudio = a;
+                const cf = new BackgroundCrossfade(url, clamped);
+                this.bgCrossfade = cf;
+                cf.start();
             }).catch(() => {});
             return;
         }
 
-        const a = new Audio(this.src);
-        a.loop = true;
-        a.volume = clamped;
-        a.play().catch(() => {});
-        this.bgAudio = a;
+        const cf = new BackgroundCrossfade(this.src, clamped);
+        this.bgCrossfade = cf;
+        cf.start();
     }
 
     leaveBackground() {
-        if (this.bgAudio) {
-            this.bgAudio.pause();
-            this.bgAudio.src = '';
-            this.bgAudio = null;
+        if (this.bgCrossfade) {
+            this.bgCrossfade.stop();
+            this.bgCrossfade = null;
         }
     }
 }

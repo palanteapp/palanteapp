@@ -206,8 +206,9 @@
         {
             "id": "evolving-deep-sleep-drone",
             "src": "sounds/evolving-deep-sleep-drone.mp3",
+            "raw": "evolving-deep-sleep-drone-loop.wav",
             "out": "sounds/evolving-deep-sleep-drone.m4a",
-            "fade": 3,
+            "fade": 1.5,
             "kind": "texture"
         },
         {

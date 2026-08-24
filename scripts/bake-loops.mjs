@@ -71,7 +71,7 @@ function decode(file, targetRate) {
     return { channels: [L, R], sr };
 }
 
-function encode(outFile, channels, sr) {
+function encode(outFile, channels, sr, gainDb) {
     const nCh = channels.length, n = channels[0].length;
     const inter = new Float32Array(n * nCh);
     for (let i = 0; i < n; i++) for (let c = 0; c < nCh; c++) inter[i * nCh + c] = channels[c][i];
@@ -80,8 +80,28 @@ function encode(outFile, channels, sr) {
     const codec = ext === '.wav' ? ['-c:a', 'pcm_s16le']
         : ext === '.m4a' ? ['-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart']
         : ['-c:a', 'libmp3lame', '-q:a', '2'];
+    // Baked-in library leveler (see loudnessGain() above): bring the track's
+    // BODY to TARGET_RMS_DB, then a lookahead limiter clamps only the rare
+    // sample(s) that would otherwise cross PEAK_CEILING_DB — catching both
+    // this gain stage's own overshoot AND, on "periodic"-kind tracks, the
+    // headroom margin a highly-correlated runtime crossfade needs (its
+    // equal-power sin/cos sum can hump ~+3dB above either side at the seam).
+    // Applied here so it ships baked into the .m4a — one source of truth, no
+    // runtime volume riding needed.
+    const gainStage = (gainDb && Math.abs(gainDb) > 0.01) ? [`volume=${gainDb.toFixed(2)}dB`] : [];
+    // `limit` is linear, not dB. One extra dB of margin below PEAK_CEILING_DB
+    // absorbs AAC's own inter-sample reconstruction ripple (lossy transform
+    // coding can overshoot the exact PCM peak it was handed by ~0.5-1dB) —
+    // confirmed necessary empirically: without it, a handful of tracks
+    // (gentle-rain, ocean-waves, shoreline, kalimba-africa) measured with
+    // sample peaks slightly ABOVE 0dBFS in the encoded .m4a. `level=0`
+    // disables alimiter's "auto level" (on by default), which otherwise
+    // pushes output back up toward the ceiling regardless of the gain this
+    // was handed — the systematic culprit behind that overshoot.
+    const limiterCeiling = Math.pow(10, (PEAK_CEILING_DB - 1) / 20).toFixed(4);
+    const af = ['-af', [...gainStage, `alimiter=limit=${limiterCeiling}:attack=5:release=50:level=0`].join(',')];
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'f32le', '-ar', String(sr), '-ac', String(nCh),
-        '-i', 'pipe:0', ...codec, outFile], { input: raw, maxBuffer: 1 << 30 });
+        '-i', 'pipe:0', ...af, ...codec, outFile], { input: raw, maxBuffer: 1 << 30 });
 }
 
 // ── DSP ──────────────────────────────────────────────────────────────────────
@@ -198,6 +218,47 @@ function seamMetric(channels, sr) {
     };
 }
 
+// ── Library leveler ─────────────────────────────────────────────────────────
+// Every track in the mixer currently plays at whatever level it was recorded
+// at, so users end up riding the per-sound volume slider just to get a
+// consistent mix. This computes, straight from the already-decoded PCM (no
+// extra ffmpeg analysis pass needed), the gain that brings a track's BODY to
+// a common target loudness (RMS). True-peak safety is handled separately, by
+// a lookahead limiter (see encode()'s `alimiter`) rather than by capping the
+// whole track's gain off one loud sample: gentle-rain-style content has rare
+// sharp droplet transients ~30dB above its own RMS, and clamping gain to keep
+// THOSE under the ceiling would leave the entire track's body inaudibly quiet
+// next to steadier textures — exactly the "have to raise the volume" problem
+// this is meant to fix. A limiter instead only pulls down the rare transient
+// sample, leaving the body at the common target.
+const TARGET_RMS_DB = -20;   // perceived-loudness target, ambient background level
+const PEAK_CEILING_DB = -3;  // true-peak ceiling; leaves room for the crossfade hump
+const MAX_GAIN_DB = 12;      // don't blow up near-silent passages into audible hiss/noise floor
+
+function dbfs(x) { return 20 * Math.log10(Math.max(x, 1e-9)); }
+
+function rmsAndPeak(channels) {
+    let sumSq = 0, count = 0, peak = 0;
+    for (const ch of channels) {
+        for (let i = 0; i < ch.length; i++) {
+            const v = ch[i];
+            sumSq += v * v; count++;
+            const a = Math.abs(v);
+            if (a > peak) peak = a;
+        }
+    }
+    return { rms: Math.sqrt(sumSq / Math.max(count, 1)), peak };
+}
+
+// Gain (dB) to apply so this baked track's BODY lands at TARGET_RMS_DB,
+// never boosting more than MAX_GAIN_DB (silence/noise-floor guard). The
+// true-peak ceiling is enforced downstream by encode()'s limiter, not here.
+function loudnessGain(channels) {
+    const { rms, peak } = rmsAndPeak(channels);
+    const gainDb = Math.min(TARGET_RMS_DB - dbfs(rms), MAX_GAIN_DB);
+    return { gainDb, rmsDbBefore: dbfs(rms), peakDbBefore: dbfs(peak) };
+}
+
 // ── Run ──────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const write = args.includes('--write');
@@ -214,16 +275,24 @@ if (qa && !existsSync(QA_DIR)) mkdirSync(QA_DIR, { recursive: true });
 const qaManifest = [];
 
 const jobs = source.filter(m => !onlyId || m.id === onlyId);
-console.log(`\n${'id'.padEnd(26)} ${'orig ratio'.padStart(10)} ${'baked ratio'.padStart(11)} ${'rmsCont'.padStart(8)}  ${'loopNCC'.padStart(7)}  ${'fade'.padStart(5)}  ${'sec'.padStart(6)}  out`);
-console.log('-'.repeat(108));
+console.log(`\n${'id'.padEnd(26)} ${'orig ratio'.padStart(10)} ${'baked ratio'.padStart(11)} ${'rmsCont'.padStart(8)}  ${'loopNCC'.padStart(7)}  ${'fade'.padStart(5)}  ${'sec'.padStart(6)}  ${'gain'.padStart(6)}  ${'peakPreLim'.padStart(10)}  out`);
+console.log('-'.repeat(128));
 
 for (const job of jobs) {
     try {
         const srcPublicPath = path.join(PUBLIC, job.src);
         const outPublicPath = path.join(PUBLIC, job.out || job.src);
-        const rawPath = path.join(RAW_DIR, job.id + path.extname(job.src));
-        // Snapshot the untouched master once.
-        if (!existsSync(rawPath)) copyFileSync(srcPublicPath, rawPath);
+        // `raw` lets a job point its audio-raw/ snapshot at a specific master
+        // filename instead of the default `<id><ext of src>` — used when the
+        // master itself was replaced (e.g. evolving-deep-sleep-drone's trim)
+        // without touching/overwriting the original snapshot file.
+        const rawPath = job.raw ? path.join(RAW_DIR, job.raw) : path.join(RAW_DIR, job.id + path.extname(job.src));
+        // Snapshot the untouched master once (only when using the default,
+        // id-keyed path — a `raw` override is expected to already exist).
+        if (!existsSync(rawPath)) {
+            if (job.raw) throw new Error(`raw override "${job.raw}" not found in audio-raw/`);
+            copyFileSync(srcPublicPath, rawPath);
+        }
 
         const { channels: rawCh, sr } = decode(rawPath, job.rate);
         const origSeam = seamMetric(rawCh, sr);
@@ -284,11 +353,17 @@ for (const job of jobs) {
         const { f: chosenFade, ncc, out: baked, seam: bakedSeam } = choice;
         const outSec = (baked[0].length / sr).toFixed(1);
 
-        if (write) encode(outPublicPath, baked, sr);
+        // Library leveler: gain that lands this track at TARGET_RMS_DB without
+        // crossing PEAK_CEILING_DB, baked into the encode so playback needs no
+        // per-sound volume riding.
+        const { gainDb, peakDbBefore } = loudnessGain(baked);
+        const peakDbAfter = peakDbBefore + gainDb;
+
+        if (write) encode(outPublicPath, baked, sr, gainDb);
         if (qa) {
             const bakedName = `${job.id}.mp3`;
             const origName = `${job.id}-orig${path.extname(job.src)}`;
-            encode(path.join(QA_DIR, bakedName), baked, sr);
+            encode(path.join(QA_DIR, bakedName), baked, sr, gainDb);
             copyFileSync(rawPath, path.join(QA_DIR, origName));
             qaManifest.push({
                 id: job.id, kind: job.kind, baked: bakedName, orig: origName,
@@ -297,8 +372,10 @@ for (const job of jobs) {
             });
         }
 
+        const gainStr = (gainDb >= 0 ? '+' : '') + gainDb.toFixed(1) + 'dB';
+        const peakStr = peakDbAfter.toFixed(1) + 'dB';
         console.log(
-            `${job.id.padEnd(26)} ${String(origSeam.ratio).padStart(10)} ${String(bakedSeam.ratio).padStart(11)} ${String(bakedSeam.rmsContinuity).padStart(8)}  ${ncc.toFixed(3).padStart(7)}  ${(chosenFade / sr).toFixed(1).padStart(5)}  ${outSec.padStart(6)}  ${write ? '✓ written' : '(dry)'}`
+            `${job.id.padEnd(26)} ${String(origSeam.ratio).padStart(10)} ${String(bakedSeam.ratio).padStart(11)} ${String(bakedSeam.rmsContinuity).padStart(8)}  ${ncc.toFixed(3).padStart(7)}  ${(chosenFade / sr).toFixed(1).padStart(5)}  ${outSec.padStart(6)}  ${gainStr.padStart(6)}  ${peakStr.padStart(10)}  ${write ? '✓ written' : '(dry)'}`
         );
     } catch (e) {
         console.log(`${job.id.padEnd(26)} ERROR: ${e.message.split('\n')[0]}`);

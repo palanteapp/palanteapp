@@ -191,21 +191,20 @@ const SacredGeo = memo(({ technique }: { technique: Technique }) => {
         );
     }
 
-    // Coherent → Merkaba (two interlocking tetrahedra, 2-D star-tetrahedron projection)
-    const R    = 56;
-    const rHex = R / Math.sqrt(3);
-    const upTri  = [-90,  30, 150].map(deg => pt(R, deg));
-    const dnTri  = [ 90, -30, 210].map(deg => pt(R, deg));
-    const hexPts = [-60,   0,  60, 120, 180, 240].map(deg => pt(rHex, deg));
-    const str    = ([x, y]: [number, number]) => `${x.toFixed(2)},${y.toFixed(2)}`;
+    // Coherent → Seed of Life: a center circle plus six petals at its radius,
+    // each passing through the center — the classic sacred-geometry "balance"
+    // motif, built from pure circles rather than triangles so it reads as its
+    // own family next to Box's straight-edged Metatron's Cube.
+    const r = 26;
+    const petalCenters: [number, number][] = [
+        [cx, cy],
+        ...Array.from({ length: 6 }, (_, i) => pt(r, i * 60)),
+    ];
 
     return (
         <g fill="none" stroke="rgba(229,214,167,0.16)" strokeWidth="0.9">
-            <polygon points={upTri.map(str).join(' ')} />
-            <polygon points={dnTri.map(str).join(' ')} />
-            <polygon points={hexPts.map(str).join(' ')} strokeWidth="0.55" />
-            {hexPts.map((h, i) => (
-                <line key={i} x1={cx} y1={cy} x2={h[0]} y2={h[1]} strokeWidth="0.5" />
+            {petalCenters.map(([x, y], i) => (
+                <circle key={i} cx={x} cy={y} r={r} />
             ))}
         </g>
     );
@@ -713,9 +712,16 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                     </div>
                 </div>
 
-                {/* Visual Area: grows to fill available space, animation scales up when active */}
+                {/* Visual Area: grows to fill available space, animation scales up when active.
+                    The ring is a fixed 200x200 box; at the old 1.65x active scale that's a 330pt
+                    bounding box competing with this flex-1 region's real budget (viewport minus
+                    the header above and the Content Stack's ~200px of selector + phase readout +
+                    128px bottom safe-area padding below). Padding on this box alone can't fix
+                    that — it only redistributes where the overflow clips, which is why bumping
+                    padding-top previously made the crowding worse, not better. Scaling down to
+                    1.4x (280pt) is what actually gives it room to breathe. */}
                 <div
-                    className={`relative flex-1 flex items-center justify-center w-full ${
+                    className={`relative flex-1 flex items-center justify-center w-full py-4 ${
                         status === 'idle' ? 'animate-breathe-idle' : ''
                     } ${isTransitioning ? 'blur-md' : 'blur-0'}`}
                     style={{
@@ -724,7 +730,7 @@ export const Breathing = memo<BreathworkProps>(({ onComplete, onExit, onShowTip,
                     }}
                 >
                     <div style={{
-                        transform: `scale(${status === 'active' ? 1.65 : 1.2})`,
+                        transform: `scale(${status === 'active' ? 1.4 : 1.15})`,
                         transition: 'transform 900ms cubic-bezier(0.34, 1.56, 0.64, 1)',
                         transformOrigin: 'center center',
                     }}>

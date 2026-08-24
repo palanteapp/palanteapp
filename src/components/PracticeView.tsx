@@ -205,25 +205,22 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                 Hold <GripVertical size={10} className="inline" /> to reorder
             </p>
 
-            {/* Weekly Insights */}
-            {user && (
+            {/* Weekly Insights, Weekly Wins, and Letters to Your Future Self: one
+                group of equally-spaced link-out cards under a shared header — each
+                card's own title already says what it is, so no repeated eyebrows. */}
+            {(user || onOpenHighlights || onWriteLetter) && (
                 <div className="mt-10">
                     <h3 className={`text-lg font-display font-medium mb-4 ${textPrimary}`}>
                         Weekly Insights
                     </h3>
-                    <WeeklyInsightsCard
-                        user={user}
-                        isDarkMode={isDarkMode}
-                        onClick={() => setShowInsightsExplainer(true)}
-                    />
-                </div>
-            )}
-
-            {/* Weekly Wins + Letters to Your Future Self: both single-row link-outs,
-                folded under one section since each card's own title already says
-                what it is — a repeated eyebrow per card was just extra scroll. */}
-            {(onOpenHighlights || onWriteLetter) && (
-                <div className="mt-10 flex flex-col gap-3">
+                    <div className="flex flex-col gap-3">
+                    {user && (
+                        <WeeklyInsightsCard
+                            user={user}
+                            isDarkMode={isDarkMode}
+                            onClick={() => setShowInsightsExplainer(true)}
+                        />
+                    )}
                     {onOpenHighlights && (
                         <button
                             onClick={() => { haptics.light(); onOpenHighlights(); }}
@@ -280,6 +277,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                             </button>
                         );
                     })()}
+                    </div>
                 </div>
             )}
 
