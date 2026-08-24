@@ -181,8 +181,7 @@ export const Momentum: React.FC<MomentumProps> = ({
                     </button>
                     <button
                         onClick={() => { haptics.light(); setShowSettings(true); }}
-                        className={`flex items-center gap-1.5 px-4 py-3 rounded-2xl transition-all active:scale-95 ${isDarkMode ? 'text-white hover:brightness-110' : 'text-white hover:brightness-110'}`}
-                        style={{ background: isDarkMode ? '#C96A3A' : '#C96A3A' }}
+                        className="flex items-center gap-1.5 px-4 py-3 rounded-2xl transition-all active:scale-95 bg-pale-gold text-sage-dark hover:brightness-105"
                     >
                         <Settings size={14} />
                         <span className="text-xs font-bold uppercase tracking-wider">Palante Settings</span>

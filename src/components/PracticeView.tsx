@@ -54,7 +54,7 @@ const PRACTICES: Practice[] = [
     },
     {
         id: 'soundscapes',
-        title: 'Sound Scapes',
+        title: 'Soundscapes',
         subtitle: 'Immersive audio for focus or rest',
         icon: Music,
         info: 'Layer ambient sounds (rain, forest, white noise, binaural tones) to create your ideal sonic environment. Use it for deep work, sleep, meditation, or just blocking out the world for a moment.',

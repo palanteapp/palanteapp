@@ -23,7 +23,7 @@
 import { planLoopBuffer, PRE_BAKED_FADE_SECONDS } from './seamlessLoop';
 import { isDualMono } from './seamlessLoop';
 import { probeMp3, decodedByteSize, type Mp3Info } from './mp3Gapless';
-import { isPreBakedLoop } from '../constants/bakedLoops';
+import { preBakedEntry } from '../constants/bakedLoops';
 
 // Bytes of the file worth reading just to inspect its header.
 const HEADER_PROBE_BYTES = 8192;
@@ -131,9 +131,14 @@ export function loadSeamlessBuffer(ctx: AudioContext, src: string): Promise<Audi
                 channels = [channels[0]];
             }
 
-            const preBaked = isPreBakedLoop(src);
-            const plan = planLoopBuffer(channels, decoded.sampleRate, preBaked
-                ? { fadeSeconds: PRE_BAKED_FADE_SECONDS }
+            const entry = preBakedEntry(src);
+            // decodeAudioData resamples to the context rate, so the baker's
+            // seconds are converted here rather than shipped as samples.
+            const exactLength = entry?.loopSeconds
+                ? Math.round(entry.loopSeconds * decoded.sampleRate)
+                : undefined;
+            const plan = planLoopBuffer(channels, decoded.sampleRate, entry
+                ? { fadeSeconds: PRE_BAKED_FADE_SECONDS, exactLength }
                 : { fadeSeconds: 2.0, search: true });
             if (!plan.length) return null;
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target, Heart, Bug, Cat } from 'lucide-react';
+import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target, Heart, Bug, Cat, Play, Trash2, LayoutGrid } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
@@ -121,6 +121,32 @@ const RECIPES = [
         color: 'from-[#E5D6A7] to-[#6F7B6D]' // Pale Gold to Sage
     }
 ];
+
+// Explicit per-category icons. Deriving these from "the first sound in the
+// category" handed Sleep a wind icon and Heritage a moon, so the two most
+// distinct categories on the screen looked like each other's neighbours.
+const CATEGORY_ICONS: Record<SoundTrack['category'], React.ElementType> = {
+    Nature: Trees,
+    Ambient: Coffee,
+    Heritage: Radio,
+    Focus: Zap,
+    Noise: Speaker,
+    Zen: Music,
+    Bilateral: Waves,
+    Sleep: Moon,
+};
+
+// A preset card that only shows its name asks the user to gamble on a word.
+// These two helpers let every mix (built-in or saved) show what is actually
+// inside it, which is the whole reason someone would tap one.
+const mixSoundIds = (volumes: Record<string, number | undefined>) =>
+    Object.keys(volumes).filter(id => SOUNDS.some(s => s.id === id));
+
+const mixSummary = (volumes: Record<string, number | undefined>) =>
+    mixSoundIds(volumes)
+        .map(id => SOUNDS.find(s => s.id === id)?.label)
+        .filter(Boolean)
+        .join(' · ');
 
 // Meditation-specific quick presets
 const MEDITATION_PRESETS: Record<string, { volumes: Record<string, number> }> = {
@@ -518,7 +544,13 @@ class BackgroundCrossfade {
         const missedWindow = this.prevTime > 0 && this.prevTime > dur * 0.5 && cTime < this.prevTime * 0.5;
         this.prevTime = cTime;
 
-        const untilSeam = dur - cTime;
+        // Subtract the fade length, exactly as CrossfadingSound does upstairs.
+        // Without it the handoff was scheduled to BEGIN at the seam rather than
+        // to be finished by it, so the outgoing element was still at full gain
+        // (cos(0) = 1) at the very moment it wrapped — the native loop restart
+        // this class exists to hide played at full volume every time, and the
+        // incoming element merely doubled the first 400ms on top of it.
+        const untilSeam = dur - LOOP_CROSSFADE_SEC - cTime;
         if (missedWindow || untilSeam <= LOOP_ARM_LEAD_SEC) {
             this.beginCrossfade(missedWindow ? 0 : Math.max(0, untilSeam));
         }
@@ -691,6 +723,76 @@ class MixerSound {
         }
     }
 }
+
+// One rule for every section divider on this screen, so the eyebrow labels stay
+// the only uppercase-tracked type here and every other string can be read as
+// language rather than as a label.
+const SectionLabel: React.FC<{ icon: React.ElementType; children: React.ReactNode }> = ({ icon: Icon, children }) => (
+    <div className="flex items-center gap-3 mb-4">
+        <Icon size={13} className="text-pale-gold/70 flex-shrink-0" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/60 whitespace-nowrap">{children}</span>
+        <div className="flex-1 h-px bg-white/10" />
+    </div>
+);
+
+// Shared shell for a one-tap mix (built in or saved): a stack of the icons it
+// actually contains, its name, and the sounds it will start. Rows rather than
+// squares because the contents line is the persuasive part and a 2-up square
+// has nowhere to put it.
+const MixRow: React.FC<{
+    name: string;
+    eyebrow?: string;
+    volumes: Record<string, number | undefined>;
+    onPlay: () => void;
+    onDelete?: () => void;
+}> = ({ name, eyebrow, volumes, onPlay, onDelete }) => {
+    const icons = mixSoundIds(volumes).slice(0, 3).map(id => SOUNDS.find(s => s.id === id)!.icon);
+    return (
+        <div className="relative flex items-center gap-3">
+            <button
+                onClick={onPlay}
+                className="group flex-1 min-w-0 flex items-center gap-4 p-3.5 rounded-3xl bg-sage/25 border border-white/10 text-left transition-[transform,background-color] duration-200 active:scale-[0.98] hover:bg-white/[0.07]"
+            >
+                <div className="flex gap-1.5 flex-shrink-0">
+                    {icons.map((Icon, i) => (
+                        <div
+                            key={i}
+                            className="w-9 h-9 rounded-xl bg-sage-dark/60 border border-white/15 flex items-center justify-center text-white/80"
+                        >
+                            <Icon size={15} strokeWidth={1.5} />
+                        </div>
+                    ))}
+                </div>
+                <div className="min-w-0 flex-1">
+                    {eyebrow && <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-pale-gold/70 mb-0.5">{eyebrow}</div>}
+                    {/* Wraps rather than truncates, same reasoning as the summary line below:
+                        the name is the mix's whole identity, so "Caribbean Nig…" is exactly
+                        what it must never render as. */}
+                    <div className="font-display font-medium text-[17px] leading-tight text-white">{name}</div>
+                    {/* Wraps rather than truncates: this line is the only thing that tells
+                        you what tapping the row will actually start, so "Distant Thun…" is
+                        the one thing it must not do. */}
+                    <div className="text-[12px] text-white/50 leading-snug line-clamp-2 mt-0.5">{mixSummary(volumes)}</div>
+                </div>
+                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white transition-colors group-hover:bg-pale-gold group-hover:text-sage-dark">
+                    <Play size={14} fill="currentColor" strokeWidth={0} className="translate-x-[1px]" />
+                </div>
+            </button>
+            {onDelete && (
+                // Always visible, never hover-gated: there is no hover on a phone, so
+                // the previous opacity-0/group-hover treatment meant a saved mix could
+                // never be deleted on the only device this ships to.
+                <button
+                    onClick={onDelete}
+                    aria-label={`Delete ${name}`}
+                    className="flex-shrink-0 p-2.5 rounded-2xl bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/15 transition-colors active:scale-[0.95]"
+                >
+                    <Trash2 size={16} />
+                </button>
+            )}
+        </div>
+    );
+};
 
 export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode, isVisible, onClose, user, onSaveMix, onDeleteMix, source, onContentScroll }) => {
     const [activeSounds, setActiveSounds] = useState<Set<string>>(new Set());
@@ -1023,39 +1125,43 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             <div className={`px-4 md:px-8 py-4 md:py-6 flex flex-col md:flex-row items-center justify-between z-10 border-b border-white/5 bg-white/5 backdrop-blur-md gap-4`}>
                 <div className="flex items-center justify-between w-full md:w-auto">
                     <div className="relative">
-                        <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Sound Scapes</h2>
+                        <h2 className="text-xl md:text-2xl font-display font-medium text-white tracking-tight">Soundscapes</h2>
                         <div className="flex items-center gap-2.5 mt-0.5">
                             <div className="flex gap-1">
                                 {[...Array(3)].map((_, i) => (
-                                    <div key={i} className={`w-0.5 h-2 rounded-full transition-all duration-500 ${activeSounds.size > 0 ? 'bg-green-400/80 animate-pulse' : 'bg-white/10'}`} style={{ animationDelay: `${i * 0.2}s` }} />
+                                    <div key={i} className={`w-0.5 h-2 rounded-full transition-all duration-500 ${activeSounds.size > 0 ? 'bg-pale-gold animate-pulse' : 'bg-white/10'}`} style={{ animationDelay: `${i * 0.2}s` }} />
                                 ))}
                             </div>
-                            <p className="text-xs md:text-xs text-white uppercase tracking-[0.2em] font-bold">
-                                {activeSounds.size > 0 ? `${activeSounds.size} ACTIVE` : 'READY'}
+                            <p className="text-[11px] text-white/70 uppercase tracking-[0.2em] font-bold">
+                                {activeSounds.size > 0 ? `${activeSounds.size} playing` : 'Ready'}
                             </p>
                         </div>
-                        <button
-                            onClick={() => setShowHelp(!showHelp)}
-                            className="mt-2 flex items-center gap-1 px-2.5 py-1 rounded-full border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
-                        >
-                            <HelpCircle size={12} />
-                            <span className="text-xs font-medium">How it Works</span>
-                        </button>
                     </div>
 
+                    {/* Help moved out of its own stacked row and in beside Close: on a phone
+                        that row cost ~40pt of the little vertical space this panel has, and
+                        the same modal is already auto-shown on first open, so it does not
+                        need a full text chip to be discoverable. */}
                     <div className="flex md:hidden items-center gap-2">
                         {source === 'meditation' && (
                             <button
                                 onClick={onClose}
-                                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-[0.1em] transition-all bg-white/10 text-white border border-white/10`}
+                                className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-[0.1em] transition-all bg-white/10 text-white border border-white/10 active:scale-[0.97]`}
                             >
                                 Back
                             </button>
                         )}
                         <button
+                            onClick={() => setShowHelp(true)}
+                            aria-label="How it works"
+                            className="p-2.5 rounded-xl bg-white/5 text-white/70 active:scale-[0.97] transition-transform"
+                        >
+                            <HelpCircle size={18} />
+                        </button>
+                        <button
                             onClick={onClose}
                             aria-label="Close"
-                            className="p-2.5 rounded-xl bg-white/5 text-white"
+                            className="p-2.5 rounded-xl bg-white/5 text-white active:scale-[0.97] transition-transform"
                         >
                             <X size={18} />
                         </button>
@@ -1081,7 +1187,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             }`}
                     >
                         Library
-                        {activeSounds.size > 0 && <span className="w-1 h-1 rounded-full bg-green-400" />}
+                        {activeSounds.size > 0 && <span className={`w-1 h-1 rounded-full ${view === 'library' ? 'bg-sage' : 'bg-pale-gold'}`} />}
                     </button>
                     {activeSounds.size > 0 && (
                         <button
@@ -1106,6 +1212,13 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         </button>
                     )}
                     <button
+                        onClick={() => setShowHelp(true)}
+                        aria-label="How it works"
+                        className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white/70 hover:text-white transition-all duration-300"
+                    >
+                        <HelpCircle size={20} />
+                    </button>
+                    <button
                         onClick={onClose}
                         aria-label="Close"
                         className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-white hover:text-white transition-all duration-300"
@@ -1124,139 +1237,133 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                 {view === 'mixer' && (
                     <div
                         onScroll={(e) => onContentScroll?.(e.currentTarget.scrollTop)}
-                        className={`h-full no-scrollbar relative z-10 pb-32 transition-all duration-500 ${activeSoundList.length === 0 ? 'overflow-y-auto p-4 md:p-8' : 'overflow-x-auto flex items-center justify-center min-w-full px-2 md:px-16 gap-1 md:gap-8'}`}>
+                        className={`h-full no-scrollbar relative z-10 pt-8 ${activeSoundList.length === 0 ? 'overflow-y-auto px-5 md:p-8' : 'overflow-x-auto flex items-center justify-center min-w-full px-2 md:px-16 gap-2 md:gap-8'}`}
+                        // With faders up, bottom clearance matches the Save bar's own footprint
+                        // (bottom: 6rem + safe-area, plus its own button height) so they sit fully
+                        // between the header and that button. The empty state has no Save bar, so
+                        // it only needs to clear the floating nav pill; reserving the taller value
+                        // there just left a screenful of nothing under the category chips.
+                        style={{ paddingBottom: activeSoundList.length === 0 ? 'calc(7rem + env(safe-area-inset-bottom))' : 'calc(11rem + env(safe-area-inset-bottom))' }}>
                         {activeSoundList.length === 0 ? (
-                            <div className="w-full flex flex-col items-center justify-start animate-fade-in py-8 md:py-16">
-                                <h3 className="text-2xl md:text-4xl font-display font-medium text-white mb-2 text-center tracking-tight">Atmospheric Control</h3>
-                                <p className="text-white/75 text-center mb-8 md:mb-16 max-w-xs leading-relaxed font-light uppercase tracking-widest text-xs font-bold">
-                                    Select a foundation to start building your soundscape.
+                            // The empty state used to run four screens deep: two rows of 160pt
+                            // preset squares that named a mix without saying what was in it,
+                            // then eight more 160pt squares for what are really just filters.
+                            // Rebuilt as one screen: mixes become rows that show their contents
+                            // (the actual reason to tap one), categories become chips.
+                            <div className="w-full max-w-2xl mx-auto flex flex-col animate-fade-in pt-2 pb-4">
+                                <h3 className="text-[26px] md:text-4xl font-display font-medium text-white text-center tracking-tight leading-tight">Build your soundscape</h3>
+                                <p className="mt-2.5 mb-9 text-center text-[14px] text-white/60 leading-relaxed max-w-[19rem] mx-auto">
+                                    Start with a ready made mix, or layer your own from the library.
                                 </p>
 
-                                {/* 1. Instant Atmospheres */}
-                                <div className="w-full max-w-5xl px-0 md:px-8 mb-12 md:mb-16">
-                                    <div className="flex items-center gap-4 mb-6 md:mb-8 px-4">
-                                        <div className="flex-1 h-px bg-white/5" />
-                                        <div className="flex items-center gap-2">
-                                            <Sparkles size={12} className="text-pale-gold/60" />
-                                            <span className="text-sm font-bold uppercase tracking-[0.3em] text-white/80 text-center">Instant Atmospheres</span>
+                                {!!user?.savedMixes?.length && (
+                                    <div className="mb-9">
+                                        <SectionLabel icon={Save}>Your mixes</SectionLabel>
+                                        <div className="space-y-3">
+                                            {user.savedMixes.map(mix => (
+                                                <MixRow
+                                                    key={mix.id}
+                                                    name={mix.name}
+                                                    volumes={mix.volumes as Record<string, number>}
+                                                    onPlay={() => { haptics.light(); loadRecipe({ id: mix.id, name: mix.name, volumes: mix.volumes as Record<string, number>, color: '' }); }}
+                                                    onDelete={onDeleteMix ? () => onDeleteMix(mix.id) : undefined}
+                                                />
+                                            ))}
                                         </div>
-                                        <div className="flex-1 h-px bg-white/5" />
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 px-4">
-                                        {/* User's Saved Mixes */}
-                                        {user?.savedMixes?.map(mix => (
-                                            <div key={mix.id} className="group relative h-48 rounded-[2.5rem] overflow-hidden border border-white/5 bg-white/5 transition-all duration-700 hover:scale-[1.02] active:scale-98 shadow-2xl">
-                                                <button
-                                                    onClick={() => loadRecipe({ id: mix.id, name: mix.name, volumes: mix.volumes as Record<string, number>, color: 'from-amber/20 to-sage/20' })}
-                                                    className="absolute inset-0 w-full h-full text-left p-8 flex flex-col justify-end z-10"
-                                                >
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-amber/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                                                    <div className="relative z-10">
-                                                        <div className="text-xs font-bold uppercase tracking-[0.2em] text-pale-gold mb-3 opacity-60">Personal Mix</div>
-                                                        <div className="font-display font-medium text-2xl leading-tight text-white mb-1">{mix.name}</div>
-                                                    </div>
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (onDeleteMix) onDeleteMix(mix.id);
-                                                    }}
-                                                    aria-label={`Delete ${mix.name}`}
-                                                    className="absolute top-6 right-6 z-20 p-2.5 rounded-2xl bg-sage/40 hover:bg-red-500/40 text-white hover:text-white transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md border border-white/5"
-                                                >
-                                                    <X size={12} />
-                                                </button>
-                                            </div>
-                                        ))}
+                                )}
 
+                                <div className="mb-9">
+                                    <SectionLabel icon={Sparkles}>Ready made</SectionLabel>
+                                    <div className="space-y-3">
                                         {RECIPES.map(recipe => (
-                                            <button
+                                            <MixRow
                                                 key={recipe.id}
-                                                onClick={() => loadRecipe(recipe)}
-                                                className="group relative h-40 md:h-48 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden border border-white/5 bg-sage/20 transition-all duration-700 hover:scale-[1.02] active:scale-98 text-left p-6 md:p-8 flex flex-col justify-end shadow-2xl"
-                                            >
-                                                <div className={`absolute inset-0 bg-gradient-to-br ${recipe.color} opacity-10 group-hover:opacity-30 transition-all duration-1000`} />
-                                                <div className="relative z-10">
-                                                    <div className="font-display font-medium text-xl md:text-2xl leading-tight text-white">{recipe.name}</div>
-                                                </div>
-                                            </button>
+                                                name={recipe.name}
+                                                volumes={recipe.volumes}
+                                                onPlay={() => { haptics.light(); loadRecipe(recipe); }}
+                                            />
                                         ))}
-
-                                        <button
-                                            onClick={() => setView('library')}
-                                            className="group relative h-40 md:h-48 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden border border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-700 flex flex-col items-center justify-center gap-3 md:gap-4"
-                                        >
-                                            <div className="p-4 md:p-5 rounded-full bg-white/5 group-hover:bg-white/10 group-hover:scale-110 transition-all duration-500 text-white group-hover:text-white">
-                                                <Plus size={26} strokeWidth={1} />
-                                            </div>
-                                            <span className="text-sm font-bold uppercase tracking-[0.3em] text-white/75 group-hover:text-white transition-colors text-center">Custom Build</span>
-                                        </button>
                                     </div>
                                 </div>
 
-                                {/* 2. Sonic Horizons */}
-                                <div className="w-full max-w-5xl px-8 mb-24">
-                                    <div className="flex items-center gap-4 mb-8">
-                                        <div className="flex-1 h-px bg-white/5" />
-                                        <div className="flex items-center gap-2">
-                                            <Radio size={12} className="text-white" />
-                                            <span className="text-sm font-bold uppercase tracking-[0.3em] text-white/80">Explore Your Sounds</span>
-                                        </div>
-                                        <div className="flex-1 h-px bg-white/5" />
-                                    </div>
-
-                                    <div className="flex justify-center gap-3 mb-16">
-                                        <button 
-                                            onClick={() => { haptics.light(); setShowHelp(true); }}
-                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
-                                        >
-                                            How to Use
-                                        </button>
-                                        <button 
-                                            onClick={() => { 
-                                                haptics.light(); 
-                                                setShowSciencePopup(true); 
-                                            }}
-                                            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-widest text-white/70 hover:bg-white/10 transition-all backdrop-blur-md font-display"
-                                        >
-                                            The Science
-                                        </button>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6 px-4">
+                                <div>
+                                    <SectionLabel icon={Radio}>Browse by category</SectionLabel>
+                                    <div className="flex flex-wrap gap-2">
                                         {categories.map(cat => {
-                                            const repSound = SOUNDS.find(s => s.category === cat);
-                                            const Icon = repSound?.icon || Music;
+                                            const Icon = CATEGORY_ICONS[cat] || Music;
                                             return (
                                                 <button
                                                     key={cat}
                                                     onClick={() => {
+                                                        haptics.light();
                                                         setScrollTarget(cat);
                                                         setView('library');
                                                     }}
-                                                    className="group flex flex-col items-center gap-4 md:gap-6 p-6 md:p-8 rounded-[1.5rem] md:rounded-[2rem] bg-sage/20 border border-white/5 hover:bg-white/5 hover:border-white/10 hover:scale-[1.05] active:scale-95 transition-all duration-500 shadow-xl"
+                                                    className="flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full bg-sage/25 border border-white/10 hover:bg-white/[0.07] transition-[transform,background-color] duration-200 active:scale-[0.97]"
                                                 >
-                                                    <div className="p-4 md:p-5 rounded-xl md:rounded-2xl bg-white/5 group-hover:scale-110 group-hover:bg-white/10 transition-all duration-500 text-white group-hover:text-white">
-                                                        <Icon size={26} strokeWidth={1} />
-                                                    </div>
-                                                    <span className="text-sm font-bold uppercase tracking-[0.2em] md:tracking-[0.25em] text-white/75 group-hover:text-white transition-all">{cat}</span>
+                                                    <Icon size={15} strokeWidth={1.5} className="text-pale-gold/80" />
+                                                    <span className="text-[13px] font-medium text-white/85">{cat}</span>
                                                 </button>
                                             );
                                         })}
+                                        <button
+                                            onClick={() => { haptics.light(); setView('library'); }}
+                                            className="flex items-center gap-2 pl-3 pr-4 py-2.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/[0.16] transition-[transform,background-color] duration-200 active:scale-[0.97]"
+                                        >
+                                            <LayoutGrid size={15} strokeWidth={1.5} className="text-white" />
+                                            <span className="text-[13px] font-semibold text-white">All {SOUNDS.length} sounds</span>
+                                        </button>
                                     </div>
+                                </div>
+
+                                <div className="mt-10 flex justify-center">
+                                    <button
+                                        onClick={() => { haptics.light(); setShowSciencePopup(true); }}
+                                        className="px-5 py-2.5 rounded-full border border-white/10 text-[12px] font-medium text-white/55 hover:text-white hover:bg-white/5 transition-colors active:scale-[0.97]"
+                                    >
+                                        Why sound helps
+                                    </button>
                                 </div>
                             </div>
                         ) : (
                             // Render Active Faders with High Contrast
                             activeSoundList.map(sound => (
-                                <div key={sound.id} className="flex-shrink-0 w-20 md:w-32 h-[55vh] flex flex-col items-center justify-end group relative animate-slide-up-fade">
-                                    {/* Glassmorphic Fader Container */}
-                                    <div className="relative w-12 md:w-20 h-full bg-sage/40 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col justify-end group-hover:bg-sage/50 transition-all duration-500 backdrop-blur-3xl border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                                <div key={sound.id} className="flex-shrink-0 w-[5.5rem] md:w-32 h-full flex flex-col items-center group relative animate-slide-up-fade">
+                                    {/* Identity chip sits ABOVE the track and never moves. It used to ride
+                                        the fill line, which meant the one element that tells you WHICH sound
+                                        this is was fused with the one element that tells you HOW LOUD it is,
+                                        and it sat exactly where the handle needs to be. */}
+                                    <div className="relative flex-shrink-0 mb-2.5 w-11 h-11 md:w-12 md:h-12 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-white/90">
+                                        <sound.icon size={17} strokeWidth={1.5} />
+                                        {/* Remove lives on the identity chip rather than on its own
+                                            row under the level readout: a full row down there
+                                            collided with the floating Save bar and cost the fader
+                                            track ~45pt of the little height this column has. The
+                                            button's padding gives it a ~36pt hit box around a 20pt dot. */}
+                                        <button
+                                            onClick={() => { haptics.light(); toggleSound(sound.id); }}
+                                            aria-label={`Remove ${sound.label}`}
+                                            className="absolute -top-2 -right-3 p-2.5 group/rm"
+                                        >
+                                            <span className="w-[18px] h-[18px] rounded-full bg-sage-dark border border-white/25 flex items-center justify-center text-white/70 transition-transform group-hover/rm:text-white group-active/rm:scale-90">
+                                                <X size={10} strokeWidth={3} />
+                                            </span>
+                                        </button>
+                                    </div>
+
+                                    {/* Glassmorphic Fader Container: flex-1 so it fills whatever room this
+                                        column actually has above the label/remove-button, rather than a
+                                        vh-based height guessed against the full device viewport — that
+                                        guess ran taller than the space left after the header/tabs above and
+                                        the safe-area padding below, so the fader overflowed both edges with
+                                        no scroll to reach them (looked like the header was "blocking" it). */}
+                                    <div className="relative w-16 md:w-20 flex-1 min-h-0 bg-sage/40 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col justify-end group-hover:bg-sage/50 transition-colors duration-300 backdrop-blur-3xl border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
 
                                         {/* Precision Tick Marks */}
-                                        <div className="absolute inset-y-8 left-1.5 md:left-4 flex flex-col justify-between opacity-20 pointer-events-none">
+                                        <div className="absolute inset-y-8 left-2.5 md:left-4 flex flex-col justify-between opacity-20 pointer-events-none">
                                             {[...Array(11)].map((_, i) => (
-                                                <div key={i} className={`h-[1px] bg-white transition-all duration-300 ${i % 5 === 0 ? 'w-1.5 md:w-3' : 'w-1'}`} />
+                                                <div key={i} className={`h-[1px] bg-white ${i % 5 === 0 ? 'w-2.5 md:w-3' : 'w-1.5'}`} />
                                             ))}
                                         </div>
 
@@ -1266,12 +1373,16 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                             style={{ height: `${(volumes[sound.id] ?? 0) * 100}%` }}
                                         />
 
-                                        {/* GLOWING INDICATOR */}
+                                        {/* Handle. A 4px full-bleed hairline reads as a fill edge, not as
+                                            something you can grab, so the fader looked like a thermometer.
+                                            The hairline stays for precise reading; the pill on top of it is
+                                            the grab affordance. */}
                                         <div
-                                            className="absolute left-0 right-0 h-1 z-30 pointer-events-none"
+                                            className="absolute left-0 right-0 h-1 z-30 pointer-events-none flex items-center justify-center"
                                             style={{ bottom: `calc(${(volumes[sound.id] ?? 0) * 100}%)` }}
                                         >
-                                            <div className="w-full h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] opacity-80" />
+                                            <div className="absolute inset-0 bg-white/70 shadow-[0_0_15px_rgba(255,255,255,0.6)]" />
+                                            <div className="relative w-7 md:w-9 h-[7px] rounded-full bg-white shadow-[0_2px_10px_rgba(0,0,0,0.45)] transition-transform duration-150 group-active:scale-110" />
                                         </div>
 
                                         {/* Touch-Friendly Drag Overlay */}
@@ -1308,31 +1419,15 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                             }}
                                         />
 
-                                        {/* Icon Floating */}
-                                        <div className="absolute left-0 right-0 pointer-events-none flex justify-center z-20" style={{ bottom: `${Math.max(10, (volumes[sound.id] ?? 0) * 82)}%` }}>
-                                            <div className="p-1.5 md:p-4 rounded-xl md:rounded-2xl bg-white/10 backdrop-blur-md text-white shadow-2xl border border-white/20">
-                                                <sound.icon size={14} md:size={22} strokeWidth={1.5} />
-                                            </div>
-                                        </div>
                                     </div>
 
-                                    {/* Label & Level */}
-                                    <div className="mt-3 md:mt-8 text-center select-none relative z-10 w-full px-1">
-                                        <div className="font-display font-medium text-xs md:text-[12px] uppercase tracking-[0.1em] text-white/90 truncate">{sound.label}</div>
-                                        <div className="flex items-center justify-center gap-1 mt-1 md:mt-2">
-                                            <div className="w-0.5 h-0.5 md:w-1 md:h-1 rounded-full bg-green-400" />
-                                            <div className="text-xs md:text-xs text-white font-mono">{Math.round((volumes[sound.id] ?? 0) * 100)}%</div>
-                                        </div>
+                                    {/* Label & Level. Sentence case, not tracked caps: at this column
+                                        width "GENTLE R…" was truncating with only two sounds loaded, so
+                                        the mixer could not tell you what it was mixing. */}
+                                    <div className="flex-shrink-0 mt-2.5 text-center select-none relative z-10 w-full px-0.5">
+                                        <div className="font-display font-medium text-[12px] md:text-[13px] leading-tight text-white/90 line-clamp-2">{sound.label}</div>
+                                        <div className="text-[12px] text-pale-gold font-mono mt-1 tabular-nums">{Math.round((volumes[sound.id] ?? 0) * 100)}%</div>
                                     </div>
-
-                                    {/* Remove Button - Subtle glassmorphism */}
-                                    <button
-                                        onClick={() => toggleSound(sound.id)}
-                                        aria-label={`Remove ${sound.label}`}
-                                        className="mt-6 p-2 rounded-full bg-white/5 text-white hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 border border-transparent transition-all opacity-0 group-hover:opacity-100 backdrop-blur-md"
-                                    >
-                                        <X size={16} />
-                                    </button>
                                 </div>
                             ))
                         )}
@@ -1341,54 +1436,56 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
                 {/* VIEW: LIBRARY (Grid) */}
                 {view === 'library' && (
-                    <div onScroll={(e) => onContentScroll?.(e.currentTarget.scrollTop)} className="h-full overflow-y-auto p-8 pb-32">
-                        <div className="max-w-4xl mx-auto space-y-12">
+                    // Density rebuild. The old tiles were ~190pt tall for an icon and a name,
+                    // so a 52-sound library showed TWO sounds per screenful and a name that
+                    // wrapped made its row ragged against its neighbour. These rows are ~62pt
+                    // and show around a dozen at a time, with a fixed height so the grid stays
+                    // square whatever the name does. The per-tile category caption is gone: it
+                    // repeated the section heading directly above it on every single tile.
+                    <div
+                        onScroll={(e) => onContentScroll?.(e.currentTarget.scrollTop)}
+                        className="h-full overflow-y-auto px-5 md:px-8 pt-2"
+                        style={{ paddingBottom: 'calc(10.5rem + env(safe-area-inset-bottom))' }}
+                    >
+                        <div className="max-w-4xl mx-auto">
                             {categories.map(cat => (
-                                <div key={cat} id={`category-${cat}`} className="scroll-mt-24">
-                                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-6 sticky top-0 py-4 z-10 backdrop-blur-xl border-b border-white/10 font-display">{cat}</h3>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                <div key={cat} id={`category-${cat}`} className="scroll-mt-4">
+                                    <h3 className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/60 sticky top-0 py-3 z-20 bg-sage-mid font-display">{cat}</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 pb-7">
                                         {SOUNDS.filter(s => s.category === cat).map(sound => {
                                             const isActive = activeSounds.has(sound.id);
                                             return (
-                                                <div
+                                                <button
                                                     key={sound.id}
+                                                    onClick={() => { haptics.light(); toggleSound(sound.id); }}
+                                                    aria-pressed={isActive}
+                                                    aria-label={isActive ? `Stop ${sound.label}` : `Play ${sound.label}`}
                                                     className={`
-                                                        group relative p-6 rounded-[2rem] border text-left transition-all duration-500 overflow-hidden
+                                                        relative h-[62px] pl-2.5 pr-3 rounded-2xl border text-left flex items-center gap-2.5 overflow-hidden
+                                                        transition-[transform,background-color,border-color] duration-200 active:scale-[0.97]
                                                         ${isActive
-                                                            ? 'bg-white border-white text-sage shadow-[0_10px_30px_rgba(255,255,255,0.2)] scale-[1.02]'
-                                                            : 'bg-sage/20 border-white/5 hover:bg-white/5 hover:border-white/10 text-white'}
+                                                            ? 'bg-pale-gold border-pale-gold text-sage-dark shadow-[0_6px_20px_rgba(229,214,167,0.25)]'
+                                                            : 'bg-sage/25 border-white/10 hover:bg-white/[0.07] text-white'}
                                                     `}
                                                 >
-                                                    <button
-                                                        onClick={() => toggleSound(sound.id)}
-                                                        aria-label={isActive ? `Stop ${sound.label}` : `Play ${sound.label}`}
-                                                        className="absolute inset-0 w-full h-full z-10"
-                                                    ></button>
-
-                                                    <div className="flex items-start justify-between mb-6 pointer-events-none">
-                                                        <div className={`p-3.5 rounded-2xl transition-all duration-500 ${isActive ? 'bg-sage/10 text-sage' : 'bg-white/5 text-white group-hover:bg-white/10 group-hover:text-white'}`}>
-                                                            <sound.icon size={22} strokeWidth={1.2} />
-                                                        </div>
-                                                        {isActive && (
-                                                            <div className="flex gap-1">
-                                                                {[...Array(3)].map((_, i) => (
-                                                                    <div key={i} className="w-1 h-3 rounded-full bg-green-500 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                    <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors duration-200 ${isActive ? 'bg-sage-dark/15 text-sage-dark' : 'bg-white/[0.07] text-white/80'}`}>
+                                                        <sound.icon size={17} strokeWidth={1.5} />
                                                     </div>
-
-                                                    <div className="pointer-events-none relative z-10">
-                                                        <h4 className={`font-display font-medium text-lg tracking-tight mb-1 transition-all duration-500 ${isActive ? 'text-sage' : 'text-white/90 group-hover:text-white'}`}>{sound.label}</h4>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-1 h-1 rounded-full ${isActive ? 'bg-sage/40' : 'bg-white/20'}`} />
-                                                            <p className={`text-xs font-bold uppercase tracking-[0.2em] opacity-40 transition-all duration-500 ${isActive ? 'text-sage' : 'text-white'}`}>{sound.category}</p>
+                                                    <span className={`min-w-0 flex-1 font-display font-medium text-[13px] leading-[1.15] line-clamp-2 ${isActive ? 'text-sage-dark' : 'text-white/90'}`}>
+                                                        {sound.label}
+                                                    </span>
+                                                    {isActive && (
+                                                        <div className="flex-shrink-0 flex items-end gap-[3px] h-3.5" aria-hidden>
+                                                            {[3, 5, 4].map((h, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="w-[2.5px] rounded-full bg-sage-dark/70 animate-pulse"
+                                                                    style={{ height: `${h * 3}px`, animationDelay: `${i * 0.18}s` }}
+                                                                />
+                                                            ))}
                                                         </div>
-                                                    </div>
-
-                                                    {/* Hardware-style bottom gradient on hover */}
-                                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                                                </div>
+                                                    )}
+                                                </button>
                                             );
                                         })}
                                     </div>
@@ -1399,39 +1496,62 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                 )}
 
 
-                {/* BOTTOM BAR: Save & Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 z-20 pointer-events-none">
+                {/* BOTTOM BAR: Save & Actions. Cleared above the persistent global nav (which
+                    floats at bottom-4/8, z-[55], on top of this panel's z-[45]) rather than sitting
+                    flush at bottom-0 — that used to put this bar directly underneath the nav pill,
+                    so "Save This Mix" was there but unreachable/invisible behind it. */}
+                <div
+                    // Mixer-only. In the Library this bar floated over the middle of the sound
+                    // grid, hiding two tiles to offer an action that belongs to the other tab:
+                    // you pick sounds here and balance/save them there.
+                    className={`absolute left-0 right-0 px-5 py-3 z-20 pointer-events-none ${view === 'mixer' ? '' : 'hidden'}`}
+                    style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+                >
                     <div className="max-w-3xl mx-auto flex gap-4 pointer-events-auto">
                         {isSavingMix ? (
-                            <div className="flex-1 bg-white/10 backdrop-blur-xl rounded-2xl p-2 border border-white/20 flex gap-2 animate-fade-in shadow-2xl">
+                            // min-w-0 on the input is load-bearing: a flex item's default
+                            // min-width is auto (its own content size), not 0, so without this
+                            // the input refused to shrink below its intrinsic width on a phone
+                            // screen and pushed the Cancel button off the right edge instead of
+                            // giving it room. Cancel is also now an icon button rather than a
+                            // text label, freeing up real space for the name field and Save.
+                            <div className="flex-1 min-w-0 bg-white/10 backdrop-blur-xl rounded-2xl p-2 border border-white/20 flex items-center gap-2 animate-fade-in shadow-2xl">
                                 <input
                                     type="text"
                                     value={newMixName}
                                     onChange={(e) => setNewMixName(e.target.value)}
-                                    placeholder="Name your mix..."
-                                    className="flex-1 bg-transparent border-none text-white focus:ring-0 px-4 placeholder:text-white/40 font-medium"
+                                    placeholder="Name your mix"
+                                    // outline-none, not just focus:ring-0: WebKit draws its own bright
+                                    // blue focus ring on iOS that Tailwind's ring utilities do not touch,
+                                    // and it was the loudest thing on the screen.
+                                    className="flex-1 min-w-0 bg-transparent border-none text-white outline-none focus:outline-none focus:ring-0 px-4 placeholder:text-white/40 font-medium"
                                     autoFocus
                                 />
                                 <button
                                     onClick={handleSaveMix}
-                                    className="px-6 py-3 rounded-xl bg-pale-gold text-sage-dark font-bold uppercase tracking-widest hover:bg-white transition-colors"
+                                    disabled={!newMixName.trim()}
+                                    className="flex-shrink-0 px-6 py-3 rounded-xl bg-pale-gold text-sage-dark font-bold uppercase tracking-widest hover:bg-white transition-[background-color,opacity,transform] active:scale-[0.97] disabled:opacity-40"
                                 >
                                     Save
                                 </button>
                                 <button
                                     onClick={() => setIsSavingMix(false)}
-                                    className="p-3 rounded-xl hover:bg-white/10 text-white hover:text-white transition-colors"
+                                    aria-label="Cancel"
+                                    className="flex-shrink-0 p-3 rounded-xl hover:bg-white/10 text-white hover:text-white transition-colors"
                                 >
-                                    Cancel
+                                    <X size={18} />
                                 </button>
                             </div>
                         ) : activeSounds.size > 0 && (
+                            // Filled in the panel's accent rather than another sheet of white/10
+                            // glass: this is the one thing to do once a mix sounds right, and at
+                            // the same weight as every other surface here it read as decoration.
                             <button
-                                onClick={() => setIsSavingMix(true)}
-                                className="flex-1 py-4 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/10 hover:bg-white/20 text-white font-bold uppercase tracking-widest shadow-2xl flex items-center justify-center gap-2 transition-all hover:-translate-y-1"
+                                onClick={() => { haptics.light(); setIsSavingMix(true); }}
+                                className="flex-1 py-4 rounded-2xl bg-pale-gold text-sage-dark font-bold uppercase tracking-widest shadow-[0_10px_30px_rgba(0,0,0,0.35)] flex items-center justify-center gap-2 transition-transform duration-200 active:scale-[0.98]"
                             >
                                 <Save size={18} />
-                                Save This Mix
+                                Save this mix
                             </button>
                         )}
                     </div>
@@ -1444,20 +1564,20 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             <div className="w-16 h-16 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
                                 <Music size={32} className="text-pale-gold" />
                             </div>
-                            <h3 className="text-3xl font-display font-medium mb-2">Sound Scapes</h3>
-                            <p className="text-sm text-white uppercase tracking-widest font-bold">Mixing Your Environment</p>
+                            <h3 className="text-3xl font-display font-medium mb-2">Soundscapes</h3>
+                            <p className="text-sm text-white uppercase tracking-widest font-bold">Mixing your environment</p>
                         </div>
                         <div className="space-y-4 mb-8 text-sm text-white/70 leading-relaxed font-body">
-                            <p>Welcome to your personal soundscape atelier. Here you can layer nature, frequencies, and ambient textures.</p>
+                            <p>Layer nature, frequencies and ambient textures until the room sounds the way you need it to.</p>
                             <ul className="space-y-3 list-none">
-                                <li className="flex gap-3"><span className="text-pale-gold font-bold">01.</span> Layer sounds by tapping the tiles in the library tab.</li>
-                                <li className="flex gap-3"><span className="text-pale-gold font-bold">02.</span> Adjust individual levels in the mixer to find your perfect balance.</li>
-                                <li className="flex gap-3"><span className="text-pale-gold font-bold">03.</span> Save your favorite combinations as custom mixes for later use.</li>
+                                <li className="flex gap-3"><span className="text-pale-gold font-bold">01.</span> Tap sounds in the library to add them to your mix.</li>
+                                <li className="flex gap-3"><span className="text-pale-gold font-bold">02.</span> Drag each fader in the mixer to set how loud that sound sits.</li>
+                                <li className="flex gap-3"><span className="text-pale-gold font-bold">03.</span> Save a mix you like and it comes back with one tap.</li>
                             </ul>
                         </div>
                         <button
                             onClick={() => { setShowHelp(false); localStorage.setItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN, 'true'); }}
-                            className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-[#1B4332] font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
+                            className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-sage-dark font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
                         >
                             Explore Your Sounds
                         </button>
@@ -1489,7 +1609,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         </div>
                         <button
                             onClick={() => setShowSciencePopup(false)}
-                            className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-[#1B4332] font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
+                            className="w-full py-5 rounded-[2.5rem] bg-pale-gold text-sage-dark font-black text-xs tracking-widest uppercase shadow-lg shadow-pale-gold/10"
                         >
                             Ready to Focus
                         </button>

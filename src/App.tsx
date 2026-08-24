@@ -677,9 +677,13 @@ function AppContent() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
+    // Sentence case, matching every other greeting in the app (the morning gate
+    // immediately before this one, CoachCard, EveningPractice). Title Case here
+    // meant the user saw "Good morning, Michael." and then "Good Morning,
+    // Michael." on consecutive screens.
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
   };
 
 
@@ -917,6 +921,16 @@ function AppContent() {
     setIsNavVisible(true);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
+
+  // Same guard for the Soundscapes overlay: it's a full-screen modal over whatever page
+  // was scrolled underneath it, so opening it shouldn't inherit that page's hidden-nav
+  // state — the header/nav are meant to stay visible for the entire time it's open.
+  useEffect(() => {
+    if (showSoundMixer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs nav visibility when the overlay opens
+      setIsNavVisible(true);
+    }
+  }, [showSoundMixer]);
 
 
 
@@ -1299,11 +1313,8 @@ function AppContent() {
   const ritualDoneToday = !!todaysIntention || !!sessionStorage.getItem(SESSION_KEYS.MORNING_DONE);
   const isInMorningFlow = !ritualDoneToday && !morningSkipped && !shouldShowEveningMode && !forcedEvening && !!user && activeTab === 'home';
 
-  // Evening practice flow: hide nav once the user leaves the intro step
-  const [eveningStep, setEveningStep] = useState<string>('intro');
-  const isInEveningInputFlow = (shouldShowEveningMode || forcedEvening)
-    && !!user && activeTab === 'home'
-    && eveningStep !== 'intro';
+  // Evening practice flow: header + nav stay visible throughout, unlike morning.
+  const [_eveningStep, setEveningStep] = useState<string>('intro');
 
   // Completion moment: captures the intention word right as practice finishes
   const [completionIntention, setCompletionIntention] = useState<string>('');
@@ -1574,7 +1585,7 @@ function AppContent() {
         if (isToolTab) {
           return (
             <>
-              {/* Tool pages: same Target rings as Sound Scapes */}
+              {/* Tool pages: same Target rings as Soundscapes */}
               <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
                 <Target
                   className="absolute top-0 right-0 w-[110vmin] h-[110vmin] translate-x-1/2 -translate-y-1/2 text-[#E8E2D9] opacity-[0.075]"
@@ -1640,7 +1651,7 @@ function AppContent() {
 {/* Floating Header - Centered & Compact */}
       <header
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
-        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && !isInEveningInputFlow && activeTab !== 'coach' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
+        className={`fixed left-0 right-0 z-50 px-8 pb-3 flex flex-col items-center gap-2 transition-all duration-300 ${isNavVisible && !isInMorningFlow && activeTab !== 'coach' ? 'top-0 opacity-100' : '-top-40 opacity-0'} `}
       >
 
         {/* Top: Tagline & Logo */}
@@ -1708,8 +1719,8 @@ function AppContent() {
 
       {/* Main Content - Full Screen Sections */}
       <main
-        className={`relative z-20 ${isInMorningFlow || isInEveningInputFlow ? '' : 'pb-40'}`}
-        style={{ paddingTop: isInMorningFlow ? 0 : isInEveningInputFlow ? 'calc(env(safe-area-inset-top) + 1.5rem)' : 'calc(env(safe-area-inset-top) + 8.5rem)' }}
+        className={`relative z-20 ${isInMorningFlow ? '' : 'pb-40'}`}
+        style={{ paddingTop: isInMorningFlow ? 0 : 'calc(env(safe-area-inset-top) + 8.5rem)' }}
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -2815,7 +2826,7 @@ function AppContent() {
           that switch the tab underneath while the modal stays put, which reads as a
           dead nav bar. pointer-events-none while hidden keeps the offscreen nav from
           swallowing taps mid-transition. */}
-      < nav className={`fixed left-1/2 -translate-x-1/2 z-[55] transition-all duration-300 ${isNavVisible && !isInEveningInputFlow && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0 pointer-events-none'} `}>
+      < nav className={`fixed left-1/2 -translate-x-1/2 z-[55] transition-all duration-300 ${isNavVisible && !showKoiPond ? 'bottom-4 md:bottom-8 opacity-100' : '-bottom-24 opacity-0 pointer-events-none'} `}>
         <div className={`flex items-center gap-1 md:gap-3 px-3 md:px-6 py-3 md:py-4 rounded-full backdrop-blur-xl border transition-all duration-500 ${navClass} `}>
           {[
             { id: 'home', icon: Home, label: 'Home' },
@@ -3452,11 +3463,19 @@ function AppContent() {
             onClose={() => setShowSoundMixer(false)}
             isDarkMode={isDarkMode}
             source={mixerSource}
-            onContentScroll={updateNavVisibilityForScroll}
             onSaveMix={(mix: Omit<SoundMix, 'id'>) => {
               if (user) {
                 const updatedMixes = [...(user.savedMixes || []), { ...mix, id: `mix-${Date.now()}` }];
                 updateProfile({ ...user, savedMixes: updatedMixes });
+              }
+            }}
+            // This instance (the Soundscapes overlay opened from the global header,
+            // i.e. the one nearly every user reaches) was never given a delete
+            // handler, so a saved mix could be created but never removed. The
+            // Meditation instance above has always had one.
+            onDeleteMix={(mixId) => {
+              if (user) {
+                updateProfile({ ...user, savedMixes: (user.savedMixes || []).filter(m => m.id !== mixId) });
               }
             }}
             user={user || undefined}

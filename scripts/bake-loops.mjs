@@ -71,7 +71,25 @@ function decode(file, targetRate) {
     return { channels: [L, R], sr };
 }
 
-function encode(outFile, channels, sr, gainDb) {
+// Pure PCM → codec. NO -af filter chain: every sample handed in lands in the
+// output at the same index it came in at.
+//
+// This function used to run the leveler here as `volume=...,alimiter=...`, and
+// that silently destroyed the baked seam on EVERY track in the library.
+// ffmpeg's `alimiter` is a LOOKAHEAD limiter: `attack=5` buys its lookahead by
+// delaying the whole signal 5ms (239 samples at 48k) while keeping the output
+// length equal to the input. So the encoded file was the baked loop shifted
+// late — ~5ms of digital silence welded onto the head, and the last ~5ms
+// (which is precisely the tail that bakeCrossfade matched INTO that head)
+// chopped off. Measured end-to-end through this exact encode path: a marker
+// impulse at sample 1000 came back at 1239 with the filter chain, and at 1000
+// without it. No amount of seam tuning upstream can survive that, which is why
+// well-baked tracks (box-fan: ratio 1.23, rmsCont 1.00) still clicked audibly.
+//
+// The leveler now runs in JS, circularly, in levelLoop() — before seamMetric()
+// measures anything — so the numbers this script prints describe the samples
+// that actually ship.
+function encode(outFile, channels, sr) {
     const nCh = channels.length, n = channels[0].length;
     const inter = new Float32Array(n * nCh);
     for (let i = 0; i < n; i++) for (let c = 0; c < nCh; c++) inter[i * nCh + c] = channels[c][i];
@@ -80,28 +98,8 @@ function encode(outFile, channels, sr, gainDb) {
     const codec = ext === '.wav' ? ['-c:a', 'pcm_s16le']
         : ext === '.m4a' ? ['-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart']
         : ['-c:a', 'libmp3lame', '-q:a', '2'];
-    // Baked-in library leveler (see loudnessGain() above): bring the track's
-    // BODY to TARGET_RMS_DB, then a lookahead limiter clamps only the rare
-    // sample(s) that would otherwise cross PEAK_CEILING_DB — catching both
-    // this gain stage's own overshoot AND, on "periodic"-kind tracks, the
-    // headroom margin a highly-correlated runtime crossfade needs (its
-    // equal-power sin/cos sum can hump ~+3dB above either side at the seam).
-    // Applied here so it ships baked into the .m4a — one source of truth, no
-    // runtime volume riding needed.
-    const gainStage = (gainDb && Math.abs(gainDb) > 0.01) ? [`volume=${gainDb.toFixed(2)}dB`] : [];
-    // `limit` is linear, not dB. One extra dB of margin below PEAK_CEILING_DB
-    // absorbs AAC's own inter-sample reconstruction ripple (lossy transform
-    // coding can overshoot the exact PCM peak it was handed by ~0.5-1dB) —
-    // confirmed necessary empirically: without it, a handful of tracks
-    // (gentle-rain, ocean-waves, shoreline, kalimba-africa) measured with
-    // sample peaks slightly ABOVE 0dBFS in the encoded .m4a. `level=0`
-    // disables alimiter's "auto level" (on by default), which otherwise
-    // pushes output back up toward the ceiling regardless of the gain this
-    // was handed — the systematic culprit behind that overshoot.
-    const limiterCeiling = Math.pow(10, (PEAK_CEILING_DB - 1) / 20).toFixed(4);
-    const af = ['-af', [...gainStage, `alimiter=limit=${limiterCeiling}:attack=5:release=50:level=0`].join(',')];
     execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'f32le', '-ar', String(sr), '-ac', String(nCh),
-        '-i', 'pipe:0', ...af, ...codec, outFile], { input: raw, maxBuffer: 1 << 30 });
+        '-i', 'pipe:0', ...codec, outFile], { input: raw, maxBuffer: 1 << 30 });
 }
 
 // ── DSP ──────────────────────────────────────────────────────────────────────
@@ -252,11 +250,96 @@ function rmsAndPeak(channels) {
 
 // Gain (dB) to apply so this baked track's BODY lands at TARGET_RMS_DB,
 // never boosting more than MAX_GAIN_DB (silence/noise-floor guard). The
-// true-peak ceiling is enforced downstream by encode()'s limiter, not here.
+// true-peak ceiling is enforced by the circular limiter in levelLoop().
 function loudnessGain(channels) {
     const { rms, peak } = rmsAndPeak(channels);
     const gainDb = Math.min(TARGET_RMS_DB - dbfs(rms), MAX_GAIN_DB);
     return { gainDb, rmsDbBefore: dbfs(rms), peakDbBefore: dbfs(peak) };
+}
+
+// Circular sliding minimum of `a` over the window [i, i+win-1], indices taken
+// mod n. Monotonic deque, so O(n) rather than O(n·win) — at 240-sample
+// lookahead over multi-million-sample tracks the naive version is unusable.
+function slidingMinCircular(a, win) {
+    const n = a.length;
+    const out = new Float32Array(n);
+    const idx = new Int32Array(n + win);   // deque of indices, increasing value
+    let head = 0, tail = 0;
+    // Walk i from -win+1 to n-1 so the window is primed by the time we emit.
+    for (let k = -win + 1; k < n; k++) {
+        const j = k + win - 1;             // newest index entering the window
+        const v = a[((j % n) + n) % n];
+        while (tail > head && a[((idx[tail - 1] % n) + n) % n] >= v) tail--;
+        idx[tail++] = j;
+        while (idx[head] < k) head++;      // drop indices that fell out behind
+        if (k >= 0) out[k] = a[((idx[head] % n) + n) % n];
+    }
+    return out;
+}
+
+// Lookahead peak limiter that treats the track as a CIRCLE, not a line.
+//
+// Two properties matter here and neither is optional for a loop:
+//   1. Zero latency. The gain envelope is computed with lookahead but applied
+//      to sample i at index i, so nothing moves. (ffmpeg's alimiter buys its
+//      lookahead with a real delay — see encode() for what that cost us.)
+//   2. A gain envelope that WRAPS. The sliding minimum and the attack/release
+//      smoother both run modulo n, and the smoother runs two passes so the
+//      state it starts pass 2 with is the converged state from the end of the
+//      loop. A linear limiter would leave the envelope mid-release at the tail
+//      and at unity at the head — a level step exactly at the seam, which is
+//      the very thing this whole script exists to avoid.
+function limitCircular(channels, ceilingLin, sr, attackMs = 5, releaseMs = 50) {
+    const n = channels[0].length;
+    if (!n) return channels;
+    const look = Math.max(1, Math.round((sr * attackMs) / 1000));
+
+    // Per-sample gain that would just reach the ceiling (<= 1, attenuate only).
+    const need = new Float32Array(n);
+    let anyOver = false;
+    for (let i = 0; i < n; i++) {
+        let peak = 0;
+        for (const ch of channels) { const v = Math.abs(ch[i]); if (v > peak) peak = v; }
+        if (peak > ceilingLin) { need[i] = ceilingLin / peak; anyOver = true; }
+        else need[i] = 1;
+    }
+    if (!anyOver) return channels;
+
+    const target = slidingMinCircular(need, look);
+    // Attack time constant is deliberately a QUARTER of the lookahead window:
+    // a one-pole whose tau equals the window only closes ~63% of the distance
+    // to the target before the transient it is ducking actually arrives, which
+    // let gentle-rain out the door at +1.7dBFS. Even so the smoother alone is
+    // not a guarantee, so `need` is applied as a hard floor below — that term
+    // is what makes the ceiling arithmetic rather than aspirational. It stays
+    // circular (need is indexed mod nothing; it IS the per-sample requirement),
+    // so clamping cannot introduce a seam-only discontinuity.
+    const aC = Math.exp(-1 / Math.max(1, (sr * attackMs) / 4000));
+    const rC = Math.exp(-1 / Math.max(1, (sr * releaseMs) / 1000));
+    const env = new Float32Array(n);
+    let g = 1;
+    for (let pass = 0; pass < 2; pass++) {
+        for (let i = 0; i < n; i++) {
+            const t = target[i];
+            g = t + (g - t) * (t < g ? aC : rC);
+            if (g > need[i]) g = need[i];
+            if (pass === 1) env[i] = g;
+        }
+    }
+    for (const ch of channels) for (let i = 0; i < n; i++) ch[i] *= env[i];
+    return channels;
+}
+
+// Apply the library leveler to the baked loop IN PLACE, returning the gain used.
+// Runs before seamMetric() so the reported seam describes the shipped samples.
+function levelLoop(channels, sr) {
+    const { gainDb, peakDbBefore } = loudnessGain(channels);
+    const lin = Math.pow(10, gainDb / 20);
+    if (Math.abs(gainDb) > 0.01) for (const ch of channels) for (let i = 0; i < ch.length; i++) ch[i] *= lin;
+    // 1dB under the ceiling absorbs AAC's inter-sample reconstruction ripple
+    // (lossy transform coding can overshoot the PCM peak it was handed).
+    limitCircular(channels, Math.pow(10, (PEAK_CEILING_DB - 1) / 20), sr);
+    return { gainDb, peakDbBefore };
 }
 
 // ── Run ──────────────────────────────────────────────────────────────────────
@@ -264,6 +347,7 @@ const args = process.argv.slice(2);
 const write = args.includes('--write');
 const tune = args.includes('--tune');
 const qa = args.includes('--qa');
+const verify = args.includes('--verify');
 const longform = args.includes('--longform');
 const all = args.includes('--all');
 const onlyId = args.find(a => !a.startsWith('--'));
@@ -275,7 +359,10 @@ if (qa && !existsSync(QA_DIR)) mkdirSync(QA_DIR, { recursive: true });
 const qaManifest = [];
 
 const jobs = source.filter(m => !onlyId || m.id === onlyId);
-console.log(`\n${'id'.padEnd(26)} ${'orig ratio'.padStart(10)} ${'baked ratio'.padStart(11)} ${'rmsCont'.padStart(8)}  ${'loopNCC'.padStart(7)}  ${'fade'.padStart(5)}  ${'sec'.padStart(6)}  ${'gain'.padStart(6)}  ${'peakPreLim'.padStart(10)}  out`);
+// id → exact baked loop length in seconds, written back into loopManifest.json
+// so the runtime can trim to the sample instead of guessing with a threshold.
+const loopSecondsById = new Map();
+console.log(`\n${'id'.padEnd(26)} ${'orig ratio'.padStart(10)} ${'baked ratio'.padStart(11)} ${'rmsCont'.padStart(8)}  ${'loopNCC'.padStart(7)}  ${'fade'.padStart(5)}  ${'sec'.padStart(6)}  ${'gain'.padStart(6)}  ${'peakOut'.padStart(8)}  out`);
 console.log('-'.repeat(128));
 
 for (const job of jobs) {
@@ -350,20 +437,29 @@ for (const job of jobs) {
         }
         if (!choice) throw new Error('no usable fade window for this file');
 
-        const { f: chosenFade, ncc, out: baked, seam: bakedSeam } = choice;
+        const { f: chosenFade, ncc, out: baked } = choice;
         const outSec = (baked[0].length / sr).toFixed(1);
+        // Exact, in SECONDS not samples: decodeAudioData resamples to the
+        // AudioContext's rate, so a sample count baked at 48k would be wrong on
+        // a 44.1k context. Seconds survive the resample.
+        loopSecondsById.set(job.id, +(baked[0].length / sr).toFixed(6));
 
-        // Library leveler: gain that lands this track at TARGET_RMS_DB without
-        // crossing PEAK_CEILING_DB, baked into the encode so playback needs no
-        // per-sound volume riding.
-        const { gainDb, peakDbBefore } = loudnessGain(baked);
-        const peakDbAfter = peakDbBefore + gainDb;
+        // Library leveler: bring the body to TARGET_RMS_DB and clamp the rare
+        // transient under PEAK_CEILING_DB, in JS and circularly, so playback
+        // needs no per-sound volume riding. Done HERE, before the seam is
+        // measured and before the encoder sees anything, so `bakedSeam` below
+        // describes the exact samples that ship.
+        const { gainDb, peakDbBefore } = levelLoop(baked, sr);
+        const bakedSeam = seamMetric(baked, sr);
+        const { peak: peakAfterLin } = rmsAndPeak(baked);
+        const peakDbAfter = dbfs(peakAfterLin);
+        void peakDbBefore;
 
-        if (write) encode(outPublicPath, baked, sr, gainDb);
+        if (write) encode(outPublicPath, baked, sr);
         if (qa) {
             const bakedName = `${job.id}.mp3`;
             const origName = `${job.id}-orig${path.extname(job.src)}`;
-            encode(path.join(QA_DIR, bakedName), baked, sr, gainDb);
+            encode(path.join(QA_DIR, bakedName), baked, sr);
             copyFileSync(rawPath, path.join(QA_DIR, origName));
             qaManifest.push({
                 id: job.id, kind: job.kind, baked: bakedName, orig: origName,
@@ -372,10 +468,41 @@ for (const job of jobs) {
             });
         }
 
+        // Prove the file on disk matches what we baked, rather than trusting the
+        // encoder. Locates the baked head inside the decoded output and reports
+        // the shift: anything but 0 means a filter/codec moved the audio and the
+        // seam is broken, which is exactly how the alimiter regression hid.
+        let verdict = write ? '✓ written' : '(dry)';
+        if (write && verify) {
+            const { channels: back } = decode(outPublicPath);
+            const ref = baked[0], got = back[0];
+            const W = Math.min(4096, ref.length);
+            let bestOff = 0, bestScore = -Infinity;
+            for (let off = -1024; off <= 1024; off++) {
+                let dot = 0, e = 0;
+                for (let i = 0; i < W; i++) {
+                    const g = got[i + off + 2048] ?? 0;
+                    dot += g * ref[i + 2048]; e += g * g;
+                }
+                const s = dot / (Math.sqrt(e) + 1e-9);
+                if (s > bestScore) { bestScore = s; bestOff = off; }
+            }
+            const lenDelta = got.length - ref.length;
+            // With offset proven 0, decoded index i IS baked index i, so the
+            // real wrap is got[0] vs got[ref.length-1] — NOT vs got[got.length-1],
+            // which sits inside the encoder's trailing padding. Measuring at the
+            // container's duration_ts is no good either; it disagrees with the
+            // true length by a few tens of samples on some files.
+            const decSeam = seamMetric(back.map(ch => ch.subarray(0, ref.length)), sr);
+            verdict = bestOff === 0
+                ? `✓ off=0 seam=${decSeam.ratio} pad=${lenDelta}`
+                : `✗ SHIFTED ${bestOff} samples`;
+        }
+
         const gainStr = (gainDb >= 0 ? '+' : '') + gainDb.toFixed(1) + 'dB';
         const peakStr = peakDbAfter.toFixed(1) + 'dB';
         console.log(
-            `${job.id.padEnd(26)} ${String(origSeam.ratio).padStart(10)} ${String(bakedSeam.ratio).padStart(11)} ${String(bakedSeam.rmsContinuity).padStart(8)}  ${ncc.toFixed(3).padStart(7)}  ${(chosenFade / sr).toFixed(1).padStart(5)}  ${outSec.padStart(6)}  ${gainStr.padStart(6)}  ${peakStr.padStart(10)}  ${write ? '✓ written' : '(dry)'}`
+            `${job.id.padEnd(26)} ${String(origSeam.ratio).padStart(10)} ${String(bakedSeam.ratio).padStart(11)} ${String(bakedSeam.rmsContinuity).padStart(8)}  ${ncc.toFixed(3).padStart(7)}  ${(chosenFade / sr).toFixed(1).padStart(5)}  ${outSec.padStart(6)}  ${gainStr.padStart(6)}  ${peakStr.padStart(8)}  ${verdict}`
         );
     } catch (e) {
         console.log(`${job.id.padEnd(26)} ERROR: ${e.message.split('\n')[0]}`);
@@ -384,5 +511,27 @@ for (const job of jobs) {
 if (qa) {
     writeFileSync(path.join(QA_DIR, 'manifest.json'), JSON.stringify(qaManifest, null, 2));
     console.log(`\nQA assets written to public/_loopqa/ — open /_loopqa/loopqa.html`);
+}
+
+// Publish the exact loop lengths back to the manifest the runtime reads.
+//
+// Without this the runtime finds the loop end with a 0.001 amplitude threshold,
+// which cannot see the difference between the real last sample and AAC's
+// trailing encoder padding. On dense material the padding sits ABOVE that
+// threshold and gets kept: measured across the baked set, 19 of 33 tracks were
+// looping 2-12ms of encoder ring-out (gentle-rain 11.7ms, busy-cafe-2 11.0ms)
+// before wrapping. An exact length removes the guess.
+if (write && loopSecondsById.size) {
+    let touched = 0;
+    for (const list of [manifest.baked, manifest.longform]) {
+        for (const entry of list) {
+            const secs = loopSecondsById.get(entry.id);
+            if (secs !== undefined && entry.loopSeconds !== secs) { entry.loopSeconds = secs; touched++; }
+        }
+    }
+    if (touched) {
+        writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 4) + '\n');
+        console.log(`loopManifest.json: wrote loopSeconds for ${touched} track(s)`);
+    }
 }
 console.log('');

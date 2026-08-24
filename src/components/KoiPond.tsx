@@ -240,7 +240,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
     }, [earnedKoi]);
 
-    // Persistent "Help" affordance, same pattern as Sound Scapes' — a fading ambient
+    // Persistent "Help" affordance, same pattern as Soundscapes' — a fading ambient
     // hint alone wasn't discoverable enough, so this is the always-there way in.
     const [showHelp, setShowHelp] = useState(false);
 

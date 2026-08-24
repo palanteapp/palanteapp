@@ -219,7 +219,7 @@ export const WelcomeOrientationModal: React.FC<WelcomeOrientationModalProps> = (
                                         className={`text-left p-3 rounded-xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? 'border-white/10 hover:bg-white/5' : 'border-sage/10 hover:bg-sage/5'}`}
                                     >
                                         <Headphones size={24} className={`mb-2 ${accentColor}`} />
-                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Sound Scapes</h4>
+                                        <h4 className={`font-medium text-sm ${textPrimary}`}>Soundscapes</h4>
                                         <p className={`text-xs ${textSecondary} mt-1`}>Immersive sound mixer</p>
                                     </button>
                                     <button

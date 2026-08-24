@@ -432,7 +432,14 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
     return (
         <div className={`fixed inset-0 z-50 flex flex-col ${isDarkMode ? 'bg-sage-mid' : 'bg-warm-gray-green'}`}>
             {/* Header */}
-            <header className={`px-6 pt-12 pb-6 flex items-center justify-between shrink-0 border-b ${isDarkMode ? 'bg-sage-mid border-white/10' : 'bg-warm-gray-green border-sage/10'}`}>
+            {/* pt-12 was a fixed 48px guess at the status bar. On a Dynamic Island phone
+                the top safe-area inset is ~59px, so the "Settings" title was rendering
+                inside it, level with the clock. Every other full-screen panel in the app
+                offsets from env(safe-area-inset-top); this one now does too. */}
+            <header
+                style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+                className={`px-6 pb-6 flex items-center justify-between shrink-0 border-b ${isDarkMode ? 'bg-sage-mid border-white/10' : 'bg-warm-gray-green border-sage/10'}`}
+            >
                 <div className="flex flex-col">
                     <h2 className={`text-2xl font-display font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Settings</h2>
                     <div className="flex items-center gap-2 mt-1">
@@ -464,7 +471,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                 <span className={`text-xs uppercase tracking-widest font-medium ${isDarkMode ? 'text-white' : 'text-sage/40'}`}>About Palante</span>
                             </div>
                             <p className={`text-base font-semibold mt-1 ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
-                                Forward, together. Every single day.
+                                Move forward with intention.
                             </p>
                         </button>
                         <div className={`grid transition-all duration-300 ease-in-out ${showAbout ? 'grid-rows-[1fr] opacity-100 pb-6' : 'grid-rows-[0fr] opacity-0'}`}>
@@ -762,7 +769,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                                                 }}
                                                 className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
                                                     isActive
-                                                        ? 'bg-[#C96A3A] text-white'
+                                                        ? 'bg-pale-gold text-sage-dark'
                                                         : isDarkMode
                                                             ? 'bg-white/8 text-white hover:bg-white/14'
                                                             : 'bg-sage/8 text-sage-dark/60 hover:bg-sage/15'

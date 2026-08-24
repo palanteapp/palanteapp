@@ -56,7 +56,7 @@ export const MorningModeOverlay: React.FC<MorningModeOverlayProps> = ({
 
                     {/* Greeting */}
                     <h1 className={`text-3xl font-display font-medium mb-2 ${isDarkMode ? 'text-white' : 'text-sage'}`}>
-                        Good Morning, {userName}
+                        Good morning, {userName}
                     </h1>
 
                     <p className={`text-sm mb-8 ${isDarkMode ? 'text-white' : 'text-sage-dark/70'}`}>

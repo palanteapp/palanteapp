@@ -158,7 +158,7 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
                     opacity: 0.65,
                     letterSpacing: '0.6px',
                     textTransform: 'uppercase',
-                }}>Forward, Together. Every Single Day.</span>
+                }}>Move forward with intention.</span>
             </div>
         </div>
     );

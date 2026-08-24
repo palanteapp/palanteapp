@@ -162,7 +162,7 @@ export const SharedReflectionPreview: React.FC<SharedReflectionPreviewProps> = (
                         color: '#556054',
                         whiteSpace: 'nowrap'
                     }}>
-                        FORWARD, TOGETHER. EVERY SINGLE DAY.
+                        Move forward with intention.
                     </p>
                     <p style={{
                         fontSize: '5px',

@@ -303,7 +303,7 @@ export async function generateShareImage(quote: Quote, seed: string): Promise<st
     ctx.fillStyle    = 'rgba(253,251,247,0.5)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('FORWARD, TOGETHER. EVERY SINGLE DAY.', W / 2, brandingY);
+    ctx.fillText('MOVE FORWARD WITH INTENTION.', W / 2, brandingY);
 
     ctx.font      = '800 34px Inter, sans-serif';
     ctx.fillStyle = 'rgba(253,251,247,0.88)';
@@ -493,7 +493,7 @@ export async function generateWeeklyReflectionShareImage(
     ctx.fillStyle    = 'rgba(253,251,247,0.5)';
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('FORWARD, TOGETHER. EVERY SINGLE DAY.', W / 2, brandingY);
+    ctx.fillText('MOVE FORWARD WITH INTENTION.', W / 2, brandingY);
 
     ctx.font      = '800 34px Inter, sans-serif';
     ctx.fillStyle = 'rgba(253,251,247,0.88)';
@@ -1050,7 +1050,7 @@ async function generateStreakStoryImage(params: {
     ctx.font        = '500 14px Inter, sans-serif';
     ctx.fillStyle   = '#FFFFFF';
     ctx.globalAlpha = 0.65;
-    ctx.fillText('FORWARD, TOGETHER. EVERY SINGLE DAY.', INFO_X + INFO_W / 2, curY);
+    ctx.fillText('MOVE FORWARD WITH INTENTION.', INFO_X + INFO_W / 2, curY);
     ctx.globalAlpha = 1;
 
     const base64   = canvas.toDataURL('image/jpeg', 0.93).split(',')[1];

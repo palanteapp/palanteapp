@@ -23,6 +23,13 @@ export interface LoopManifestEntry {
     kind: 'texture' | 'periodic';
     /** True for the long-form pieces that stream instead of decoding. */
     stream?: boolean;
+    /**
+     * Exact length of the baked loop in seconds, written by the baker. Lets the
+     * runtime trim to the sample instead of hunting for the end with an
+     * amplitude threshold, which cannot tell real audio from the encoder's
+     * trailing AAC padding.
+     */
+    loopSeconds?: number;
 }
 
 const ENTRIES = [

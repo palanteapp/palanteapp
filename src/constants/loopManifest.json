@@ -5,203 +5,232 @@
             "src": "sounds/gentle-rain.mp3",
             "out": "sounds/gentle-rain.m4a",
             "fade": 2,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 23.583125
         },
         {
             "id": "waterfall",
             "src": "sounds/waterfall.mp3",
             "out": "sounds/waterfall.m4a",
             "fade": 2,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 33.010042
         },
         {
             "id": "flowing-river",
             "src": "sounds/flowing-river.mp3",
             "out": "sounds/flowing-river.m4a",
             "fade": 2,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 60.069252
         },
         {
             "id": "calm-wind",
             "src": "sounds/calm-wind.mp3",
             "out": "sounds/calm-wind.m4a",
             "fade": 1.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 7.4225
         },
         {
             "id": "forest",
             "src": "sounds/forest.mp3",
             "out": "sounds/forest.m4a",
             "fade": 2.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 191.13425
         },
         {
             "id": "camp-fire",
             "src": "sounds/camp-fire.mp3",
             "out": "sounds/camp-fire.m4a",
             "fade": 1.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 8.253084
         },
         {
             "id": "autumn-wind",
             "src": "Autumn Wind.mp3",
             "out": "Autumn Wind.m4a",
             "fade": 2.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 217.450667
         },
         {
             "id": "distant-rain-and-thunder",
             "src": "sounds/distant-rain-and-thunder.mp3",
             "out": "sounds/distant-rain-and-thunder.m4a",
             "fade": 3,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 150.624104
         },
         {
             "id": "ocean-waves",
             "src": "sounds/ocean-waves.mp3",
             "out": "sounds/ocean-waves.m4a",
             "fade": 2,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 16.86356
         },
         {
             "id": "shoreline",
             "src": "sounds/shoreline.mp3",
             "out": "sounds/shoreline.m4a",
             "fade": 2.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 50.001633
         },
         {
             "id": "beach-and-birds",
             "src": "sounds/beach-and-birds.mp3",
             "out": "sounds/beach-and-birds.m4a",
             "fade": 2.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 63.012417
         },
         {
             "id": "birdsong",
             "src": "sounds/birdsong.mp3",
             "out": "sounds/birdsong.m4a",
             "fade": 1.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 17.048583
         },
         {
             "id": "cat-purring",
             "src": "sounds/cat-purring.mp3",
             "out": "sounds/cat-purring.m4a",
             "fade": 1,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 10.854792
         },
         {
             "id": "boriquen-coqui",
             "src": "sounds/boriquen-coqui.mp3",
             "out": "sounds/boriquen-coqui.m4a",
             "fade": 2,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 57.219542
         },
         {
             "id": "singing-bowl",
             "src": "sounds/singing-bowl.mp3",
             "out": "sounds/singing-bowl.m4a",
             "fade": 2,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 45.470708
         },
         {
             "id": "busy-cafe-1",
             "src": "sounds/busy-cafe-1.mp3",
             "out": "sounds/busy-cafe-1.m4a",
             "fade": 2,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 28.234083
         },
         {
             "id": "busy-cafe-2",
             "src": "sounds/busy-cafe-2.mp3",
             "out": "sounds/busy-cafe-2.m4a",
             "fade": 2.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 57.524875
         },
         {
             "id": "busy-cafe-4",
             "src": "busy-cafe-4.mp3",
             "out": "busy-cafe-4.m4a",
             "fade": 2.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 56.313625
         },
         {
             "id": "kalimba-africa",
             "src": "sounds/kalimba-africa.mp3",
             "out": "sounds/kalimba-africa.m4a",
             "fade": 1,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 39.41
         },
         {
             "id": "1970-pr",
             "src": "sounds/1970-pr.mp3",
             "out": "sounds/1970-pr.m4a",
             "fade": 2,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 72.561746
         },
         {
             "id": "colombia-eas",
             "src": "colombia-eas.mp3",
             "out": "colombia-eas.m4a",
             "fade": 1.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 12.160604
         },
         {
             "id": "zen-out",
             "src": "sounds/zen-out.mp3",
             "out": "sounds/zen-out.m4a",
             "fade": 2.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 58.822517
         },
         {
             "id": "sounds-of-zen",
             "src": "sounds/sounds-of-zen.mp3",
             "out": "sounds/sounds-of-zen.m4a",
             "fade": 2.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 58.822517
         },
         {
             "id": "set-adrift",
             "src": "sounds/set-adrift.mp3",
             "out": "sounds/set-adrift.m4a",
             "fade": 3,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 149.678821
         },
         {
             "id": "chillax-uno",
             "src": "sounds/chillax-uno.mp3",
             "out": "sounds/chillax-uno.m4a",
             "fade": 1.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 9.316893
         },
         {
             "id": "chillax-dos",
             "src": "sounds/chillax-dos.mp3",
             "out": "sounds/chillax-dos.m4a",
             "fade": 1.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 30.735147
         },
         {
             "id": "chillax-tres",
             "src": "sounds/chillax-tres.mp3",
             "out": "sounds/chillax-tres.m4a",
             "fade": 1.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 6.499229
         },
         {
             "id": "chill-cinco",
             "src": "Chill Cinco.mp3",
             "out": "Chill Cinco.m4a",
             "fade": 2,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 73.254785
         },
         {
             "id": "box-fan",
             "src": "sounds/box-fan.mp3",
             "out": "sounds/box-fan.m4a",
             "fade": 4,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 53.887646
         },
         {
             "id": "evolving-deep-sleep-drone",
@@ -209,28 +238,32 @@
             "raw": "evolving-deep-sleep-drone-loop.wav",
             "out": "sounds/evolving-deep-sleep-drone.m4a",
             "fade": 1.5,
-            "kind": "texture"
+            "kind": "texture",
+            "loopSeconds": 37.500875
         },
         {
             "id": "heartbeat",
             "src": "sounds/heartbeat.mp3",
             "out": "sounds/heartbeat.m4a",
             "fade": 1,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 9.856531
         },
         {
             "id": "night-crickets",
             "src": "sounds/night-crickets.mp3",
             "out": "sounds/night-crickets.m4a",
             "fade": 4,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 48.283375
         },
         {
             "id": "soft-atmospheric-piano",
             "src": "sounds/soft-atmospheric-piano.mp3",
             "out": "sounds/soft-atmospheric-piano.m4a",
             "fade": 1.5,
-            "kind": "periodic"
+            "kind": "periodic",
+            "loopSeconds": 10.412086
         }
     ],
     "longform": [
@@ -243,7 +276,8 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 502.400023
         },
         {
             "id": "bilateral-replenished",
@@ -254,7 +288,8 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 584.686054
         },
         {
             "id": "bilateral-tranquility",
@@ -265,7 +300,8 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 605.169297
         },
         {
             "id": "bilateral-tune-up",
@@ -276,7 +312,8 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 593.441066
         },
         {
             "id": "om-gum-shreem",
@@ -286,7 +323,8 @@
             "kind": "periodic",
             "minFrac": 0.85,
             "searchSec": 16,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 1071.983515
         },
         {
             "id": "chillax-quatro",
@@ -296,7 +334,8 @@
             "kind": "periodic",
             "minFrac": 0.85,
             "searchSec": 16,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 1077.102542
         },
         {
             "id": "busy-cafe-3",
@@ -306,7 +345,8 @@
             "kind": "texture",
             "minFrac": 0.85,
             "searchSec": 12,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 376.034458
         },
         {
             "id": "whale-sounds",
@@ -317,7 +357,8 @@
             "minFrac": 0.85,
             "searchSec": 16,
             "rate": 24000,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 525.03575
         },
         {
             "id": "gentle-rain-for-relaxation",
@@ -327,7 +368,8 @@
             "kind": "texture",
             "minFrac": 0.85,
             "searchSec": 12,
-            "stream": true
+            "stream": true,
+            "loopSeconds": 523.716104
         }
     ]
 }

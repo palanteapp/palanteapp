@@ -126,6 +126,20 @@ interface PlanOptions {
     minFrac?: number;
     /** How far back from the end the search may look, in seconds. */
     searchSeconds?: number;
+    /**
+     * Exact loop length in samples, from the baker (`loopSeconds` in
+     * loopManifest.json, converted at the decoded rate). When given, the loop
+     * is taken as [0, exactLength) verbatim: no silence trim at either edge.
+     *
+     * Both edges matter. At the END, the amplitude trim cannot distinguish the
+     * real last sample from AAC's trailing encoder padding, and on dense
+     * material that padding sits above the threshold and gets looped. At the
+     * START, a baked file begins exactly ON the loop point by construction, so
+     * trimming a quiet head (distant-rain-and-thunder and bilateral-tune-up
+     * both open below the threshold) would slide the buffer off the seam the
+     * baker built and produce the very discontinuity this avoids.
+     */
+    exactLength?: number;
 }
 
 /** Downmix to a single channel for correlation analysis. */
@@ -206,10 +220,21 @@ export function planLoopBuffer(
         search = false,
         minFrac = 0.7,
         searchSeconds = 8,
+        exactLength,
     } = options;
 
-    const { start, end: loudEnd } = findLoudRange(channels, silenceThreshold);
-    let end = loudEnd;
+    const usable = channels[0]?.length ?? 0;
+    // Clamp rather than reject: the AAC round-trip returns a hair FEWER samples
+    // than were handed to it on at least one track (colombia-eas, -29 samples),
+    // and using every sample that did come back beats falling all the way back
+    // to threshold trimming, which is the guess this is here to replace.
+    const exact = exactLength && exactLength > 0
+        ? Math.min(Math.floor(exactLength), usable)
+        : 0;
+
+    const trimmed = exact ? { start: 0, end: exact } : findLoudRange(channels, silenceThreshold);
+    const start = trimmed.start;
+    let end = trimmed.end;
     let ncc = 0;
 
     const wanted = Math.floor(fadeSeconds * sampleRate);

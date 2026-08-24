@@ -161,7 +161,7 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                         color: '#FDFBF7',
                         whiteSpace: 'nowrap',
                     }}>
-                        FORWARD, TOGETHER. EVERY SINGLE DAY.
+                        Move forward with intention.
                     </p>
                     <p style={{
                         fontSize: '7px',
