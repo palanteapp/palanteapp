@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Wind, Flower, Music, ChevronRight, Info, X, GripVertical, TrendingUp, Zap, Goal as GoalIcon, Lightbulb, Mail, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -151,6 +151,13 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
     const [order, setOrder] = useState<PracticeId[]>(PRACTICES.map(p => p.id));
     const [infoTarget, setInfoTarget] = useState<Practice | null>(null);
     const [showInsightsExplainer, setShowInsightsExplainer] = useState(false);
+    // Navigation from the info sheet's CTA is deferred until the sheet's own
+    // exit animation finishes (see onExitComplete below). Firing onNavigate
+    // inline with setInfoTarget(null) let the outer tab-switch AnimatePresence
+    // in App.tsx unmount this whole component while the sheet's portal was
+    // still mid-exit, stranding it in document.body with no owner left to
+    // finish the animation or handle dismiss taps.
+    const pendingNavRef = useRef<PracticeId | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -284,7 +291,14 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
 
             {/* Info modal: portal */}
             {createPortal(
-                <AnimatePresence>
+                <AnimatePresence
+                    onExitComplete={() => {
+                        if (pendingNavRef.current) {
+                            onNavigate(pendingNavRef.current);
+                            pendingNavRef.current = null;
+                        }
+                    }}
+                >
                     {infoTarget && (
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -331,7 +345,7 @@ export const PracticeView: React.FC<PracticeViewProps> = ({ onNavigate, isDarkMo
                                 </p>
 
                                 <button
-                                    onClick={() => { setInfoTarget(null); haptics.medium(); onNavigate(infoTarget.id); }}
+                                    onClick={() => { pendingNavRef.current = infoTarget.id; setInfoTarget(null); haptics.medium(); }}
                                     className={`mt-7 w-full py-4 rounded-[2rem] font-display font-semibold text-sm uppercase tracking-widest transition-all active:scale-[0.98] bg-terracotta-500 text-white shadow-lg`}
                                 >
                                     Open {infoTarget.title}

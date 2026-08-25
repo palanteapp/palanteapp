@@ -895,6 +895,42 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
         return audioRefs.current[id];
     };
 
+    // Switch the whole active selection (a recipe, a saved mix, a meditation
+    // preset) to `newVolumes` with a real overlapping crossfade instead of the
+    // old stop-everything → wait 100ms → play-everything sequence. Each Sound
+    // class already ramps its own gain out over ~1s on stop() and in over
+    // ~1.5s on play() — the old code just never let those two ramps run at
+    // the same time, so every switch had a dead-silent gap between them no
+    // matter how good the individual ramps were. Sounds present in both the
+    // old and new selection are left running and just glide to their new
+    // volume, so switching between mixes that share a layer (e.g. both use
+    // rain) never even touches that layer's audio.
+    const applyMix = useCallback((newVolumes: Record<string, number>) => {
+        const currentlyPlaying = new Set(
+            Object.entries(audioRefs.current).filter(([, s]) => s.isPlaying).map(([id]) => id)
+        );
+        const nextIds = new Set(Object.keys(newVolumes));
+
+        currentlyPlaying.forEach(id => {
+            if (!nextIds.has(id)) audioRefs.current[id].stop();
+        });
+
+        nextIds.forEach(id => {
+            const vol = newVolumes[id];
+            const soundData = SOUNDS.find(s => s.id === id);
+            if (!soundData) return;
+            const audio = getAudioRef(id, soundData.src);
+            if (currentlyPlaying.has(id)) {
+                audio.setVolume(vol);
+            } else {
+                audio.play(vol);
+            }
+        });
+
+        setActiveSounds(nextIds);
+        setVolumes(newVolumes);
+    }, []);
+
     useEffect(() => {
         // Eager loading removed for performance Optimization
 
@@ -914,34 +950,15 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             const presetId = event.detail?.preset;
             if (presetId && MEDITATION_PRESETS[presetId]) {
                 const preset = MEDITATION_PRESETS[presetId];
-
-                // Stop ALL sounds first
-                Object.values(audioRefs.current).forEach(audio => {
-                    if (audio.isPlaying) {
-                        audio.stop();
+                const newVols: Record<string, number> = {};
+                Object.entries(preset.volumes).forEach(([id, vol]) => {
+                    if (SOUNDS.some(s => s.id === id)) {
+                        newVols[id] = vol;
+                    } else {
+                        console.error(`  ❌ Audio not found in SOUNDS mapping: ${id}`);
                     }
                 });
-
-                // Start new preset sounds after brief delay
-                setTimeout(() => {
-                    const newActive = new Set<string>();
-                    const newVols: Record<string, number> = {};
-
-                    Object.entries(preset.volumes).forEach(([id, vol]) => {
-                        const soundData = SOUNDS.find(s => s.id === id);
-                        if (soundData) {
-                            const audio = getAudioRef(id, soundData.src);
-                            newActive.add(id);
-                            newVols[id] = vol;
-                            audio.play(vol);
-                        } else {
-                            console.error(`  ❌ Audio not found in SOUNDS mapping: ${id}`);
-                        }
-                    });
-
-                    setActiveSounds(newActive);
-                    setVolumes(newVols);
-                }, 100);
+                applyMix(newVols);
             } else {
                 console.error(`❌ Invalid preset: ${presetId}`);
             }
@@ -973,22 +990,11 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
         const handleLoadMix = (event: CustomEvent<{ volumes?: Record<string, number> }>) => {
             const volumes = event.detail?.volumes;
             if (!volumes || !Object.keys(volumes).length) return;
-            Object.values(audioRefs.current).forEach(audio => { if (audio.isPlaying) audio.stop(); });
-            setTimeout(() => {
-                const newActive = new Set<string>();
-                const newVols: Record<string, number> = {};
-                Object.entries(volumes).forEach(([id, vol]) => {
-                    const soundData = SOUNDS.find(s => s.id === id);
-                    if (soundData) {
-                        const audio = getAudioRef(id, soundData.src);
-                        newActive.add(id);
-                        newVols[id] = vol;
-                        audio.play(vol);
-                    }
-                });
-                setActiveSounds(newActive);
-                setVolumes(newVols);
-            }, 100);
+            const newVols: Record<string, number> = {};
+            Object.entries(volumes).forEach(([id, vol]) => {
+                if (SOUNDS.some(s => s.id === id)) newVols[id] = vol;
+            });
+            applyMix(newVols);
         };
 
         window.addEventListener('palante-restart-sounds', handleRestartSounds);
@@ -1080,24 +1086,13 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
     }, [activeSounds]);
 
     const loadRecipe = useCallback((recipe: { id: string; name: string; volumes: Record<string, number | undefined>; color: string }) => {
-        stopAll();
-        // Small delay to let fades happen
-        setTimeout(() => {
-            const newActive = new Set<string>();
-            const newVols: Record<string, number> = {};
-            Object.entries(recipe.volumes).forEach(([id, vol]) => {
-                if (vol === undefined) return;
-                const soundData = SOUNDS.find(s => s.id === id);
-                if (soundData) {
-                    newActive.add(id);
-                    newVols[id] = vol;
-                    getAudioRef(id, soundData.src).play(vol);
-                }
-            });
-            setActiveSounds(newActive);
-            setVolumes(newVols);
-        }, 100);
-    }, [stopAll]);
+        const newVols: Record<string, number> = {};
+        Object.entries(recipe.volumes).forEach(([id, vol]) => {
+            if (vol === undefined) return;
+            if (SOUNDS.some(s => s.id === id)) newVols[id] = vol;
+        });
+        applyMix(newVols);
+    }, [applyMix]);
 
     const handleSaveMix = useCallback(() => {
         if (!newMixName.trim() || !onSaveMix) return;

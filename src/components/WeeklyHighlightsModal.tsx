@@ -105,7 +105,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
             const dateRange = getDateRange();
             const seed = `weekly-${isoWeek}`;
             const dataUrl = await generateWeeklyReflectionShareImage(
-                reflectionMessage || 'You showed up this week. That\'s the whole game.',
+                reflectionMessage || 'You showed up this week. That\'s what counts.',
                 dateRange,
                 seed,
             );
@@ -368,7 +368,7 @@ export const WeeklyHighlightsModal: React.FC<WeeklyHighlightsModalProps> = ({
                                     className="relative font-body leading-relaxed"
                                     style={{ fontStyle: '', fontSize: 13.5, color: 'rgba(255,255,255,0.88)', zIndex: 1 }}
                                 >
-                                    {reflectionMessage || 'You showed up this week. That\'s the whole game.'}
+                                    {reflectionMessage || 'You showed up this week. That\'s what counts.'}
                                 </p>
 
                                 {/* Share button */}

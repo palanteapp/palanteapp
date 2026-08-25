@@ -2123,11 +2123,11 @@ ${directive}`;
 
 const buildWeeklyReflectionFallback = (accomplishments: string[], _firstName: string, language: AppLanguage = 'en'): string => {
     if (language === 'es') {
-        if (accomplishments.length === 0) return "Te mantuviste en esto toda la semana. Ese es todo el juego.";
+        if (accomplishments.length === 0) return "Te mantuviste en esto toda la semana. Eso es lo que importa.";
         if (accomplishments.length === 1) return `Lo lograste. ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. Una victoria es suficiente para construir sobre ella. Sigue adelante.`;
         return `Mantuviste tu posición esta semana, atendiste lo que necesitaba atención, y seguiste avanzando. Cada una de estas victorias es evidencia de alguien que cumple. Sigue adelante.`;
     }
-    if (accomplishments.length === 0) return "You stayed in it this week. That's the whole game.";
+    if (accomplishments.length === 0) return "You stayed in it this week. That's what matters.";
     if (accomplishments.length === 1) return `You got it done. ${accomplishments[0].toLowerCase().replace(/\.$/, '')}. One win is enough to build on. Keep going.`;
     return `You held your ground this week, took care of what needed taking care of, and kept moving. Every one of these wins is evidence of someone who follows through. Keep going.`;
 };

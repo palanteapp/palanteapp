@@ -197,7 +197,10 @@ export const HomeEssentialTools: React.FC<HomeEssentialToolsProps> = ({
                                 {tool.icon}
                             </div>
                             <div className="text-center flex flex-col items-center w-full min-w-0">
-                                <div className={`text-sm font-display font-bold leading-tight mb-0.5 text-center w-full ${textPrimary}`}>
+                                {/* text-xs + whitespace-nowrap (not text-sm with a manual <br/> just for
+                                    "Soundscapes") so every label sits on one line at a size that actually
+                                    fits the tile, rather than one tile alone wrapping to two. */}
+                                <div className={`text-xs font-display font-bold leading-tight mb-0.5 text-center w-full whitespace-nowrap ${textPrimary}`}>
                                     {tool.label}
                                 </div>
                                 <div className={`text-[10px] uppercase tracking-[0.18em] opacity-60 font-bold ${textPrimary}`}>

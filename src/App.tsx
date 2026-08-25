@@ -305,15 +305,19 @@ function AppContent() {
   const [letterContextDetails, setLetterContextDetails] = useState<string>('');
   const [currentLetter, setCurrentLetter] = useState<FutureLetter | null>(null);
 
-  // Weekly Highlights: badge on Journey tab, modal shown when user navigates there
-  useEffect(() => {
+  // Weekly Highlights: badge on Journey tab, modal shown when user navigates there.
+  // Pulled out to a stable callback (rather than inline in the mount effect below)
+  // so the day-rollover handler further down can re-run the same week-boundary
+  // check on resume, not just on login/mount. computeWeeklyHighlights and
+  // letterIsStale both gate on the current ISO week internally, so calling this
+  // more often than once a week is a no-op until the week actually turns over.
+  const checkWeeklyHighlights = useCallback(() => {
     if (!user) return;
     const trigger = computeWeeklyHighlights(
       user.dailyEveningPractice || [],
       STORAGE_KEYS.WEEKLY_HIGHLIGHTS_SHOWN
     );
     if (trigger.shouldShow) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time badge/modal trigger computed from storage on mount/user-change, not derivable from props during render
       setWeeklyAccomplishments(trigger.accomplishments);
       trigger.markShown();
       setShowWeeklyHighlights(true); // lights up the Journey tab badge
@@ -344,6 +348,11 @@ function AppContent() {
     } else if (user.weeklyPartnerLetter?.text) {
       setWeeklyLetterText(user.weeklyPartnerLetter.text);
     }
+  }, [user, isPro]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time badge/modal trigger computed from storage on mount/user-change, not derivable from props during render
+    checkWeeklyHighlights();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When user taps Journey tab and highlights are waiting, open the modal there
@@ -1502,10 +1511,11 @@ function AppContent() {
       if (today !== lastSeenDateRef.current) {
         lastSeenDateRef.current = today;
         refreshDailyQuote(false);
+        checkWeeklyHighlights();
       }
     });
     return () => { listener.then(h => h.remove()); };
-  }, [user, refreshDailyQuote]);
+  }, [user, refreshDailyQuote, checkWeeklyHighlights]);
 
   // Deep-link handler, captures palante://auth-callback URLs from Supabase email links on device
   useEffect(() => {
