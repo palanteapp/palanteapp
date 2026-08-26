@@ -154,9 +154,13 @@ export const SharedQuotePreview: React.FC<SharedQuotePreviewProps> = ({ quote, s
                     gap: '3px',
                 }}>
                     <p style={{
-                        fontSize: '4px',
+                        fontSize: '6.5px',
                         fontWeight: 700,
-                        letterSpacing: '0.25em',
+                        // Wide 0.25em tracking reads fine at the brand name's 7px below,
+                        // but at the smaller size it used here it spaced the tagline's
+                        // glyphs apart faster than the eye could still parse it as a
+                        // word — the actual reason this line was "hard to read".
+                        letterSpacing: '0.12em',
                         textTransform: 'uppercase',
                         color: '#FDFBF7',
                         whiteSpace: 'nowrap',

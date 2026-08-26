@@ -273,7 +273,7 @@ async function renderNoiseLoop(spec: { color: NoiseColor }, sampleRate: number):
     return bakeSeamlessLoop(channels, sampleRate); // ~20s after the 2s crossfade
 }
 
-function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
+export function encodeWav(channels: Float32Array[], sampleRate: number): Blob {
     const numCh = channels.length;
     const len = channels[0].length;
     const blockAlign = numCh * 2; // 16-bit

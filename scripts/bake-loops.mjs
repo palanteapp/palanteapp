@@ -20,6 +20,20 @@
 //          keeping whichever actually bakes the best seam. The chosen window is
 //          printed in the `fade` column so a good one can be written back into
 //          loopManifest.json.
+//   node scripts/bake-loops.mjs --write --out-dir audio-baked-candidates heartbeat
+//        ↑ stage a candidate somewhere other than public/. Verify it with
+//          `node scripts/verify-seams.mjs --dir audio-baked-candidates <id>`
+//          and only then copy it over the shipped file.
+//   node scripts/bake-loops.mjs --write --rot-candidates 14 <id>
+//        ↑ how many quiet points to try as the loop's head. Each one costs a
+//          full encode+decode, so the default of 5 is a speed compromise;
+//          raise it for a track that is still marginal (see the rotation
+//          section below for what this is doing and why).
+//
+// With --write the `out` column now reports the seam measured on the DECODED
+// file — stepRms (wrap step over the material's RMS sample delta; under 6 is
+// inaudible) and clickZ — not on the pre-encode PCM, which is always clean and
+// therefore always lied.
 //
 // Sources are read from audio-raw/ (created on first run by copying the current
 // public files); baked outputs are written to public/. This keeps an untouched
@@ -342,6 +356,139 @@ function levelLoop(channels, sr) {
     return { gainDb, peakDbBefore };
 }
 
+// ── Encoder head-damage compensation (loop rotation) ─────────────────────────
+//
+// THE FLAW THIS FIXES. Everything above measures the seam on the PRE-ENCODE
+// PCM, and by construction that seam is already perfect: bakeCrossfade makes
+// out[0] = ch[e-f] and out[outLen-1] = ch[e-f-1], two ADJACENT samples of the
+// master, so the pre-encode wrap step is an ordinary interior delta. Measured
+// on heartbeat: pre-encode step 0.000122. The file that shipped: 0.0439. The
+// entire defect is introduced by the AAC round trip, and this script never
+// looked (only the opt-in --verify did, and only at a scale-invariant ratio).
+//
+// Profiling decoded-vs-baked error per region on heartbeat shows where it comes
+// from — and it is NOT the trailing padding everyone assumed:
+//
+//     region              err/signal
+//     head    0..64          0.361
+//     head   64..256         0.143
+//     head  256..1024        0.092
+//     head   1k..4k          0.076
+//     middle                 0.016
+//     tail -1024..-256       0.015
+//     tail   -64..0          0.024
+//
+// The encoder's FIRST decoded frame is badly reconstructed — its half-window
+// has nothing to overlap-add against — and the error is RELATIVE, roughly a
+// third of local amplitude in the first few dozen samples. The tail is fine.
+// So the wrap inherits an absolute error proportional to how loud the material
+// happens to be at file index 0. That is exactly why quiet, sparse tracks
+// (heartbeat, soft piano, set-adrift) click while dense ones at the same
+// nominal step (waterfall, kalimba) do not: same relative error, but dense
+// material's own sample motion buries it.
+//
+// The fix costs nothing. A loop is a CIRCLE, so which sample sits at file
+// index 0 is free: rotating the baked loop by r leaves out[0] = B[r] and
+// out[N-1] = B[r-1] still adjacent, so PCM continuity across the wrap is
+// preserved exactly for ANY r, and the loop's content, length and channel
+// layout are untouched. Rotate the QUIETEST point of the loop to the head and
+// the encoder's head damage lands on near-silence. Measured on heartbeat:
+// post-encode stepRms 70.3 → 1.45.
+//
+// Not applied to `longform` unless asked: those are compositions and bilateral
+// panning pieces with a real beginning, and starting one two minutes in would
+// be musically wrong. Set `rotate: true` on such a job to opt in, or
+// `rotate: false` on a baked job to opt out.
+
+// Weights follow the measured error profile above: the first 64 samples matter
+// most, and past ~1024 the encoder is essentially clean.
+const HEAD_BANDS = [[64, 1.0], [256, 0.5], [1024, 0.25]];
+
+function headCost(channels, r, n) {
+    let cost = 0;
+    let prev = 0;
+    for (const [end, w] of HEAD_BANDS) {
+        let s = 0;
+        for (const ch of channels) for (let i = prev; i < end; i++) { const v = ch[(r + i) % n]; s += v * v; }
+        cost += w * Math.sqrt(s / ((end - prev) * channels.length));
+        prev = end;
+    }
+    return cost;
+}
+
+// Candidate rotations, best (quietest head) first. Coarse scan then refine, so
+// this stays cheap on a 20-minute longform track.
+function bestRotations(channels, n, count = 3) {
+    const stride = Math.max(1, Math.floor(n / 20000));
+    const coarse = [];
+    for (let r = 0; r < n; r += stride) coarse.push([r, headCost(channels, r, n)]);
+    coarse.sort((a, b) => a[1] - b[1]);
+    // Refine the top few coarse minima, keeping them far enough apart that the
+    // candidates are genuinely different places in the loop rather than
+    // neighbours inside one quiet gap.
+    const picks = [];
+    for (const [r0] of coarse) {
+        if (picks.some(p => Math.min(Math.abs(p - r0), n - Math.abs(p - r0)) < n / 50)) continue;
+        let best = r0, bestC = Infinity;
+        for (let r = r0 - stride; r <= r0 + stride; r++) {
+            const rr = ((r % n) + n) % n;
+            const c = headCost(channels, rr, n);
+            if (c < bestC) { bestC = c; best = rr; }
+        }
+        picks.push(best);
+        if (picks.length >= count) break;
+    }
+    return picks;
+}
+
+function rotate(channels, r, n) {
+    if (!r) return channels;
+    return channels.map(ch => {
+        const o = new Float32Array(n);
+        for (let i = 0; i < n; i++) o[i] = ch[(i + r) % n];
+        return o;
+    });
+}
+
+// The gates, measured on the DECODED file — these mirror scripts/verify-seams.mjs
+// so the baker selects a rotation on the same criteria the verifier will judge
+// it by, rather than on a proxy.
+//
+//   stepRms — wrap step over the RMS adjacent-sample delta of the material.
+//             Under ~6 is inaudible. This is the primary gate.
+//   clickZ  — |Δ²x| at the join over the p99.9 of the material's own second
+//             difference. Catches a slope break that leaves no value step, and
+//             is the axis that stays sensitive on very smooth material (drones,
+//             solo piano) where stepRms alone is too forgiving.
+function postEncodeMetrics(channels, n, sr) {
+    let step = 0, click = 0;
+    for (const ch of channels) {
+        step = Math.max(step, Math.abs(ch[0] - ch[n - 1]));
+        click = Math.max(click,
+            Math.abs(ch[0] - 2 * ch[n - 1] + ch[n - 2]),
+            Math.abs(ch[1] - 2 * ch[0] + ch[n - 1]));
+    }
+    const win = Math.min(n, Math.round(30 * sr));
+    let s = 0, c = 0;
+    for (const ch of channels) for (let i = 1; i < win; i++) { const d = ch[i] - ch[i - 1]; s += d * d; c++; }
+    const dRms = Math.sqrt(s / Math.max(1, c));
+
+    const d2 = [];
+    const stride = Math.max(4096, Math.floor(n / 300));
+    for (let p = 4096; p + 4096 < n; p += stride)
+        for (const ch of channels)
+            for (let i = p; i < p + 4096; i++) d2.push(Math.abs(ch[i + 1] - 2 * ch[i] + ch[i - 1]));
+    d2.sort((a, b) => a - b);
+    const d2p = d2.length ? d2[Math.floor(0.999 * (d2.length - 1))] : 1e-9;
+
+    const stepRms = step / (dRms + 1e-12);
+    const clickZ = click / (d2p + 1e-12);
+    // Both normalised to their gate, so `score <= 1` means "passes everything".
+    return { step, deltaRms: dRms, stepRms, click, clickZ, score: Math.max(stepRms / STEP_RMS_GATE, clickZ / CLICK_Z_GATE) };
+}
+const STEP_RMS_GATE = 6.0;
+const CLICK_Z_GATE  = 3.0;
+
 // ── Run ──────────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
 const write = args.includes('--write');
@@ -350,7 +497,14 @@ const qa = args.includes('--qa');
 const verify = args.includes('--verify');
 const longform = args.includes('--longform');
 const all = args.includes('--all');
-const onlyId = args.find(a => !a.startsWith('--'));
+// Stage candidates somewhere other than public/ so nothing ships until it has
+// been verified against the shipped-file metrics.
+const rotIdx = args.indexOf('--rot-candidates');
+const ROT_CANDIDATES = rotIdx >= 0 && args[rotIdx + 1] ? parseInt(args[rotIdx + 1], 10) : 5;
+const outDirIdx = args.indexOf('--out-dir');
+const OUT_DIR = outDirIdx >= 0 && args[outDirIdx + 1] ? path.resolve(ROOT, args[outDirIdx + 1]) : PUBLIC;
+const onlyId = args.find((a, i) => !a.startsWith('--') &&
+    !(i > 0 && (args[i - 1] === '--out-dir' || args[i - 1] === '--rot-candidates')));
 
 const source = all ? [...MANIFEST, ...LONGFORM] : longform ? LONGFORM : MANIFEST;
 const QA_DIR = path.join(PUBLIC, '_loopqa');
@@ -368,7 +522,8 @@ console.log('-'.repeat(128));
 for (const job of jobs) {
     try {
         const srcPublicPath = path.join(PUBLIC, job.src);
-        const outPublicPath = path.join(PUBLIC, job.out || job.src);
+        const outPublicPath = path.join(OUT_DIR, job.out || job.src);
+        mkdirSync(path.dirname(outPublicPath), { recursive: true });
         // `raw` lets a job point its audio-raw/ snapshot at a specific master
         // filename instead of the default `<id><ext of src>` — used when the
         // master itself was replaced (e.g. evolving-deep-sleep-drone's trim)
@@ -442,6 +597,9 @@ for (const job of jobs) {
         // Exact, in SECONDS not samples: decodeAudioData resamples to the
         // AudioContext's rate, so a sample count baked at 48k would be wrong on
         // a 44.1k context. Seconds survive the resample.
+        // Provisional; corrected below against the DECODED length, because the
+        // encoder can return FEWER samples than it was handed (colombia-eas
+        // shipped a loopSeconds 29 samples past the end of its own file).
         loopSecondsById.set(job.id, +(baked[0].length / sr).toFixed(6));
 
         // Library leveler: bring the body to TARGET_RMS_DB and clamp the rare
@@ -455,7 +613,30 @@ for (const job of jobs) {
         const peakDbAfter = dbfs(peakAfterLin);
         void peakDbBefore;
 
-        if (write) encode(outPublicPath, baked, sr);
+        // ── Encoder head-damage compensation ────────────────────────────────
+        // Rotate the loop so its quietest point lands at file index 0, where
+        // the AAC decoder's first-frame reconstruction error lives, then PROVE
+        // it on the decoded file rather than trusting the pre-encode PCM.
+        const N = baked[0].length;
+        const wantRotate = job.rotate ?? (job.stream ? false : true);
+        let chosenRot = 0, post = null, tried = [];
+        if (write) {
+            const cands = wantRotate ? [...bestRotations(baked, N, ROT_CANDIDATES), 0] : [0];
+            for (const r of cands) {
+                encode(outPublicPath, rotate(baked, r, N), sr);
+                const { channels: back } = decode(outPublicPath);
+                if (back[0].length < N) { tried.push(`r=${r} SHORT(${back[0].length - N})`); continue; }
+                const m = postEncodeMetrics(back.map(ch => ch.subarray(0, N)), N, sr);
+                tried.push(`r=${r}:${m.stepRms.toFixed(1)}/${m.clickZ.toFixed(1)}`);
+                if (!post || m.score < post.score) { post = m; chosenRot = r; }
+                // Stop early only on a COMFORTABLE pass on BOTH axes. Stopping
+                // at the gate itself leaves marginal files (soft-atmospheric-piano
+                // landed at 3.68 that way) untried against the other quiet spots.
+                if (post.score <= 1 / 3) break;
+            }
+            // Re-encode the winner if the last thing we wrote was not it.
+            if (tried.length && chosenRot !== undefined) encode(outPublicPath, rotate(baked, chosenRot, N), sr);
+        }
         if (qa) {
             const bakedName = `${job.id}.mp3`;
             const origName = `${job.id}-orig${path.extname(job.src)}`;
@@ -473,6 +654,15 @@ for (const job of jobs) {
         // the shift: anything but 0 means a filter/codec moved the audio and the
         // seam is broken, which is exactly how the alimiter regression hid.
         let verdict = write ? '✓ written' : '(dry)';
+        if (post) {
+            // loopSeconds must be sample-accurate against the SHIPPED file, and
+            // must never point past its end.
+            loopSecondsById.set(job.id, +(N / sr).toFixed(6));
+            const gate = post.score <= 1 ? '✓' : '✗';
+            verdict = `${gate} stepRms=${post.stepRms.toFixed(2)} clickZ=${post.clickZ.toFixed(1)} rot=${(chosenRot / sr).toFixed(2)}s [${tried.join(' ')}]`;
+        } else if (write) {
+            verdict = `✗ no usable encode [${tried.join(' ')}]`;
+        }
         if (write && verify) {
             const { channels: back } = decode(outPublicPath);
             const ref = baked[0], got = back[0];

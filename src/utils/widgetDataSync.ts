@@ -3,6 +3,7 @@ import type { UserProfile } from '../types';
 import { PalanteWidgetBridge } from '../plugins/PalanteWidgetBridge';
 import { AFFIRMATIONS } from '../data/affirmations';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { getTodayDate, findMorningEntryForDate } from './practiceUtils';
 
 // Deterministic start index so the widget begins at the right position in the
 // shuffled batch: advances every hour so the first quote changes each hour.
@@ -21,12 +22,14 @@ const getPinnedQuote = (): { text: string; author: string } | null => {
 
 const isIOS = () => Capacitor.getPlatform() === 'ios';
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
 const isPracticeCompleteToday = (user: UserProfile): boolean => {
-    const today = todayISO();
-    const morning = user.dailyMorningPractice?.some(p => p.date?.startsWith(today));
-    return Boolean(morning);
+    // Local date, not UTC: a UTC day rolls over hours before the user's own
+    // calendar day does anywhere west of Greenwich, so the widget could read
+    // "not done" for a practice completed hours ago local time. Also checks
+    // dailyPriming (where the live morning flow actually writes) — see
+    // findMorningEntryForDate for why checking dailyMorningPractice alone
+    // silently misses today's entry.
+    return !!findMorningEntryForDate(user, getTodayDate());
 };
 
 // Seeded LCG random: same seed → same sequence, so each day produces a unique

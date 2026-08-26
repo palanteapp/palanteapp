@@ -168,9 +168,11 @@ export const SharedWeeklyReflectionPreview: React.FC<SharedWeeklyReflectionPrevi
                     gap: '3px',
                 }}>
                     <p style={{
-                        fontSize: '4px',
+                        fontSize: '6.5px',
                         fontWeight: 700,
-                        letterSpacing: '0.25em',
+                        // See SharedQuotePreview: wide tracking at this size broke the
+                        // line apart into individual letters instead of reading as words.
+                        letterSpacing: '0.12em',
                         textTransform: 'uppercase',
                         color: '#FDFBF7',
                         whiteSpace: 'nowrap',

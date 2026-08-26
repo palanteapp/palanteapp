@@ -151,12 +151,12 @@ export const SharedStreakCard: React.FC<SharedStreakCardProps> = ({
                 }}>Palante.app</span>
 
                 <span style={{
-                    fontSize: 4.5,
+                    fontSize: 6.5,
                     fontFamily: 'Inter, sans-serif',
-                    fontWeight: 500,
+                    fontWeight: 700,
                     color: '#FFFFFF',
-                    opacity: 0.65,
-                    letterSpacing: '0.6px',
+                    opacity: 0.85,
+                    letterSpacing: '0.4px',
                     textTransform: 'uppercase',
                 }}>Move forward with intention.</span>
             </div>

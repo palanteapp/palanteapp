@@ -42,4 +42,8 @@ purge_widget.py
 
 # Seamless-loop QA artifacts (dev only)
 public/_loopqa/
+/loopqa/
 audio-raw/
+
+# offline seam-repair staging (scripts/bake-loops.mjs --out-dir)
+audio-baked-candidates/

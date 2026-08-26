@@ -53,7 +53,7 @@ import { api } from './lib/api';
 import { logPractice, migrateStreakToPractice, type MilestoneName } from './utils/practiceUtils';
 import { useModalState } from './hooks/useModalState';
 import { useContinuityOpener } from './hooks/useContinuityOpener';
-import { getTodayDate, getDaysDifference } from './utils/practiceUtils';
+import { getTodayDate, getDaysDifference, findMorningEntryForDate } from './utils/practiceUtils';
 import { useTimeOfDay } from './hooks/useTimeOfDay';
 
 // All non-startup components lazy-loaded to reduce initial memory footprint
@@ -1341,10 +1341,9 @@ function AppContent() {
   const today = new Date();
   const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const todaysPriming = user?.dailyPriming?.find(p => p.date === todayDate);
-  // Intention may land in either dailyPriming OR dailyMorningPractice depending on code path
-  const todaysIntention =
-    todaysPriming?.dailyIntention ||
-    (user?.dailyMorningPractice || []).find(p => p.date === todayDate)?.dailyIntention;
+  // Intention may land in either dailyPriming OR dailyMorningPractice depending on
+  // code path — see findMorningEntryForDate in utils/practiceUtils.ts.
+  const todaysIntention = user ? findMorningEntryForDate(user, todayDate)?.dailyIntention : undefined;
 
   // Suppress the automatic evening prompt on the same day as the user's very first practice
   // so they get time to explore before being pushed into a second session.
@@ -1912,12 +1911,8 @@ function AppContent() {
                       isDarkMode={isDarkMode}
                       existingPractice={null}
                       userVoiceProfile={user.userVoiceProfile}
-                      todayMorningCommitment={
-                        (user.dailyMorningPractice || []).find(p => p.date === todayDate)?.commitment
-                      }
-                      todayMorningIntention={
-                        (user.dailyMorningPractice || []).find(p => p.date === todayDate)?.dailyIntention
-                      }
+                      todayMorningCommitment={findMorningEntryForDate(user, todayDate)?.commitment}
+                      todayMorningIntention={findMorningEntryForDate(user, todayDate)?.dailyIntention}
                       onStepChange={setEveningStep}
                       onComplete={(data) => {
                         // Local date, matching every read site — see the comment on the
@@ -2414,9 +2409,7 @@ function AppContent() {
 
                 {/* ── Message of the Day ────────────────────── */}
                 {(() => {
-                  const todayMessage =
-                    (user?.dailyMorningPractice || []).find(p => p.date === todayDate)?.messageOfTheDay ||
-                    (user?.dailyPriming || []).find(p => p.date === todayDate)?.messageOfTheDay;
+                  const todayMessage = user ? findMorningEntryForDate(user, todayDate)?.messageOfTheDay : undefined;
                   // Hoisted so the same object reaches both the card and the favorite
                   // handler. DashboardQuoteCard only renders its heart when it is handed
                   // an onToggleFavorite, and nothing used to pass one, so favoriting was
@@ -2653,6 +2646,7 @@ function AppContent() {
                   }}
                   onShowTip={() => handleShowTip('Productivity')}
                   onOpenKoiPond={() => setShowKoiPond(true)}
+                  onRedoMorningPractice={() => setShowMorningPractice(true)}
                   onOpenYearForward={async () => {
                     if (!user) return;
                     haptics.medium();

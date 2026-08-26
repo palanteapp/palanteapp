@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Settings, TrendingUp, Goal as GoalIcon, Lightbulb, Sparkles, Fish, ChevronRight } from 'lucide-react';
+import { Plus, Settings, TrendingUp, Goal as GoalIcon, Lightbulb, Sparkles, Fish, ChevronRight, RotateCcw } from 'lucide-react';
 import { buildYearForwardData, hasEnoughForYearForward } from '../utils/yearForward';
 import { CoachCard } from './CoachCard';
 import { PageHeader } from './PageHeader';
@@ -10,7 +10,7 @@ import { CoachSettingsModal } from './CoachSettingsModal';
 import type { UserProfile, DailyFocus, CoachSettings, EnergyLog } from '../types';
 import { triggerConfetti, triggerHaptic } from '../utils/CelebrationEffects';
 import { haptics } from '../utils/haptics';
-import { getTodayDate } from '../utils/practiceUtils';
+import { getTodayDate, findMorningEntryForDate } from '../utils/practiceUtils';
 
 import { CoachGuidanceModal } from './CoachGuidanceModal';
 import { useTheme } from '../contexts/ThemeContext';
@@ -22,6 +22,8 @@ interface MomentumProps {
     onToggleTheme?: () => void;
     onOpenKoiPond?: () => void;
     onOpenYearForward?: () => void;
+    /** Reopens the morning practice flow so today's intention can be redone. Hidden entirely when not provided. */
+    onRedoMorningPractice?: () => void;
 }
 
 const BELL_URL = "https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c8a73467.mp3?filename=tibetan-singing-bowl-reverberation-1-14782.mp3";
@@ -33,6 +35,7 @@ export const Momentum: React.FC<MomentumProps> = ({
     onToggleTheme,
     onOpenKoiPond,
     onOpenYearForward,
+    onRedoMorningPractice,
 }) => {
     const { isDarkMode } = useTheme();
     const bellRef = useRef<HTMLAudioElement | null>(null);
@@ -40,8 +43,7 @@ export const Momentum: React.FC<MomentumProps> = ({
     // Today's intention, set during the morning practice
     const todaysIntention = useMemo(() => {
         const today = getTodayDate();
-        const todaysPriming = (user.dailyMorningPractice || user.dailyPriming || []).find(p => p.date === today);
-        return todaysPriming?.dailyIntention;
+        return findMorningEntryForDate(user, today)?.dailyIntention;
     }, [user.dailyMorningPractice, user.dailyPriming]);
 
     // Your Year, Forward, only surfaces once a year has enough lived data.
@@ -216,106 +218,12 @@ export const Momentum: React.FC<MomentumProps> = ({
                 />
             </div>
 
-            {/* ── Today's Intention + Total Practices (merged card) ── */}
-            <div className={`relative rounded-2xl p-5 mb-5 overflow-hidden flex items-stretch gap-4 ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
-                {/* Intention */}
-                <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
-                            <GoalIcon size={14} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
-                        </div>
-                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
-                    </div>
-                    <p
-                        className={`font-display font-bold leading-tight break-words ${(todaysIntention?.length ?? 0) > 20 ? 'text-base' : 'text-xl'} ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}
-                    >
-                        {todaysIntention || 'Not set'}
-                    </p>
-                    <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                        today's word
-                    </span>
-                </div>
-
-                {/* Divider */}
-                <div className="w-px flex-shrink-0" style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(53,94,59,0.12)' }} />
-
-                {/* Practices */}
-                <div className="flex-shrink-0 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
-                            <TrendingUp size={14} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
-                        </div>
-                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Practices</span>
-                    </div>
-                    <p className={`text-3xl font-display font-bold leading-tight tabular-nums ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
-                        {(user.practiceData?.totalPractices || 0).toLocaleString()}
-                    </p>
-                    <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
-                        completed
-                    </span>
-                </div>
-            </div>
-
-            {/* ── Your Year, Forward ── */}
-            {yearForwardReady && onOpenYearForward && (
-                <button
-                    onClick={() => { haptics.medium(); onOpenYearForward(); }}
-                    className="w-full rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 text-left transition-all active:scale-[0.98] relative overflow-hidden"
-                    style={{
-                        background: isDarkMode
-                            ? 'linear-gradient(135deg, rgba(201,106,58,0.18), rgba(229,214,167,0.06))'
-                            : 'linear-gradient(135deg, rgba(201,106,58,0.12), rgba(229,214,167,0.18))',
-                        border: '1px solid rgba(201,106,58,0.3)',
-                    }}
-                >
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,106,58,0.85)' }}>
-                        <Sparkles size={20} color="#FAF7F3" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className={`text-[15px] font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
-                            Your Year, Forward
-                        </p>
-                        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/55'}`}>
-                            {new Date().getFullYear()}, told back to you
-                        </p>
-                    </div>
-                    <ChevronRight size={18} className={isDarkMode ? 'text-white/40' : 'text-sage-dark/40'} />
-                </button>
-            )}
-
-            {/* ── Koi Pond Progress Teaser ── */}
-            {(user.practiceData?.totalPractices || 0) < 30 && (
-                <button
-                    onClick={() => onOpenKoiPond?.()}
-                    className={`w-full rounded-2xl px-5 py-3 mb-5 flex items-center gap-3 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface' : 'bg-white/60 border border-sage/15 shadow-sm'}`}
-                >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#4A7050]/40' : 'bg-[#4A7050]/15'}`}>
-                        <Fish size={16} color={isDarkMode ? '#7AAD80' : '#4A7050'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1.5">
-                            <p className={`text-xs font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
-                                First koi unlocks at 30 practices
-                            </p>
-                            <p className={`text-xs font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
-                                {user.practiceData?.totalPractices || 0}/30
-                            </p>
-                        </div>
-                        <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
-                            <div
-                                className="h-full rounded-full"
-                                style={{
-                                    width: `${Math.min(100, ((user.practiceData?.totalPractices || 0) / 30) * 100)}%`,
-                                    background: 'linear-gradient(90deg, #4A7050, #E5D6A7)',
-                                    transition: 'width 0.6s ease',
-                                }}
-                            />
-                        </div>
-                    </div>
-                </button>
-            )}
-
-            {/* 1. Active Goals Management */}
+            {/* ── Active Targets ── The one actionable thing on this screen,
+                so it leads right after the Coach greeting instead of sitting
+                after several read-only stat cards a user had to scroll past
+                to reach anything they could actually tap. Everything below
+                here is look-don't-touch: today's intention, then how far
+                you've come overall. */}
             <div className="mb-10">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className={`text-xs font-black uppercase tracking-[0.2em] ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
@@ -393,6 +301,126 @@ export const Momentum: React.FC<MomentumProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* ── Today's Intention ──────────────────────────────────────
+                Its own full-width card, not sharing a row with Practices. A
+                merged two-column layout gave a longer word or phrase maybe
+                half the card's width, so anything past ~20 characters had to
+                be shrunk and still often broke ugly. Full width + wrapping
+                (no forced single line, no shrink-to-fit) is the actual fix —
+                see PRACTICES below for why it moved to its own card instead. */}
+            <div className={`relative rounded-2xl p-5 mb-3 overflow-hidden ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/35'}`}>
+                            <GoalIcon size={14} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                        </div>
+                        <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Intention</span>
+                    </div>
+                    {/* Quiet redo, only once there's something set today to redo. Same
+                        pattern (icon, weight, hover) as the Home tab's own redo row,
+                        so this doesn't introduce a second visual language for it. */}
+                    {todaysIntention && onRedoMorningPractice && (
+                        <button
+                            onClick={onRedoMorningPractice}
+                            aria-label="Redo morning practice"
+                            className={`flex-shrink-0 p-1.5 -m-1.5 rounded-lg transition-colors ${isDarkMode ? 'text-white/30 hover:text-white/60 hover:bg-white/5' : 'text-sage-dark/25 hover:text-sage-dark/50 hover:bg-sage/5'}`}
+                        >
+                            <RotateCcw size={13} />
+                        </button>
+                    )}
+                </div>
+                <p className={`font-display font-bold leading-snug break-words text-2xl ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                    {todaysIntention || 'Not set'}
+                </p>
+                <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                    today's word
+                </span>
+            </div>
+
+            {/* ── Practices ── Merged with the koi-pond unlock progress: these
+                used to be two separate, stacked cards both showing the exact
+                same total-practices number — once as a bare count, once as
+                "X/30" a few dozen pixels below it — which read as a display
+                bug more than two features. One card now: the count always up
+                top, the koi progress bar underneath only while there's still
+                a milestone to chase. Once the first koi arrives that row
+                would just be nagging over nothing, so it drops away and this
+                quietly becomes the plain stat it always was underneath. */}
+            {(user.practiceData?.totalPractices || 0) < 30 ? (
+                <button
+                    onClick={() => onOpenKoiPond?.()}
+                    className={`w-full rounded-2xl px-5 py-4 mb-5 text-left transition-all active:scale-[0.98] ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}
+                >
+                    <div className="flex items-center gap-3 mb-2.5">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#4A7050]/30' : 'bg-[#4A7050]/15'}`}>
+                            <Fish size={14} color={isDarkMode ? '#7AAD80' : '#4A7050'} />
+                        </div>
+                        <span className={`text-xs font-black uppercase tracking-widest flex-1 min-w-0 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Practices</span>
+                        <p className={`text-2xl font-display font-bold leading-none tabular-nums ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                            {(user.practiceData?.totalPractices || 0).toLocaleString()}
+                        </p>
+                    </div>
+                    <div className="flex items-center justify-between mb-1.5">
+                        <p className={`text-xs font-semibold ${isDarkMode ? 'text-white/70' : 'text-sage-dark/70'}`}>
+                            First koi unlocks at 30 practices
+                        </p>
+                        <p className={`text-xs font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>
+                            {user.practiceData?.totalPractices || 0}/30
+                        </p>
+                    </div>
+                    <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}>
+                        <div
+                            className="h-full rounded-full"
+                            style={{
+                                width: `${Math.min(100, ((user.practiceData?.totalPractices || 0) / 30) * 100)}%`,
+                                background: 'linear-gradient(90deg, #4A7050, #E5D6A7)',
+                                transition: 'width 0.6s ease',
+                            }}
+                        />
+                    </div>
+                </button>
+            ) : (
+                <div className={`rounded-2xl px-5 py-4 mb-5 flex items-center gap-3 ${isDarkMode ? 'glass-surface' : 'bg-white/70 border border-sage/15 shadow-sm'}`}>
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-[#E5D6A7]/15' : 'bg-[#E5D6A7]/40'}`}>
+                        <TrendingUp size={14} color={isDarkMode ? '#E5D6A7' : '#8B6914'} />
+                    </div>
+                    <span className={`text-xs font-black uppercase tracking-widest flex-1 min-w-0 ${isDarkMode ? 'text-white' : 'text-sage-dark/40'}`}>Practices</span>
+                    <p className={`text-2xl font-display font-bold leading-none tabular-nums ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                        {(user.practiceData?.totalPractices || 0).toLocaleString()}
+                    </p>
+                    <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark/50'}`}>
+                        completed
+                    </span>
+                </div>
+            )}
+
+            {/* ── Your Year, Forward ── */}
+            {yearForwardReady && onOpenYearForward && (
+                <button
+                    onClick={() => { haptics.medium(); onOpenYearForward(); }}
+                    className="w-full rounded-2xl px-5 py-4 mb-5 flex items-center gap-4 text-left transition-all active:scale-[0.98] relative overflow-hidden"
+                    style={{
+                        background: isDarkMode
+                            ? 'linear-gradient(135deg, rgba(201,106,58,0.18), rgba(229,214,167,0.06))'
+                            : 'linear-gradient(135deg, rgba(201,106,58,0.12), rgba(229,214,167,0.18))',
+                        border: '1px solid rgba(201,106,58,0.3)',
+                    }}
+                >
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(201,106,58,0.85)' }}>
+                        <Sparkles size={20} color="#FAF7F3" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className={`text-[15px] font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage-dark'}`}>
+                            Your Year, Forward
+                        </p>
+                        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-white/60' : 'text-sage-dark/55'}`}>
+                            {new Date().getFullYear()}, told back to you
+                        </p>
+                    </div>
+                    <ChevronRight size={18} className={isDarkMode ? 'text-white/40' : 'text-sage-dark/40'} />
+                </button>
+            )}
 
 
             {/* ... other modals ... */}

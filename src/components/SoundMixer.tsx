@@ -3,8 +3,9 @@ import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Spea
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
-import { loadSeamlessBuffer, getGaplessBounds } from '../utils/seamlessAudio';
 import { SYNTH_SOUNDS, SynthVoice, getSynthLoopBlobUrl } from '../utils/synthSounds';
+import { getAudioContext, getMasterLimiter } from '../utils/audioGraph';
+import { startLoop, acquireFileLoopBlob, releaseFileLoopBlob, type LoopHandle } from '../utils/loopEngine';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SlideUpModal } from './SlideUpModal';
@@ -166,480 +167,57 @@ const MEDITATION_PRESETS: Record<string, { volumes: Record<string, number> }> = 
     'bilateral-tuneup': { volumes: { 'bilateral-tuneup': 0.5 } }
 };
 
-// Shared Audio Context
-const getAudioContext = () => {
-    const AudioContextClass = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return null;
-    // Create lazily or return existing global instance
-    const win = window as { _palanteAudioContext?: AudioContext };
-    if (!win._palanteAudioContext) {
-        win._palanteAudioContext = new AudioContextClass();
-    }
-    return win._palanteAudioContext as AudioContext;
-};
+// What every background player has to offer the mixer, so enterBackground can
+// pick a strategy per sound without the caller caring which it got.
+interface BackgroundPlayer {
+    setVolume(vol: number): void;
+    stop(): void;
+}
 
-// Shared master limiter: every voice class below (CrossfadingSound, BufferLoopSound,
-// SynthVoice) used to connect straight to ctx.destination. Each track is individually
-// leveled with enough headroom for its OWN runtime crossfade (see seamlessLoop.ts /
-// bake-loops.mjs), but nothing accounted for what happens when a user runs several
-// loud layers at once — e.g. two ambient loops plus a full-scale binaural tone — which
-// can sum past 0dBFS with no ceiling to catch it. A single shared DynamicsCompressorNode
-// tuned as a fast limiter sits between every voice and the speakers, catching that case
-// without audibly coloring normal single- or few-layer playback.
-const getMasterLimiter = (ctx: AudioContext): AudioNode => {
-    const win = window as { _palanteMasterLimiter?: DynamicsCompressorNode };
-    if (!win._palanteMasterLimiter) {
-        const limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -3;   // matches the -3dB ceiling bake-loops.mjs levels every track to
-        limiter.knee.value = 0;         // hard knee: a limiter, not a musical compressor
-        limiter.ratio.value = 20;       // ~brickwall above threshold
-        limiter.attack.value = 0.003;   // fast enough to catch a sudden multi-layer peak
-        limiter.release.value = 0.25;
-        limiter.connect(ctx.destination);
-        win._palanteMasterLimiter = limiter;
-    }
-    return win._palanteMasterLimiter;
-};
-
-// Streaming playback for the long-form pieces (8–18 min) that are far too large
-// to hold decoded: two HTMLAudioElements through Web Audio gain nodes, handing
-// off to each other at the loop point.
+// The good case, used for every sound we can hand a PCM WAV blob: ONE element,
+// native `loop = true`, nothing else. No polling timer, no crossfade, no second
+// element. WAV carries no encoder padding, so the OS decoder wraps exactly at
+// the baked seam — see acquireFileLoopBlob() in src/utils/loopEngine.ts.
 //
-// The handoff is deliberately SHORT. These files are offline-baked too (see
-// scripts/bake-loops.mjs LONGFORM), so their end already continues into their
-// start; a long crossfade would blend 2.5 seconds of arbitrary mid-track audio
-// over a seam that was already matched, which is the same mistake the decoded
-// path used to make. All this crossfade has to cover is the encoder padding and
-// the imprecision of an element seek, so it runs for 400ms at the file's true
-// end, and the incoming element starts at the first real sample rather than at
-// the ~13ms of digital silence MP3 puts in front of it.
-const LOOP_CROSSFADE_SEC = 0.4;
-// Arm this far ahead of the seam, then schedule the actual fade on the audio
-// clock. Polling only has to notice the seam coming, not hit it: a busy main
-// thread can no longer push the handoff late.
-const LOOP_ARM_LEAD_SEC = 3.0;
+// This replaces BackgroundCrossfade for these sounds, and it is worth being
+// explicit about why that class could never have worked here: it starts BOTH
+// of its elements at once with `loop = true`, so they run permanently in
+// phase. Crossfading between two copies of the same stream at the same
+// position does not hide a seam — both elements reach it at the same instant,
+// and the fade just swaps which one you hear the gap from.
+class BackgroundLoop implements BackgroundPlayer {
+    private audio: HTMLAudioElement;
+    /** Runs on stop, so a refcounted blob URL is released rather than pinned for the session. */
+    private onStop: (() => void) | null;
 
-class CrossfadingSound {
-    private audio1: HTMLAudioElement | null = null;
-    private audio2: HTMLAudioElement | null = null;
-    private sourceNode1: MediaElementAudioSourceNode | null = null;
-    private sourceNode2: MediaElementAudioSourceNode | null = null;
-    // Crossfade gains, always in [0,1] — owned entirely by the loop handoff.
-    private gainNode1: GainNode | null = null;
-    private gainNode2: GainNode | null = null;
-    // User volume, owned entirely by the fader. Keeping the two on separate
-    // nodes is what lets a fader move land mid-handoff without cancelling the
-    // crossfade curve out from under it (they used to share one node, so a
-    // `cancelScheduledValues` from the fader could strand one element at full
-    // gain and the other at zero).
-    private masterGain: GainNode | null = null;
-    private loopInterval: ReturnType<typeof setTimeout> | null = null;
-    private seekTimer: ReturnType<typeof setTimeout> | null = null;
-    private resetTimer: ReturnType<typeof setTimeout> | null = null;
-    private src: string;
-    public volume: number = 0.5;
-    public isPlaying: boolean = false;
-    private activeIndex: 1 | 2 = 1;
-    private isCrossfading: boolean = false;
-    // Where real audio begins/ends inside the file, from its Xing/Info tag.
-    private headOffset = 0;
-    private trueEnd = 0;
-
-    constructor(src: string) {
-        this.src = src;
-    }
-
-    private init() {
-        if (this.audio1) return;
-        const ctx = getAudioContext();
-        if (!ctx) return;
-
-        // Read the file's Xing/Info tag so the handoff can land on real audio
-        // instead of on encoder padding. Fire-and-forget: until it resolves the
-        // player falls back to the element's own duration and a 0 head offset,
-        // which is what it always used.
-        getGaplessBounds(this.src).then(bounds => {
-            if (!bounds) return;
-            this.headOffset = bounds.headOffset;
-            this.trueEnd = bounds.trueEnd;
-        }).catch(() => {});
-
-        // Both elements loop forever; crossfading is purely gain-based, so no
-        // async play() call is ever needed inside the polling callback, seek
-        // the incoming element to the head offset and adjust gains immediately.
-        this.masterGain = ctx.createGain();
-        this.masterGain.gain.value = 0;
-        this.masterGain.connect(getMasterLimiter(ctx));
-
-        this.audio1 = new Audio(this.src);
-        this.audio1.loop = true;
-        this.audio1.preload = 'auto';
-        this.gainNode1 = ctx.createGain();
-        this.gainNode1.gain.value = 0;
-        this.sourceNode1 = ctx.createMediaElementSource(this.audio1);
-        this.sourceNode1.connect(this.gainNode1);
-        this.gainNode1.connect(this.masterGain);
-
-        this.audio2 = new Audio(this.src);
-        this.audio2.loop = true;
-        this.audio2.preload = 'auto';
-        this.gainNode2 = ctx.createGain();
-        this.gainNode2.gain.value = 0;
-        this.sourceNode2 = ctx.createMediaElementSource(this.audio2);
-        this.sourceNode2.connect(this.gainNode2);
-        this.gainNode2.connect(this.masterGain);
-    }
-
-    async play(startVol = 0.5) {
-        this.volume = startVol;
-        this.init();
-        const ctx = getAudioContext();
-        if (!this.audio1 || !this.audio2 || !this.gainNode1 || !this.gainNode2 || !this.masterGain || !ctx) return;
-
-        if (ctx.state === 'suspended') {
-            await ctx.resume().catch(() => { });
-        }
-
-        try {
-            this.isPlaying = true;
-            this.isCrossfading = false;
-            this.activeIndex = 1;
-
-            // Start both elements now: audio2 plays silently so it is
-            // already running when a crossfade is needed. This eliminates
-            // the async play() latency gap that was audible at the loop point.
-            this.audio1.currentTime = this.headOffset;
-            this.audio2.currentTime = this.headOffset;
-            await Promise.all([this.audio1.play(), this.audio2.play()]).catch(() => {});
-
-            // Element 1 is the live one, element 2 waits silently. Both sit at
-            // unity/zero on the crossfade gains; the audible fade-in is the
-            // master, so it stays under the fader's control throughout.
-            const now = ctx.currentTime;
-            this.gainNode1.gain.cancelScheduledValues(now);
-            this.gainNode1.gain.setValueAtTime(1, now);
-            this.gainNode2.gain.cancelScheduledValues(now);
-            this.gainNode2.gain.setValueAtTime(0, now);
-            this.masterGain.gain.cancelScheduledValues(now);
-            this.masterGain.gain.setValueAtTime(0, now);
-            this.masterGain.gain.linearRampToValueAtTime(this.volume, now + 1.5);
-
-            if (this.loopInterval) clearInterval(this.loopInterval);
-            let prevTime = -1;
-            this.loopInterval = setInterval(() => {
-                const activeAudio = this.activeIndex === 1 ? this.audio1 : this.audio2;
-                const nextAudio = this.activeIndex === 1 ? this.audio2 : this.audio1;
-                const activeGain = this.activeIndex === 1 ? this.gainNode1 : this.gainNode2;
-                const nextGain = this.activeIndex === 1 ? this.gainNode2 : this.gainNode1;
-
-                if (!activeAudio || !nextAudio || !activeGain || !nextGain || !ctx) return;
-
-                const cTime = activeAudio.currentTime;
-                const dur = activeAudio.duration;
-                if (!(dur > 0)) return;
-                // Prefer the tag's true end (which excludes encoder padding) and
-                // fall back to the element's reported duration.
-                const end = this.trueEnd > 0 && this.trueEnd <= dur ? this.trueEnd : dur;
-
-                // Detect a native browser loop: time jumped backward past the halfway point.
-                // This means the poll missed the seam entirely (e.g. app was backgrounded
-                // or CPU-starved) and the element looped on its own with a gap.
-                // Trigger the crossfade immediately so the next cycle is seamless.
-                const missedWindow = prevTime > 0 && prevTime > end * 0.5 && cTime < prevTime * 0.5;
-                prevTime = cTime;
-
-                const untilSeam = end - LOOP_CROSSFADE_SEC - cTime;
-                if (this.isCrossfading || !(missedWindow || untilSeam <= LOOP_ARM_LEAD_SEC)) return;
-
-                this.isCrossfading = true;
-
-                // Arm now, execute later: the fade is placed on the audio clock
-                // at the exact moment the seam arrives, so polling jitter cannot
-                // drag it early or late. `missedWindow` means the seam already
-                // went by, so run immediately.
-                const delay = missedWindow ? 0 : Math.max(0, untilSeam);
-                const startAt = ctx.currentTime + delay;
-
-                // Equal-power curves in [0,1]: the user's volume is applied
-                // downstream by masterGain, so these never need to know it.
-                const steps = 65;
-                const fadeIn = new Float32Array(steps);
-                const fadeOut = new Float32Array(steps);
-                for (let i = 0; i < steps; i++) {
-                    const t = (i / (steps - 1)) * (Math.PI / 2);
-                    fadeIn[i] = Math.sin(t);
-                    fadeOut[i] = Math.cos(t);
-                }
-                try {
-                    // No setValueAtTime anchor before the curves: the curve's
-                    // own first element already establishes the value at
-                    // startAt (0 for the fade-in, 1 for the fade-out), and
-                    // WebKit rejects setValueCurveAtTime when another event
-                    // sits inside its time range.
-                    nextGain.gain.cancelScheduledValues(startAt);
-                    nextGain.gain.setValueCurveAtTime(fadeIn, startAt, LOOP_CROSSFADE_SEC);
-                    activeGain.gain.cancelScheduledValues(startAt);
-                    activeGain.gain.setValueCurveAtTime(fadeOut, startAt, LOOP_CROSSFADE_SEC);
-                } catch {
-                    nextGain.gain.setValueAtTime(0, startAt);
-                    nextGain.gain.linearRampToValueAtTime(1, startAt + LOOP_CROSSFADE_SEC);
-                    activeGain.gain.setValueAtTime(1, startAt);
-                    activeGain.gain.linearRampToValueAtTime(0, startAt + LOOP_CROSSFADE_SEC);
-                }
-
-                this.activeIndex = this.activeIndex === 1 ? 2 : 1;
-
-                // Seek the incoming element to the first real sample at the
-                // moment its fade-in begins. An element seek is only accurate to
-                // a few tens of ms, which is exactly what the 400ms fade covers.
-                if (this.seekTimer) clearTimeout(this.seekTimer);
-                this.seekTimer = setTimeout(() => {
-                    if (this.isPlaying) nextAudio.currentTime = this.headOffset;
-                }, delay * 1000);
-
-                if (this.resetTimer) clearTimeout(this.resetTimer);
-                this.resetTimer = setTimeout(() => {
-                    // Park the outgoing element back at the head so it is in
-                    // position for the next handoff (its gain is already at 0).
-                    if (activeAudio && this.isPlaying) {
-                        activeAudio.currentTime = this.headOffset;
-                    }
-                    this.isCrossfading = false;
-                    prevTime = -1;
-                }, (delay + LOOP_CROSSFADE_SEC + 0.3) * 1000);
-            }, 50);
-
-        } catch (e) {
-            console.error(`❌ Audio play failed for ${this.src}:`, e);
-        }
-    }
-
-    stop() {
-        this.isPlaying = false;
-        if (this.loopInterval) {
-            clearInterval(this.loopInterval);
-            this.loopInterval = null;
-        }
-        if (this.seekTimer) { clearTimeout(this.seekTimer); this.seekTimer = null; }
-        if (this.resetTimer) { clearTimeout(this.resetTimer); this.resetTimer = null; }
-        this.isCrossfading = false;
-
-        const ctx = getAudioContext();
-        if (!ctx) return;
-
-        // Fade the master only: the crossfade gains keep whatever handoff state
-        // they were in, so a restart does not have to untangle them.
-        const now = ctx.currentTime;
-        if (this.masterGain) {
-            this.masterGain.gain.cancelScheduledValues(now);
-            this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
-            this.masterGain.gain.linearRampToValueAtTime(0, now + 1.0);
-        }
-
-        setTimeout(() => {
-            if (!this.isPlaying) {
-                if (this.audio1) { this.audio1.pause(); this.audio1.currentTime = this.headOffset; }
-                if (this.audio2) { this.audio2.pause(); this.audio2.currentTime = this.headOffset; }
-            }
-        }, 1100);
-    }
-
-    setVolume(vol: number, instant: boolean = false) {
-        this.volume = vol;
-        const ctx = getAudioContext();
-        if (!ctx || !this.masterGain) return;
-        const now = ctx.currentTime;
-
-        // One node, one owner. Nothing here touches the crossfade schedule, so
-        // dragging the fader during a loop handoff is now harmless.
-        this.masterGain.gain.cancelScheduledValues(now);
-        if (instant) {
-            this.masterGain.gain.setValueAtTime(vol, now);
-        } else {
-            this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
-            this.masterGain.gain.linearRampToValueAtTime(vol, now + 0.3);
-        }
-    }
-}
-
-// Gapless looping for decoded sounds: the loop seam is baked into the buffer
-// (see seamlessLoop.ts) and AudioBufferSourceNode wraps sample-accurately on
-// the audio thread: no timers, no element handoff, nothing to hear.
-class BufferLoopSound {
-    private sourceNode: AudioBufferSourceNode | null = null;
-    private gainNode: GainNode | null = null;
-    private buffer: AudioBuffer;
-
-    constructor(buffer: AudioBuffer) {
-        this.buffer = buffer;
-    }
-
-    play(ctx: AudioContext, startVol: number) {
-        if (!this.gainNode) {
-            this.gainNode = ctx.createGain();
-            this.gainNode.gain.value = 0;
-            this.gainNode.connect(getMasterLimiter(ctx));
-        }
-        // Source nodes are single-use; silence any previous one and start fresh.
-        if (this.sourceNode) {
-            try { this.sourceNode.stop(); } catch { /* already stopped */ }
-            this.sourceNode.disconnect();
-        }
-        const source = ctx.createBufferSource();
-        source.buffer = this.buffer;
-        source.loop = true;
-        source.connect(this.gainNode);
-        source.start();
-        this.sourceNode = source;
-
-        const now = ctx.currentTime;
-        this.gainNode.gain.cancelScheduledValues(now);
-        this.gainNode.gain.setValueAtTime(0, now);
-        this.gainNode.gain.linearRampToValueAtTime(startVol, now + 1.5);
-    }
-
-    stop(ctx: AudioContext | null) {
-        const source = this.sourceNode;
-        if (!ctx || !source || !this.gainNode) return;
-        const now = ctx.currentTime;
-        this.gainNode.gain.cancelScheduledValues(now);
-        this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
-        this.gainNode.gain.linearRampToValueAtTime(0, now + 1.0);
-        try { source.stop(now + 1.05); } catch { /* already stopped */ }
-    }
-
-    setVolume(ctx: AudioContext | null, vol: number, instant: boolean) {
-        if (!ctx || !this.gainNode) return;
-        const now = ctx.currentTime;
-        this.gainNode.gain.cancelScheduledValues(now);
-        if (instant) {
-            this.gainNode.gain.setValueAtTime(vol, now);
-        } else {
-            this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
-            this.gainNode.gain.linearRampToValueAtTime(vol, now + 0.3);
-        }
-    }
-}
-
-// Background loop crossfade: iOS suspends the AudioContext once the app is
-// hidden, so neither BufferLoopSound (audio-thread loop) nor CrossfadingSound
-// (GainNode automation) can run — nothing routed through a suspended context
-// produces sound. AVAudioSession keeps a plain HTMLAudioElement playing, but a
-// single element's native `loop = true` restart is not guaranteed glitch-free
-// at the OS decoder level (that's what the foreground dual-element handoff
-// above exists to hide). This is the same technique, ported to run on a plain
-// JS timer against `element.volume` instead of GainNode curves, since that's
-// all that's available once the audio graph itself is asleep.
-class BackgroundCrossfade {
-    private audio1: HTMLAudioElement;
-    private audio2: HTMLAudioElement;
-    private activeIndex: 1 | 2 = 1;
-    private isCrossfading = false;
-    private targetVol: number;
-    private pollTimer: ReturnType<typeof setInterval> | null = null;
-    private fadeTimer: ReturnType<typeof setInterval> | null = null;
-    private seekTimer: ReturnType<typeof setTimeout> | null = null;
-    private prevTime = -1;
-
-    constructor(src: string, vol: number) {
-        this.targetVol = Math.min(1, Math.max(0, vol));
-        this.audio1 = new Audio(src);
-        this.audio1.loop = true;
-        this.audio1.volume = this.targetVol;
-        this.audio2 = new Audio(src);
-        this.audio2.loop = true;
-        this.audio2.volume = 0;
+    constructor(src: string, vol: number, onStop?: () => void) {
+        this.audio = new Audio(src);
+        this.audio.loop = true;
+        this.audio.volume = Math.min(1, Math.max(0, vol));
+        this.onStop = onStop ?? null;
     }
 
     async start() {
-        await Promise.all([this.audio1.play(), this.audio2.play()]).catch(() => {});
-        this.pollTimer = setInterval(() => this.tick(), 50);
-    }
-
-    private tick() {
-        if (this.isCrossfading) return;
-        const active = this.activeIndex === 1 ? this.audio1 : this.audio2;
-        const dur = active.duration;
-        if (!(dur > 0)) return;
-        const cTime = active.currentTime;
-
-        // Native loop already wrapped (a throttled/busy tick missed the seam
-        // window entirely): catch up immediately instead of leaving the gap.
-        const missedWindow = this.prevTime > 0 && this.prevTime > dur * 0.5 && cTime < this.prevTime * 0.5;
-        this.prevTime = cTime;
-
-        // Subtract the fade length, exactly as CrossfadingSound does upstairs.
-        // Without it the handoff was scheduled to BEGIN at the seam rather than
-        // to be finished by it, so the outgoing element was still at full gain
-        // (cos(0) = 1) at the very moment it wrapped — the native loop restart
-        // this class exists to hide played at full volume every time, and the
-        // incoming element merely doubled the first 400ms on top of it.
-        const untilSeam = dur - LOOP_CROSSFADE_SEC - cTime;
-        if (missedWindow || untilSeam <= LOOP_ARM_LEAD_SEC) {
-            this.beginCrossfade(missedWindow ? 0 : Math.max(0, untilSeam));
-        }
-    }
-
-    private beginCrossfade(delay: number) {
-        this.isCrossfading = true;
-        const active = this.activeIndex === 1 ? this.audio1 : this.audio2;
-        const next = this.activeIndex === 1 ? this.audio2 : this.audio1;
-
-        if (this.seekTimer) clearTimeout(this.seekTimer);
-        this.seekTimer = setTimeout(() => {
-            next.currentTime = 0;
-            const steps = 20;
-            const stepMs = (LOOP_CROSSFADE_SEC * 1000) / steps;
-            let i = 0;
-            if (this.fadeTimer) clearInterval(this.fadeTimer);
-            this.fadeTimer = setInterval(() => {
-                i++;
-                const t = (i / steps) * (Math.PI / 2);
-                next.volume = Math.sin(t) * this.targetVol;
-                active.volume = Math.cos(t) * this.targetVol;
-                if (i >= steps) {
-                    if (this.fadeTimer) clearInterval(this.fadeTimer);
-                    this.fadeTimer = null;
-                    active.volume = 0;
-                    active.currentTime = 0;
-                    next.volume = this.targetVol;
-                    this.activeIndex = this.activeIndex === 1 ? 2 : 1;
-                    this.isCrossfading = false;
-                    this.prevTime = -1;
-                }
-            }, stepMs);
-        }, delay * 1000);
+        await this.audio.play().catch(() => {});
     }
 
     setVolume(vol: number) {
-        this.targetVol = Math.min(1, Math.max(0, vol));
-        if (this.isCrossfading) return; // let the in-flight curve finish; it reads targetVol on its own
-        const active = this.activeIndex === 1 ? this.audio1 : this.audio2;
-        active.volume = this.targetVol;
+        this.audio.volume = Math.min(1, Math.max(0, vol));
     }
 
     stop() {
-        if (this.pollTimer) clearInterval(this.pollTimer);
-        if (this.fadeTimer) clearInterval(this.fadeTimer);
-        if (this.seekTimer) clearTimeout(this.seekTimer);
-        this.audio1.pause();
-        this.audio1.src = '';
-        this.audio2.pause();
-        this.audio2.src = '';
+        try { this.audio.pause(); this.audio.src = ''; } catch { /* already gone */ }
+        // Release AFTER the element has let go of the URL, so eviction can
+        // never revoke a blob that is still being read.
+        this.onStop?.();
+        this.onStop = null;
     }
 }
 
-// Facade choosing the playback strategy per sound:
-//   • synth, colored noise / binaural beats are generated procedurally and
-//              have no loop point at all (see synthSounds.ts);
-//   • buffer, files that fit in memory are decoded once and looped by the audio
-//              thread itself (sample-accurate, no timers);
-//   • stream, the long-form pieces stream through the dual-element handoff.
 class MixerSound {
-    private mode: 'undecided' | 'synth' | 'buffer' | 'stream' = 'undecided';
+    private mode: 'undecided' | 'synth' | 'file' = 'undecided';
     private synthSound: SynthVoice | null = null;
-    private bufferSound: BufferLoopSound | null = null;
-    private streamSound: CrossfadingSound | null = null;
+    private fileLoop: LoopHandle | null = null;
     private playToken = 0;
     private src: string;
     private id: string;
@@ -667,16 +245,10 @@ class MixerSound {
                 this.mode = 'synth';
                 this.synthSound = new SynthVoice(synthSpec);
             } else {
-                const buffer = await loadSeamlessBuffer(ctx, this.src);
-                if (buffer) {
-                    this.mode = 'buffer';
-                    this.bufferSound = new BufferLoopSound(buffer);
-                } else {
-                    this.mode = 'stream';
-                }
+                this.mode = 'file';
             }
         }
-        // Toggled off (or re-played) while decoding, don't start a stale voice.
+        // Toggled off (or re-played) while deciding the mode, don't start a stale voice.
         if (token !== this.playToken) return;
 
         if (this.mode === 'synth' && this.synthSound) {
@@ -684,11 +256,29 @@ class MixerSound {
             // Pre-render the background loop blob so it's ready if the app backgrounds.
             const spec = SYNTH_SOUNDS[this.id];
             if (spec) getSynthLoopBlobUrl(this.id, spec, ctx.sampleRate).catch(() => {});
-        } else if (this.mode === 'buffer' && this.bufferSound) {
-            this.bufferSound.play(ctx, this.volume);
-        } else {
-            if (!this.streamSound) this.streamSound = new CrossfadingSound(this.src);
-            this.streamSound.play(this.volume);
+        } else if (this.mode === 'file') {
+            // Replaces any handle from a previous play() of this same voice, so
+            // a fast off/on can't leave two loops of one sound running.
+            this.fileLoop?.stop();
+            this.fileLoop = null;
+            const handle = await startLoop({
+                src: this.src,
+                volume: this.volume,
+                // Quiet in normal operation — only surfaces the events that
+                // matter for diagnosing a real on-device dropout report,
+                // via Safari Web Inspector, without the full per-cycle trace.
+                onLog: (event) => {
+                    if (event.type === 'error' || event.type === 'underrun') {
+                        console.warn(`[soundmixer:${this.id}]`, event);
+                    }
+                },
+            });
+            // Toggled off while the file was decoding: don't leave it playing.
+            if (token !== this.playToken) {
+                handle?.stop();
+                return;
+            }
+            this.fileLoop = handle;
         }
     }
 
@@ -696,48 +286,69 @@ class MixerSound {
         this.playToken++;
         this.isPlaying = false;
         this.synthSound?.stop(getAudioContext());
-        this.bufferSound?.stop(getAudioContext());
-        this.streamSound?.stop();
+        this.fileLoop?.stop();
     }
 
     setVolume(vol?: number, instant: boolean = false) {
         if (typeof vol !== 'number' || Number.isNaN(vol)) return;
         this.volume = vol;
         this.synthSound?.setVolume(getAudioContext(), vol, instant);
-        this.bufferSound?.setVolume(getAudioContext(), vol, instant);
-        this.streamSound?.setVolume(vol, instant);
+        this.fileLoop?.setVolume(vol, instant);
         this.bgCrossfade?.setVolume(vol);
     }
 
     // ── Background-safe playback ─────────────────────────────────────────────
     // Web Audio API is suspended by iOS when the app backgrounds, but plain
     // HTMLAudioElement with loop=true continues when AVAudioSession is .playback.
-    // Crossfaded via BackgroundCrossfade so the loop wrap stays seamless even
-    // though the audio graph itself is asleep — see that class for why.
-    private bgCrossfade: BackgroundCrossfade | null = null;
+    // Looped from a PCM WAV blob where possible so the wrap stays seamless
+    // even though the audio graph itself is asleep — see BackgroundLoop above.
+    private bgCrossfade: BackgroundPlayer | null = null;
 
     enterBackground(vol: number) {
         this.leaveBackground();
         if (!this.isPlaying) return;
         const clamped = Math.min(1, Math.max(0, vol));
 
+        // Bail if we returned to the foreground or stopped while preparing.
+        const stillBackgrounded = () => this.isPlaying && document.visibilityState !== 'visible';
+
         // Synth sounds have no file: render/reuse a seamless loop blob instead.
         const spec = SYNTH_SOUNDS[this.id];
         if (spec) {
             const sr = getAudioContext()?.sampleRate || 48000;
             getSynthLoopBlobUrl(this.id, spec, sr).then(url => {
-                // Bail if we returned to the foreground or stopped while rendering.
-                if (!this.isPlaying || document.visibilityState === 'visible') return;
-                const cf = new BackgroundCrossfade(url, clamped);
-                this.bgCrossfade = cf;
-                cf.start();
+                if (!stillBackgrounded()) return;
+                const player = new BackgroundLoop(url, clamped);
+                this.bgCrossfade = player;
+                player.start();
             }).catch(() => {});
             return;
         }
 
-        const cf = new BackgroundCrossfade(this.src, clamped);
-        this.bgCrossfade = cf;
-        cf.start();
+        // Library files: prefer the PCM blob, whose native loop is sample-exact.
+        acquireFileLoopBlob(this.src).then(url => {
+            if (!url) {
+                if (!stillBackgrounded()) return;
+            } else if (!stillBackgrounded()) {
+                // Returned to the foreground mid-decode: hand the reference back
+                // rather than pinning it until the session ends.
+                releaseFileLoopBlob(this.src);
+                return;
+            }
+            if (url) {
+                const player = new BackgroundLoop(url, clamped, () => releaseFileLoopBlob(this.src));
+                this.bgCrossfade = player;
+                player.start();
+                return;
+            }
+            // Only the long-form streamed pieces land here — too large to hold
+            // as a blob. They loop the compressed file directly and keep that
+            // file's residual encoder padding at the wrap, which they reach
+            // once every 8-18 minutes.
+            const player = new BackgroundLoop(this.src, clamped);
+            this.bgCrossfade = player;
+            player.start();
+        }).catch(() => {});
     }
 
     leaveBackground() {
@@ -777,7 +388,10 @@ const MixRow: React.FC<{
                 onClick={onPlay}
                 className="group flex-1 min-w-0 flex items-center gap-4 p-3.5 rounded-3xl bg-sage/25 border border-white/10 text-left transition-[transform,background-color] duration-200 active:scale-[0.98] hover:bg-white/[0.07]"
             >
-                <div className="flex gap-1.5 flex-shrink-0">
+                {/* Fixed to the width of the full 3-icon row (3 * w-9 + 2 * gap-1.5) so a
+                    mix with fewer sounds doesn't shrink this box and drag the title left —
+                    every row's title now starts at the same x regardless of icon count. */}
+                <div className="flex gap-1.5 flex-shrink-0 w-[120px]">
                     {icons.map((Icon, i) => (
                         <div
                             key={i}

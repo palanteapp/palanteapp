@@ -5,6 +5,8 @@
  * No pressure, no guilt - just celebration of progress.
  */
 
+import type { DailyMorningPractice } from '../types';
+
 /** Format a date as YYYY-MM-DD using local time (not UTC, activity dates must match the user's calendar day) */
 export const formatLocalDate = (date: Date): string => {
     const year = date.getFullYear();
@@ -15,6 +17,32 @@ export const formatLocalDate = (date: Date): string => {
 
 /** Get today's date in YYYY-MM-DD format */
 export const getTodayDate = (): string => formatLocalDate(new Date());
+
+/**
+ * `dailyPriming` and `dailyMorningPractice` are two different field names for
+ * the exact same entry shape (`DailyPriming` is a type alias of
+ * `DailyMorningPractice`), left over from a rename that was never finished.
+ * The live morning-practice flow (handlePrimingComplete in App.tsx) writes
+ * only to `dailyPriming`; `dailyMorningPractice` holds older/imported entries.
+ *
+ * Reading with `user.dailyMorningPractice || user.dailyPriming || []` looks
+ * like a fallback but isn't one: `||` picks a whole ARRAY, so if
+ * `dailyMorningPractice` exists at all — even populated only with entries
+ * from other days — `dailyPriming` is never consulted, and a real entry
+ * written there today reads back as missing. That produced the Home tab and
+ * Progress tab disagreeing about today's intention: one read `dailyPriming`
+ * first, the other read `dailyMorningPractice` first.
+ *
+ * Use this everywhere a single day's entry is needed instead of picking one
+ * field with `||`.
+ */
+export function findMorningEntryForDate(
+    user: { dailyPriming?: DailyMorningPractice[]; dailyMorningPractice?: DailyMorningPractice[] },
+    date: string,
+): DailyMorningPractice | undefined {
+    return user.dailyPriming?.find(p => p.date === date)
+        ?? user.dailyMorningPractice?.find(p => p.date === date);
+}
 
 /** Calculate the difference in days between two YYYY-MM-DD date strings */
 export const getDaysDifference = (date1: string, date2: string): number => {

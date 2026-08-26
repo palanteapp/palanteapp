@@ -155,9 +155,11 @@ export const SharedReflectionPreview: React.FC<SharedReflectionPreviewProps> = (
                     gap: '2px'
                 }}>
                     <p style={{
-                        fontSize: '3px',
+                        fontSize: '6px',
                         fontWeight: 700,
-                        letterSpacing: '0.25em',
+                        // See SharedQuotePreview: wide tracking at this size broke the
+                        // line apart into individual letters instead of reading as words.
+                        letterSpacing: '0.12em',
                         textTransform: 'uppercase',
                         color: '#556054',
                         whiteSpace: 'nowrap'

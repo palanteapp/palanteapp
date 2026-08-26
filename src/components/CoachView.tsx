@@ -18,7 +18,7 @@ import { canUseAI } from '../types';
 import { haptics } from '../utils/haptics';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { useTheme } from '../contexts/ThemeContext';
-import { analyzeBehaviorPatterns } from '../utils/practiceUtils';
+import { analyzeBehaviorPatterns, findMorningEntryForDate } from '../utils/practiceUtils';
 import { extractAndSaveMemories } from '../utils/memoryService';
 import { analytics } from '../utils/analytics';
 import { buildAiMessageReportEvent } from '../utils/messageReport';
@@ -748,8 +748,7 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                             reduces blank-page paralysis without re-introducing the pillar picker. */}
                         {activeSession.messages.length <= 1 && !isTyping && (() => {
                             const today = new Date().toISOString().split('T')[0];
-                            const todayPractice = (user.dailyMorningPractice || [])
-                                .find(p => p.date === today);
+                            const todayPractice = findMorningEntryForDate(user, today);
                             const todayIntention = todayPractice?.dailyIntention?.trim();
                             const todayCommitment = todayPractice?.commitment?.trim();
 
