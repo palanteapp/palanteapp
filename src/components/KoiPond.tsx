@@ -267,9 +267,28 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
                 )}
 
 
-                {/* Eyes */}
-                <circle cx="-6" cy="-22" r="1.5" fill="black" opacity="0.6" />
-                <circle cx="6" cy="-22" r="1.5" fill="black" opacity="0.6" />
+                {/* Eyes.
+                    Placed on the SIDES of the head rather than the top, which is
+                    where a cyprinid's actually sit: at cy=-21 the body ellipse is
+                    ~8.1 wide, so cx=+/-6.2 puts each eye near the silhouette edge,
+                    the way you see them looking down into a pond.
+
+                    A white ring carries them. They used to be plain black at 60%
+                    opacity, which read fine on the old mid-tone bodies and
+                    disappeared entirely once those were darkened - black on
+                    near-black. The white is warmed a couple of points off pure
+                    #FFF so it sits in the pond's muted palette, and is fully
+                    opaque like the rest of the fish. */}
+                <g>
+                    <circle cx="-6.2" cy="-21" r="2.5" fill="#F4F1E8" />
+                    <circle cx="6.2" cy="-21" r="2.5" fill="#F4F1E8" />
+                    <circle cx="-6.2" cy="-21" r="1.35" fill="#0B0B0B" />
+                    <circle cx="6.2" cy="-21" r="1.35" fill="#0B0B0B" />
+                    {/* Catchlight, offset toward the same side on both eyes so the
+                        pair reads as lit from one direction rather than mirrored. */}
+                    <circle cx="-5.7" cy="-21.6" r="0.5" fill="#FFFFFF" opacity="0.75" />
+                    <circle cx="6.7" cy="-21.6" r="0.5" fill="#FFFFFF" opacity="0.75" />
+                </g>
             </g>
         </svg>
     );
