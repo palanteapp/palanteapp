@@ -116,10 +116,29 @@ describe('loopManifest.json structure', () => {
         expect(bad).toEqual([]);
     });
 
-    it('marks exactly the longform list as streaming', () => {
-        expect(LONGFORM.every(e => e.stream === true)).toBe(true);
-        expect(BAKED.some(e => e.stream)).toBe(false);
-        expect(LONGFORM).toHaveLength(9);
+    it('marks nothing as streaming', () => {
+        // The streaming path is gone. It existed only for the nine long-form
+        // pieces, which at 8-18 minutes could not be held decoded; they are now
+        // capped by `targetSec` to loops the buffer path can take, so a
+        // surviving `stream` flag would point at an engine branch that no
+        // longer exists.
+        expect(ENTRIES.filter(e => e.stream).map(e => e.id)).toEqual([]);
+        // Deliberately no count assertion here: the size of the longform list is
+        // a content decision (tracks get added and removed), not a structural
+        // claim, and pinning it only produces a failure that has to be edited
+        // rather than one that has to be understood.
+    });
+
+    it('caps every loop that a material tier says is too long', () => {
+        // Decoded audio is the app's dominant memory cost, and it is what put a
+        // four-sound nature mix at 272MB against budgets that permitted 224MB.
+        // A track carrying `targetSec` must actually have been baked down to
+        // roughly it; drift here means the manifest and the assets disagree
+        // about how much memory a mix costs.
+        const over = ENTRIES
+            .filter(e => e.targetSec && e.loopSeconds! > e.targetSec * 2.5)
+            .map(e => `${e.id}: ${e.loopSeconds!.toFixed(1)}s vs target ${e.targetSec}s`);
+        expect(over).toEqual([]);
     });
 });
 
@@ -173,8 +192,10 @@ describe('streaming vs. in-memory routing cannot be inferred from size', () => {
         const largestBaked = Math.max(...BAKED.map(sizeOf));
         const smallestLongform = Math.min(...LONGFORM.map(sizeOf));
         expect(smallestLongform).toBeLessThan(largestBaked * 2);
-        // whale-sounds streams at ~5.4MB while several in-memory tracks are
-        // larger; any single byte threshold misroutes one set or the other.
+        // The two lists overlap in size: some longform entries are smaller than
+        // several baked ones, so no single byte threshold ever separated them.
+        // This is why routing was moved to a manifest flag and then, once every
+        // file fit in memory, dropped entirely.
         expect(LONGFORM.some(e => sizeOf(e) < 6_500_000)).toBe(true);
     });
 

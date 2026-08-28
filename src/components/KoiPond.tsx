@@ -7,7 +7,9 @@ import { RippleLayer, type RippleLayerRef } from './RippleLayer';
 import { SlideUpModal } from './SlideUpModal';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SOUND_SOURCES } from '../constants/soundSources';
-import { isSynthSound, getSynthLoopBlobUrl, SYNTH_SOUNDS } from '../utils/synthSounds';
+import { isSynthSound, SynthVoice, SYNTH_SOUNDS } from '../utils/synthSounds';
+import { getAudioContext, getMasterLimiter } from '../utils/audioGraph';
+import { startLoop, type LoopHandle } from '../utils/loopEngine';
 import type { SoundMix } from '../types';
 // Fish removed per user request
 // KoiFishSprite logic removed, using Processed Static Assets
@@ -15,126 +17,54 @@ import type { SoundMix } from '../types';
 /** Name of the user-saved mix the pond plays by default (case-insensitive match). */
 const POND_MIX_NAME = 'koi pond vibes';
 
-// Each pond layer used to be a single `new Audio(src); audio.loop = true` — a bare
-// HTMLAudioElement with no crossfade at all. Native loop=true restart isn't guaranteed
-// glitch-free at the OS decoder level (the same issue Soundscapes' background playback
-// had, and was fixed there with a two-element crossfade — see BackgroundCrossfade in
-// SoundMixer.tsx). Here it's worse: the pond plays constantly in the foreground, not just
-// while backgrounded, so every loop wrap of every layer was exposed to the glitch.
+// Pond layers run through the SAME Web Audio graph as the Sound Mixer, rather
+// than as bare HTMLAudioElements.
 //
-// This is the same technique ported to a layered mix: `volume`/`muted` are real property
-// accessors, not methods, so the handful of external call sites that already do
-// `audio.volume = x` / `audio.muted = x` (the fade-in, the mute toggle) only need the
-// field renamed from `audio` to this crossfade wrapper — nothing about how they fade
-// needs to change.
-const POND_LOOP_CROSSFADE_SEC = 0.4;
-const POND_LOOP_ARM_LEAD_SEC = 3.0;
+// ── What was here, and why it distorted ─────────────────────────────────────
+// Each layer used to be two HTMLAudioElements crossfading into each other at
+// the loop seam. Three faults compounded:
+//
+//   1. It timed the crossfade off `element.duration`, which INCLUDES the AAC
+//      encoder's trailing padding. Anything that computes a loop boundary from
+//      `duration` is wrong; the manifest's `loopSeconds` is the only
+//      trustworthy length. The fade therefore ran partly into silence.
+//   2. It used an equal-power (sin/cos) curve to blend a track's tail against
+//      its own head. Equal power is right for UNCORRELATED signals; the baker
+//      deliberately makes tail and head correlate as closely as it can, so the
+//      two summed almost linearly and peaked around +3dB at the midpoint of
+//      every wrap. audioGraph.ts documents exactly this hump and reserves 3dB
+//      of headroom for it.
+//   3. That headroom lives in the master limiter, and bare HTMLAudioElements
+//      never reach it. The pond sums SEVERAL layers this way, so the overshoot
+//      had nothing catching it and landed straight on the output.
+//
+// ── What replaces it ────────────────────────────────────────────────────────
+// Files go through startLoop(), the same AudioBufferSourceNode path the mixer
+// uses: sliced to `loopSeconds`, wrapped by the audio rendering thread, with no
+// crossfade at the seam at all and so no hump to clip. Synth layers go through
+// SynthVoice, which is already the mixer's Web Audio path for them. Both land
+// on getMasterLimiter(), so every layer is inside the headroom the rest of the
+// app assumes. Files also now SHARE the mixer's decoded-buffer cache instead of
+// opening their own pair of decoders per layer.
 
-class PondTrackCrossfade {
-    private a: HTMLAudioElement;
-    private b: HTMLAudioElement;
-    private activeIsA = true;
-    private crossfading = false;
-    private _volume = 0;
-    private _muted = false;
-    private pollTimer: ReturnType<typeof setInterval> | null = null;
-    private fadeTimer: ReturnType<typeof setInterval> | null = null;
-    private seekTimer: ReturnType<typeof setTimeout> | null = null;
-    private prevTime = -1;
+/** One pond layer, however it is produced. */
+interface PondLayer {
+    setVolume(v: number, instant?: boolean): void;
+    stop(): void;
+}
 
-    constructor(src: string) {
-        this.a = new Audio(src);
-        this.a.loop = true;
-        this.a.volume = 0;
-        this.b = new Audio(src);
-        this.b.loop = true;
-        this.b.volume = 0;
-    }
+function fileLayer(handle: LoopHandle): PondLayer {
+    return {
+        setVolume: (v, instant) => handle.setVolume(v, instant ?? true),
+        stop: () => handle.stop(),
+    };
+}
 
-    get volume() { return this._volume; }
-    set volume(v: number) {
-        this._volume = v;
-        if (this.crossfading) return; // in-flight curve reads _volume live, see beginCrossfade
-        this.activeEl().volume = this._muted ? 0 : v;
-    }
-
-    get muted() { return this._muted; }
-    set muted(m: boolean) {
-        this._muted = m;
-        // Native mute is instant regardless of crossfade state, matching how the plain
-        // HTMLAudioElement version muted immediately rather than fading out.
-        this.a.muted = m;
-        this.b.muted = m;
-    }
-
-    private activeEl() { return this.activeIsA ? this.a : this.b; }
-    private nextEl() { return this.activeIsA ? this.b : this.a; }
-
-    /** Fire-and-forget, matching the original `audio.play().catch(() => {})`. */
-    start() {
-        Promise.all([this.a.play(), this.b.play()]).catch(() => {});
-        this.pollTimer = setInterval(() => this.tick(), 50);
-    }
-
-    private tick() {
-        if (this.crossfading) return;
-        const active = this.activeEl();
-        const dur = active.duration;
-        if (!(dur > 0)) return;
-        const cTime = active.currentTime;
-
-        // Native loop already wrapped (a throttled/busy tick missed the seam window
-        // entirely): catch up immediately instead of leaving the gap.
-        const missedWindow = this.prevTime > 0 && this.prevTime > dur * 0.5 && cTime < this.prevTime * 0.5;
-        this.prevTime = cTime;
-
-        const untilSeam = dur - cTime;
-        if (missedWindow || untilSeam <= POND_LOOP_ARM_LEAD_SEC) {
-            this.beginCrossfade(missedWindow ? 0 : Math.max(0, untilSeam));
-        }
-    }
-
-    private beginCrossfade(delay: number) {
-        this.crossfading = true;
-        const active = this.activeEl();
-        const next = this.nextEl();
-
-        if (this.seekTimer) clearTimeout(this.seekTimer);
-        this.seekTimer = setTimeout(() => {
-            next.currentTime = 0;
-            const steps = 20;
-            const stepMs = (POND_LOOP_CROSSFADE_SEC * 1000) / steps;
-            let i = 0;
-            if (this.fadeTimer) clearInterval(this.fadeTimer);
-            this.fadeTimer = setInterval(() => {
-                i++;
-                const t = (i / steps) * (Math.PI / 2);
-                const vol = this._muted ? 0 : this._volume;
-                next.volume = Math.sin(t) * vol;
-                active.volume = Math.cos(t) * vol;
-                if (i >= steps) {
-                    if (this.fadeTimer) clearInterval(this.fadeTimer);
-                    this.fadeTimer = null;
-                    active.volume = 0;
-                    active.currentTime = 0;
-                    next.volume = this._muted ? 0 : this._volume;
-                    this.activeIsA = !this.activeIsA;
-                    this.crossfading = false;
-                    this.prevTime = -1;
-                }
-            }, stepMs);
-        }, delay * 1000);
-    }
-
-    stop() {
-        if (this.pollTimer) clearInterval(this.pollTimer);
-        if (this.fadeTimer) clearInterval(this.fadeTimer);
-        if (this.seekTimer) clearTimeout(this.seekTimer);
-        this.a.pause();
-        this.a.src = '';
-        this.b.pause();
-        this.b.src = '';
-    }
+function synthLayer(ctx: AudioContext, voice: SynthVoice): PondLayer {
+    return {
+        setVolume: (v, instant) => voice.setVolume(ctx, v, instant ?? true),
+        stop: () => voice.stop(ctx),
+    };
 }
 
 interface KoiPondProps {
@@ -1142,7 +1072,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     //    layers at 40% master volume). Each layer loops seamlessly (baked files or
     //    procedurally-rendered synth blobs). Falls back to a single river track if the
     //    mix isn't found, so the pond is never silent.
-    const tracksRef = useRef<Array<{ crossfade: PondTrackCrossfade; targetVol: number }>>([]);
+    const tracksRef = useRef<Array<{ layer: PondLayer; targetVol: number }>>([]);
     const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const MASTER_VOLUME = 0.40;          // user-requested 40% overall
     const FALLBACK_SRC = '/sounds/flowing-river.m4a';
@@ -1151,66 +1081,79 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     useEffect(() => {
         let cancelled = false;
 
-        // Resolve the saved mix into a list of {src, vol}. Synth ids (noise/binaural)
-        // have no file: render them to a seamless WAV blob; file ids map via SOUND_SOURCES.
-        const buildTracks = async (): Promise<Array<{ src: string; vol: number }>> => {
+        // Resolve the saved mix into layer specs. Synth ids (noise/binaural) have
+        // no file and are played by SynthVoice; file ids map via SOUND_SOURCES.
+        type Spec = { kind: 'file'; src: string; vol: number } | { kind: 'synth'; id: string; vol: number };
+        const buildSpecs = (): Spec[] => {
             const mix = (savedMixes || []).find(
                 m => m.name?.trim().toLowerCase() === POND_MIX_NAME
             );
             const entries = mix ? Object.entries(mix.volumes || {}).filter(([, v]) => v > 0) : [];
-            if (!entries.length) return [{ src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
+            if (!entries.length) return [{ kind: 'file', src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
 
-            const out: Array<{ src: string; vol: number }> = [];
+            const out: Spec[] = [];
             for (const [id, raw] of entries) {
                 const vol = Math.max(0, Math.min(1, raw)) * MASTER_VOLUME;
                 if (vol <= 0) continue;
                 if (isSynthSound(id)) {
-                    try {
-                        const url = await getSynthLoopBlobUrl(id, SYNTH_SOUNDS[id], 44100);
-                        out.push({ src: url, vol });
-                    } catch { /* skip a synth layer that fails to render */ }
+                    out.push({ kind: 'synth', id, vol });
                 } else if (SOUND_SOURCES[id]) {
-                    out.push({ src: SOUND_SOURCES[id], vol });
+                    // A sound removed from the library since the mix was saved
+                    // simply drops out, rather than taking the pond down with it.
+                    out.push({ kind: 'file', src: SOUND_SOURCES[id], vol });
                 }
             }
-            return out.length ? out : [{ src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
+            return out.length ? out : [{ kind: 'file', src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
         };
 
-        const created: PondTrackCrossfade[] = [];
-        buildTracks().then(tracks => {
-            if (cancelled) {
-                // Effect was torn down mid-build, don't start anything.
-                return;
-            }
-            tracks.forEach(({ src, vol }) => {
-                const crossfade = new PondTrackCrossfade(src);
-                crossfade.muted = isMutedRef.current;
-                created.push(crossfade);
-                tracksRef.current.push({ crossfade, targetVol: vol });
-                crossfade.start();
-            });
+        const created: PondLayer[] = [];
 
-            if (isMutedRef.current) return;
+        (async () => {
+            const ctx = getAudioContext();
+            if (!ctx || cancelled) return;
+            if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+
+            for (const spec of buildSpecs()) {
+                if (cancelled) break;
+                // Every layer starts silent; the group fade below brings them up
+                // together, exactly as the old element version did.
+                let layer: PondLayer | null = null;
+                if (spec.kind === 'synth') {
+                    const voice = new SynthVoice(SYNTH_SOUNDS[spec.id]);
+                    await voice.play(ctx, 0, getMasterLimiter(ctx)).catch(() => {});
+                    layer = synthLayer(ctx, voice);
+                } else {
+                    const handle = await startLoop({ src: spec.src, volume: 0, entrySec: 0.01 });
+                    if (handle) layer = fileLayer(handle);
+                }
+                if (!layer) continue;
+                if (cancelled) { layer.stop(); break; }
+                layer.setVolume(0, true);
+                created.push(layer);
+                tracksRef.current.push({ layer, targetVol: spec.vol });
+            }
+
+            if (cancelled || isMutedRef.current) return;
             // Gentle ~3s fade-in for every layer together.
             let t = 0;
             const steps = 30;
             fadeIntervalRef.current = setInterval(() => {
                 t = Math.min(t + 1, steps);
                 const k = t / steps;
-                tracksRef.current.forEach(({ crossfade, targetVol }) => {
-                    crossfade.volume = isMutedRef.current ? 0 : targetVol * k;
+                tracksRef.current.forEach(({ layer, targetVol }) => {
+                    layer.setVolume(isMutedRef.current ? 0 : targetVol * k, true);
                 });
                 if (t >= steps) {
                     clearInterval(fadeIntervalRef.current!);
                     fadeIntervalRef.current = null;
                 }
             }, 100);
-        });
+        })();
 
         return () => {
             cancelled = true;
             if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
-            created.forEach(cf => cf.stop());
+            created.forEach(l => l.stop());
             tracksRef.current = [];
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1228,16 +1171,15 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
 
         if (newState) {
-            tracks.forEach(({ crossfade }) => { crossfade.volume = 0; crossfade.muted = true; });
+            tracks.forEach(({ layer }) => { layer.setVolume(0, true); });
         } else {
-            tracks.forEach(({ crossfade }) => { crossfade.muted = false; });
             // Fade every layer back to its target together.
             let step = 0;
             const steps = 15;
             fadeIntervalRef.current = setInterval(() => {
                 step = Math.min(step + 1, steps);
                 const k = step / steps;
-                tracks.forEach(({ crossfade, targetVol }) => { crossfade.volume = targetVol * k; });
+                tracks.forEach(({ layer, targetVol }) => { layer.setVolume(targetVol * k, true); });
                 if (step >= steps) {
                     clearInterval(fadeIntervalRef.current!);
                     fadeIntervalRef.current = null;

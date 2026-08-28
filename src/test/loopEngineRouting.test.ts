@@ -2,16 +2,20 @@
 // scheduled against.
 //
 // The dropout that shipped was a routing failure before it was an audio
-// failure. SoundMixer sent every file — including the 33 that comfortably fit
-// in memory — down a streaming crossfade, and that crossfade took its deadline
-// from HTMLMediaElement.duration, which includes the AAC encoder's trailing
-// padding. Two separate mistakes, so two separate things to pin down here:
+// failure. SoundMixer sent every file down a streaming crossfade, and that
+// crossfade took its deadline from HTMLMediaElement.duration, which includes
+// the AAC encoder's trailing padding.
 //
-//   1. Files that fit in memory must reach the AudioBufferSourceNode path,
-//      where the wrap is performed by the audio thread and there is no
-//      deadline to get wrong at all. Only the 9 `longform` entries may stream.
-//   2. On the streaming path that does remain, every scheduled instant must be
-//      derived from the manifest's `loopSeconds` and never from `duration`.
+// There is now only one real path, so what has to be pinned down is that
+// EVERYTHING reaches it:
+//
+//   1. Every file, longform included, must reach the AudioBufferSourceNode
+//      path, where the wrap is performed by the audio thread and there is no
+//      deadline to get wrong at all.
+//   2. That is only true while every file stays under the in-memory size gate,
+//      which is asserted directly against the shipped assets rather than
+//      assumed.
+//   3. A file that genuinely cannot decode still has to make a sound.
 //
 // The doubles in helpers/webAudioMock.ts deliberately report a `duration` that
 // is FIVE SECONDS longer than loopSeconds. Any code that reads it produces
@@ -21,6 +25,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import manifest from '../constants/loopManifest.json';
 import type { LoopManifestEntry } from '../constants/bakedLoops';
 import { PRE_BAKED_FADE_SECONDS } from '../utils/seamlessLoop';
+import { MAX_SEAMLESS_COMPRESSED_BYTES } from '../utils/seamlessAudio';
 import { startLoop, type LoopLogEvent } from '../utils/loopEngine';
 import {
     installWebAudio,
@@ -73,43 +78,61 @@ describe('startLoop routing', () => {
         expect(harness.ctx.bufferSources).toHaveLength(1);
     });
 
-    it('sends every longform entry to the streaming path without decoding it', async () => {
+    it('sends every longform entry to the AudioBuffer path too', async () => {
+        // These nine used to be the whole reason a streaming path existed: at
+        // 8-18 minutes they could not be held decoded. They are now baked to
+        // 19-105 second loops (see `targetSec` in loopManifest.json), so they
+        // take the same audio-thread wrap as everything else and the streaming
+        // path they justified has been deleted.
         for (const entry of LONGFORM) {
             harness?.restore();
-            harness = installWebAudio();
+            const rate = 48000;
+            harness = installWebAudio({
+                decoded: paddedDecodedBuffer(
+                    Math.round(entry.loopSeconds! * rate),
+                    Math.round((PADDING_MS / 1000) * rate),
+                    rate,
+                ),
+            });
             const handle = await startLoop({ src: srcOf(entry) });
-            expect(handle?.mode, `${entry.id} should stream`).toBe('stream');
-            // Not merely "it ended up streaming": it must never have tried to
-            // decode. om-gum alone is ~380MB of float32; discovering that by
-            // allocating it is how an older device gets the app killed.
-            expect(harness.ctx.decodeCalls, `${entry.id} attempted a decode`).toBe(0);
-            expect(harness.fetchCalls, `${entry.id} fetched the whole file`).toEqual([]);
+            expect(handle?.mode, `${entry.id} should decode`).toBe('buffer');
+            expect(harness.elements, `${entry.id} created a media element`).toHaveLength(0);
             handle?.stop();
         }
     });
 
-    it('routes on the manifest flag, not on file size', async () => {
-        // whale-sounds is 5.4MB compressed — UNDER seamlessAudio's 6.5MB
-        // in-memory fallback cap, and smaller than several tracks that do get
-        // decoded. It still has to stream: 525s at 24kHz is ~50MB decoded, and
-        // only the manifest knows that. A size heuristic misroutes this one.
-        const entry = entryFor('whale-sounds');
-        harness = installWebAudio();
-        const handle = await startLoop({ src: srcOf(entry) });
-        expect(handle?.mode).toBe('stream');
-        expect(harness.ctx.decodeCalls).toBe(0);
-        handle?.stop();
+    it('holds every library file under the in-memory size gate', async () => {
+        // The collapse to one path is only valid while every file actually
+        // fits. seamlessAudio rejects anything over MAX_SEAMLESS_COMPRESSED_BYTES
+        // when it cannot read a header, and .m4a has no MP3 header to read, so
+        // a track that grows past that cap would silently drop to the element
+        // fallback and start wrapping on `duration` again.
+        const { statSync, existsSync } = await import('node:fs');
+        const { resolve } = await import('node:path');
+        const PUBLIC = resolve(__dirname, '../../public');
+        const oversized: string[] = [];
+        for (const entry of [...BAKED, ...LONGFORM]) {
+            const file = resolve(PUBLIC, entry.out ?? entry.src);
+            if (!existsSync(file)) continue;
+            if (statSync(file).size > MAX_SEAMLESS_COMPRESSED_BYTES) {
+                oversized.push(`${entry.id} ${(statSync(file).size / 1e6).toFixed(1)}MB`);
+            }
+        }
+        expect(oversized, 'these would fall back to the element loop').toEqual([]);
     });
 
-    it('keeps a decode failure audible by falling back to streaming', async () => {
+    it('keeps a decode failure audible by falling back to a looping element', async () => {
         // No decoded buffer configured, so loadSeamlessBuffer resolves null.
+        // The fallback wraps on `duration` and so keeps the encoder padding at
+        // the seam; it exists to keep a broken file audible, not to loop well.
         const entry = entryFor('calm-wind');
         harness = installWebAudio();
         const handle = await startLoop({ src: srcOf(entry) });
-        expect(handle?.mode).toBe('stream');
+        expect(handle?.mode).toBe('element');
         handle?.stop();
     });
 });
+
 
 // ── 2. The buffer path's loop bounds ─────────────────────────────────────────
 
@@ -117,7 +140,7 @@ describe('buffer path loop bounds', () => {
     // seamlessAudio.ts caches decoded buffers per src for the life of the
     // module, so every case here uses a sound no other test in this file
     // loads — otherwise a later case would be handed an earlier case's buffer.
-    const CASES = ['waterfall', 'camp-fire', 'box-fan', 'set-adrift'];
+    const CASES = ['waterfall', 'camp-fire', 'box-fan', 'night-crickets'];
 
     for (const id of CASES) {
         it(`${id}: loops on loopSeconds, not on the padded decode`, async () => {
@@ -165,95 +188,4 @@ describe('buffer path loop bounds', () => {
         expect(harness.timerDelays.slice(before)).toEqual([]);
         expect(harness.ctx.bufferSources[0].startCalls).toEqual([0]);
     });
-});
-
-// ── 3. The streaming path's deadline ─────────────────────────────────────────
-
-describe('stream path schedules against loopSeconds, never duration', () => {
-    const STREAM_ARM_LEAD_SEC = 4.0;
-    const STREAM_OVERLAP_SEC = 0.06;
-
-    beforeEach(() => {
-        vi.useFakeTimers();
-    });
-
-    it('arms the wrap a fixed lead before loopSeconds', async () => {
-        const entry = entryFor('bilateral-tranquility');
-        const loopSeconds = entry.loopSeconds!;
-        harness = installWebAudio();
-
-        const handle = await startLoop({ src: srcOf(entry) });
-        expect(handle?.mode).toBe('stream');
-        // Both elements exist and claim to be longer than the loop really is.
-        expect(harness.elements).toHaveLength(2);
-        for (const el of harness.elements) el.duration = loopSeconds + FAKE_DURATION_EXCESS_SEC;
-
-        await vi.advanceTimersByTimeAsync(1);
-
-        const expectedArmMs = (loopSeconds - STREAM_ARM_LEAD_SEC) * 1000;
-        const wrongArmMs = (loopSeconds + FAKE_DURATION_EXCESS_SEC - STREAM_ARM_LEAD_SEC) * 1000;
-        const armDelays = harness.timerDelays.filter(d => d > 1000);
-        expect(armDelays.some(d => Math.abs(d - expectedArmMs) < 1)).toBe(true);
-        expect(armDelays.some(d => Math.abs(d - wrongArmMs) < 1)).toBe(false);
-
-        handle?.stop();
-    });
-
-    it('lands the crossfade on loopSeconds, five seconds before the file ends', async () => {
-        const entry = entryFor('busy-cafe-3');
-        const loopSeconds = entry.loopSeconds!;
-        harness = installWebAudio();
-
-        const logs: LoopLogEvent[] = [];
-        const handle = await startLoop({ src: srcOf(entry), onLog: e => logs.push(e) });
-        for (const el of harness.elements) el.duration = loopSeconds + FAKE_DURATION_EXCESS_SEC;
-
-        const t0 = harness.ctx.currentTime;
-        await vi.advanceTimersByTimeAsync((loopSeconds - STREAM_ARM_LEAD_SEC) * 1000 + 10);
-
-        const armed = logs.filter(e => e.type === 'wrap-armed');
-        expect(armed).toHaveLength(1);
-        const event = armed[0] as Extract<LoopLogEvent, { type: 'wrap-armed' }>;
-        expect(event.loopSeconds).toBe(loopSeconds);
-        expect(event.atCtxTime).toBeCloseTo(t0 + loopSeconds, 6);
-        expect(event.atCtxTime).not.toBeCloseTo(t0 + loopSeconds + FAKE_DURATION_EXCESS_SEC, 3);
-
-        // And the gain automation actually on the params agrees: the outgoing
-        // voice reaches zero exactly at the seam, having started its ramp one
-        // overlap earlier. The regression ramped to zero at `duration`, i.e.
-        // after the file had already gone silent.
-        const rampTimes = harness.ctx.gains.flatMap(g => g.gain.rampTimes());
-        expect(rampTimes.some(t => Math.abs(t - (t0 + loopSeconds)) < 1e-6)).toBe(true);
-        expect(rampTimes.some(t => t > t0 + loopSeconds + 0.5)).toBe(false);
-
-        const setTimes = harness.ctx.gains.flatMap(g =>
-            g.gain.events.filter(e => e.type === 'setValueAtTime').map(e => e.time));
-        expect(setTimes.some(t => Math.abs(t - (t0 + loopSeconds - STREAM_OVERLAP_SEC)) < 1e-6)).toBe(true);
-
-        handle?.stop();
-    });
-
-    it('never schedules anything past loopSeconds for any longform entry', async () => {
-        for (const entry of LONGFORM) {
-            harness?.restore();
-            harness = installWebAudio();
-            const loopSeconds = entry.loopSeconds!;
-            const logs: LoopLogEvent[] = [];
-            const handle = await startLoop({ src: srcOf(entry), onLog: e => logs.push(e) });
-            for (const el of harness.elements) el.duration = loopSeconds + FAKE_DURATION_EXCESS_SEC;
-            // Let the initial play() promise settle so the wrap timer exists.
-            await vi.advanceTimersByTimeAsync(1);
-
-            const t0 = harness.ctx.currentTime;
-            await vi.advanceTimersByTimeAsync((loopSeconds - STREAM_ARM_LEAD_SEC) * 1000 + 10);
-
-            const rampTimes = harness.ctx.gains.flatMap(g => g.gain.rampTimes());
-            const late = rampTimes.filter(t => t > t0 + loopSeconds + 1e-6);
-            expect(late, `${entry.id} scheduled past its loop point`).toEqual([]);
-
-            const armed = logs.find(e => e.type === 'wrap-armed');
-            expect(armed, `${entry.id} never armed a wrap`).toBeDefined();
-            handle?.stop();
-        }
-    }, 30_000);
 });

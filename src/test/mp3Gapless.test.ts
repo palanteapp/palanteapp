@@ -122,9 +122,10 @@ describe('bakedLoops manifest', () => {
     });
 
     it('maps a transcoded output back to its entry', () => {
-        // whale-sounds is baked from a .wav master out to .m4a.
-        const entry = preBakedEntry('/sounds/whale-sounds.m4a');
-        expect(entry?.id).toBe('whale-sounds');
+        // busy-cafe-3's master is a .mp3 and it ships as .m4a, so a lookup by
+        // the served path has to go through `out` rather than `src`.
+        const entry = preBakedEntry('/sounds/busy-cafe-3.m4a');
+        expect(entry?.id).toBe('busy-cafe-3');
     });
 
     it('does not claim files the baker never touched', () => {
