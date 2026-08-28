@@ -9,7 +9,10 @@ const COLORS = {
     warmGray: '#A3A3A3'
 };
 
-// Honor the OS Reduce Motion setting: celebrate with haptics only.
+// True whenever the OS asks for less motion. Note this is NOT only the
+// Accessibility > Motion > Reduce Motion switch: WebKit also reports it in
+// other states the user never thinks of as a motion preference, so a build can
+// look completely broken on one device and fine on the next.
 const prefersReducedMotion = () =>
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -117,6 +120,62 @@ const spawnParticle = (originX: number, originY: number, opts: BurstOptions, par
     setTimeout(() => el.remove(), duration + 500);
 };
 
+// ── Reduced-motion celebration ───────────────────────────────────────────────
+// Both triggers below used to `return` outright when prefersReducedMotion() was
+// true, firing a haptic and nothing else. That is why "confetti is broken on
+// device" kept coming back with nothing to debug: verified on iOS 26 WebKit,
+// with Reduce Motion on, triggerConfetti() spawns 0 particles, throws nothing,
+// logs nothing and reports nothing to Sentry. It is indistinguishable from the
+// feature being dead, and it only reproduces on a device whose motion setting
+// happens to be on -- never in the browser preview, where it is off.
+//
+// So: still honor the setting, but stop treating it as "celebrate with nothing".
+// What Reduce Motion is actually for is travel and zoom (those are the
+// vestibular triggers); a pure cross-fade is explicitly safe under it. These
+// sparkles never translate and never scale -- they fade up and back down
+// exactly where they are spawned.
+const spawnStaticSparkle = (x: number, y: number, color: string, delay: number) => {
+    const el = document.createElement('div');
+    const size = 6 + Math.random() * 6;
+    el.style.cssText =
+        `position:fixed;top:0;left:0;width:${size}px;height:${size}px;` +
+        `background:${color};pointer-events:none;z-index:99999;border-radius:50%;` +
+        `transform:translate(${x}px, ${y}px);opacity:0;`;
+    document.body.appendChild(el);
+
+    const duration = 900;
+    const anim = el.animate(
+        [{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }],
+        { duration, delay, easing: 'ease-in-out', fill: 'forwards' },
+    );
+    anim.onfinish = () => el.remove();
+    // Same safety net as spawnParticle: onfinish can never fire if the webview is
+    // backgrounded mid-animation, and these are position:fixed at z-index 99999,
+    // so a leaked one would sit on top of the UI forever.
+    setTimeout(() => el.remove(), duration + delay + 500);
+};
+
+const reducedMotionCelebration = (colors: string[], count: number) => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    for (let i = 0; i < count; i++) {
+        spawnStaticSparkle(
+            Math.random() * w,
+            h * (0.18 + Math.random() * 0.54),
+            pick(colors),
+            Math.random() * 400,
+        );
+    }
+    // Leave a trail so this branch is never invisible again. A breadcrumb (not an
+    // exception) because taking this path is correct behavior, not a fault -- it
+    // just needs to be attributable when someone reports "no confetti".
+    Sentry.addBreadcrumb({
+        category: 'celebration',
+        level: 'info',
+        message: 'reduced-motion: static sparkle celebration instead of confetti',
+    });
+};
+
 const CONFETTI_COLORS = [COLORS.sage, COLORS.paleGold, COLORS.white];
 const LEVEL_UP_COLORS = [COLORS.sage, COLORS.paleGold, COLORS.white, COLORS.warmGray];
 const SHAPES: Particle['shape'][] = ['circle', 'square'];
@@ -124,7 +183,10 @@ const SHAPES: Particle['shape'][] = ['circle', 'square'];
 export const triggerConfetti = () => {
     try {
         haptics.success();
-        if (prefersReducedMotion()) return;
+        if (prefersReducedMotion()) {
+            reducedMotionCelebration(CONFETTI_COLORS, 14);
+            return;
+        }
 
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -157,7 +219,10 @@ export const triggerConfetti = () => {
 export const triggerLevelUpConfetti = () => {
     try {
         haptics.success();
-        if (prefersReducedMotion()) return;
+        if (prefersReducedMotion()) {
+            reducedMotionCelebration(LEVEL_UP_COLORS, 26);
+            return;
+        }
 
         const w = window.innerWidth;
         const h = window.innerHeight;
