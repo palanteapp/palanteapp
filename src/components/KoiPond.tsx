@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { readJSON } from '../utils/safeStorage';
 import { Settings, X, Volume2, VolumeX, Eye, EyeOff, HelpCircle, Fish as FishIcon } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
@@ -267,9 +267,17 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
         }
     };
     const { body, accent, pattern } = getColors();
+    const clipId = useId();
 
     return (
         <svg width="60" height="90" viewBox="0 0 60 90" className="overflow-visible opacity-90">
+            <defs>
+                {/* Body-shaped clip so hand-placed pattern markings can never bleed past
+                    the silhouette edge, no matter how large or roughly-estimated they are. */}
+                <clipPath id={clipId}>
+                    <ellipse cx="0" cy="0" rx="12" ry="30" />
+                </clipPath>
+            </defs>
             <g transform="translate(30, 45)">
                 {/* Depth shadow, drawn as plain shapes rather than a CSS drop-shadow filter.
                     A `filter` on the wrapper forces WebKit to re-rasterize a blurred surface
@@ -281,16 +289,33 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
                     Beat rate is tied to the fish's real speed, so the body and tail stay in phase. */}
                 <g style={{ transform: 'rotate(var(--koi-tail, 0deg))', transformOrigin: '0 25px' }}>
                     <path d="M0,25 Q10,35 12,50 L0,45 L-12,50 Q-10,35 0,25" fill={body} opacity="0.9" />
+                    {/* Fin rays — thin fanned lines from the base, as on a real tail fin */}
+                    <g stroke="#fff" strokeWidth="0.5" strokeLinecap="round" opacity="0.4">
+                        <line x1="0" y1="27" x2="-9" y2="45" />
+                        <line x1="0" y1="27" x2="-4" y2="47" />
+                        <line x1="0" y1="27" x2="4" y2="47" />
+                        <line x1="0" y1="27" x2="9" y2="45" />
+                    </g>
                 </g>
 
                 {/* Left Fin — same clock, counter-phase to the tail */}
                 <g style={{ transform: 'rotate(var(--koi-fin-l, 0deg))', transformOrigin: '-12px 5px' }}>
                     <path d="M-12,0 Q-22,5 -25,15 Q-15,10 -12,5" fill={body} opacity="0.8" />
+                    <g stroke="#fff" strokeWidth="0.45" strokeLinecap="round" opacity="0.4">
+                        <line x1="-13" y1="2" x2="-20" y2="6" />
+                        <line x1="-13" y1="3" x2="-23" y2="10" />
+                        <line x1="-13" y1="4" x2="-24" y2="13" />
+                    </g>
                 </g>
 
                 {/* Right Fin */}
                 <g style={{ transform: 'rotate(var(--koi-fin-r, 0deg))', transformOrigin: '12px 5px' }}>
                     <path d="M12,0 Q22,5 25,15 Q15,10 12,5" fill={body} opacity="0.8" />
+                    <g stroke="#fff" strokeWidth="0.45" strokeLinecap="round" opacity="0.4">
+                        <line x1="13" y1="2" x2="20" y2="6" />
+                        <line x1="13" y1="3" x2="23" y2="10" />
+                        <line x1="13" y1="4" x2="24" y2="13" />
+                    </g>
                 </g>
 
                 {/* Body */}
@@ -324,10 +349,33 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
                     </g>
                 )}
                 {pattern === 'grad' && (
-                    <>
-                        <circle cx="0" cy="-15" r="8" fill={accent} opacity="0.6" filter="blur(2px)" />
-                        <circle cx="0" cy="10" r="6" fill={accent} opacity="0.4" filter="blur(2px)" />
-                    </>
+                    <g clipPath={`url(#${clipId})`}>
+                        {/* Traced from the reference photo's composition (not invented, not
+                            noise-jittered) — a dominant navy shape interlocking with two
+                            orange patches down the spine, a small pale patch, and two small
+                            accent dots near the head. Points were estimated by eye against
+                            the reference and run through a Catmull-Rom smoothing spline,
+                            then scaled up around each shape's own centroid (not the body's)
+                            so they cover more of the fish without the head patch shooting
+                            past the nose — see scripts/koi-handtrace.js. Colors are fixed
+                            across variants (not tied to the variant's accent) so every
+                            'grad' fish carries the same white/black/orange marking language
+                            as the source. Clipped to the body ellipse so the now-larger
+                            shapes can never bleed past the silhouette edge. */}
+                        <path d="M2.40,-25.20 C4.03,-24.97 6.83,-21.47 8.00,-18.20 C9.17,-14.93 9.87,-9.57 9.40,-5.60 C8.93,-1.63 7.30,2.80 5.20,5.60 C3.10,8.40 -1.10,11.43 -3.20,11.20 C-5.30,10.97 -7.17,7.47 -7.40,4.20 C-7.63,0.93 -5.53,-4.43 -4.60,-8.40 C-3.67,-12.37 -2.97,-16.80 -1.80,-19.60 C-0.63,-22.40 0.77,-25.43 2.40,-25.20 Z" fill="#1A2540" stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
+                        <path d="M-3.20,-28.01 C-1.90,-29.53 1.35,-30.18 3.30,-29.31 C5.25,-28.45 7.63,-25.41 8.50,-22.81 C9.37,-20.21 9.37,-16.10 8.50,-13.71 C7.63,-11.33 5.03,-8.73 3.30,-8.51 C1.57,-8.30 -0.60,-10.46 -1.90,-12.41 C-3.20,-14.36 -4.28,-17.61 -4.50,-20.21 C-4.72,-22.81 -4.50,-26.50 -3.20,-28.01 Z" fill="#FF5A2B" stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
+                        <path d="M7.34,-4.83 C8.06,-2.90 10.24,2.18 10.24,5.32 C10.24,8.46 8.79,12.33 7.34,14.02 C5.89,15.71 2.99,16.44 1.54,15.47 C0.09,14.50 -1.36,11.12 -1.36,8.22 C-1.36,5.32 0.33,0.49 1.54,-1.93 C2.74,-4.35 4.92,-5.80 5.89,-6.28 C6.85,-6.76 6.61,-6.76 7.34,-4.83 Z" fill="#FF5A2B" stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
+                        <path d="M1.50,5.33 C2.75,6.08 4.25,8.83 4.50,11.33 C4.75,13.83 4.00,18.58 3.00,20.33 C2.00,22.08 -0.25,22.83 -1.50,21.83 C-2.75,20.83 -4.25,16.83 -4.50,14.33 C-4.75,11.83 -4.00,8.33 -3.00,6.83 C-2.00,5.33 0.25,4.58 1.50,5.33 Z" fill="#1A2540" stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
+                        <path d="M-6.50,-10.87 C-5.57,-12.50 -3.70,-15.07 -2.30,-15.07 C-0.90,-15.07 1.43,-12.73 1.90,-10.87 C2.37,-9.00 1.43,-5.50 0.50,-3.87 C-0.43,-2.23 -2.30,-0.83 -3.70,-1.07 C-5.10,-1.30 -7.43,-3.63 -7.90,-5.27 C-8.37,-6.90 -7.43,-9.23 -6.50,-10.87 Z" fill="#F4F1E8" stroke="#000" strokeWidth="0.3" strokeOpacity="0.2" opacity="0.9" />
+                        <circle cx="2" cy="-28.5" r="2.2" fill="#FF5A2B" opacity="0.92" />
+                        <circle cx="7.5" cy="-19" r="1.3" fill="#1A2540" opacity="0.9" />
+                        {/* Spine lines — the pale centerline marking visible down a real
+                            koi's back, one long line plus a shorter one paralleling it */}
+                        <g stroke="#F4F1E8" strokeWidth="0.4" strokeLinecap="round" fill="none" opacity="0.35">
+                            <path d="M1,-24 Q2,-14 0,-2 Q-1,6 1,14" />
+                            <path d="M2.5,-17 Q3,-10 1.5,-4" />
+                        </g>
+                    </g>
                 )}
                 {pattern === 'tux' && (
                     <g fill={accent} opacity="0.9">
@@ -337,9 +385,16 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
                 )}
 
 
-                {/* Eyes */}
-                <circle cx="-6" cy="-22" r="1.5" fill="black" opacity="0.6" />
-                <circle cx="6" cy="-22" r="1.5" fill="black" opacity="0.6" />
+                {/* Eyes — from directly above, a koi's eye reads as barely more than a
+                    faint mark on the side of the head, not a drawn circle. Each stroke
+                    runs tangent to the body ellipse (rx=12, ry=30) a fraction inside its
+                    edge, so it sits alongside the silhouette instead of poking through it. */}
+                <g stroke="#F4F1E8" strokeWidth="0.6" strokeLinecap="round" opacity="0.5">
+                    <line x1="-7.5" y1="-22" x2="-8.3" y2="-20" />
+                    <line x1="7.5" y1="-22" x2="8.3" y2="-20" />
+                </g>
+                <circle cx="-7.9" cy="-21" r="0.55" fill="#000" />
+                <circle cx="7.9" cy="-21" r="0.55" fill="#000" />
             </g>
         </svg>
     );
