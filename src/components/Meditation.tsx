@@ -2,7 +2,7 @@ import React, { useState, useEffect, memo } from 'react';
 import { readJSON } from '../utils/safeStorage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { createPortal } from 'react-dom';
-import { Play, Pause, RotateCcw, Sparkles, X, Mic, HelpCircle, Music, Settings, Waves, CloudRain, Leaf, Wind } from 'lucide-react';
+import { Play, Pause, RotateCcw, Sparkles, X, Mic, HelpCircle, Music, Settings, Waves, CloudRain, Leaf } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Countdown } from './Countdown';
 import { FeatureInfoModal } from './FeatureInfoModal';
@@ -486,7 +486,7 @@ export const Meditation = memo<MeditationProps>(({ isDarkMode, onComplete, onSav
                                     { id: 'ocean', label: 'Ocean Waves', icon: Waves },
                                     { id: 'rain', label: 'Gentle Rain', icon: CloudRain },
                                     { id: 'zen', label: 'Zen Garden', icon: Leaf },
-                                    { id: 'adrift', label: 'Set Adrift', icon: Wind }
+                                    { id: 'shoreline', label: 'Shoreline', icon: Waves }
                                 ].map(preset => (
                                     <button
                                         key={preset.id}

@@ -44,7 +44,7 @@ const SUBSET = [
     'box-fan',               // 48kHz, only 0.35ms of padding: control for the padding metric
     'bilateral-tranquility', // longform, 10min stereo, streaming path
     'busy-cafe-3',           // longform, largest padding in the library (~30ms)
-    'whale-sounds',          // longform, periodic content, streams despite a small file
+    'chillax-quatro',        // longform, periodic, the largest master in the library
 ];
 
 // ── Thresholds ───────────────────────────────────────────────────────────────

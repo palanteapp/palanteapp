@@ -21,8 +21,30 @@ export interface LoopManifestEntry {
     /** Crossfade window the baker used, in seconds. */
     fade: number;
     kind: 'texture' | 'periodic';
-    /** True for the long-form pieces that stream instead of decoding. */
+    /**
+     * Legacy routing flag for the deleted streaming path. Nothing sets it any
+     * more and loopEngine no longer reads it; kept on the type only so an old
+     * manifest still parses. See loopEngine.ts for why the path is gone.
+     */
     stream?: boolean;
+    /**
+     * Upper bound on this loop's length in seconds, by material class:
+     * stochastic beds 30, scene recordings with recognisable events 45,
+     * bilateral 45, musical and chant 75. Set because decoded audio is the
+     * app's dominant memory cost - autumn-wind was 83.5MB resident as a 217s
+     * stereo bed - and because keeping every file in memory is what allows a
+     * single playback path. The baker only ever shortens toward it.
+     */
+    targetSec?: number;
+    /**
+     * Measured period of the left/right pan, for bilateral material only, found
+     * by autocorrelating the master's L/R balance envelope. The loop is locked
+     * to a whole number of these: a bilateral loop that is not a whole number of
+     * pan cycles snaps the stereo image across the wrap however well its content
+     * matches, and correlation cannot see that on its own because the match
+     * window is 0.17s against pans that run 4-53s.
+     */
+    panPeriodSec?: number;
     /**
      * Exact length of the baked loop in seconds, written by the baker. Lets the
      * runtime trim to the sample instead of hunting for the end with an

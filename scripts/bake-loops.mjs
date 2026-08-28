@@ -157,6 +157,178 @@ function findBestLoopEnd(mono, start, end, fade, sr, minFrac, searchSec) {
     return { bestE, ncc: best };
 }
 
+/**
+ * Find the best `targetLen`-sample loop ANYWHERE in [start, end).
+ *
+ * findBestLoopEnd above pins the loop start at the beginning of the loud range
+ * and only chooses where to cut, which is the right search when the goal is to
+ * keep as much of the master as possible. It is the wrong one when the goal is
+ * a SHORT loop out of a long master, because the best 30 seconds of a
+ * three-minute bed are rarely its first 30. Here both edges move: several
+ * candidate starts are tried across the file, and for each of them the end is
+ * searched over a +/-20% band around the target, so the cut lands where the
+ * material actually repeats rather than on a fixed grid.
+ *
+ * This is a strictly easier optimisation problem than the long-loop case, not a
+ * harder one. A 30s target inside a 217s master gives the search a very large
+ * space of candidate windows to pick its single best match from, where the
+ * long-loop search is forced to use nearly the whole file and take whatever
+ * seam that leaves.
+ *
+ * Scoring is the same normalised cross-correlation of head against tail, run in
+ * two passes: a coarse sweep on a short window to find the neighbourhood, then
+ * a fine sweep on the full window to place the sample. Running the whole search
+ * at full width costs about two orders of magnitude more for the same answer.
+ */
+function findBestLoopWindow(mono, start, end, fade, sr, targetLen, startCount = 8, chans = null, lengthCandidates = null) {
+    const span = end - start;
+    // Already shorter than the target: nothing to gain by cutting further.
+    if (targetLen >= span) return { bestS: start, bestE: end, ncc: 0 };
+
+    // `lengthCandidates` restricts the loop to a short list of legal lengths
+    // instead of a continuous band. Used for material with a periodic structure
+    // the crossfade cannot disguise (see panPeriodSec at the call site), where
+    // a loop of the wrong length is wrong however well its content matches.
+    // Several candidates rather than one, because pinning the length to the
+    // single nearest cycle count leaves the search no room and can strand it on
+    // a window whose content does not match at all: bilateral-tune-up locked to
+    // exactly 10 cycles scored an NCC of 0.000 and a clickZ of 31.
+    const lens = lengthCandidates && lengthCandidates.length
+        ? [...new Set(lengthCandidates.map(Math.round))].filter(L => L > 0 && L < span).sort((a, b) => a - b)
+        : null;
+    const LMIN = lens ? lens[0] : Math.floor(targetLen * 0.8);
+    const LMAX = lens ? lens[lens.length - 1] : Math.min(Math.floor(targetLen * 1.2), span);
+    const Wfull = Math.max(1024, Math.min(fade, Math.floor(targetLen / 4), 8192));
+    const Wcoarse = Math.min(2048, Wfull);
+
+    // Prefix sum of squares so a candidate window's energy costs O(1) to read.
+    //
+    // Needed because normalised cross-correlation has a blind spot that is
+    // actively dangerous on a short-loop search: SILENCE CORRELATES PERFECTLY
+    // WITH SILENCE. Given a bed with a quiet passage, the highest-scoring
+    // window is often the one whose head and tail are both near-zero, and the
+    // search will happily return a 30-second loop of almost nothing.
+    // distant-rain-and-thunder did exactly that on the first pass, coming back
+    // with seam rms 0.01 and residual digital silence at the join. A window is
+    // therefore rejected outright unless it carries a fair share of the
+    // material's own energy.
+    const pre = new Float64Array(end - start + 1);
+    for (let i = start; i < end; i++) pre[i - start + 1] = pre[i - start] + mono[i] * mono[i];
+    const globalRms = Math.sqrt(pre[end - start] / Math.max(1, end - start));
+    const winRms = (S, E) => Math.sqrt((pre[E - start] - pre[S - start]) / Math.max(1, E - S));
+    // 0.55 of the whole-file RMS. Loose enough to allow a genuinely calmer
+    // stretch, tight enough to exclude the near-silent gaps that were winning.
+    const MIN_WIN_RMS = 0.55 * globalRms;
+
+    // The window's OWN edges must also carry representative level, not just the
+    // window as a whole. A loop may sit in loud material and still begin or end
+    // inside a lull, and a lull at the join is heard as the loop fading out and
+    // back in once per cycle - which is the exact defect `loopSeam.test.ts`
+    // guards with sliceTailRmsRatio and crossSeamAtLoopSeconds. Applied as a
+    // penalty rather than a rejection so the candidate set can never come back
+    // empty on material that is quiet everywhere.
+    const EDGE = Math.max(1, Math.min(Math.round(0.4 * sr), Math.floor(targetLen / 8)));
+    // A SHORT edge as well as a long one, because the two catch different
+    // faults and only the short one matches how the seam is graded. The
+    // verifier and loopSeam.test.ts both measure a 20ms window straddling the
+    // wrap, and 400ms can sit at a healthy level while its final 20ms falls
+    // into a dip: whale-sounds passed the long check and still ended 20dB under
+    // its own average, which is heard as the loop ducking once per cycle.
+    const EDGE_SHORT = Math.max(1, Math.min(Math.round(0.025 * sr), Math.floor(targetLen / 64)));
+    const edgePenalty = (S, E) => {
+        const body = winRms(S, E) + 1e-12;
+        const weakest = Math.min(
+            winRms(S, Math.min(E, S + EDGE)) / body,
+            winRms(Math.max(S, E - EDGE), E) / body,
+            winRms(S, Math.min(E, S + EDGE_SHORT)) / body,
+            winRms(Math.max(S, E - EDGE_SHORT), E) / body,
+        );
+        // Free above half the body level; ramps up steeply below it.
+        return weakest >= 0.5 ? 0 : 1.5 * (0.5 - weakest) / 0.5;
+    };
+
+    // Score across every channel rather than a mono mix.
+    //
+    // This matters enormously for the bilateral tracks and not at all for
+    // anything else. Bilateral material IS a slow left/right pan, so summing to
+    // mono cancels precisely the information that defines it: the search sees a
+    // nearly stationary signal, happily picks a loop whose head is panned left
+    // and whose tail is panned right, and the wrap jumps the image from one ear
+    // to the other. Measured on the first pass, that produced clickZ up to 18.9
+    // against a gate of 3.0 while mono correlation looked fine.
+    //
+    // Correlating each channel separately and summing makes pan position part
+    // of the match for free: a head panned left only scores well against a tail
+    // panned left. For mono and for dual-mono-collapsed files this is
+    // arithmetically identical to what it replaced.
+    const sig = chans && chans.length > 1 ? chans : [mono];
+    const scoreAt = (S, E, W) => {
+        const base = E - W;
+        if (S < start || base < S || E > end) return -Infinity;
+        let dot = 0, hE = 0, tE = 0;
+        for (const ch of sig) {
+            for (let i = 0; i < W; i++) {
+                const h = ch[S + i], t = ch[base + i];
+                dot += h * t; hE += h * h; tE += t * t;
+            }
+        }
+        const ncc = dot / (Math.sqrt(hE * tE) + 1e-9);
+        // Penalise a head and tail of unequal loudness. Correlation is scale
+        // invariant, so it rates a quiet head against a loud tail as a perfect
+        // match while the wrap audibly jumps in level. This is the same
+        // rmsContinuity axis the seam verifier fails tracks on (kalimba-africa,
+        // 1970-pr), applied where the window is chosen rather than after.
+        const balance = Math.sqrt(Math.min(hE, tE) / (Math.max(hE, tE) + 1e-12));
+        return ncc - 0.5 * (1 - balance);
+    };
+
+    const sMax = end - LMIN;
+    const stride = startCount > 1 ? Math.max(1, Math.floor((sMax - start) / (startCount - 1))) : 0;
+    let best = { bestS: start, bestE: start + targetLen, ncc: -Infinity };
+    // Every scored candidate, so a caller that is graded on something other
+    // than correlation can re-rank a shortlist through its own metric.
+    const all = [];
+
+    for (let k = 0; k < startCount; k++) {
+        const S = snapZero(mono, Math.min(sMax, start + k * stride));
+        if (lens) {
+            // Only a handful of lengths are legal here, so score them directly
+            // at full width rather than sweeping a range.
+            for (const L of lens) {
+                const E = S + L;
+                if (E > end) continue;
+                if (winRms(S, E) < MIN_WIN_RMS) continue;
+                const v = scoreAt(S, E, Wfull) - edgePenalty(S, E);
+                all.push({ S, E, ncc: v });
+                if (v > best.ncc) best = { bestS: S, bestE: E, ncc: v };
+            }
+            continue;
+        }
+        const eLo = S + LMIN;
+        const eHi = Math.min(end, S + LMAX);
+        if (eHi <= eLo) continue;
+
+        let coarseE = eLo, coarseBest = -Infinity;
+        for (let E = eLo; E <= eHi; E += 256) {
+            const v = scoreAt(S, E, Wcoarse);
+            if (v > coarseBest) { coarseBest = v; coarseE = E; }
+        }
+        let fineE = coarseE, fineBest = -Infinity;
+        const lo = Math.max(eLo, coarseE - 256);
+        const hi = Math.min(eHi, coarseE + 256);
+        for (let E = lo; E <= hi; E += 8) {
+            if (winRms(S, E) < MIN_WIN_RMS) continue;
+            const v = scoreAt(S, E, Wfull) - edgePenalty(S, E);
+            if (v > fineBest) { fineBest = v; fineE = E; }
+        }
+        if (fineBest === -Infinity) continue;
+        all.push({ S, E: fineE, ncc: fineBest });
+        if (fineBest > best.ncc) best = { bestS: S, bestE: fineE, ncc: fineBest };
+    }
+    all.sort((a, b) => b.ncc - a.ncc);
+    return { ...best, top: all.length ? all.slice(0, 16) : [{ S: best.bestS, E: best.bestE, ncc: best.ncc }] };
+}
+
 // NCC of the W samples ending at `E` against the W samples starting at `start`.
 // Fixed W, so scores are comparable across different fade lengths.
 function nccAt(mono, start, E, W) {
@@ -486,6 +658,24 @@ function postEncodeMetrics(channels, n, sr) {
     // Both normalised to their gate, so `score <= 1` means "passes everything".
     return { step, deltaRms: dRms, stepRms, click, clickZ, score: Math.max(stepRms / STEP_RMS_GATE, clickZ / CLICK_Z_GATE) };
 }
+/**
+ * How much a candidate's join sits below the track's own level, expressed on
+ * the same normalised scale as postEncodeMetrics().score so the two can simply
+ * be added. Zero above 45% of body level, which is comfortably clear of the
+ * 25% that loopSeam.test.ts gates sliceTailRmsRatio on.
+ */
+function rotationHolePenalty(channels, n, sr) {
+    const w = Math.max(1, Math.min(Math.round(0.02 * sr), Math.floor(n / 8)));
+    const rmsOf = (a, b) => {
+        let acc = 0, cnt = 0;
+        for (const ch of channels) for (let i = a; i < b; i++) { acc += ch[i] * ch[i]; cnt++; }
+        return Math.sqrt(acc / Math.max(1, cnt));
+    };
+    const body = rmsOf(0, n) + 1e-12;
+    const level = Math.min(rmsOf(0, w) / body, rmsOf(n - w, n) / body);
+    return level >= 0.45 ? 0 : 2 * (0.45 - level) / 0.45;
+}
+
 const STEP_RMS_GATE = 6.0;
 const CLICK_Z_GATE  = 3.0;
 
@@ -556,39 +746,134 @@ for (const job of jobs) {
             : [fade];
 
         let choice = null;
-        const s2 = snapZero(mono, start);
+        const defaultS2 = snapZero(mono, start);
+        // `targetSec` caps how long this loop is allowed to be. It exists
+        // because decoded audio is the app's dominant memory cost: a 217s
+        // stereo bed is 83MB resident at 48k float32, and a four-sound nature
+        // mix was reaching 272MB before the WAV blobs the background path also
+        // needs. iOS reclaims the WKWebView content process well below that,
+        // and the resulting memory pressure stalls the audio render thread,
+        // which is heard as a dropout that has nothing to do with the seam.
+        // Capping per material class keeps every file on the in-memory buffer
+        // path, which is the only path that loops without JavaScript.
+        const targetLen = job.targetSec ? Math.floor(job.targetSec * sr) : 0;
         for (const f of candidates) {
-            const { bestE } = findBestLoopEnd(mono, start, end, f, sr, minFrac, searchSec);
-            const e2 = snapZero(mono, bestE);
-            const e = e2 > s2 + f ? e2 : end;
-            // Cap a tuned fade at 15% of the LOOP the search settled on, which
-            // can be far shorter than the master (heartbeat: an 11s loop out of
-            // a 21s file). The seam metrics always prefer a longer blend because
-            // they only look AT the wrap; they cannot see that a 3s crossfade on
-            // an 11s loop spends a quarter of it playing two uncorrelated pulse
-            // trains over each other.
-            if (tune && f > (e - s2) * 0.15) continue;
-            const out = bakeCrossfade(chans, s2, e, f);
-            const seam = seamMetric(out, sr);
-            // Score on a FIXED window so different fade lengths are comparable:
-            // the search's own NCC shrinks as its window grows and would always
-            // favour the shortest fade. This also measures the seam that is
-            // actually baked — post-snap, at the edges bakeCrossfade was handed.
-            // The `loopNCC` column used to report the pre-snap number instead,
-            // which is why `heartbeat` could show a perfect 1.000 next to a seam
-            // ratio worse than its own source: the two described different cuts.
-            const ncc = nccAt(mono, s2, e, Math.floor(0.5 * sr));
-            // Three things make a wrap audible and all three are scored:
-            // content mismatch (ncc), a level jump across the wrap
-            // (rmsContinuity, 1.0 = the two sides are equally loud), and a
-            // residual step (ratio, 1.0 = indistinguishable from ordinary
-            // sample-to-sample motion). Without the rmsContinuity term the
-            // tuner happily traded a 0.80 → 0.68 level match for a slightly
-            // tidier ratio on gentle-rain-for-relaxation.
-            const quality = ncc
-                + 0.5 * seam.rmsContinuity
-                - 0.05 * Math.min(Math.abs(seam.ratio - 1), 10);
-            if (!choice || quality > choice.quality) choice = { f, ncc, out, seam, quality };
+            // Candidate (start, end) pairs for this fade width. Normally one;
+            // for pan-locked material a shortlist, because the window search
+            // maximises CONTENT CORRELATION while the pass/fail gate measures
+            // the seam's step and click. Those agree on ordinary material and
+            // demonstrably do not on bilateral: the same 52.6s length scored
+            // clickZ 0.9 from one start and 4.8 from another, both of them the
+            // correlation optimum for their search width. So the shortlist is
+            // re-ranked below through the metric this is actually graded on.
+            let windows;
+            if (targetLen && targetLen < end - start) {
+                // Bilateral material IS a slow left/right pan, and a loop that
+                // is not a whole number of pan cycles snaps the stereo image
+                // across the wrap however well the content matches. Correlation
+                // cannot see this on its own: the match window is capped at
+                // 8192 samples (0.17s), while these pans run 4-53s, so the
+                // search is structurally blind to pan alignment. Measured
+                // periods live in the manifest as `panPeriodSec`.
+                let lens = null;
+                if (job.panPeriodSec) {
+                    const per = job.panPeriodSec * sr;
+                    const n = Math.max(1, Math.round((targetLen - f) / per));
+                    // Whole cycle counts, EXACT. Allowing even 1% slack around
+                    // a cycle boundary was measured to make all four bilateral
+                    // tracks worse (tranquility clickZ 0.9 -> 6.5): one percent
+                    // of a 52s pan is half a second of stereo offset, which is
+                    // the very error being corrected for. Several cycle COUNTS
+                    // are offered instead, so a track whose nearest count lands
+                    // on unmatched content has somewhere else to go. `+ f`
+                    // because bakeCrossfade consumes the fade, so the OUTPUT
+                    // length is the whole multiple rather than the window.
+                    lens = [];
+                    for (const cycles of [n - 1, n, n + 1]) {
+                        if (cycles >= 1) lens.push(cycles * per + f);
+                    }
+                }
+                const win = findBestLoopWindow(mono, start, end, f, sr, targetLen, lens ? 96 : 8, chans, lens);
+                if (lens) {
+                    // Snapping an end to a zero crossing would move it off the
+                    // cycle boundary, which is the whole point of restricting it.
+                    windows = win.top.map(w => ({ s2: w.S, e: w.E }));
+                } else {
+                    windows = win.top.slice(0, 8).map(w => {
+                        const e2 = snapZero(mono, w.E);
+                        return { s2: w.S, e: e2 > w.S + f ? e2 : w.E };
+                    });
+                }
+            } else {
+                const s2 = defaultS2;
+                const { bestE } = findBestLoopEnd(mono, start, end, f, sr, minFrac, searchSec);
+                const e2 = snapZero(mono, bestE);
+                windows = [{ s2, e: e2 > s2 + f ? e2 : end }];
+            }
+
+            for (const { s2, e } of windows) {
+                // Cap a tuned fade at 15% of the LOOP the search settled on,
+                // which can be far shorter than the master (heartbeat: an 11s
+                // loop out of a 21s file). The seam metrics always prefer a
+                // longer blend because they only look AT the wrap; they cannot
+                // see that a 3s crossfade on an 11s loop spends a quarter of it
+                // playing two uncorrelated pulse trains over each other.
+                if (tune && f > (e - s2) * 0.15) continue;
+                const out = bakeCrossfade(chans, s2, e, f);
+                const seam = seamMetric(out, sr);
+                // Score on a FIXED window so different fade lengths are
+                // comparable: the search's own NCC shrinks as its window grows
+                // and would always favour the shortest fade. This also measures
+                // the seam that is actually baked - post-snap, at the edges
+                // bakeCrossfade was handed.
+                const ncc = nccAt(mono, s2, e, Math.floor(0.5 * sr));
+                // Three things make a wrap audible and all three are scored:
+                // content mismatch (ncc), a level jump across the wrap
+                // (rmsContinuity, 1.0 = the two sides are equally loud), and a
+                // residual step (ratio, 1.0 = indistinguishable from ordinary
+                // sample-to-sample motion). Without the rmsContinuity term the
+                // tuner happily traded a 0.80 -> 0.68 level match for a
+                // slightly tidier ratio on gentle-rain-for-relaxation.
+                // Every length-capped track is ranked by the GATE METRIC ITSELF
+                // rather than the correlation-weighted proxy. The two
+                // demonstrably disagree here: the same 52.6s loop length scored
+                // clickZ 0.9 from one start position and 4.2 from another, both
+                // of them the proxy's own optimum, because the proxy weights
+                // content correlation while the gate measures the step and the
+                // slope break at the join. Ranking by the thing being graded
+                // removes the disagreement. Negated so that larger is still
+                // better, matching the comparison below. Everything else keeps
+                // the proxy: it is tuned for that material and much cheaper
+                // than a full metrics pass per candidate.
+                // A wrap is audible for three independent reasons and the
+                // ranking has to price all three. postEncodeMetrics covers two
+                // of them (the step and the slope break) and is blind to the
+                // third: a loop can join two stretches of perfectly matched
+                // near-silence and score beautifully while the listener hears
+                // the bed duck once per cycle. That is what loopSeam.test.ts
+                // measures as sliceTailRmsRatio / crossSeamAtLoopSeconds, so
+                // the level at the join is priced here alongside the rest.
+                const outN = out[0].length;
+                const edgeW = Math.max(1, Math.min(Math.round(0.02 * sr), Math.floor(outN / 8)));
+                const chRms = (a, b) => {
+                    let acc = 0, cnt = 0;
+                    for (const ch of out) for (let i = a; i < b; i++) { acc += ch[i] * ch[i]; cnt++; }
+                    return Math.sqrt(acc / Math.max(1, cnt));
+                };
+                const bodyRms = chRms(0, outN) + 1e-12;
+                const joinLevel = Math.min(
+                    chRms(0, edgeW) / bodyRms,
+                    chRms(outN - edgeW, outN) / bodyRms,
+                );
+                // Free above 0.45 of the body level, which is comfortably clear
+                // of the 0.25 the seam test gates on; ramps in below that.
+                const holePenalty = joinLevel >= 0.45 ? 0 : 2 * (0.45 - joinLevel) / 0.45;
+                const quality = job.targetSec
+                    ? -postEncodeMetrics(out, outN, sr).score - holePenalty
+                    : ncc + 0.5 * seam.rmsContinuity
+                        - 0.05 * Math.min(Math.abs(seam.ratio - 1), 10);
+                if (!choice || quality > choice.quality) choice = { f, ncc, out, seam, quality };
+            }
         }
         if (!choice) throw new Error('no usable fade window for this file');
 
@@ -619,20 +904,34 @@ for (const job of jobs) {
         // it on the decoded file rather than trusting the pre-encode PCM.
         const N = baked[0].length;
         const wantRotate = job.rotate ?? (job.stream ? false : true);
-        let chosenRot = 0, post = null, tried = [];
+        let chosenRot = 0, post = null, postScore = Infinity, tried = [];
         if (write) {
             const cands = wantRotate ? [...bestRotations(baked, N, ROT_CANDIDATES), 0] : [0];
             for (const r of cands) {
                 encode(outPublicPath, rotate(baked, r, N), sr);
                 const { channels: back } = decode(outPublicPath);
                 if (back[0].length < N) { tried.push(`r=${r} SHORT(${back[0].length - N})`); continue; }
-                const m = postEncodeMetrics(back.map(ch => ch.subarray(0, N)), N, sr);
+                const sliced = back.map(ch => ch.subarray(0, N));
+                const m = postEncodeMetrics(sliced, N, sr);
+                // Rotation exists to park the loop's quietest point on index 0,
+                // where the decoder's first-frame error lives. Taken alone that
+                // is a step/click optimisation that will happily choose a JOIN
+                // IN A LULL, because two matched near-silences have no step and
+                // no slope break - and the listener then hears the bed duck once
+                // per cycle. whale-sounds did exactly this: rotation scored a
+                // flawless stepRms 0.10 / clickZ 0.0 while dropping the level at
+                // the join to 8% of the track's own body. The level at the join
+                // is therefore priced alongside the step, the same way it is
+                // when the window itself is chosen.
+                const score = m.score + rotationHolePenalty(sliced, N, sr);
                 tried.push(`r=${r}:${m.stepRms.toFixed(1)}/${m.clickZ.toFixed(1)}`);
-                if (!post || m.score < post.score) { post = m; chosenRot = r; }
-                // Stop early only on a COMFORTABLE pass on BOTH axes. Stopping
-                // at the gate itself leaves marginal files (soft-atmospheric-piano
-                // landed at 3.68 that way) untried against the other quiet spots.
-                if (post.score <= 1 / 3) break;
+                if (!post || score < postScore) { post = m; postScore = score; chosenRot = r; }
+                // Stop early only on a COMFORTABLE pass on BOTH axes AND with no
+                // level hole. Stopping at the gate itself leaves marginal
+                // files untried against the other quiet spots, which is how a
+                // track lands just over the line at 3.68 when a better rotation
+                // was available a few candidates later.
+                if (postScore <= 1 / 3) break;
             }
             // Re-encode the winner if the last thing we wrote was not it.
             if (tried.length && chosenRot !== undefined) encode(outPublicPath, rotate(baked, chosenRot, N), sr);

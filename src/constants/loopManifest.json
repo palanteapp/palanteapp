@@ -14,7 +14,8 @@
             "out": "sounds/waterfall.m4a",
             "fade": 2,
             "kind": "texture",
-            "loopSeconds": 33.010042
+            "loopSeconds": 23.714417,
+            "targetSec": 30
         },
         {
             "id": "flowing-river",
@@ -22,7 +23,8 @@
             "out": "sounds/flowing-river.m4a",
             "fade": 2,
             "kind": "texture",
-            "loopSeconds": 60.069252
+            "loopSeconds": 26.364921,
+            "targetSec": 30
         },
         {
             "id": "calm-wind",
@@ -38,7 +40,8 @@
             "out": "sounds/forest.m4a",
             "fade": 2.5,
             "kind": "texture",
-            "loopSeconds": 191.13425
+            "loopSeconds": 29.079458,
+            "targetSec": 30
         },
         {
             "id": "camp-fire",
@@ -54,7 +57,8 @@
             "out": "Autumn Wind.m4a",
             "fade": 2.5,
             "kind": "texture",
-            "loopSeconds": 217.450667
+            "loopSeconds": 22.457625,
+            "targetSec": 30
         },
         {
             "id": "distant-rain-and-thunder",
@@ -62,7 +66,8 @@
             "out": "sounds/distant-rain-and-thunder.m4a",
             "fade": 3,
             "kind": "texture",
-            "loopSeconds": 150.624104
+            "loopSeconds": 27.226077,
+            "targetSec": 30
         },
         {
             "id": "ocean-waves",
@@ -134,7 +139,8 @@
             "out": "sounds/busy-cafe-2.m4a",
             "fade": 2.5,
             "kind": "texture",
-            "loopSeconds": 57.524875
+            "loopSeconds": 34.860167,
+            "targetSec": 45
         },
         {
             "id": "busy-cafe-4",
@@ -142,7 +148,8 @@
             "out": "busy-cafe-4.m4a",
             "fade": 2.5,
             "kind": "texture",
-            "loopSeconds": 56.313625
+            "loopSeconds": 43.577375,
+            "targetSec": 45
         },
         {
             "id": "kalimba-africa",
@@ -158,15 +165,8 @@
             "out": "sounds/1970-pr.m4a",
             "fade": 2,
             "kind": "texture",
-            "loopSeconds": 72.561746
-        },
-        {
-            "id": "colombia-eas",
-            "src": "colombia-eas.mp3",
-            "out": "colombia-eas.m4a",
-            "fade": 1.5,
-            "kind": "periodic",
-            "loopSeconds": 12.16
+            "loopSeconds": 36.537823,
+            "targetSec": 45
         },
         {
             "id": "zen-out",
@@ -183,14 +183,6 @@
             "fade": 2.5,
             "kind": "periodic",
             "loopSeconds": 58.822517
-        },
-        {
-            "id": "set-adrift",
-            "src": "sounds/set-adrift.mp3",
-            "out": "sounds/set-adrift.m4a",
-            "fade": 3,
-            "kind": "periodic",
-            "loopSeconds": 149.678821
         },
         {
             "id": "chillax-uno",
@@ -230,16 +222,8 @@
             "out": "sounds/box-fan.m4a",
             "fade": 4,
             "kind": "texture",
-            "loopSeconds": 53.887646
-        },
-        {
-            "id": "evolving-deep-sleep-drone",
-            "src": "sounds/evolving-deep-sleep-drone.mp3",
-            "raw": "evolving-deep-sleep-drone-loop.wav",
-            "out": "sounds/evolving-deep-sleep-drone.m4a",
-            "fade": 1.5,
-            "kind": "texture",
-            "loopSeconds": 37.500875
+            "loopSeconds": 20.703813,
+            "targetSec": 30
         },
         {
             "id": "heartbeat",
@@ -256,14 +240,6 @@
             "fade": 4,
             "kind": "periodic",
             "loopSeconds": 48.283375
-        },
-        {
-            "id": "soft-atmospheric-piano",
-            "src": "sounds/soft-atmospheric-piano.mp3",
-            "out": "sounds/soft-atmospheric-piano.m4a",
-            "fade": 1.5,
-            "kind": "periodic",
-            "loopSeconds": 10.412086
         }
     ],
     "longform": [
@@ -276,8 +252,9 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true,
-            "loopSeconds": 502.400023
+            "loopSeconds": 38.4,
+            "targetSec": 45,
+            "panPeriodSec": 19.2
         },
         {
             "id": "bilateral-replenished",
@@ -288,8 +265,9 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true,
-            "loopSeconds": 584.686054
+            "loopSeconds": 75,
+            "targetSec": 45,
+            "panPeriodSec": 37.5
         },
         {
             "id": "bilateral-tranquility",
@@ -300,8 +278,9 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true,
-            "loopSeconds": 605.169297
+            "loopSeconds": 105.2,
+            "targetSec": 45,
+            "panPeriodSec": 52.6
         },
         {
             "id": "bilateral-tune-up",
@@ -312,8 +291,9 @@
             "stereo": true,
             "minFrac": 0.9,
             "searchSec": 14,
-            "stream": true,
-            "loopSeconds": 593.441066
+            "loopSeconds": 41.5,
+            "targetSec": 45,
+            "panPeriodSec": 4.15
         },
         {
             "id": "om-gum-shreem",
@@ -323,8 +303,8 @@
             "kind": "periodic",
             "minFrac": 0.85,
             "searchSec": 16,
-            "stream": true,
-            "loopSeconds": 1071.983515
+            "loopSeconds": 77.542177,
+            "targetSec": 75
         },
         {
             "id": "chillax-quatro",
@@ -334,8 +314,8 @@
             "kind": "periodic",
             "minFrac": 0.85,
             "searchSec": 16,
-            "stream": true,
-            "loopSeconds": 1077.102542
+            "loopSeconds": 56.999583,
+            "targetSec": 75
         },
         {
             "id": "busy-cafe-3",
@@ -345,20 +325,8 @@
             "kind": "texture",
             "minFrac": 0.85,
             "searchSec": 12,
-            "stream": true,
-            "loopSeconds": 376.034458
-        },
-        {
-            "id": "whale-sounds",
-            "src": "sounds/whale-sounds.wav",
-            "out": "sounds/whale-sounds.m4a",
-            "fade": 4,
-            "kind": "periodic",
-            "minFrac": 0.85,
-            "searchSec": 16,
-            "rate": 24000,
-            "stream": true,
-            "loopSeconds": 525.03575
+            "loopSeconds": 41.100208,
+            "targetSec": 45
         },
         {
             "id": "gentle-rain-for-relaxation",
@@ -368,8 +336,8 @@
             "kind": "texture",
             "minFrac": 0.85,
             "searchSec": 12,
-            "stream": true,
-            "loopSeconds": 523.716104
+            "loopSeconds": 34.076521,
+            "targetSec": 30
         }
     ]
 }

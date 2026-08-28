@@ -24,7 +24,6 @@ export const SOUND_SOURCES: Record<string, string> = {
     autumn: '/Autumn%20Wind.m4a',
     birds: '/sounds/birdsong.m4a',
     fire: '/sounds/camp-fire.m4a',
-    whale: '/sounds/whale-sounds.m4a',
     // Ambient
     cafe1: '/sounds/busy-cafe-1.m4a',
     cafe2: '/sounds/busy-cafe-2.m4a',
@@ -34,11 +33,9 @@ export const SOUND_SOURCES: Record<string, string> = {
     coqui: '/sounds/boriquen-coqui.m4a',
     '1970': '/sounds/1970-pr.m4a',
     kalimba: '/sounds/kalimba-africa.m4a',
-    colombia: '/colombia-eas.m4a',
     omgum: '/sounds/om-gum-shreem-maha-lakshmiyei-namaha.m4a',
     // Zen
     zen: '/sounds/zen-out.m4a',
-    adrift: '/sounds/set-adrift.m4a',
     gong: '/sounds/gong-sfx.m4a',
     chill1: '/sounds/chillax-uno.m4a',
     chill2: '/sounds/chillax-dos.m4a',

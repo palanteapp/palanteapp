@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target, Heart, Bug, Cat, Play, Trash2, LayoutGrid } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import type { PluginListenerHandle } from '@capacitor/core';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 import { haptics } from '../utils/haptics';
 import { SYNTH_SOUNDS, SynthVoice, getSynthLoopBlobUrl } from '../utils/synthSounds';
 import { getAudioContext, getMasterLimiter } from '../utils/audioGraph';
+import { startAudioWatchdog } from '../utils/audioWatchdog';
 import { startLoop, acquireFileLoopBlob, releaseFileLoopBlob, type LoopHandle } from '../utils/loopEngine';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { SlideUpModal } from './SlideUpModal';
 import { PageHeader } from './PageHeader';
+import { AudioCapturePanel } from './AudioCapturePanel';
 
 interface SoundMixerProps {
     isDarkMode: boolean; // Kept for interface compatibility
@@ -49,7 +52,6 @@ const SOUNDS: SoundTrack[] = [
     { id: 'autumn', label: 'Autumn Wind', category: 'Nature', src: '/Autumn%20Wind.m4a', icon: Wind },
     { id: 'birds', label: 'Birdsong', category: 'Nature', src: '/sounds/birdsong.m4a', icon: Bird },
     { id: 'fire', label: 'Camp Fire', category: 'Nature', src: '/sounds/camp-fire.m4a', icon: Zap },
-    { id: 'whale', label: 'Whale Sounds', category: 'Nature', src: '/sounds/whale-sounds.m4a', icon: Waves },
     { id: 'cat-purring', label: 'Cat Purring', category: 'Nature', src: '/sounds/cat-purring.m4a', icon: Cat },
 
     // Ambient
@@ -63,7 +65,6 @@ const SOUNDS: SoundTrack[] = [
     { id: 'singing-bowl', label: 'Singing Bowl', category: 'Heritage', src: '/sounds/singing-bowl.m4a', icon: Music },
     { id: '1970', label: '1970 PR', category: 'Heritage', src: '/sounds/1970-pr.m4a', icon: Radio },
     { id: 'kalimba', label: 'Kalimba Africa', category: 'Heritage', src: '/sounds/kalimba-africa.m4a', icon: Music },
-    { id: 'colombia', label: 'Colombia EAS', category: 'Heritage', src: '/colombia-eas.m4a', icon: Music },
     { id: 'omgum', label: 'Om Gum Shreem Chant', category: 'Heritage', src: '/sounds/om-gum-shreem-maha-lakshmiyei-namaha.m4a', icon: Sun },
 
     // Focus
@@ -80,7 +81,6 @@ const SOUNDS: SoundTrack[] = [
 
     // Zen
     { id: 'zen', label: 'Zen Out', category: 'Zen', src: '/sounds/zen-out.m4a', icon: Music },
-    { id: 'adrift', label: 'Set Adrift', category: 'Zen', src: '/sounds/set-adrift.m4a', icon: Waves },
     { id: 'gong', label: 'Gong Bath', category: 'Zen', src: '/sounds/gong-sfx.m4a', icon: Moon },
     { id: 'chill1', label: 'Chill Uno', category: 'Zen', src: '/sounds/chillax-uno.m4a', icon: Music },
     { id: 'chill2', label: 'Chill Dos', category: 'Zen', src: '/sounds/chillax-dos.m4a', icon: Music },
@@ -96,11 +96,9 @@ const SOUNDS: SoundTrack[] = [
 
     // Sleep
     { id: 'box-fan', label: 'Box Fan', category: 'Sleep', src: '/sounds/box-fan.m4a', icon: Wind },
-    { id: 'sleep-drone', label: 'Sleepy Time Tea', category: 'Sleep', src: '/sounds/evolving-deep-sleep-drone.m4a', icon: Moon },
     { id: 'sleep-rain', label: 'Rainfall for Sleep', category: 'Sleep', src: '/sounds/gentle-rain-for-relaxation.m4a', icon: Droplets },
     { id: 'heartbeat', label: 'Heartbeat', category: 'Sleep', src: '/sounds/heartbeat.m4a', icon: Heart },
     { id: 'night-crickets', label: 'Night Crickets', category: 'Sleep', src: '/sounds/night-crickets.m4a', icon: Bug },
-    { id: 'sleep-piano', label: 'Soft Atmospheric Piano', category: 'Sleep', src: '/sounds/soft-atmospheric-piano.m4a', icon: Music },
 ];
 
 const RECIPES = [
@@ -157,7 +155,7 @@ const MEDITATION_PRESETS: Record<string, { volumes: Record<string, number> }> = 
     // Zen category sounds
     'zen': { volumes: { 'zen': 0.5 } },
     'zenout': { volumes: { 'zen': 0.5 } },
-    'adrift': { volumes: { 'adrift': 0.5 } },
+    'shoreline': { volumes: { 'shoreline': 0.5 } },
     'chill1': { volumes: { 'chill1': 0.5 } },
     'chill2': { volumes: { 'chill2': 0.5 } },
     // Bilateral sounds
@@ -287,6 +285,26 @@ class MixerSound {
         this.isPlaying = false;
         this.synthSound?.stop(getAudioContext());
         this.fileLoop?.stop();
+    }
+
+    /**
+     * Rebuild this voice from scratch at its current volume.
+     *
+     * Used after an audio-session interruption or a media-services reset, where
+     * every node created before the event is dead even though the objects
+     * holding them still look healthy. Deliberately a full teardown and replay
+     * rather than a resume: a half-dead graph that reports itself as running is
+     * exactly the state that produced silence nobody could account for.
+     */
+    async recover() {
+        if (!this.isPlaying) return;
+        const vol = this.volume;
+        try { this.synthSound?.stop(getAudioContext()); } catch { /* already dead */ }
+        try { this.fileLoop?.stop(); } catch { /* already dead */ }
+        this.synthSound = null;
+        this.fileLoop = null;
+        this.mode = 'undecided';
+        await this.play(vol);
     }
 
     setVolume(vol?: number, instant: boolean = false) {
@@ -449,6 +467,29 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
     const [view, setView] = useState<'mixer' | 'library'>('mixer');
     const [scrollTarget, setScrollTarget] = useState<string | null>(null);
 
+    // ── Hidden debug affordance: "the ears" ──────────────────────────────────
+    // A 1.5s press on the Soundscapes title opens AudioCapturePanel, which
+    // records the live master bus for analysis (src/utils/audioCapture.ts,
+    // scripts/README-ears.md). There is no other way in and nothing visible
+    // until it opens, because the artefacts it produces are only meaningful to
+    // whoever is about to run the analysis script on them. It has to exist in
+    // release builds rather than behind import.meta.env.DEV: the dropout it
+    // measures only reproduces on a real device over real minutes.
+    const [showEars, setShowEars] = useState(false);
+    const earsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const cancelEarsPress = useCallback(() => {
+        if (earsTimer.current) { clearTimeout(earsTimer.current); earsTimer.current = null; }
+    }, []);
+    const beginEarsPress = useCallback(() => {
+        cancelEarsPress();
+        earsTimer.current = setTimeout(() => {
+            earsTimer.current = null;
+            haptics.heavy();
+            setShowEars(true);
+        }, 1500);
+    }, [cancelEarsPress]);
+    useEffect(() => cancelEarsPress, [cancelEarsPress]);
+
     // Wake Lock + Background Audio
     useEffect(() => {
         const isPlaying = activeSounds.size > 0;
@@ -499,6 +540,51 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
         };
         document.addEventListener('visibilitychange', handleVisibility);
         return () => document.removeEventListener('visibilitychange', handleVisibility);
+    }, []);
+
+    // ── Interruption recovery ────────────────────────────────────────────────
+    // iOS deactivates the audio session for ANY interruption (a notification
+    // that plays a sound, Siri, a call, an alarm, another app taking audio) and
+    // does not bring playback back on its own. Nothing in the app observed that
+    // until now, which is why a dropout showed up on every sound whichever loop
+    // path it used, with no relation to its loop length. The native side
+    // reactivates the session and reports here; the web graph still has to
+    // restart itself.
+    useEffect(() => {
+        let handle: PluginListenerHandle | null = null;
+        let cancelled = false;
+
+        const rebuildAll = () => {
+            Object.entries(audioRefs.current).forEach(([id, sound]) => {
+                if (activeSoundsRef.current.has(id)) void sound.recover();
+            });
+        };
+
+        PalanteAudioBridge.addListener('audioInterruption', (event) => {
+            if (event.state === 'began') return; // playback is already stopped
+            // A media-services reset invalidates every node built before it, so
+            // resuming the context is not enough - the voices must be rebuilt.
+            if (event.state === 'mediaServicesReset') {
+                rebuildAll();
+                return;
+            }
+            void getAudioContext()?.resume().catch(() => {});
+        }).then(h => {
+            if (cancelled) void h.remove();
+            else handle = h;
+        }).catch(() => {});
+
+        // Records what the audio graph is doing; deliberately cannot act on it.
+        // See audioWatchdog.ts for why it is an observer and not a backstop.
+        const stopWatchdog = startAudioWatchdog({
+            isExpectingAudio: () => activeSoundsRef.current.size > 0,
+        });
+
+        return () => {
+            cancelled = true;
+            void handle?.remove();
+            stopWatchdog();
+        };
     }, []);
 
     // Initialize Audio Refs lazily
@@ -759,6 +845,21 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                 <div className="flex items-center justify-between w-full md:w-auto">
                     {/* Shared PageHeader pattern (see PageHeader.tsx) — this screen's
                         title/eyebrow treatment is the one the component standardized on. */}
+                    {/* The wrapper, not PageHeader itself, carries the long-press:
+                        the gesture is this screen's private debug affordance and
+                        must not travel to every screen that uses the shared header.
+                        select-none plus touch-callout-none stop iOS answering the
+                        press with a text-selection loupe instead. */}
+                    <div
+                        onTouchStart={beginEarsPress}
+                        onTouchEnd={cancelEarsPress}
+                        onTouchMove={cancelEarsPress}
+                        onTouchCancel={cancelEarsPress}
+                        onMouseDown={beginEarsPress}
+                        onMouseUp={cancelEarsPress}
+                        onMouseLeave={cancelEarsPress}
+                        className="select-none [-webkit-touch-callout:none]"
+                    >
                     <PageHeader
                         variant="panel"
                         className="relative"
@@ -776,6 +877,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                             </>
                         }
                     />
+                    </div>
 
                     {/* Help moved out of its own stacked row and in beside Close: on a phone
                         that row cost ~40pt of the little vertical space this panel has, and
@@ -1254,6 +1356,20 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                         </button>
                     </div>
                 </SlideUpModal>
+
+                {/* Renders nothing at all until the long-press on the title opens it. */}
+                <AudioCapturePanel
+                    open={showEars}
+                    onClose={() => setShowEars(false)}
+                    // src as well as id: loopManifest.json is keyed by file stem
+                    // ('gentle-rain'), the mixer by its own short id ('rain'), and
+                    // without the path the analysis cannot tell whether the loop it
+                    // matched on period was even playing.
+                    describeActive={() => [...activeSoundsRef.current].map(id => ({
+                        id,
+                        src: SOUNDS.find(s => s.id === id)?.src ?? null,
+                    }))}
+                />
             </div>
             </div>
         );

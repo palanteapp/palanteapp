@@ -73,10 +73,12 @@
 // runtime cannot fix; trailing silence means loopSeconds is still long and the
 // wrap is landing inside encoder padding.
 
-import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// Decode + statistics live in scripts/lib/audio-dsp.mjs so this script and
+// scripts/analyze-capture.mjs measure with literally the same code.
+import { decode, lsd, pct, rms, mixMono, FFT_N } from './lib/audio-dsp.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -109,88 +111,6 @@ const onlyIds = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && argv[i -
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
 const entries = [...manifest.baked.map(e => ({ ...e, group: 'baked' })),
                  ...manifest.longform.map(e => ({ ...e, group: 'longform' }))];
-
-// ── decode ──────────────────────────────────────────────────────────────────
-function probe(file) {
-    const out = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'a:0', '-show_entries',
-        'stream=sample_rate,channels', '-of', 'csv=p=0', file]).toString().trim().split(',');
-    return { sr: parseInt(out[0], 10), ch: parseInt(out[1], 10) };
-}
-
-function decode(file) {
-    const { sr, ch } = probe(file);
-    const buf = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-f', 'f32le',
-        '-acodec', 'pcm_f32le', 'pipe:1'], { maxBuffer: 1 << 30 });
-    const inter = new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
-    const n = Math.floor(inter.length / ch);
-    const channels = [];
-    for (let c = 0; c < ch; c++) {
-        const a = new Float32Array(n);
-        for (let i = 0; i < n; i++) a[i] = inter[i * ch + c];
-        channels.push(a);
-    }
-    return { channels, sr, n };
-}
-
-// ── tiny radix-2 FFT (magnitude only) ───────────────────────────────────────
-function magSpectrum(x) {
-    const N = x.length;                    // power of two
-    const re = Float64Array.from(x), im = new Float64Array(N);
-    for (let i = 1, j = 0; i < N; i++) {   // bit reversal
-        let bit = N >> 1;
-        for (; j & bit; bit >>= 1) j ^= bit;
-        j ^= bit;
-        if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
-    }
-    for (let len = 2; len <= N; len <<= 1) {
-        const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
-        for (let i = 0; i < N; i += len) {
-            let cr = 1, ci = 0;
-            for (let k = 0; k < len / 2; k++) {
-                const ur = re[i + k], ui = im[i + k];
-                const vr = re[i + k + len / 2] * cr - im[i + k + len / 2] * ci;
-                const vi = re[i + k + len / 2] * ci + im[i + k + len / 2] * cr;
-                re[i + k] = ur + vr; im[i + k] = ui + vi;
-                re[i + k + len / 2] = ur - vr; im[i + k + len / 2] = ui - vi;
-                const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
-            }
-        }
-    }
-    const half = N >> 1, mag = new Float64Array(half);
-    for (let i = 0; i < half; i++) mag[i] = Math.hypot(re[i], im[i]);
-    return mag;
-}
-
-const FFT_N = 512;
-const HANN = Float64Array.from({ length: FFT_N }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / FFT_N));
-
-// Log-spectral distance in dB RMS between two equal-length frames.
-function lsd(a, b) {
-    const wa = new Float64Array(FFT_N), wb = new Float64Array(FFT_N);
-    for (let i = 0; i < FFT_N; i++) { wa[i] = a[i] * HANN[i]; wb[i] = b[i] * HANN[i]; }
-    const A = magSpectrum(wa), B = magSpectrum(wb);
-    let s = 0;
-    for (let i = 1; i < A.length; i++) {
-        const d = 20 * Math.log10((A[i] + 1e-7) / (B[i] + 1e-7));
-        s += d * d;
-    }
-    return Math.sqrt(s / (A.length - 1));
-}
-
-// ── helpers ─────────────────────────────────────────────────────────────────
-const pct = (arr, p) => {
-    const a = Float64Array.from(arr).sort();
-    if (!a.length) return 0;
-    return a[Math.min(a.length - 1, Math.max(0, Math.floor(p * (a.length - 1))))];
-};
-const rms = (x, a, b) => { let s = 0; for (let i = a; i < b; i++) s += x[i] * x[i]; return Math.sqrt(s / Math.max(1, b - a)); };
-
-function mixMono(channels, n) {
-    if (channels.length === 1) return channels[0].subarray(0, n);
-    const m = new Float32Array(n);
-    for (let i = 0; i < n; i++) { let s = 0; for (const c of channels) s += c[i]; m[i] = s / channels.length; }
-    return m;
-}
 
 // Circular fetch across the wrap: index may be negative or >= n.
 const at = (x, i, n) => x[((i % n) + n) % n];
