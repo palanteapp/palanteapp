@@ -73,8 +73,6 @@ const SILENCE_RECOVER_MS = 2000;
  * thread delays the poll itself and shortens the apparent advance.
  */
 const MIN_CLOCK_RATIO = 0.25;
-/** Never rebuild more often than this, so a genuinely dead graph cannot spin. */
-const RECOVER_COOLDOWN_MS = 5000;
 
 const LOG_CAPACITY = 200;
 const log: AudioWatchdogEvent[] = [];
@@ -91,8 +89,6 @@ export function getAudioLog(): AudioWatchdogEvent[] {
 interface WatchdogOptions {
     /** True when at least one sound is supposed to be audible right now. */
     isExpectingAudio: () => boolean;
-    /** Rebuild every active voice. Called only for a confirmed fault. */
-    recover: () => void;
 }
 
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -101,8 +97,22 @@ let probe: Uint8Array | null = null;
 let lastCtxTime = 0;
 let lastWall = 0;
 let silentSince = 0;
-let lastRecoverAt = 0;
 let wasFaulted = false;
+/**
+ * Whether the analyser tap has EVER read signal in this session.
+ *
+ * This gate exists because the first version of this file shipped without it
+ * and broke every sound in the library. The tap reads correctly in Chromium and
+ * was never validated in WKWebView; if it reads zero there, "no signal" is
+ * indistinguishable from "the sensor does not work", and the watchdog concluded
+ * silence while audio was playing perfectly and restarted every voice on a
+ * five-second cooldown, forever.
+ *
+ * A sensor that has never once read a positive value is broken, not reporting
+ * silence. Until it proves itself by seeing audio at least once, nothing it
+ * says is allowed to cause a rebuild.
+ */
+let sawSignal = false;
 
 function attach(ctx: AudioContext): AnalyserNode {
     if (analyser) return analyser;
@@ -144,6 +154,7 @@ export function startAudioWatchdog(opts: WatchdogOptions): () => void {
     lastWall = performance.now();
     silentSince = 0;
     wasFaulted = false;
+    sawSignal = false;
 
     timer = setInterval(() => {
         const now = performance.now();
@@ -161,6 +172,7 @@ export function startAudioWatchdog(opts: WatchdogOptions): () => void {
 
         const peak = peakOf(node);
         if (peak >= SILENCE_PEAK) {
+            sawSignal = true;
             if (wasFaulted) {
                 record({ at: now, kind: 'recovered', silentMs: 0, ctxState: ctx.state, ctxAdvance, wallMs, peak });
                 wasFaulted = false;
@@ -173,11 +185,13 @@ export function startAudioWatchdog(opts: WatchdogOptions): () => void {
         const silentMs = now - silentSince;
 
         let kind: AudioStallKind | null = null;
+        // ctx.state comes from the engine itself, not from the tap, so it is
+        // trustworthy even when the analyser is not.
         if (ctx.state !== 'running') {
             kind = 'ctx-suspended';
-        } else if (wallMs > 0 && ctxAdvance < (wallMs / 1000) * MIN_CLOCK_RATIO) {
+        } else if (sawSignal && wallMs > 0 && ctxAdvance < (wallMs / 1000) * MIN_CLOCK_RATIO) {
             kind = 'ctx-stalled';
-        } else if (silentMs >= SILENCE_RECOVER_MS) {
+        } else if (sawSignal && silentMs >= SILENCE_RECOVER_MS) {
             kind = 'silence';
         }
 
@@ -186,13 +200,26 @@ export function startAudioWatchdog(opts: WatchdogOptions): () => void {
         record({ at: now, kind, silentMs, ctxState: ctx.state, ctxAdvance, wallMs, peak });
         wasFaulted = true;
 
-        if (now - lastRecoverAt < RECOVER_COOLDOWN_MS) return;
-        lastRecoverAt = now;
-        record({ at: now, kind: 'recovering', silentMs, ctxState: ctx.state, ctxAdvance, wallMs, peak });
-        // Resuming first is enough for a plain suspension and costs nothing
-        // when it is not; the rebuild covers the cases where it is not.
-        void ctx.resume().catch(() => {});
-        opts.recover();
+        // ── This watchdog does not touch playback. ───────────────────────────
+        // It used to rebuild every voice when it inferred a fault, and that
+        // shipped a regression far worse than the dropout it was meant to
+        // catch: the analyser tap reads correctly in Chromium and was never
+        // validated in WKWebView, so on device it could report silence while
+        // audio played perfectly, and every sound in the library restarted on a
+        // five-second cooldown.
+        //
+        // The lesson is not "gate the sensor better". It is that a diagnostic
+        // has no business being an actor, especially one inferring faults from a
+        // signal nobody has confirmed works on the platform that matters. The
+        // real dropout fix is PalanteAudioBridge.swift, which responds to actual
+        // AVAudioSession notifications from the OS rather than to a guess, and
+        // SoundMixer still rebuilds voices on a genuine mediaServicesReset.
+        //
+        // So this records and nothing else. Read it with window.__palanteAudioLog()
+        // or pair a capture with scripts/analyze-capture.mjs. Before ever giving
+        // it teeth again, prove with a device capture that `sawSignal` turns true
+        // in WKWebView during normal playback - if it never does, every silence
+        // reading here is meaningless.
         silentSince = 0;
     }, POLL_MS);
 

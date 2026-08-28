@@ -574,12 +574,10 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
             else handle = h;
         }).catch(() => {});
 
-        // Backstop for everything the notification does not cover: a context
-        // that comes back "running" but renders silence, and the memory-pressure
-        // stalls that appear as a mix grows.
+        // Records what the audio graph is doing; deliberately cannot act on it.
+        // See audioWatchdog.ts for why it is an observer and not a backstop.
         const stopWatchdog = startAudioWatchdog({
             isExpectingAudio: () => activeSoundsRef.current.size > 0,
-            recover: rebuildAll,
         });
 
         return () => {

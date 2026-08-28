@@ -180,26 +180,26 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
     const getColors = () => {
         switch (variant) {
             // DARK & RICH VARIANTS (No White)
-            case 'blackGold': return { body: '#111', accent: '#FFD700', pattern: 'grad' }; // Metallic Gold on Black
-            case 'blackRed': return { body: '#0F0F0F', accent: '#D50000', pattern: 'spots' }; // Showa Style
-            case 'midnightBlue': return { body: '#0D274D', accent: '#82B1FF', pattern: 'spots' }; // Deep Navy & Sky Blue
-            case 'jadeDragon': return { body: '#004D40', accent: '#69F0AE', pattern: 'striped' }; // Dark Green & Mint
-            case 'volcanic': return { body: '#212121', accent: '#FF3D00', pattern: 'striped' }; // Charcoal & Magma
-            case 'royalAmethyst': return { body: '#311B92', accent: '#E040FB', pattern: 'grad' }; // Deep Purple & Neon Pink
+            case 'blackGold': return { body: '#0A0A0A', accent: '#E6B800', pattern: 'grad' }; // Metallic Gold on Black
+            case 'blackRed': return { body: '#080808', accent: '#A80000', pattern: 'spots' }; // Showa Style
+            case 'midnightBlue': return { body: '#071630', accent: '#5C8FD6', pattern: 'spots' }; // Deep Navy & Sky Blue
+            case 'jadeDragon': return { body: '#002E26', accent: '#3FBF85', pattern: 'striped' }; // Dark Green & Mint
+            case 'volcanic': return { body: '#121212', accent: '#C22E00', pattern: 'striped' }; // Charcoal & Magma
+            case 'royalAmethyst': return { body: '#1C0F55', accent: '#A830BD', pattern: 'grad' }; // Deep Purple & Neon Pink
 
             // VIBRANT VARIANTS
-            case 'redOrange': return { body: '#DD2C00', accent: '#FFAB00', pattern: 'kohaku' }; // Deep Orange Base
-            case 'yellowOrange': return { body: '#FF6F00', accent: '#FFD600', pattern: 'grad' }; // Amber Base
-            case 'sunset': return { body: '#BF360C', accent: '#FF9E80', pattern: 'grad' }; // Burnt Sienna & Peach
-            case 'purpleGalaxy': return { body: '#1A237E', accent: '#00E5FF', pattern: 'spots' }; // Indigo & Cyan
+            case 'redOrange': return { body: '#8F1C00', accent: '#C28200', pattern: 'kohaku' }; // Deep Orange Base
+            case 'yellowOrange': return { body: '#A34700', accent: '#C2A300', pattern: 'grad' }; // Amber Base
+            case 'sunset': return { body: '#732008', accent: '#C2705C', pattern: 'grad' }; // Burnt Sienna & Peach
+            case 'purpleGalaxy': return { body: '#0E1247', accent: '#00A6BD', pattern: 'spots' }; // Indigo & Cyan
 
-            default: return { body: '#111', accent: '#D50000', pattern: 'spots' };
+            default: return { body: '#0A0A0A', accent: '#A80000', pattern: 'spots' };
         }
     };
     const { body, accent, pattern } = getColors();
 
     return (
-        <svg width="60" height="90" viewBox="0 0 60 90" className="overflow-visible opacity-90">
+        <svg width="60" height="90" viewBox="0 0 60 90" className="overflow-visible">
             <g transform="translate(30, 45)">
                 {/* Depth shadow, drawn as plain shapes rather than a CSS drop-shadow filter.
                     A `filter` on the wrapper forces WebKit to re-rasterize a blurred surface
@@ -210,17 +210,17 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
                 {/* Tail — rotation driven by the shared rAF clock via --koi-tail (see animate()).
                     Beat rate is tied to the fish's real speed, so the body and tail stay in phase. */}
                 <g style={{ transform: 'rotate(var(--koi-tail, 0deg))', transformOrigin: '0 25px' }}>
-                    <path d="M0,25 Q10,35 12,50 L0,45 L-12,50 Q-10,35 0,25" fill={body} opacity="0.9" />
+                    <path d="M0,25 Q10,35 12,50 L0,45 L-12,50 Q-10,35 0,25" fill={body} />
                 </g>
 
                 {/* Left Fin — same clock, counter-phase to the tail */}
                 <g style={{ transform: 'rotate(var(--koi-fin-l, 0deg))', transformOrigin: '-12px 5px' }}>
-                    <path d="M-12,0 Q-22,5 -25,15 Q-15,10 -12,5" fill={body} opacity="0.8" />
+                    <path d="M-12,0 Q-22,5 -25,15 Q-15,10 -12,5" fill={body} opacity="0.94" />
                 </g>
 
                 {/* Right Fin */}
                 <g style={{ transform: 'rotate(var(--koi-fin-r, 0deg))', transformOrigin: '12px 5px' }}>
-                    <path d="M12,0 Q22,5 25,15 Q15,10 12,5" fill={body} opacity="0.8" />
+                    <path d="M12,0 Q22,5 25,15 Q15,10 12,5" fill={body} opacity="0.94" />
                 </g>
 
                 {/* Body */}
