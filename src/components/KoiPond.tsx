@@ -151,6 +151,26 @@ interface Fish {
      *  than recomputed from absolute time * currentSpeed — see the comment at its call site for
      *  why that distinction matters. */
     tailPhase?: number;
+    /** Whether this fish was off-screen last frame — the edge that seeds a fresh
+     *  set of return-trip characteristics below, so it's re-rolled once per trip
+     *  rather than every frame (which would look jittery) or never (which is why
+     *  every return used to look identical). */
+    wasOffScreen?: boolean;
+    /** Per-trip return speed, turn rate, and wobble — randomized once when a fish
+     *  goes off-screen so consecutive trips don't all swim back the same way. */
+    offscreenSpeedMult?: number;
+    offscreenTurnRate?: number;
+    offscreenWobbleAmp?: number;
+    offscreenWobbleFreq?: number;
+    offscreenWobblePhase?: number;
+    /** Per-fish tail/fin sway rate and amplitude multipliers, rolled once at spawn,
+     *  so two fish moving at the same speed don't sway in lockstep with each other. */
+    swayRateMult?: number;
+    swayAmpMult?: number;
+    /** Brief, rare drift-to-stillness while cruising open water — reinforces
+     *  patience rather than the fish being perpetually mid-swim. */
+    isPausing?: boolean;
+    pauseTimer?: number;
 }
 
 interface FoodPellet {
@@ -175,7 +195,7 @@ interface Particle {
 
 
 
-const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant }) => {
+const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }> = React.memo(({ variant, shadowStrength = 1 }) => {
     // Colors based on variant
     const getColors = () => {
         switch (variant) {
@@ -211,9 +231,12 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
             <g transform="translate(30, 45)">
                 {/* Depth shadow, drawn as plain shapes rather than a CSS drop-shadow filter.
                     A `filter` on the wrapper forces WebKit to re-rasterize a blurred surface
-                    every single frame, because the tail/fin below animate continuously. */}
-                <ellipse cx="8" cy="13" rx="17" ry="37" fill="#000" opacity="0.10" />
-                <ellipse cx="7" cy="11" rx="14.5" ry="33" fill="#000" opacity="0.16" />
+                    every single frame, because the tail/fin below animate continuously.
+                    Lightened from the original 0.10/0.16, and scaled per-fish by
+                    `shadowStrength` (1 = the darkest, unchanged tier) so the pond doesn't
+                    read as one shape repeated — see the per-fish tier at the call site. */}
+                <ellipse cx="8" cy="13" rx="17" ry="37" fill="#000" opacity={0.06 * shadowStrength} />
+                <ellipse cx="7" cy="11" rx="14.5" ry="33" fill="#000" opacity={0.10 * shadowStrength} />
 
                 {/* Tail — rotation driven by the shared rAF clock via --koi-tail (see animate()).
                     Beat rate is tied to the fish's real speed, so the body and tail stay in phase. */}
@@ -333,6 +356,10 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant'] }> = React.memo(({ variant
 
 
 const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
+
+/** Cycled by fish id so shadows read as varied depth in the water rather than one
+ *  shape stamped under every fish. 1 = the darkest tier (see KoiFishSVG's base opacities). */
+const SHADOW_TIERS = [1, 0.7, 0.5, 0.35];
 
 /** Caustics are soft, slow-moving blobs, so they are rendered into a half-resolution backing
  *  store and upscaled by the compositor. Quartering the pixel count is invisible here. */
@@ -689,20 +716,30 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             // Point towards center
             const angleToCenter = Math.atan2((window.innerHeight / 2) - startY, (window.innerWidth / 2) - startX);
 
+            // SCALE: Reduced by 15% (Range ~1.28 - 2.3)
+            const scale = 1.275 + Math.random() * 1.02;
+            // Bigger fish move slower and heavier, smaller ones a touch quicker — the way
+            // real koi scale with size — with jitter so it's a correlation, not a lookup
+            // table. scaleT 0 = smallest fish in the range, 1 = biggest.
+            const scaleT = (scale - 1.275) / 1.02;
+            const speed = Math.max(0.55, (2.0 - scaleT * 1.2) + (Math.random() - 0.5) * 0.3);
+
             return {
                 id: i,
                 x: startX,
                 y: startY,
                 angle: angleToCenter,
                 targetAngle: angleToCenter,
-                // SPEED: Reduced by another ~20% (Range 0.8 - 2.0)
-                speed: 0.8 + Math.random() * 1.2,
+                speed,
                 variant: variant,
-                // SCALE: Reduced by 15% (Range ~1.28 - 2.3)
-                scale: 1.275 + Math.random() * 1.02,
+                scale,
                 spawnTime: i * 2000, // Stagger 2s
                 isActive: false,
                 tailPhase: i * 1.7, // per-fish offset so they don't sway in lockstep
+                // Sway rate/amplitude rolled once per fish so two fish moving at the same
+                // speed don't undulate in lockstep with each other.
+                swayRateMult: 0.85 + Math.random() * 0.3,
+                swayAmpMult: 0.85 + Math.random() * 0.3,
             };
         });
 
@@ -751,14 +788,28 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 let { x, y, angle, targetAngle } = f;
                 const speed = f.speed;
 
-                // Vary speed by position: slow in open water, faster near edges, fastest offscreen
+                // Vary speed by position: slow in open water, a little quicker near edges,
+                // calmly quicker still offscreen — everything here reads as unhurried now,
+                // where it used to ramp up to 2x and swim back "briskly".
                 const { width, height } = windowSizeRef.current;
                 const distFromEdge = Math.min(x, width - x, y, height - y);
+                const offScreenNow = distFromEdge < 0;
+                if (offScreenNow && !f.wasOffScreen) {
+                    // Fresh trip off-screen — roll new return characteristics so this
+                    // swim-back doesn't look identical to the last one.
+                    f.offscreenSpeedMult = 1.15 + Math.random() * 0.3; // 1.15–1.45, was a flat 2.0
+                    f.offscreenTurnRate = 0.022 + Math.random() * 0.014; // 0.022–0.036, was a flat 0.05
+                    f.offscreenWobbleAmp = 0.3 + Math.random() * 0.35;
+                    f.offscreenWobbleFreq = 0.0006 + Math.random() * 0.0006;
+                    f.offscreenWobblePhase = Math.random() * Math.PI * 2;
+                }
+                f.wasOffScreen = offScreenNow;
+
                 let speedMultiplier: number;
-                if (distFromEdge < 0) {
-                    speedMultiplier = 2.0; // offscreen, swim back in briskly
+                if (offScreenNow) {
+                    speedMultiplier = f.offscreenSpeedMult ?? 1.3;
                 } else if (distFromEdge < 100) {
-                    speedMultiplier = 1.0 + (1 - distFromEdge / 100) * 1.0; // ramp up near edge
+                    speedMultiplier = 1.0 + (1 - distFromEdge / 100) * 0.5; // gentler ramp, was up to 2x
                 } else {
                     speedMultiplier = 0.6; // open water, slow, meditative glide
                 }
@@ -840,16 +891,19 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
                             while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-                            // 1. Smooth Steering: Use a smaller factor (0.05 instead of 0.1) for graceful turns
-                            angle += angleDiff * 0.05 * dt;
+                            // 1. Smooth Steering: slower still than before (was 0.05) for an
+                            // unhurried, patient turn toward the food rather than a snap-to.
+                            angle += angleDiff * 0.028 * dt;
 
                             // 2. Gentle Approach: Slow down as we get closer (Tranquil, not rushed)
                             // Ease in speed from 100% at distance 150 to ~40% at distance 20
                             const approachFactor = Math.max(0.4, Math.min(1.0, dist / 150));
                             const finalMoveSpeed = moveSpeed * approachFactor;
 
-                            x += Math.cos(angle) * (finalMoveSpeed * 1.5); // Slightly faster approach for responsiveness
-                            y += Math.sin(angle) * (finalMoveSpeed * 1.5);
+                            // No speed boost on approach anymore — a fish hurrying toward food
+                            // fought the "ease, flow, patience" the pond is meant to feel like.
+                            x += Math.cos(angle) * finalMoveSpeed;
+                            y += Math.sin(angle) * finalMoveSpeed;
 
                             // "Eating" detection
                             if (dist < 15) {
@@ -867,8 +921,22 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             x += Math.cos(angle) * moveSpeed;
                             y += Math.sin(angle) * moveSpeed;
                         }
+                    } else if (f.isPausing) {
+                        // Mid-pause: a faint drift, not a hard stop — reads as the fish
+                        // holding still in the water rather than freezing.
+                        x += Math.cos(angle) * moveSpeed * 0.08;
+                        y += Math.sin(angle) * moveSpeed * 0.08;
+                        f.pauseTimer = (f.pauseTimer ?? 0) - dt;
+                        if (f.pauseTimer <= 0) f.isPausing = false;
                     } else {
-                        // Normal wandering
+                        // Normal wandering, with a rare, brief drift-to-stillness in open
+                        // water — reinforces patience rather than the fish being
+                        // perpetually mid-swim. Never triggers near an edge or while food
+                        // is being pursued (this branch only runs for neither).
+                        if (distFromEdge > 150 && Math.random() < 0.0006) {
+                            f.isPausing = true;
+                            f.pauseTimer = 90 + Math.random() * 120; // ~1.5-3.5s of held stillness
+                        }
                         x += Math.cos(angle) * moveSpeed;
                         y += Math.sin(angle) * moveSpeed;
                     }
@@ -893,11 +961,14 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     const centerX = width / 2;
                     const centerY = height / 2;
                     const angleToCenter = Math.atan2(centerY - y, centerX - x);
-                    targetAngle = angleToCenter + (Math.sin(time * 0.001 + f.id) * 0.5);
+                    // Wobble amplitude/frequency and turn rate are rolled fresh per trip above,
+                    // so the path back on-screen varies instead of retracing the same curve
+                    // every time — and the turn itself is slower (was a flat 0.05).
+                    targetAngle = angleToCenter + (Math.sin(time * (f.offscreenWobbleFreq ?? 0.0009) + (f.offscreenWobblePhase ?? f.id)) * (f.offscreenWobbleAmp ?? 0.45));
                     let angleDiff = targetAngle - angle;
                     while (angleDiff <= -Math.PI) angleDiff += Math.PI * 2;
                     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    angle += angleDiff * 0.05 * dt;
+                    angle += angleDiff * (f.offscreenTurnRate ?? 0.028) * dt;
                 }
 
                 // Update Data Object
@@ -934,13 +1005,17 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     // changing its speed of change. That's what read as flickering/snapping rather
                     // than swimming. Stepping the phase by a small increment each frame keeps it
                     // continuous no matter how often the rate changes.
-                    const angularStep = TAIL_BASE_OMEGA * (0.75 + speedMultiplier * 0.25) * dt * 16.6667;
+                    // swayRateMult/swayAmpMult are rolled once per fish at spawn, so two fish
+                    // moving at the same speed still don't sway in lockstep with each other.
+                    const swayRate = f.swayRateMult ?? 1;
+                    const swayAmp = f.swayAmpMult ?? 1;
+                    const angularStep = TAIL_BASE_OMEGA * (0.75 + speedMultiplier * 0.25) * swayRate * dt * 16.6667;
                     f.tailPhase = (f.tailPhase ?? 0) + angularStep;
                     const beat = f.tailPhase;
-                    el.style.setProperty('--koi-tail', `${Math.sin(beat) * 13}deg`);
+                    el.style.setProperty('--koi-tail', `${Math.sin(beat) * 13 * swayAmp}deg`);
                     // Pectoral fins paddle even slower than the tail, and slightly out of phase.
-                    el.style.setProperty('--koi-fin-l', `${16 + Math.sin(beat * 0.55) * 15}deg`);
-                    el.style.setProperty('--koi-fin-r', `${-16 - Math.sin(beat * 0.55 + 0.7) * 15}deg`);
+                    el.style.setProperty('--koi-fin-l', `${16 + Math.sin(beat * 0.55) * 15 * swayAmp}deg`);
+                    el.style.setProperty('--koi-fin-r', `${-16 - Math.sin(beat * 0.55 + 0.7) * 15 * swayAmp}deg`);
                 }
             });
 
@@ -1357,7 +1432,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     {/* Logo */}
                     {/* Logo */}
                     <div
-                        className="absolute w-[8vmin] h-[8vmin] opacity-25 z-10 text-pale-gold animate-pulse-slow"
+                        className="absolute w-[8vmin] h-[8vmin] opacity-10 z-10 text-pale-gold animate-pulse-slow"
                     >
                         <div className="w-full h-full bg-pale-gold" style={{ maskImage: `url(/logo-gold.png)`, WebkitMaskImage: `url(/logo-gold.png)`, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center' }} />
                     </div>
@@ -1423,7 +1498,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             willChange: 'transform',
                         }}
                     >
-                        <KoiFishSVG variant={f.variant} />
+                        <KoiFishSVG variant={f.variant} shadowStrength={SHADOW_TIERS[f.id % SHADOW_TIERS.length]} />
                     </div>
                 ))}
 
