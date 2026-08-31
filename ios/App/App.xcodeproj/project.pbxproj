@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
+		3FD21607DE2826BE1EABAB1A /* PalanteNativeLoopEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BDADB1076DB55A7BF80067F /* PalanteNativeLoopEngine.swift */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -19,12 +20,12 @@
 		FF3C670A2F929AA3002A3778 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FF3C67092F929AA3002A3778 /* SwiftUI.framework */; };
 		FF3C67152F929AA5002A3778 /* PalanteWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FF3C67062F929AA3002A3778 /* PalanteWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FF70E5AE2FCF1671009F6F4D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FF70E5AD2FCF1671009F6F4D /* PrivacyInfo.xcprivacy */; };
-		FFCAC31D2FAFAEE50004F113 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */; };
 		FFAB10022F0000000000A002 /* PalanteAudioBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */; };
 		FFAB10042F0000000000A004 /* PalanteWidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */; };
-		FFAB10072F0000000000A007 /* PalanteHealthBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */; };
 		FFAB10062F0000000000A006 /* bell.caf in Resources */ = {isa = PBXBuildFile; fileRef = FFAB10052F0000000000A005 /* bell.caf */; };
+		FFAB10072F0000000000A007 /* PalanteHealthBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */; };
 		FFAB10092F0000000000A009 /* PalanteAgeRangeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB100A2F0000000000A00A /* PalanteAgeRangeBridge.swift */; };
+		FFCAC31D2FAFAEE50004F113 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -61,6 +62,7 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		8BDADB1076DB55A7BF80067F /* PalanteNativeLoopEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PalanteNativeLoopEngine.swift; sourceTree = "<group>"; };
 		AF277DCFFFF123FFC6DF26C7 /* Pods_App.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_App.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.release.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig"; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-App.debug.xcconfig"; path = "Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"; sourceTree = "<group>"; };
@@ -70,16 +72,16 @@
 		FF3C671B2F929C05002A3778 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		FF3C671C2F934782002A3778 /* PalanteWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PalanteWidgetExtension.entitlements; sourceTree = "<group>"; };
 		FF70E5AD2FCF1671009F6F4D /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		FFAB10012F0000000000A001 /* PalanteAudioBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteAudioBridge.swift; sourceTree = "<group>"; };
 		FFAB10032F0000000000A003 /* PalanteWidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteWidgetBridge.swift; sourceTree = "<group>"; };
-		FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteHealthBridgePlugin.swift; sourceTree = "<group>"; };
 		FFAB10052F0000000000A005 /* bell.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = bell.caf; sourceTree = "<group>"; };
+		FFAB10082F0000000000A008 /* PalanteHealthBridgePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteHealthBridgePlugin.swift; sourceTree = "<group>"; };
 		FFAB100A2F0000000000A00A /* PalanteAgeRangeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PalanteAgeRangeBridge.swift; sourceTree = "<group>"; };
+		FFCAC31C2FAFAEE50004F113 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		FF3C67192F929AD6002A3778 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		FF3C67192F929AD6002A3778 /* Exceptions for "PalanteWidget" folder in "PalanteWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -89,7 +91,18 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		FF3C670B2F929AA3002A3778 /* PalanteWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (FF3C67192F929AD6002A3778 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PalanteWidget; sourceTree = "<group>"; };
+		FF3C670B2F929AA3002A3778 /* PalanteWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FF3C67192F929AD6002A3778 /* Exceptions for "PalanteWidget" folder in "PalanteWidgetExtension" target */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			path = PalanteWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -163,6 +176,7 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				8BDADB1076DB55A7BF80067F /* PalanteNativeLoopEngine.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -216,8 +230,6 @@
 				FF3C670B2F929AA3002A3778 /* PalanteWidget */,
 			);
 			name = PalanteWidgetExtension;
-			packageProductDependencies = (
-			);
 			productName = PalanteWidgetExtension;
 			productReference = FF3C67062F929AA3002A3778 /* PalanteWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -251,8 +263,6 @@
 				Base,
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
-			packageReferences = (
-			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -335,6 +345,7 @@
 				FFAB10042F0000000000A004 /* PalanteWidgetBridge.swift in Sources */,
 				FFAB10072F0000000000A007 /* PalanteHealthBridgePlugin.swift in Sources */,
 				FFAB10092F0000000000A009 /* PalanteAgeRangeBridge.swift in Sources */,
+				3FD21607DE2826BE1EABAB1A /* PalanteNativeLoopEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

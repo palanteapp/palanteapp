@@ -33,6 +33,15 @@ import AVFoundation
 /// Both are now handled: the session is configured once and only re-touched
 /// when the desired state actually changes, interruptions are observed and
 /// recovered from, and JS is told what happened so it can resume its own graph.
+///
+/// Even with both fixed, persistent ambient beds still play through Web Audio
+/// API inside WKWebView, which has its own documented history of silently
+/// stalling on iOS independent of anything this file or the JS loop engine
+/// does (WebKit bug 237878; multiple Apple Developer Forum reports of
+/// AudioContexts freezing after ~27s backgrounded and sometimes never
+/// resuming). `startNativeLoop`/`setNativeLoopVolume`/`stopNativeLoop` below
+/// route that playback through PalanteNativeLoopEngine's AVAudioEngine
+/// instead — a separate native audio unit not subject to that failure mode.
 @objc(PalanteAudioBridgePlugin)
 public class PalanteAudioBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "PalanteAudioBridgePlugin"
@@ -40,6 +49,10 @@ public class PalanteAudioBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "setPlaying", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "playBell", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startNativeLoop", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setNativeLoopVolume", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopNativeLoop", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopAllNativeLoops", returnType: CAPPluginReturnPromise),
     ]
 
     private var bgTask: UIBackgroundTaskIdentifier = .invalid
@@ -124,6 +137,7 @@ public class PalanteAudioBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             // user's expectation is that the bed comes back; `shouldResume` is
             // forwarded to JS so it can still distinguish the two cases.
             if wantsPlayback { activateSession() }
+            PalanteNativeLoopEngine.shared.handleSessionReactivated()
             emit("audioInterruption", ["state": "ended", "shouldResume": shouldResume])
 
         @unknown default:
@@ -146,6 +160,7 @@ public class PalanteAudioBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         sessionActive = false
         bellPlayer = nil
         if wantsPlayback { activateSession() }
+        PalanteNativeLoopEngine.shared.handleSessionReactivated()
         emit("audioInterruption", ["state": "mediaServicesReset", "shouldResume": true])
     }
 
@@ -220,5 +235,52 @@ public class PalanteAudioBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
             call.resolve()
         }
+    }
+
+    // MARK: - Native loop engine
+
+    /// Starts a persistent ambient loop through AVAudioEngine instead of the
+    /// web layer's Web Audio API — see PalanteNativeLoopEngine.swift for why.
+    @objc func startNativeLoop(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), let path = call.getString("path") else {
+            call.reject("id and path are required")
+            return
+        }
+        let loopSeconds = call.getDouble("loopSeconds")
+        let volume = Float(call.getDouble("volume") ?? 0.5)
+
+        DispatchQueue.main.async {
+            if !self.sessionActive { self.activateSession() }
+            do {
+                try PalanteNativeLoopEngine.shared.start(id: id, relativePath: path, loopSeconds: loopSeconds, volume: volume)
+                call.resolve()
+            } catch {
+                call.reject("startNativeLoop failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @objc func setNativeLoopVolume(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else {
+            call.reject("id is required")
+            return
+        }
+        let volume = Float(call.getDouble("volume") ?? 0.5)
+        PalanteNativeLoopEngine.shared.setVolume(id: id, volume: volume)
+        call.resolve()
+    }
+
+    @objc func stopNativeLoop(_ call: CAPPluginCall) {
+        guard let id = call.getString("id") else {
+            call.reject("id is required")
+            return
+        }
+        PalanteNativeLoopEngine.shared.stop(id: id)
+        call.resolve()
+    }
+
+    @objc func stopAllNativeLoops(_ call: CAPPluginCall) {
+        PalanteNativeLoopEngine.shared.stopAll()
+        call.resolve()
     }
 }

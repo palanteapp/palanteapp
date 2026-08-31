@@ -104,10 +104,12 @@
         {
             "id": "cat-purring",
             "src": "sounds/cat-purring.mp3",
+            "raw": "cat-purring-artlist.wav",
             "out": "sounds/cat-purring.m4a",
             "fade": 1,
             "kind": "periodic",
-            "loopSeconds": 10.854792
+            "targetSec": 30,
+            "loopSeconds": 26.155917
         },
         {
             "id": "boriquen-coqui",

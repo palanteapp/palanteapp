@@ -325,6 +325,12 @@ class MixerSound {
     enterBackground(vol: number) {
         this.leaveBackground();
         if (!this.isPlaying) return;
+        // The native AVAudioEngine path already keeps playing correctly through
+        // backgrounding on its own (the app's .playback session + background
+        // audio mode covers it) — unlike Web Audio, which this whole swap exists
+        // to work around. Also swapping in a BackgroundLoop element here would
+        // run a second, duplicate copy of the sound alongside the native one.
+        if (this.fileLoop?.mode === 'native') return;
         const clamped = Math.min(1, Math.max(0, vol));
 
         // Bail if we returned to the foreground or stopped while preparing.

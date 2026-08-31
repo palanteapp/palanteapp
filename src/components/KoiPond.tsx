@@ -195,28 +195,46 @@ interface Particle {
 
 
 
+/** Lightens a hex color by a flat per-channel amount, clamped to 0-255.
+ *  Used to derive each variant's dark ink-patch tone from its own body color,
+ *  so the hand-traced markings stay in that koi's color family instead of
+ *  reusing one fixed navy across every variant. */
+function lighten(hex: string, amount: number): string {
+    const num = parseInt(hex.slice(1), 16);
+    const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+    const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount));
+    const b = Math.min(255, Math.max(0, (num & 0xff) + amount));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+/** Pale off-white used for the highlight patch and spine lines on every koi —
+ *  real koi almost always carry some white, so this stays fixed across
+ *  variants while the dark/accent patches below are derived per-variant. */
+const KOI_PATCH_PALE = '#F4F1E8';
+
 const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }> = React.memo(({ variant, shadowStrength = 1 }) => {
     // Colors based on variant
     const getColors = () => {
         switch (variant) {
             // DARK & RICH VARIANTS (No White)
-            case 'blackGold': return { body: '#0A0A0A', accent: '#E6B800', pattern: 'grad' }; // Metallic Gold on Black
-            case 'blackRed': return { body: '#080808', accent: '#A80000', pattern: 'spots' }; // Showa Style
-            case 'midnightBlue': return { body: '#071630', accent: '#5C8FD6', pattern: 'spots' }; // Deep Navy & Sky Blue
-            case 'jadeDragon': return { body: '#002E26', accent: '#3FBF85', pattern: 'striped' }; // Dark Green & Mint
-            case 'volcanic': return { body: '#121212', accent: '#C22E00', pattern: 'striped' }; // Charcoal & Magma
-            case 'royalAmethyst': return { body: '#1C0F55', accent: '#A830BD', pattern: 'grad' }; // Deep Purple & Neon Pink
+            case 'blackGold': return { body: '#0A0A0A', accent: '#E6B800' }; // Metallic Gold on Black
+            case 'blackRed': return { body: '#080808', accent: '#A80000' }; // Showa Style
+            case 'midnightBlue': return { body: '#071630', accent: '#5C8FD6' }; // Deep Navy & Sky Blue
+            case 'jadeDragon': return { body: '#002E26', accent: '#3FBF85' }; // Dark Green & Mint
+            case 'volcanic': return { body: '#121212', accent: '#C22E00' }; // Charcoal & Magma
+            case 'royalAmethyst': return { body: '#1C0F55', accent: '#A830BD' }; // Deep Purple & Neon Pink
 
             // VIBRANT VARIANTS
-            case 'redOrange': return { body: '#8F1C00', accent: '#C28200', pattern: 'kohaku' }; // Deep Orange Base
-            case 'yellowOrange': return { body: '#A34700', accent: '#C2A300', pattern: 'grad' }; // Amber Base
-            case 'sunset': return { body: '#732008', accent: '#C2705C', pattern: 'grad' }; // Burnt Sienna & Peach
-            case 'purpleGalaxy': return { body: '#0E1247', accent: '#00A6BD', pattern: 'spots' }; // Indigo & Cyan
+            case 'redOrange': return { body: '#8F1C00', accent: '#C28200' }; // Deep Orange Base
+            case 'yellowOrange': return { body: '#A34700', accent: '#C2A300' }; // Amber Base
+            case 'sunset': return { body: '#732008', accent: '#C2705C' }; // Burnt Sienna & Peach
+            case 'purpleGalaxy': return { body: '#0E1247', accent: '#00A6BD' }; // Indigo & Cyan
 
-            default: return { body: '#0A0A0A', accent: '#A80000', pattern: 'spots' };
+            default: return { body: '#0A0A0A', accent: '#A80000' };
         }
     };
-    const { body, accent, pattern } = getColors();
+    const { body, accent } = getColors();
+    const patchDark = lighten(body, 40);
     const clipId = useId();
 
     return (
@@ -274,69 +292,32 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }
                 {/* Body */}
                 <ellipse cx="0" cy="0" rx="12" ry="30" fill={body} />
 
-                {/* Patterns */}
-                {pattern === 'kohaku' && (
-                    <g fill={accent} opacity="0.85">
-                        {/* Large head patch */}
-                        <path d="M-6,-25 Q0,-32 6,-25 Q8,-15 0,-12 Q-8,-15 -6,-25" />
-                        {/* Body patches - more organic */}
-                        <path d="M-8,0 Q0,-5 8,0 Q10,15 0,18 Q-10,15 -8,0" />
-                        <circle cx="0" cy="8" r="4" />
+                {/* Hand-traced markings — same reference-photo composition on every
+                    variant (a dominant dark shape interlocking with two accent patches
+                    down the spine, a small pale patch, and two small accent dots near
+                    the head), but recolored per-variant from that koi's own body/accent
+                    so the ten koi still read as distinct fish rather than one photo
+                    repainted onto every body color. Points were estimated by eye against
+                    the reference and run through a Catmull-Rom smoothing spline, then
+                    scaled up around each shape's own centroid (not the body's) so they
+                    cover more of the fish without the head patch shooting past the nose
+                    — see scripts/koi-handtrace.js. Clipped to the body ellipse so the
+                    now-larger shapes can never bleed past the silhouette edge. */}
+                <g clipPath={`url(#${clipId})`}>
+                    <path d="M2.40,-25.20 C4.03,-24.97 6.83,-21.47 8.00,-18.20 C9.17,-14.93 9.87,-9.57 9.40,-5.60 C8.93,-1.63 7.30,2.80 5.20,5.60 C3.10,8.40 -1.10,11.43 -3.20,11.20 C-5.30,10.97 -7.17,7.47 -7.40,4.20 C-7.63,0.93 -5.53,-4.43 -4.60,-8.40 C-3.67,-12.37 -2.97,-16.80 -1.80,-19.60 C-0.63,-22.40 0.77,-25.43 2.40,-25.20 Z" fill={patchDark} stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
+                    <path d="M-3.20,-28.01 C-1.90,-29.53 1.35,-30.18 3.30,-29.31 C5.25,-28.45 7.63,-25.41 8.50,-22.81 C9.37,-20.21 9.37,-16.10 8.50,-13.71 C7.63,-11.33 5.03,-8.73 3.30,-8.51 C1.57,-8.30 -0.60,-10.46 -1.90,-12.41 C-3.20,-14.36 -4.28,-17.61 -4.50,-20.21 C-4.72,-22.81 -4.50,-26.50 -3.20,-28.01 Z" fill={accent} stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
+                    <path d="M7.34,-4.83 C8.06,-2.90 10.24,2.18 10.24,5.32 C10.24,8.46 8.79,12.33 7.34,14.02 C5.89,15.71 2.99,16.44 1.54,15.47 C0.09,14.50 -1.36,11.12 -1.36,8.22 C-1.36,5.32 0.33,0.49 1.54,-1.93 C2.74,-4.35 4.92,-5.80 5.89,-6.28 C6.85,-6.76 6.61,-6.76 7.34,-4.83 Z" fill={accent} stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
+                    <path d="M1.50,5.33 C2.75,6.08 4.25,8.83 4.50,11.33 C4.75,13.83 4.00,18.58 3.00,20.33 C2.00,22.08 -0.25,22.83 -1.50,21.83 C-2.75,20.83 -4.25,16.83 -4.50,14.33 C-4.75,11.83 -4.00,8.33 -3.00,6.83 C-2.00,5.33 0.25,4.58 1.50,5.33 Z" fill={patchDark} stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
+                    <path d="M-6.50,-10.87 C-5.57,-12.50 -3.70,-15.07 -2.30,-15.07 C-0.90,-15.07 1.43,-12.73 1.90,-10.87 C2.37,-9.00 1.43,-5.50 0.50,-3.87 C-0.43,-2.23 -2.30,-0.83 -3.70,-1.07 C-5.10,-1.30 -7.43,-3.63 -7.90,-5.27 C-8.37,-6.90 -7.43,-9.23 -6.50,-10.87 Z" fill={KOI_PATCH_PALE} stroke="#000" strokeWidth="0.3" strokeOpacity="0.2" opacity="0.9" />
+                    <circle cx="2" cy="-28.5" r="2.2" fill={accent} opacity="0.92" />
+                    <circle cx="7.5" cy="-19" r="1.3" fill={patchDark} opacity="0.9" />
+                    {/* Spine lines — the pale centerline marking visible down a real
+                        koi's back, one long line plus a shorter one paralleling it */}
+                    <g stroke={KOI_PATCH_PALE} strokeWidth="0.4" strokeLinecap="round" fill="none" opacity="0.35">
+                        <path d="M1,-24 Q2,-14 0,-2 Q-1,6 1,14" />
+                        <path d="M2.5,-17 Q3,-10 1.5,-4" />
                     </g>
-                )}
-                {pattern === 'tancho' && (
-                    <circle cx="0" cy="-15" r="5" fill={accent} opacity="0.9" />
-                )}
-                {pattern === 'spots' && (
-                    <g fill={accent} opacity="0.8">
-                        <circle cx="-5" cy="-10" r="3" />
-                        <circle cx="6" cy="5" r="4" />
-                        <circle cx="-3" cy="18" r="2" />
-                    </g>
-                )}
-                {pattern === 'striped' && (
-                    <g stroke={accent} strokeWidth="3" opacity="0.8" strokeLinecap="round">
-                        <path d="M-6,-15 L6,-15" />
-                        <path d="M-9,0 L9,0" />
-                        <path d="M-7,15 L7,15" />
-                    </g>
-                )}
-                {pattern === 'grad' && (
-                    <g clipPath={`url(#${clipId})`}>
-                        {/* Traced from the reference photo's composition (not invented, not
-                            noise-jittered) — a dominant navy shape interlocking with two
-                            orange patches down the spine, a small pale patch, and two small
-                            accent dots near the head. Points were estimated by eye against
-                            the reference and run through a Catmull-Rom smoothing spline,
-                            then scaled up around each shape's own centroid (not the body's)
-                            so they cover more of the fish without the head patch shooting
-                            past the nose — see scripts/koi-handtrace.js. Colors are fixed
-                            across variants (not tied to the variant's accent) so every
-                            'grad' fish carries the same white/black/orange marking language
-                            as the source. Clipped to the body ellipse so the now-larger
-                            shapes can never bleed past the silhouette edge. */}
-                        <path d="M2.40,-25.20 C4.03,-24.97 6.83,-21.47 8.00,-18.20 C9.17,-14.93 9.87,-9.57 9.40,-5.60 C8.93,-1.63 7.30,2.80 5.20,5.60 C3.10,8.40 -1.10,11.43 -3.20,11.20 C-5.30,10.97 -7.17,7.47 -7.40,4.20 C-7.63,0.93 -5.53,-4.43 -4.60,-8.40 C-3.67,-12.37 -2.97,-16.80 -1.80,-19.60 C-0.63,-22.40 0.77,-25.43 2.40,-25.20 Z" fill="#1A2540" stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
-                        <path d="M-3.20,-28.01 C-1.90,-29.53 1.35,-30.18 3.30,-29.31 C5.25,-28.45 7.63,-25.41 8.50,-22.81 C9.37,-20.21 9.37,-16.10 8.50,-13.71 C7.63,-11.33 5.03,-8.73 3.30,-8.51 C1.57,-8.30 -0.60,-10.46 -1.90,-12.41 C-3.20,-14.36 -4.28,-17.61 -4.50,-20.21 C-4.72,-22.81 -4.50,-26.50 -3.20,-28.01 Z" fill="#FF5A2B" stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
-                        <path d="M7.34,-4.83 C8.06,-2.90 10.24,2.18 10.24,5.32 C10.24,8.46 8.79,12.33 7.34,14.02 C5.89,15.71 2.99,16.44 1.54,15.47 C0.09,14.50 -1.36,11.12 -1.36,8.22 C-1.36,5.32 0.33,0.49 1.54,-1.93 C2.74,-4.35 4.92,-5.80 5.89,-6.28 C6.85,-6.76 6.61,-6.76 7.34,-4.83 Z" fill="#FF5A2B" stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
-                        <path d="M1.50,5.33 C2.75,6.08 4.25,8.83 4.50,11.33 C4.75,13.83 4.00,18.58 3.00,20.33 C2.00,22.08 -0.25,22.83 -1.50,21.83 C-2.75,20.83 -4.25,16.83 -4.50,14.33 C-4.75,11.83 -4.00,8.33 -3.00,6.83 C-2.00,5.33 0.25,4.58 1.50,5.33 Z" fill="#1A2540" stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
-                        <path d="M-6.50,-10.87 C-5.57,-12.50 -3.70,-15.07 -2.30,-15.07 C-0.90,-15.07 1.43,-12.73 1.90,-10.87 C2.37,-9.00 1.43,-5.50 0.50,-3.87 C-0.43,-2.23 -2.30,-0.83 -3.70,-1.07 C-5.10,-1.30 -7.43,-3.63 -7.90,-5.27 C-8.37,-6.90 -7.43,-9.23 -6.50,-10.87 Z" fill="#F4F1E8" stroke="#000" strokeWidth="0.3" strokeOpacity="0.2" opacity="0.9" />
-                        <circle cx="2" cy="-28.5" r="2.2" fill="#FF5A2B" opacity="0.92" />
-                        <circle cx="7.5" cy="-19" r="1.3" fill="#1A2540" opacity="0.9" />
-                        {/* Spine lines — the pale centerline marking visible down a real
-                            koi's back, one long line plus a shorter one paralleling it */}
-                        <g stroke="#F4F1E8" strokeWidth="0.4" strokeLinecap="round" fill="none" opacity="0.35">
-                            <path d="M1,-24 Q2,-14 0,-2 Q-1,6 1,14" />
-                            <path d="M2.5,-17 Q3,-10 1.5,-4" />
-                        </g>
-                    </g>
-                )}
-                {pattern === 'tux' && (
-                    <g fill={accent} opacity="0.9">
-                        <path d="M-4,-28 L4,-28 L0,-15 Z" />
-                        <path d="M-2,20 L2,20 L0,30 Z" />
-                    </g>
-                )}
-
+                </g>
 
                 {/* Eyes — from directly above, a koi's eye reads as barely more than a
                     faint mark on the side of the head, not a drawn circle. Each stroke
