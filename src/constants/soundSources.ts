@@ -48,3 +48,52 @@ export const SOUND_SOURCES: Record<string, string> = {
     'bilateral-tranquility': '/sounds/bilateral-tranquility.m4a',
     'bilateral-tuneup': '/sounds/bilateral-tune-up.m4a',
 };
+
+// Display label per sound id, for showing a saved mix's contents (e.g. in the Koi
+// Pond sound picker) without importing SoundMixer's SOUNDS array. Covers both the
+// file-backed ids above AND the synth ids (noise/binaural) that SOUND_SOURCES
+// deliberately excludes, since a mix can contain either kind.
+//
+// KEEP IN SYNC with SOUNDS/SYNTH_SOUNDS labels in SoundMixer.tsx if they change.
+export const SOUND_LABELS: Record<string, string> = {
+    beach: 'Beach & Birds',
+    rain: 'Gentle Rain',
+    thunder: 'Distant Thunder',
+    river: 'Flowing River',
+    ocean: 'Ocean Waves',
+    shoreline: 'Shoreline',
+    waterfall: 'Waterfall',
+    wind: 'Calm Wind',
+    forest: 'Deep Forest',
+    autumn: 'Autumn Wind',
+    birds: 'Birdsong',
+    fire: 'Camp Fire',
+    cafe1: 'Busy Cafe 1',
+    cafe2: 'Busy Cafe 2',
+    cafe3: 'Busy Cafe 3',
+    cafe4: 'Busy Cafe 4',
+    coqui: 'Boriquen Coqui',
+    '1970': '1970 PR',
+    kalimba: 'Kalimba Africa',
+    omgum: 'Om Gum Shreem Chant',
+    zen: 'Zen Out',
+    gong: 'Gong Bath',
+    chill1: 'Chill Uno',
+    chill2: 'Chill Dos',
+    chill3: 'Chill Tres',
+    chill4: 'Chill Cuatro',
+    chill5: 'Chill Cinco',
+    'bilateral-eternal': 'Eternal Reflection',
+    'bilateral-replenished': 'Replenished',
+    'bilateral-tranquility': 'Tranquility',
+    'bilateral-tuneup': 'Tune Up',
+    // Synth (noise/binaural) — not in SOUND_SOURCES since they have no file.
+    white: 'White Noise',
+    brown: 'Brown Noise',
+    pink: 'Pink Noise',
+    violet: 'Violet Noise',
+    '40hz': 'Binaural Gamma 40Hz',
+    '528hz': 'Binaural 528Hz',
+    '8hz': 'Binaural Alpha 8Hz',
+    '4hz': 'Binaural Theta 4Hz',
+};

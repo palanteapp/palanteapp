@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { readJSON } from '../utils/safeStorage';
-import { Settings, X, Volume2, VolumeX, Eye, EyeOff, HelpCircle, Fish as FishIcon } from 'lucide-react';
+import { Settings, X, Volume2, VolumeX, Eye, EyeOff, HelpCircle, Fish as FishIcon, ChevronRight, Check } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { haptics } from '../utils/haptics';
 import { RippleLayer, type RippleLayerRef } from './RippleLayer';
 import { SlideUpModal } from './SlideUpModal';
 import { STORAGE_KEYS } from '../constants/storageKeys';
-import { SOUND_SOURCES } from '../constants/soundSources';
+import { SOUND_SOURCES, SOUND_LABELS } from '../constants/soundSources';
 import { isSynthSound, SynthVoice, SYNTH_SOUNDS } from '../utils/synthSounds';
 import { getAudioContext, getMasterLimiter } from '../utils/audioGraph';
 import { startLoop, type LoopHandle } from '../utils/loopEngine';
@@ -68,6 +68,18 @@ function synthLayer(ctx: AudioContext, voice: SynthVoice): PondLayer {
         setVolume: (v, instant) => voice.setVolume(ctx, v, instant ?? true),
         stop: () => voice.stop(ctx),
     };
+}
+
+/** A saved mix's contents as a readable line for the Pond Sound picker, e.g.
+ *  "Ocean Waves · Distant Thunder · Boriquen Coqui". Ids with no known label
+ *  (removed from the library since the mix was saved) are skipped rather than
+ *  breaking the line — same "drop out, don't take the whole thing down" rule
+ *  buildSpecs already applies to resolving the actual audio. */
+function mixContentsSummary(volumes: Record<string, number | undefined>): string {
+    return Object.keys(volumes)
+        .filter(id => (volumes[id] ?? 0) > 0 && SOUND_LABELS[id])
+        .map(id => SOUND_LABELS[id])
+        .join(' · ');
 }
 
 interface KoiPondProps {
@@ -428,6 +440,35 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     // Persistent "Help" affordance, same pattern as Soundscapes' — a fading ambient
     // hint alone wasn't discoverable enough, so this is the always-there way in.
     const [showHelp, setShowHelp] = useState(false);
+
+    // Which saved mix (or the built-in default) the pond plays. '' means never
+    // explicitly chosen — buildSpecs below falls back to the pre-picker behavior
+    // (a mix literally named "koi pond vibes") for continuity with anyone who
+    // already relied on that. Persisted so the choice survives closing the pond.
+    const [pondSoundMixId, setPondSoundMixId] = useState<string>(
+        () => localStorage.getItem(STORAGE_KEYS.POND_SOUND_MIX_ID) ?? ''
+    );
+    const [showSoundPicker, setShowSoundPicker] = useState(false);
+
+    // Display name for the settings-row summary — same resolution order as
+    // buildSpecs, kept in sync deliberately rather than derived from it since
+    // buildSpecs lives inside the audio effect and this needs to render outside it.
+    const implicitPondMix = (savedMixes || []).find(m => m.name?.trim().toLowerCase() === POND_MIX_NAME);
+    const selectedPondMix = pondSoundMixId && pondSoundMixId !== 'default'
+        ? (savedMixes || []).find(m => m.id === pondSoundMixId)
+        : undefined;
+    const pondSoundLabel = pondSoundMixId === 'default'
+        ? 'Default'
+        : selectedPondMix?.name
+            ?? (!pondSoundMixId ? implicitPondMix?.name : undefined)
+            ?? 'Default';
+
+    const choosePondSound = (id: string) => {
+        setPondSoundMixId(id);
+        try { localStorage.setItem(STORAGE_KEYS.POND_SOUND_MIX_ID, id); } catch { /* storage unavailable */ }
+        haptics.selection();
+        setShowSoundPicker(false);
+    };
 
     // One-time-ever hint teaching the tap-to-feed gesture: nothing on this screen
     // otherwise signals that the water itself is tappable, and "Observe and relax"
@@ -1279,9 +1320,19 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
         // no file and are played by SynthVoice; file ids map via SOUND_SOURCES.
         type Spec = { kind: 'file'; src: string; vol: number } | { kind: 'synth'; id: string; vol: number };
         const buildSpecs = (): Spec[] => {
-            const mix = (savedMixes || []).find(
-                m => m.name?.trim().toLowerCase() === POND_MIX_NAME
-            );
+            // Resolution order: an explicit choice (a real saved mix id, or the
+            // literal 'default' meaning "use the built-in bed on purpose") wins.
+            // With no explicit choice ever made, fall back to the pre-picker
+            // behavior — a mix literally named "koi pond vibes" — so nobody who
+            // already relied on that trick loses their setup silently.
+            let mix: SoundMix | undefined;
+            if (pondSoundMixId && pondSoundMixId !== 'default') {
+                mix = (savedMixes || []).find(m => m.id === pondSoundMixId);
+            } else if (!pondSoundMixId) {
+                mix = (savedMixes || []).find(
+                    m => m.name?.trim().toLowerCase() === POND_MIX_NAME
+                );
+            }
             const entries = mix ? Object.entries(mix.volumes || {}).filter(([, v]) => v > 0) : [];
             if (!entries.length) return [{ kind: 'file', src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
 
@@ -1402,8 +1453,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             releaseSessionClaim();
             teardownLayers();
         };
+        // savedMixes and isMutedRef are deliberately excluded (captured once, see
+        // their own history above) — pondSoundMixId is a real, intentional
+        // dependency: picking a new pond sound tears down and rebuilds, the same
+        // full-teardown-and-replay path as an interruption recovery.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [pondSoundMixId]);
 
     const toggleMute = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -1822,6 +1877,19 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         : 'opacity-0 scale-95 pointer-events-none'
                         } ${isDarkMode ? 'bg-sage-mid/97 border-white/10' : 'bg-white/97 border-sage/10'}`}>
                         <div className="p-2 space-y-1 text-left">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsSettingsOpen(false); setShowSoundPicker(true); }}
+                                className={`w-full px-5 py-2 rounded-xl flex items-center justify-between gap-2 transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-sage/10'}`}
+                            >
+                                <span className={`text-xs font-medium ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>
+                                    Pond Sound
+                                </span>
+                                <span className={`flex items-center gap-1 min-w-0 text-[11px] ${isDarkMode ? 'text-pale-gold/80' : 'text-sage/80'}`}>
+                                    <span className="truncate max-w-[76px]">{pondSoundLabel}</span>
+                                    <ChevronRight size={12} className="flex-shrink-0" />
+                                </span>
+                            </button>
+                            <div className={`h-px mx-2 my-1 ${isDarkMode ? 'bg-white/10' : 'bg-sage/10'}`} />
                             {[
                                 { label: 'Fish', state: showFish, setter: setShowFish },
                                 { label: 'Lily Pads', state: showLilyPads, setter: setShowLilyPads },
@@ -2062,7 +2130,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         <p>Your pond grows and changes as your practice does. Here's what you can do with it.</p>
                         <ul className="space-y-3 list-none">
                             <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>01.</span> Tap or click the water to feed your fish and send out ripples.</li>
-                            <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>02.</span> Use the gear icon to show or hide fish, lily pads, lotus, particles, and rain.</li>
+                            <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>02.</span> Use the gear icon to show or hide fish, lily pads, lotus, particles, and rain, and to choose which Soundscape mix plays here.</li>
                             <li className="flex gap-3"><span className={`font-bold ${isDarkMode ? 'text-pale-gold' : 'text-sage'}`}>03.</span> More koi arrive as your streak and total practices grow.</li>
                         </ul>
                     </div>
@@ -2072,6 +2140,69 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     >
                         Back to the Pond
                     </button>
+                </div>
+            </SlideUpModal>
+
+            {/* Pond Sound picker: choose any saved Soundscape mix (or the built-in
+                default) as the pond's ambient audio, replacing the old "name a mix
+                exactly 'koi pond vibes'" trick with something actually discoverable. */}
+            <SlideUpModal isOpen={showSoundPicker} onClose={() => setShowSoundPicker(false)} isDarkMode={isDarkMode} title="Pond Sound">
+                <div className="px-5 pb-10 pt-2">
+                    <p className={`text-xs text-center mb-5 ${isDarkMode ? 'text-white/50' : 'text-sage-dark/50'}`}>
+                        Choose what plays while you're here
+                    </p>
+                    <div className="space-y-2">
+                        {(() => {
+                            const isDefaultSelected = pondSoundLabel === 'Default';
+                            return (
+                                <button
+                                    onClick={() => choosePondSound('default')}
+                                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-colors ${isDefaultSelected
+                                        ? isDarkMode ? 'bg-pale-gold/10 border-pale-gold/50' : 'bg-sage/10 border-sage/50'
+                                        : isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-sage/5 border-sage/10 hover:bg-sage/10'
+                                        }`}
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <div className={`font-display font-medium text-[15px] ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>Default</div>
+                                        <div className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>Flowing River, the built-in pond ambience</div>
+                                    </div>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border ${isDefaultSelected
+                                        ? isDarkMode ? 'bg-pale-gold border-pale-gold' : 'bg-sage border-sage'
+                                        : isDarkMode ? 'border-white/25' : 'border-sage-dark/25'
+                                        }`}>
+                                        {isDefaultSelected && <Check size={12} className={isDarkMode ? 'text-sage-dark' : 'text-white'} />}
+                                    </div>
+                                </button>
+                            );
+                        })()}
+                        {(savedMixes || []).map(mix => {
+                            const isSelected = pondSoundLabel !== 'Default' && pondSoundLabel === mix.name;
+                            const contents = mixContentsSummary(mix.volumes as Record<string, number | undefined>);
+                            return (
+                                <button
+                                    key={mix.id}
+                                    onClick={() => choosePondSound(mix.id)}
+                                    className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-colors ${isSelected
+                                        ? isDarkMode ? 'bg-pale-gold/10 border-pale-gold/50' : 'bg-sage/10 border-sage/50'
+                                        : isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-sage/5 border-sage/10 hover:bg-sage/10'
+                                        }`}
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <div className={`font-display font-medium text-[15px] truncate ${isDarkMode ? 'text-white' : 'text-sage-dark'}`}>{mix.name}</div>
+                                        {contents && (
+                                            <div className={`text-[11px] mt-0.5 truncate ${isDarkMode ? 'text-white/40' : 'text-sage-dark/40'}`}>{contents}</div>
+                                        )}
+                                    </div>
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border ${isSelected
+                                        ? isDarkMode ? 'bg-pale-gold border-pale-gold' : 'bg-sage border-sage'
+                                        : isDarkMode ? 'border-white/25' : 'border-sage-dark/25'
+                                        }`}>
+                                        {isSelected && <Check size={12} className={isDarkMode ? 'text-sage-dark' : 'text-white'} />}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </SlideUpModal>
         </div>

@@ -141,6 +141,13 @@ export const STORAGE_KEYS = {
   // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.
   AI_USAGE: 'palante_ai_usage',
 
+  // Koi Pond's chosen ambient mix: a saved SoundMix id, the literal string
+  // 'default' (explicitly chosen to use the built-in Flowing River bed), or unset
+  // (never chosen — KoiPond.tsx falls back to its pre-picker behavior: a mix
+  // literally named "koi pond vibes" if one exists, else the built-in default).
+  // See the Pond Sound picker in KoiPond.tsx.
+  POND_SOUND_MIX_ID: 'palante_pond_sound_mix_id',
+
   // Last morning-message fallback text actually shown, so getFallbackMorningMessage
   // (aiService.ts) can avoid literally repeating it — its pick is otherwise fully
   // deterministic on the day's entered content, which reads as "nothing is actually
