@@ -141,6 +141,13 @@ export const STORAGE_KEYS = {
   // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.
   AI_USAGE: 'palante_ai_usage',
 
+  // Last morning-message fallback text actually shown, so getFallbackMorningMessage
+  // (aiService.ts) can avoid literally repeating it — its pick is otherwise fully
+  // deterministic on the day's entered content, which reads as "nothing is actually
+  // writing this" the moment two mornings' entries are similar. Now the only path,
+  // not an occasional one, since AI_FEATURES_ENABLED is off.
+  LAST_MORNING_FALLBACK: 'palante_last_morning_fallback',
+
   // AI disclosure: record of the user acknowledging how Palante uses AI, stored as
   // { acknowledged, timestamp, version }. Version is AI_DISCLOSURE_VERSION; bumping it
   // re-shows the screen so a material change to what we send or who we send it to is

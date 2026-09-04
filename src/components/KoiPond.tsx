@@ -194,6 +194,10 @@ interface Particle {
     wiggle: number;
     wiggleSpeed: number;
     color: string;
+    /** ms (on the pond's own elapsed clock) before this petal starts falling.
+     *  Frozen just above the screen until then — see the spawn effect and the
+     *  update loop below for why. */
+    startAt: number;
 }
 
 
@@ -694,17 +698,24 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             return;
         }
 
+        // A calm, patient drift rather than a shower: every petal starts frozen just
+        // above the screen (not scattered mid-fall at random heights, which read as
+        // a burst already in progress the instant the pond opened) and is given a
+        // staggered startAt spread across 50s, so the first one arrives almost
+        // immediately but the full set of 40 trickles in gradually rather than all
+        // at once. Fall speed also cut roughly in half for a gentler descent.
         const count = 40;
         particlesRef.current = Array.from({ length: count }, () => ({
             x: Math.random() * window.innerWidth,
-            y: Math.random() * -window.innerHeight,
+            y: -20,
             size: 5 + Math.random() * 8,
-            speed: 0.2 + Math.random() * 0.4, // Reduced speed further for ethereal feel
+            speed: 0.08 + Math.random() * 0.16,
             rotation: Math.random() * 360,
             rotSpeed: (Math.random() - 0.5) * 1.0, // Slower rotation
             wiggle: Math.random() * Math.PI,
             wiggleSpeed: 0.005 + Math.random() * 0.01, // Slower wiggle
-            color: `rgba(255, ${180 + Math.random() * 40}, ${190 + Math.random() * 40}, ${0.6 + Math.random() * 0.3})`
+            color: `rgba(255, ${180 + Math.random() * 40}, ${190 + Math.random() * 40}, ${0.6 + Math.random() * 0.3})`,
+            startAt: Math.random() * 50000,
         }));
     }, [showParticles]);
 
@@ -749,11 +760,12 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             // real koi scale with size — with jitter so it's a correlation, not a lookup
             // table. scaleT 0 = smallest fish in the range, 1 = biggest.
             const scaleT = (scale - 1.275) / 1.02;
-            // × 0.65: user-reported "swimming too fast" on the previous range (floor 0.55,
-            // up to ~2.15). Tune this one multiplier rather than the base formula above if
-            // it still needs adjusting — it scales the whole range without disturbing the
-            // size-correlated slowdown (scaleT) or the per-fish jitter.
-            const speed = 0.65 * Math.max(0.55, (2.0 - scaleT * 1.2) + (Math.random() - 0.5) * 0.3);
+            // × 0.45: cut further after "still too fast" at 0.65 (which was itself a 35%
+            // cut off the original range, floor 0.55/up to ~2.15). Tune this one multiplier
+            // rather than the base formula above if it still needs adjusting — it scales the
+            // whole range without disturbing the size-correlated slowdown (scaleT) or the
+            // per-fish jitter.
+            const speed = 0.45 * Math.max(0.55, (2.0 - scaleT * 1.2) + (Math.random() - 0.5) * 0.3);
 
             return {
                 id: i,
@@ -1144,14 +1156,23 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         const { width: winW, height: winH } = windowSizeRef.current;
 
                         particlesRef.current.forEach(p => {
+                            // Not its turn yet: stays frozen just above the screen, invisible
+                            // (y=-20 is off-canvas), rather than drawn mid-fall. This is what
+                            // actually staggers the trickle — the fall itself was already gentle.
+                            if (elapsed < p.startAt) return;
+
                             p.wiggle += p.wiggleSpeed;
                             p.x += (Math.sin(p.wiggle) * 0.5 + gx) * dt;
                             p.y += (p.speed * gy) * dt;
                             p.rotation += p.rotSpeed * dt;
 
                             if (p.y > winH + 20) {
+                                // A patient pause before the next one, not an instant reappearance —
+                                // otherwise 40 petals looping continuously reads as unbroken rain no
+                                // matter how slowly each one individually falls.
                                 p.y = -20;
                                 p.x = Math.random() * winW;
+                                p.startAt = elapsed + 4000 + Math.random() * 9000;
                             }
                             if (p.x > winW + 20) p.x = -20;
                             if (p.x < -20) p.x = winW + 20;

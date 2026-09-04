@@ -7,6 +7,7 @@
 import { fetchWithTimeout } from './fetchWithTimeout';
 import { isChatLimitReached, recordChatCall, getDailyLimitMessage } from './aiUsageBudget';
 import { assertAIEnabled, isAIDisabledError } from './aiGate';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { normalizeWords } from './textNormalize';
 
 const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anthropic-proxy`;
@@ -1642,6 +1643,28 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
     const seed = hashStr.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xffff, 0);
     const pick = (pool: string[]) => pool[seed % pool.length];
 
+    // The seed above is fully deterministic on the day's entered content, so
+    // near-identical gratitude/intention/affirmation entries on two different
+    // mornings — or the same entries tested twice in a row — produce the
+    // literal same message. That was a rare, acceptable coincidence when this
+    // was an occasional AI-failure fallback; it is not acceptable now that it
+    // is the ONLY path (AI_FEATURES_ENABLED is off), where it reads as "is
+    // anything actually writing this?" Nudges to the pool's other entry
+    // whenever the seeded pick matches the last message actually shown.
+    const pickAndRemember = (pool: string[]): string => {
+        let choice = pick(pool);
+        try {
+            const last = localStorage.getItem(STORAGE_KEYS.LAST_MORNING_FALLBACK);
+            if (choice === last && pool.length > 1) {
+                choice = pool[(seed + 1) % pool.length];
+            }
+            localStorage.setItem(STORAGE_KEYS.LAST_MORNING_FALLBACK, choice);
+        } catch {
+            // Storage unavailable: still returns a message, just without the anti-repeat guarantee.
+        }
+        return choice;
+    };
+
     // Embed helpers: strip trailing punctuation, leave the user's casing alone.
     // Entries are only embedded when short enough to read as a phrase.
     const frag = (s: string) => s.replace(/[.!?\s]+$/, '');
@@ -1671,38 +1694,38 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
 
     if (isEs) {
         if (chosen === 'intention' && intention) {
-            return pick([
+            return pickAndRemember([
                 `No caí en este día por casualidad, lo elegí: ${frag(intention)}. Todo lo que nombré esta mañana ya me está llevando hacia allá.`,
                 `Hoy tiene una sola dirección, ${frag(intention)}. Empecé desde la gratitud y sé quién soy, así que ya estoy en movimiento.`,
             ]);
         }
         if (chosen === 'gratitude' && gratitude) {
-            return pick([
+            return pickAndRemember([
                 `Empecé el día desde un lugar lleno: ${frag(gratitude)}. Un día que comienza con tanto bien es un día con el que puedo hacer algo.`,
                 `Antes de que el día me pidiera algo, nombré lo que es bueno: ${frag(gratitude)}. Eso no quedó atrás, está debajo de mí.`,
             ]);
         }
         if (chosen === 'affirmation' && affirmation) {
             const a = frag(affirmation);
-            return pick([
+            return pickAndRemember([
                 `${a}. No lo dije esta mañana para sonar bien, lo dije porque hoy pienso vivir como si fuera cierto.`,
                 `${a}. El día apenas comienza y eso ya es verdad.`,
             ]);
         }
-        return pick([
+        return pickAndRemember([
             `Me di estos minutos antes de que el día pudiera decidir algo por mí. Llevo esa firmeza a todo lo que viene después.`,
             `Estoy aquí esta mañana, a propósito, antes de que algo me lo pidiera. Eso marca el tono del día entero.`,
         ]);
     }
 
     if (chosen === 'intention' && intention) {
-        return pick([
+        return pickAndRemember([
             `I did not wander into this day, I chose it: ${frag(intention)}. Everything I named this morning is already carrying me there.`,
             `Today has one direction, ${frag(intention)}. I started from gratitude and I know who I am, so I am already moving.`,
         ]);
     }
     if (chosen === 'gratitude' && gratitude) {
-        return pick([
+        return pickAndRemember([
             `I started today from a full place: ${frag(gratitude)}. A day that begins with that much good is a day I can do something with.`,
             `Before today asked anything of me, I named what is good: ${frag(gratitude)}. That is not behind me now, it is underneath me.`,
         ]);
@@ -1710,12 +1733,12 @@ export const getFallbackMorningMessage = (data: { gratitudes: string[]; affirmat
     if (chosen === 'affirmation' && affirmation) {
         const a = frag(affirmation);
         const line = /^i['\s]/i.test(a) ? `${a.charAt(0).toUpperCase()}${a.slice(1)}` : `I am ${a}`;
-        return pick([
+        return pickAndRemember([
             `${line}. I did not say that this morning to sound good, I said it because today I intend to live like it is true.`,
             `${line}. The day has barely started and that is already true.`,
         ]);
     }
-    return pick([
+    return pickAndRemember([
         `I gave myself these minutes before the day could decide anything for me. I carry that steadiness into everything that comes next.`,
         `I am here this morning, on purpose, before anything asked for me. That sets the tone for the whole day.`,
     ]);
