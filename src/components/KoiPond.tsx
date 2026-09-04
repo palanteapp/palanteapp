@@ -1204,7 +1204,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     useEffect(() => { showParticlesRef.current = showParticles; }, [showParticles]);
 
     const animateRef = useRef(animate);
-    animateRef.current = animate;
+    useEffect(() => { animateRef.current = animate; }, [animate]);
 
     useEffect(() => {
         const tick = (t: number) => {
