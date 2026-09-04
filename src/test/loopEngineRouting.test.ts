@@ -21,7 +21,7 @@
 // is FIVE SECONDS longer than loopSeconds. Any code that reads it produces
 // visibly wrong numbers here.
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import manifest from '../constants/loopManifest.json';
 import type { LoopManifestEntry } from '../constants/bakedLoops';
 import { PRE_BAKED_FADE_SECONDS } from '../utils/seamlessLoop';
@@ -38,8 +38,6 @@ const LONGFORM = manifest.longform as LoopManifestEntry[];
 
 /** Padding the encoder leaves behind, at the top of the measured range. */
 const PADDING_MS = 24;
-/** How much longer than the true loop the element claims to be. */
-const FAKE_DURATION_EXCESS_SEC = 5;
 
 const entryFor = (id: string) => [...BAKED, ...LONGFORM].find(e => e.id === id)!;
 const srcOf = (e: LoopManifestEntry) => '/' + (e.out ?? e.src);

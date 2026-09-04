@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, Plus, X, Coffee, Sparkles, HelpCircle, Target, Heart, Bug, Cat, Play, Trash2, LayoutGrid } from 'lucide-react';
+import { Cloud, Wind, Waves, Trees, Droplets, Zap, Radio, Moon, Sun, Music, Speaker, Bird, Save, X, Coffee, Sparkles, HelpCircle, Target, Heart, Bug, Cat, Play, Trash2, LayoutGrid } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import type { PluginListenerHandle } from '@capacitor/core';
 import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
@@ -326,6 +326,12 @@ class MixerSound {
     enterBackground(vol: number) {
         this.leaveBackground();
         if (!this.isPlaying) return;
+        // The native AVAudioEngine path already keeps playing correctly through
+        // backgrounding on its own (the app's .playback session + background
+        // audio mode covers it) — unlike Web Audio, which this whole swap exists
+        // to work around. Also swapping in a BackgroundLoop element here would
+        // run a second, duplicate copy of the sound alongside the native one.
+        if (this.fileLoop?.mode === 'native') return;
         const clamped = Math.min(1, Math.max(0, vol));
 
         // Bail if we returned to the foreground or stopped while preparing.
@@ -1100,6 +1106,7 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                             track ~45pt of the little height this column has. The
                                             button's padding gives it a ~36pt hit box around a 20pt dot. */}
                                         <button
+                                            // eslint-disable-next-line react-hooks/refs -- false positive: toggleSound is a useCallback that closes over audioRefs, not a ref being passed around; this fires inside a click handler, not render
                                             onClick={() => { haptics.light(); toggleSound(sound.id); }}
                                             aria-label={`Remove ${sound.label}`}
                                             className="absolute -top-2 -right-3 p-2.5 group/rm"
@@ -1150,7 +1157,6 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                                                 const rect = e.currentTarget.getBoundingClientRect();
                                                 const y = e.touches[0].clientY - rect.top;
                                                 const percentage = Math.max(0, Math.min(1, 1 - (y / rect.height)));
-                                                // eslint-disable-next-line react-hooks/refs -- inside a touch event handler, not React render
                                                 updateVolume(sound.id, percentage);
                                             }}
                                             onTouchMove={(e) => {

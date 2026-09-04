@@ -38,7 +38,7 @@ function buildMp3Head(opts: {
     bytes[p + 2] = 0x90 | (rateBits << 2);
     bytes[p + 3] = mono ? 0xc0 : 0x00;
     const sideInfo = mono ? 17 : 32;
-    let t = p + 4 + sideInfo;
+    const t = p + 4 + sideInfo;
     if (opts.omitXing) return bytes;
     bytes.set([0x58, 0x69, 0x6e, 0x67], t); // "Xing"
     const view = new DataView(bytes.buffer);

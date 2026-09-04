@@ -50,18 +50,20 @@
 // response to a dropout report, measure it - audioWatchdog.ts and
 // scripts/analyze-capture.mjs exist for exactly that.
 
+import { Capacitor } from '@capacitor/core';
 import { getAudioContext, getMasterLimiter } from './audioGraph';
 import { loadSeamlessBuffer } from './seamlessAudio';
 import { encodeWav } from './synthSounds';
 import { preBakedEntry } from '../constants/bakedLoops';
+import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
 
 export type LoopLogEvent =
-    | { type: 'mode'; mode: 'buffer' | 'element'; src: string; loopSeconds: number | null }
+    | { type: 'mode'; mode: 'buffer' | 'element' | 'native'; src: string; loopSeconds: number | null }
     | { type: 'underrun'; reason: string; readyState: number }
     | { type: 'error'; message: string };
 
 export interface LoopHandle {
-    readonly mode: 'buffer' | 'element';
+    readonly mode: 'buffer' | 'element' | 'native';
     setVolume(vol: number, instant?: boolean): void;
     stop(): void;
 }
@@ -146,16 +148,58 @@ class BufferLoop implements LoopHandle {
     }
 }
 
+// ── Native path (iOS) ───────────────────────────────────────────────────────
+
+/**
+ * Routes a loop through PalanteNativeLoopEngine's AVAudioEngine instead of
+ * Web Audio API. See PalanteNativeLoopEngine.swift for the full reasoning:
+ * WKWebView's own Web Audio implementation has a documented history of
+ * silently stalling on iOS (WebKit bug 237878; multiple Apple Developer
+ * Forum reports of AudioContexts freezing after ~27s backgrounded and
+ * sometimes never resuming) independent of anything in this file or in
+ * PalanteAudioBridge's session handling. A native AVAudioEngine is a
+ * separate audio unit, not subject to that failure mode.
+ */
+class NativeLoop implements LoopHandle {
+    readonly mode = 'native' as const;
+    private stopped = false;
+    private readonly id: string;
+    constructor(id: string) {
+        this.id = id;
+    }
+
+    setVolume(vol: number) {
+        if (this.stopped) return;
+        const clamped = Math.min(1, Math.max(0, vol));
+        PalanteAudioBridge.setNativeLoopVolume({ id: this.id, volume: clamped }).catch(() => {});
+    }
+
+    stop() {
+        if (this.stopped) return;
+        this.stopped = true;
+        PalanteAudioBridge.stopNativeLoop({ id: this.id }).catch(() => {});
+    }
+}
+
+function isIOSNative(): boolean {
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+}
+
 // ── Entry point ─────────────────────────────────────────────────────────────
 
 /**
  * Start looping `src`.
  *
- * There is now exactly ONE real playback path: decode the file, slice it to the
- * manifest's `loopSeconds`, and hand it to an AudioBufferSourceNode with
- * `loop = true`. The wrap is then performed by the audio rendering thread,
- * sample-exactly, with no JavaScript per cycle - nothing to drift, nothing to
- * mistime, nothing for a busy main thread to miss.
+ * On iOS native, this routes through PalanteNativeLoopEngine (AVAudioEngine)
+ * first, falling back to the Web Audio path below only if that fails to
+ * start (e.g. the file is missing from the bundle). On web/Android it always
+ * uses the Web Audio path.
+ *
+ * The Web Audio path: decode the file, slice it to the manifest's
+ * `loopSeconds`, and hand it to an AudioBufferSourceNode with `loop = true`.
+ * The wrap is then performed by the audio rendering thread, sample-exactly,
+ * with no JavaScript per cycle - nothing to drift, nothing to mistime,
+ * nothing for a busy main thread to miss.
  *
  * The two-element streaming crossfade that used to sit alongside it is gone.
  * It existed only because nine long-form pieces were 8 to 18 minutes long and
@@ -178,15 +222,33 @@ export async function startLoop(opts: StartLoopOptions): Promise<LoopHandle | nu
     const entrySec = opts.entrySec ?? 1.5;
     const log = opts.onLog ?? (() => {});
 
+    const entry = preBakedEntry(src);
+    const loopSeconds = entry?.loopSeconds ?? null;
+
+    if (isIOSNative()) {
+        const bundlePath = entry?.out ?? src.replace(/^\/+/, '');
+        const nativeId = `loop:${src}`;
+        try {
+            await PalanteAudioBridge.startNativeLoop({
+                id: nativeId,
+                path: bundlePath,
+                loopSeconds: loopSeconds ?? undefined,
+                volume,
+            });
+            log({ type: 'mode', mode: 'native', src, loopSeconds });
+            return new NativeLoop(nativeId);
+        } catch (e) {
+            log({ type: 'error', message: `native loop failed, falling back to Web Audio: ${e instanceof Error ? e.message : e}` });
+            // Falls through to the Web Audio path below.
+        }
+    }
+
     const ctx = getAudioContext();
     if (!ctx) {
         log({ type: 'error', message: 'no AudioContext available' });
         return null;
     }
     if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
-
-    const entry = preBakedEntry(src);
-    const loopSeconds = entry?.loopSeconds ?? null;
 
     const buffer = await loadSeamlessBuffer(ctx, src);
     if (buffer) {

@@ -44,6 +44,7 @@ purge_widget.py
 public/_loopqa/
 /loopqa/
 audio-raw/
+audio-raw-wav/
 
 # offline seam-repair staging (scripts/bake-loops.mjs --out-dir)
 audio-baked-candidates/
