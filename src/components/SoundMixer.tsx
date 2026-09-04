@@ -465,6 +465,30 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
 
     const [isSavingMix, setIsSavingMix] = useState(false);
     const [newMixName, setNewMixName] = useState('');
+    // The "Name your mix" bar is positioned `bottom: 6rem` from this panel's own
+    // `fixed inset-0`, which tracks the LAYOUT viewport — the full screen height,
+    // unchanged by the keyboard. iOS does not shrink that for a fixed/absolute
+    // element the way it shrinks the VISUAL viewport, so the keyboard simply
+    // covers the bar (and the name field with it) rather than pushing it up.
+    // window.visualViewport does shrink, so while actively saving, the bar tracks
+    // that instead — same technique CoachView.tsx already uses for its input bar.
+    const [keyboardInset, setKeyboardInset] = useState(0);
+    useEffect(() => {
+        // Only consumed while isSavingMix is true (see the style below), so there is
+        // nothing to reset on the way out — no need for a setState right before this
+        // early return.
+        if (!isSavingMix) return;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const update = () => setKeyboardInset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+        update();
+        vv.addEventListener('resize', update);
+        vv.addEventListener('scroll', update);
+        return () => {
+            vv.removeEventListener('resize', update);
+            vv.removeEventListener('scroll', update);
+        };
+    }, [isSavingMix]);
     const [_activeTab, _setActiveTab] = useState<'mixer' | 'library' | 'presets'>('mixer');
     const [showHelp, setShowHelp] = useState(() => {
         const hasSeenHelp = localStorage.getItem(STORAGE_KEYS.SOUNDMIXER_HELP_SEEN);
@@ -1268,8 +1292,12 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
                     // Mixer-only. In the Library this bar floated over the middle of the sound
                     // grid, hiding two tiles to offer an action that belongs to the other tab:
                     // you pick sounds here and balance/save them there.
-                    className={`absolute left-0 right-0 px-5 py-3 z-20 pointer-events-none ${view === 'mixer' ? '' : 'hidden'}`}
-                    style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+                    className={`absolute left-0 right-0 px-5 py-3 z-20 pointer-events-none transition-[bottom] duration-200 ${view === 'mixer' ? '' : 'hidden'}`}
+                    style={{
+                        bottom: isSavingMix && keyboardInset > 0
+                            ? `${keyboardInset + 12}px`
+                            : 'calc(6rem + env(safe-area-inset-bottom))',
+                    }}
                 >
                     <div className="max-w-3xl mx-auto flex gap-4 pointer-events-auto">
                         {isSavingMix ? (
