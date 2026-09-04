@@ -56,7 +56,10 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
     const { osConfirmedUnder13, isChecking: isCheckingAge, isRechecking: isRecheckingAge, recheck: handleRecheckAge } = useAgeRangeGate({ active: step >= 1 });
 
     const currentYear = new Date().getFullYear();
-    const YEARS = Array.from({ length: 100 }, (_, i) => currentYear - i);
+    // Starts at currentYear - 13, not currentYear: a birth year more recent than that
+    // makes the user under 13, which handleAgeNext rejects immediately below anyway —
+    // there is no reason to offer an option that always errors the moment it's picked.
+    const YEARS = Array.from({ length: 100 }, (_, i) => (currentYear - 13) - i);
 
     const handleAgeNext = () => {
         // Defense in depth: the OS check hasn't resolved yet, or has already confirmed
@@ -351,9 +354,15 @@ export const CinematicIntro = memo(({ onComplete }: CinematicIntroProps) => {
                                         Just your birth year. That's all we keep.
                                     </motion.p>
 
+                                    {/* Opacity-only entrance, no `y`: WKWebView has a well-known bug where a
+                                        native form control (this <select>) inside an ancestor that carries a
+                                        CSS transform — which framer-motion's `y` animation applies, and can
+                                        leave behind as `transform: translateY(0px)` even once settled — misses
+                                        the first tap or several. The picker not opening on the first few taps
+                                        was that, not a hit-target or timing issue in this component. */}
                                     <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
                                         transition={{ delay: 0.11 }}
                                     >
                                         <select

@@ -72,7 +72,10 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
     };
 
     const currentYear = new Date().getFullYear();
-    const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+    // Starts at currentYear - 13, not currentYear: a birth year more recent than that
+    // makes the user under 13, which handleVerify rejects immediately above anyway —
+    // there is no reason to offer an option that always errors the moment it's picked.
+    const years = Array.from({ length: 100 }, (_, i) => (currentYear - 13) - i);
 
     return (
         <SlideUpModal isOpen={isOpen} onClose={required ? () => {} : onClose} isDarkMode={isDarkMode} showCloseButton={!required} position="center">

@@ -141,7 +141,7 @@ interface Fish {
     angle: number;
     targetAngle: number;
     speed: number;
-    variant: 'blackGold' | 'redOrange' | 'yellowOrange' | 'blackRed' | 'purpleGalaxy' | 'midnightBlue' | 'jadeDragon' | 'volcanic' | 'sunset' | 'royalAmethyst';
+    variant: 'blackGold' | 'royalAmethyst' | 'yellowOrange' | 'sunset' | 'emeraldDepths' | 'wineNight' | 'crimson' | 'pearlWhite' | 'onyx';
     scale: number;
     spawnTime?: number;
     isActive?: boolean;
@@ -198,28 +198,80 @@ interface Particle {
 
 
 
-const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }> = React.memo(({ variant, shadowStrength = 1 }) => {
-    // Colors based on variant
-    const getColors = () => {
-        switch (variant) {
-            // DARK & RICH VARIANTS (No White)
-            case 'blackGold': return { body: '#0A0A0A', accent: '#E6B800', pattern: 'grad' }; // Metallic Gold on Black
-            case 'blackRed': return { body: '#080808', accent: '#A80000', pattern: 'spots' }; // Showa Style
-            case 'midnightBlue': return { body: '#071630', accent: '#5C8FD6', pattern: 'spots' }; // Deep Navy & Sky Blue
-            case 'jadeDragon': return { body: '#002E26', accent: '#3FBF85', pattern: 'striped' }; // Dark Green & Mint
-            case 'volcanic': return { body: '#121212', accent: '#C22E00', pattern: 'striped' }; // Charcoal & Magma
-            case 'royalAmethyst': return { body: '#1C0F55', accent: '#A830BD', pattern: 'grad' }; // Deep Purple & Neon Pink
+// Body color per variant. Every variant shares the same hand-traced marking
+// (below) — only the body color and the marking's orientation vary — since
+// the kohaku/spots/striped/tancho/tux marking language was retired in favor
+// of the one confirmed "grad" design. See project design review, Sept 2026.
+const VARIANT_BODY: Record<Fish['variant'], string> = {
+    blackGold: '#0A0A0A',
+    royalAmethyst: '#1C0F55',
+    yellowOrange: '#A34700',
+    sunset: '#732008',
+    emeraldDepths: '#0B3D2E',
+    wineNight: '#4A0E2E',
+    crimson: '#7A1212',
+    pearlWhite: '#F2EDE3',
+    onyx: '#0C0F14',
+};
 
-            // VIBRANT VARIANTS
-            case 'redOrange': return { body: '#8F1C00', accent: '#C28200', pattern: 'kohaku' }; // Deep Orange Base
-            case 'yellowOrange': return { body: '#A34700', accent: '#C2A300', pattern: 'grad' }; // Amber Base
-            case 'sunset': return { body: '#732008', accent: '#C2705C', pattern: 'grad' }; // Burnt Sienna & Peach
-            case 'purpleGalaxy': return { body: '#0E1247', accent: '#00A6BD', pattern: 'spots' }; // Indigo & Cyan
+// Orientation of the (identical) marking per variant, as an SVG transform
+// applied to the marking group only — the body-clip stays fixed, so this can
+// never push the marking past the silhouette edge. Mixes rotation, mirroring
+// and slight scale so the nine fish don't read as one pattern recolored nine
+// times over.
+const VARIANT_MARK_TRANSFORM: Record<Fish['variant'], string> = {
+    blackGold: 'rotate(-12,0,-5)',
+    royalAmethyst: 'scale(-1,1) rotate(8,0,-5)',
+    yellowOrange: 'rotate(18,0,-5)',
+    sunset: 'scale(-1,1) rotate(-15,0,-5)',
+    emeraldDepths: 'rotate(-6,0,-5) scale(1.05)',
+    wineNight: 'scale(-1,1) rotate(22,0,-5)',
+    crimson: 'rotate(10,0,-5) scale(0.95)',
+    pearlWhite: 'scale(-1,1) rotate(-10,0,-5)',
+    onyx: 'rotate(25,0,-5)',
+};
 
-            default: return { body: '#0A0A0A', accent: '#A80000', pattern: 'spots' };
-        }
+/** Small deterministic PRNG so a fish's body lines are stable across re-renders
+ *  (not Math.random() per paint) but differ fish-to-fish, not just variant-to-
+ *  variant — seeded on id+variant so two fish sharing a color still differ. */
+function seededRandom(seed: string): () => number {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = (Math.imul(h, 31) + seed.charCodeAt(i)) >>> 0;
+    return () => {
+        h = (Math.imul(h, 1664525) + 1013904223) >>> 0;
+        return h / 4294967296;
     };
-    const { body, accent, pattern } = getColors();
+}
+
+/** Subtle scale/contour lines down the body: 3-4 gentle curves, spaced and
+ *  bowed a little differently per fish so the body doesn't read as the same
+ *  texture stamped on every koi. Drawn over the marking at low opacity so it
+ *  still reads faintly across the patches, like real scale texture would. */
+function bodyLineMarkup(seed: string, clipId: string) {
+    const rand = seededRandom(seed);
+    const count = 3 + Math.floor(rand() * 2);
+    const lines = [];
+    for (let i = 0; i < count; i++) {
+        const spread = count > 1 ? (i / (count - 1)) * 14 - 7 : 0;
+        const x = spread + (rand() - 0.5) * 2.5;
+        const bow = (rand() - 0.5) * 5;
+        const yTop = -25 + rand() * 5;
+        const yBot = 15 + rand() * 6;
+        const midY = (yTop + yBot) / 2;
+        lines.push(
+            <path key={i} d={`M${x.toFixed(1)},${yTop.toFixed(1)} Q${(x + bow).toFixed(1)},${midY.toFixed(1)} ${x.toFixed(1)},${yBot.toFixed(1)}`} />
+        );
+    }
+    return (
+        <g clipPath={`url(#${clipId})`} stroke="#F4F1E8" strokeWidth="0.3" strokeLinecap="round" fill="none" opacity="0.16">
+            {lines}
+        </g>
+    );
+}
+
+const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number; seed: number }> = React.memo(({ variant, shadowStrength = 1, seed }) => {
+    const body = VARIANT_BODY[variant];
+    const markTransform = VARIANT_MARK_TRANSFORM[variant];
     const clipId = useId();
 
     return (
@@ -274,50 +326,26 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }
                     </g>
                 </g>
 
+                {/* Subtle fin ripples — small expanding rings at each fin's base, on the
+                    shared body clock (not the fin's own rotating <g>, so they pulse in place
+                    rather than flapping). See finRingRipple above for why stroke-width is a
+                    fixed attribute here instead of an animated one. */}
+                <circle cx="-15" cy="8" r="8" fill="none" stroke="white" strokeWidth="1.2" opacity="0.05" style={{ animation: 'finRingRipple 3s ease-out infinite' }} />
+                <circle cx="15" cy="8" r="8" fill="none" stroke="white" strokeWidth="1.2" opacity="0.05" style={{ animation: 'finRingRipple 3s ease-out infinite', animationDelay: '0.2s' }} />
+
                 {/* Body */}
                 <ellipse cx="0" cy="0" rx="12" ry="30" fill={body} />
 
-                {/* Patterns */}
-                {pattern === 'kohaku' && (
-                    <g fill={accent} opacity="0.85">
-                        {/* Large head patch */}
-                        <path d="M-6,-25 Q0,-32 6,-25 Q8,-15 0,-12 Q-8,-15 -6,-25" />
-                        {/* Body patches - more organic */}
-                        <path d="M-8,0 Q0,-5 8,0 Q10,15 0,18 Q-10,15 -8,0" />
-                        <circle cx="0" cy="8" r="4" />
-                    </g>
-                )}
-                {pattern === 'tancho' && (
-                    <circle cx="0" cy="-15" r="5" fill={accent} opacity="0.9" />
-                )}
-                {pattern === 'spots' && (
-                    <g fill={accent} opacity="0.8">
-                        <circle cx="-5" cy="-10" r="3" />
-                        <circle cx="6" cy="5" r="4" />
-                        <circle cx="-3" cy="18" r="2" />
-                    </g>
-                )}
-                {pattern === 'striped' && (
-                    <g stroke={accent} strokeWidth="3" opacity="0.8" strokeLinecap="round">
-                        <path d="M-6,-15 L6,-15" />
-                        <path d="M-9,0 L9,0" />
-                        <path d="M-7,15 L7,15" />
-                    </g>
-                )}
-                {pattern === 'grad' && (
-                    <g clipPath={`url(#${clipId})`}>
-                        {/* Traced from the reference photo's composition (not invented, not
-                            noise-jittered) — a dominant navy shape interlocking with two
-                            orange patches down the spine, a small pale patch, and two small
-                            accent dots near the head. Points were estimated by eye against
-                            the reference and run through a Catmull-Rom smoothing spline,
-                            then scaled up around each shape's own centroid (not the body's)
-                            so they cover more of the fish without the head patch shooting
-                            past the nose — see scripts/koi-handtrace.js. Colors are fixed
-                            across variants (not tied to the variant's accent) so every
-                            'grad' fish carries the same white/black/orange marking language
-                            as the source. Clipped to the body ellipse so the now-larger
-                            shapes can never bleed past the silhouette edge. */}
+                {/* Marking — every variant shares this exact shape data (traced from the
+                    reference photo's composition: a dominant navy shape interlocking with two
+                    orange patches down the spine, a small pale patch, and two small accent dots
+                    near the head — see scripts/koi-handtrace.js); only its orientation differs
+                    per variant, via VARIANT_MARK_TRANSFORM, so nine fish don't read as one
+                    pattern recolored nine times. The transform lives on an INNER group; the
+                    clip-path stays on the OUTER one, so the body-ellipse clip never rotates with
+                    it — only the ink inside it does, and it can never bleed past the silhouette. */}
+                <g clipPath={`url(#${clipId})`}>
+                    <g transform={markTransform}>
                         <path d="M2.40,-25.20 C4.03,-24.97 6.83,-21.47 8.00,-18.20 C9.17,-14.93 9.87,-9.57 9.40,-5.60 C8.93,-1.63 7.30,2.80 5.20,5.60 C3.10,8.40 -1.10,11.43 -3.20,11.20 C-5.30,10.97 -7.17,7.47 -7.40,4.20 C-7.63,0.93 -5.53,-4.43 -4.60,-8.40 C-3.67,-12.37 -2.97,-16.80 -1.80,-19.60 C-0.63,-22.40 0.77,-25.43 2.40,-25.20 Z" fill="#1A2540" stroke="#000" strokeWidth="0.3" strokeOpacity="0.3" opacity="0.92" />
                         <path d="M-3.20,-28.01 C-1.90,-29.53 1.35,-30.18 3.30,-29.31 C5.25,-28.45 7.63,-25.41 8.50,-22.81 C9.37,-20.21 9.37,-16.10 8.50,-13.71 C7.63,-11.33 5.03,-8.73 3.30,-8.51 C1.57,-8.30 -0.60,-10.46 -1.90,-12.41 C-3.20,-14.36 -4.28,-17.61 -4.50,-20.21 C-4.72,-22.81 -4.50,-26.50 -3.20,-28.01 Z" fill="#FF5A2B" stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
                         <path d="M7.34,-4.83 C8.06,-2.90 10.24,2.18 10.24,5.32 C10.24,8.46 8.79,12.33 7.34,14.02 C5.89,15.71 2.99,16.44 1.54,15.47 C0.09,14.50 -1.36,11.12 -1.36,8.22 C-1.36,5.32 0.33,0.49 1.54,-1.93 C2.74,-4.35 4.92,-5.80 5.89,-6.28 C6.85,-6.76 6.61,-6.76 7.34,-4.83 Z" fill="#FF5A2B" stroke="#000" strokeWidth="0.3" strokeOpacity="0.25" opacity="0.92" />
@@ -332,13 +360,9 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }
                             <path d="M2.5,-17 Q3,-10 1.5,-4" />
                         </g>
                     </g>
-                )}
-                {pattern === 'tux' && (
-                    <g fill={accent} opacity="0.9">
-                        <path d="M-4,-28 L4,-28 L0,-15 Z" />
-                        <path d="M-2,20 L2,20 L0,30 Z" />
-                    </g>
-                )}
+                </g>
+
+                {bodyLineMarkup(`${seed}:${variant}`, clipId)}
 
 
                 {/* Eyes — from directly above, a koi's eye reads as barely more than a
@@ -358,7 +382,7 @@ const KoiFishSVG: React.FC<{ variant: Fish['variant']; shadowStrength?: number }
 
 
 
-const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'redOrange', 'yellowOrange', 'blackRed', 'purpleGalaxy', 'midnightBlue', 'jadeDragon', 'volcanic', 'sunset', 'royalAmethyst'];
+const KOI_VARIANTS: Fish['variant'][] = ['blackGold', 'royalAmethyst', 'yellowOrange', 'sunset', 'emeraldDepths', 'wineNight', 'crimson', 'pearlWhite', 'onyx'];
 
 /** Cycled by fish id so shadows read as varied depth in the water rather than one
  *  shape stamped under every fish. 1 = the darkest tier (see KoiFishSVG's base opacities). */
@@ -725,7 +749,11 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             // real koi scale with size — with jitter so it's a correlation, not a lookup
             // table. scaleT 0 = smallest fish in the range, 1 = biggest.
             const scaleT = (scale - 1.275) / 1.02;
-            const speed = Math.max(0.55, (2.0 - scaleT * 1.2) + (Math.random() - 0.5) * 0.3);
+            // × 0.65: user-reported "swimming too fast" on the previous range (floor 0.55,
+            // up to ~2.15). Tune this one multiplier rather than the base formula above if
+            // it still needs adjusting — it scales the whole range without disturbing the
+            // size-correlated slowdown (scaleT) or the per-fish jitter.
+            const speed = 0.65 * Math.max(0.55, (2.0 - scaleT * 1.2) + (Math.random() - 0.5) * 0.3);
 
             return {
                 id: i,
@@ -1269,32 +1297,47 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             if (!ctx || cancelled) return;
             if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
 
-            for (const spec of buildSpecs()) {
-                if (cancelled) break;
+            // Built in PARALLEL, not one spec at a time. A sequential `for` loop
+            // here used to await each layer's fetch+decode before even starting the
+            // next one, so the group fade-in below couldn't begin until every
+            // layer's setup had finished, one after another. Measured on a real
+            // device (a screen recording with audio): leaving Soundscapes for the
+            // pond produced 4.4s of near-total silence — the stacked setup latency
+            // of 2-4 sequential decodes, on top of the fade-in itself. This is the
+            // actual "koi pond audio gap," not a loop seam; every seam in the
+            // library measures clean (scripts/verify-seams.mjs). Promise.all bounds
+            // the wait to the SLOWEST single layer instead of the sum of all of them.
+            const specs = buildSpecs();
+            const built = await Promise.all(specs.map(async (spec): Promise<{ layer: PondLayer; targetVol: number } | null> => {
+                if (cancelled) return null;
                 // Every layer starts silent; the group fade below brings them up
                 // together, exactly as the old element version did.
-                let layer: PondLayer | null = null;
                 if (spec.kind === 'synth') {
                     const voice = new SynthVoice(SYNTH_SOUNDS[spec.id]);
                     await voice.play(ctx, 0, getMasterLimiter(ctx)).catch(() => {});
-                    layer = synthLayer(ctx, voice);
-                } else {
-                    const handle = await startLoop({ src: spec.src, volume: 0, entrySec: 0.01 });
-                    if (handle) layer = fileLayer(handle);
+                    return { layer: synthLayer(ctx, voice), targetVol: spec.vol };
                 }
-                if (!layer) continue;
-                if (cancelled) { layer.stop(); break; }
-                layer.setVolume(0, true);
-                tracksRef.current.push({ layer, targetVol: spec.vol });
+                const handle = await startLoop({ src: spec.src, volume: 0, entrySec: 0.01 });
+                return handle ? { layer: fileLayer(handle), targetVol: spec.vol } : null;
+            }));
+
+            for (const entry of built) {
+                if (!entry) continue;
+                if (cancelled) { entry.layer.stop(); continue; }
+                entry.layer.setVolume(0, true);
+                tracksRef.current.push(entry);
             }
 
             if (cancelled || isMutedRef.current) return;
-            // Gentle ~3s fade-in for every layer together.
+            // 1.5s fade-in, equal-power rather than linear: a straight-line ramp
+            // spends its first half near-inaudible (loudness perception is closer to
+            // logarithmic than linear), which reads as MORE silence stacked on top of
+            // the setup latency above. sin() front-loads the perceptible rise.
             let t = 0;
-            const steps = 30;
+            const steps = 15;
             fadeIntervalRef.current = setInterval(() => {
                 t = Math.min(t + 1, steps);
-                const k = t / steps;
+                const k = Math.sin((t / steps) * (Math.PI / 2));
                 tracksRef.current.forEach(({ layer, targetVol }) => {
                     layer.setVolume(isMutedRef.current ? 0 : targetVol * k, true);
                 });
@@ -1456,16 +1499,23 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                         75% { transform: rotate(-3deg) skewY(-2deg); }
                         100% { transform: rotate(0deg) skewY(0deg); }
                     }
-                    /* swimTail / paddleFins / finFlutterLeft / finFlutterRight / finRingRipple
-                       removed. Tail and fin rotation is now driven from the rAF loop via CSS
-                       custom properties so it shares one clock with the body. finRingRipple was
-                       animating stroke-width, which is not compositable and forced an SVG repaint
-                       every frame per fish, for two rings at 0.05 opacity.
+                    /* swimTail / paddleFins / finFlutterLeft / finFlutterRight removed. Tail and
+                       fin rotation is now driven from the rAF loop via CSS custom properties so
+                       it shares one clock with the body.
                        swimTail is kept only for the one-off celebration card, which sits on a
                        solid scrim and is not part of the live scene. */
                     @keyframes swimTail {
                          0% { transform: rotate(15deg); }
                          100% { transform: rotate(-15deg); }
+                    }
+                    /* Restored — user-requested, made the swimming feel more real. Originally
+                       removed because it animated stroke-width, which is not compositable and
+                       forced an SVG repaint every frame per fish. Same visual, cheaper: only
+                       transform/opacity animate here (both compositable); the ring's stroke-width
+                       is a fixed attribute on the <circle> instead of a keyframe target. */
+                    @keyframes finRingRipple {
+                        0% { transform: scale(0.5); opacity: 0.08; }
+                        100% { transform: scale(2.5); opacity: 0; }
                     }
                     @keyframes ripple {
                         0% { transform: scale(0); opacity: 0.5; }
@@ -1550,7 +1600,7 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                             willChange: 'transform',
                         }}
                     >
-                        <KoiFishSVG variant={f.variant} shadowStrength={SHADOW_TIERS[f.id % SHADOW_TIERS.length]} />
+                        <KoiFishSVG variant={f.variant} shadowStrength={SHADOW_TIERS[f.id % SHADOW_TIERS.length]} seed={f.id} />
                     </div>
                 ))}
 
