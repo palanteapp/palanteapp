@@ -7,6 +7,7 @@ import { haptics } from '../utils/haptics';
 import { SYNTH_SOUNDS, SynthVoice, getSynthLoopBlobUrl } from '../utils/synthSounds';
 import { getAudioContext, getMasterLimiter } from '../utils/audioGraph';
 import { startAudioWatchdog } from '../utils/audioWatchdog';
+import { claimAudioSession } from '../utils/audioSessionClaim';
 import { startLoop, acquireFileLoopBlob, releaseFileLoopBlob, type LoopHandle } from '../utils/loopEngine';
 import type { UserProfile, SoundMix } from '../types';
 import { STORAGE_KEYS } from '../constants/storageKeys';
@@ -491,18 +492,17 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
     useEffect(() => cancelEarsPress, [cancelEarsPress]);
 
     // Wake Lock + Background Audio
+    const hasActiveSounds = activeSounds.size > 0;
     useEffect(() => {
-        const isPlaying = activeSounds.size > 0;
         const updateWakeLock = async () => {
-            if (isPlaying) {
+            if (hasActiveSounds) {
                 try { await KeepAwake.keepAwake(); } catch (e) {
                     console.error('Failed to acquire wake lock', e);
                 }
             }
         };
         updateWakeLock();
-        PalanteAudioBridge.setPlaying({ playing: isPlaying }).catch(() => {});
-        if (isPlaying) {
+        if (hasActiveSounds) {
             if (navigator.mediaSession) {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: 'Soundscape',
@@ -514,7 +514,24 @@ export const SoundMixer: React.FC<SoundMixerProps> = ({ isDarkMode: _isDarkMode,
         } else {
             if (navigator.mediaSession) navigator.mediaSession.playbackState = 'none';
         }
-    }, [activeSounds.size]);
+    }, [hasActiveSounds]);
+
+    // Claim the native AVAudioSession only on a genuine transition into/out of
+    // "something is playing", not on every change of the active-sound COUNT —
+    // see audioSessionClaim.ts. A claim/release on every count change would
+    // deactivate and reactivate the session on each layer added or removed,
+    // reintroducing the exact "reconfigured a live session" dropout that
+    // PalanteAudioBridge.swift's own no-op guard exists to prevent.
+    const releaseSessionClaimRef = useRef<(() => void) | null>(null);
+    useEffect(() => {
+        if (hasActiveSounds) {
+            if (!releaseSessionClaimRef.current) releaseSessionClaimRef.current = claimAudioSession();
+        } else if (releaseSessionClaimRef.current) {
+            releaseSessionClaimRef.current();
+            releaseSessionClaimRef.current = null;
+        }
+    }, [hasActiveSounds]);
+    useEffect(() => () => { releaseSessionClaimRef.current?.(); releaseSessionClaimRef.current = null; }, []);
 
     // Keep refs for stable closure access in visibilitychange handler
     const activeSoundsRef = useRef<Set<string>>(activeSounds);

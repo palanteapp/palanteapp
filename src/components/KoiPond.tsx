@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { readJSON } from '../utils/safeStorage';
 import { Settings, X, Volume2, VolumeX, Eye, EyeOff, HelpCircle, Fish as FishIcon } from 'lucide-react';
 import { KeepAwake } from '@capacitor-community/keep-awake';
+import type { PluginListenerHandle } from '@capacitor/core';
 import { haptics } from '../utils/haptics';
 import { RippleLayer, type RippleLayerRef } from './RippleLayer';
 import { SlideUpModal } from './SlideUpModal';
@@ -10,6 +11,8 @@ import { SOUND_SOURCES } from '../constants/soundSources';
 import { isSynthSound, SynthVoice, SYNTH_SOUNDS } from '../utils/synthSounds';
 import { getAudioContext, getMasterLimiter } from '../utils/audioGraph';
 import { startLoop, type LoopHandle } from '../utils/loopEngine';
+import { PalanteAudioBridge } from '../plugins/PalanteAudioBridge';
+import { claimAudioSession } from '../utils/audioSessionClaim';
 import type { SoundMix } from '../types';
 // Fish removed per user request
 // KoiFishSprite logic removed, using Processed Static Assets
@@ -1208,8 +1211,20 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
     const FALLBACK_SRC = '/sounds/flowing-river.m4a';
     const FALLBACK_VOLUME = 0.10;        // calm default when no mix is saved
 
+    // Every other ambient-audio surface in the app (SoundMixer.tsx) went through a
+    // hardening pass for AVAudioSession interruptions (a notification sound, Siri,
+    // a call, another app taking audio) and media-services resets: see
+    // PalanteAudioBridge.swift and project memory on the soundscape dropout. The
+    // pond's own audio never got that pass — it plays through the same Web Audio
+    // graph but never told the native side it wants the session, and never
+    // listened for an interruption ending. iOS does not resume playback on its
+    // own, so any interruption while the pond is open left it silent for the rest
+    // of the visit with nothing to explain why. That gap, not a loop seam, is the
+    // most likely reason a "soundscape dropout" can still be reproduced here after
+    // SoundMixer's own dropout was fixed.
     useEffect(() => {
         let cancelled = false;
+        let interruptionHandle: PluginListenerHandle | null = null;
 
         // Resolve the saved mix into layer specs. Synth ids (noise/binaural) have
         // no file and are played by SynthVoice; file ids map via SOUND_SOURCES.
@@ -1236,9 +1251,20 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
             return out.length ? out : [{ kind: 'file', src: FALLBACK_SRC, vol: FALLBACK_VOLUME }];
         };
 
-        const created: PondLayer[] = [];
+        const teardownLayers = () => {
+            if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
+            tracksRef.current.forEach(({ layer }) => layer.stop());
+            tracksRef.current = [];
+        };
 
-        (async () => {
+        // Builds every layer at volume 0 and fades the group in together. Used
+        // both for the initial mount and, unchanged, to rebuild from scratch after
+        // a confirmed interruption end or media-services reset — the same
+        // full-teardown-and-replay approach as MixerSound.recover() in
+        // SoundMixer.tsx, for the same reason: a graph that reports itself healthy
+        // after an interruption is exactly the state that produced silence nobody
+        // could account for, so nothing here trusts a bare resume().
+        const buildLayers = async () => {
             const ctx = getAudioContext();
             if (!ctx || cancelled) return;
             if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
@@ -1259,7 +1285,6 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                 if (!layer) continue;
                 if (cancelled) { layer.stop(); break; }
                 layer.setVolume(0, true);
-                created.push(layer);
                 tracksRef.current.push({ layer, targetVol: spec.vol });
             }
 
@@ -1278,13 +1303,40 @@ export const KoiPond: React.FC<KoiPondProps> = ({ isDarkMode, onClose, streak = 
                     fadeIntervalRef.current = null;
                 }
             }, 100);
-        })();
+        };
+
+        void buildLayers();
+
+        // Claim the AVAudioSession the same way SoundMixer does: `.playback` +
+        // `mixWithOthers`, activated once and left alone. Without this the pond's
+        // audio rides whatever category WKWebView happened to default to, which
+        // never gets the interruption-recovery or backgrounding treatment the rest
+        // of the app relies on. Goes through the shared reference-counted claim
+        // (audioSessionClaim.ts), not a direct setPlaying() call: a Soundscape mix
+        // can be left running in the background while the user is on the pond, and
+        // a direct call here would deactivate the session out from under it the
+        // moment the pond unmounts.
+        const releaseSessionClaim = claimAudioSession();
+
+        PalanteAudioBridge.addListener('audioInterruption', (event) => {
+            if (event.state === 'began') return; // playback is already stopped
+            // Both an interruption ending and a media-services reset are handled
+            // the same way here: tear down and rebuild. A reset invalidates every
+            // node built before it outright, and an ended interruption is not
+            // trusted to have left a genuinely resumable graph either — see the
+            // comment on buildLayers above.
+            teardownLayers();
+            void buildLayers();
+        }).then(h => {
+            if (cancelled) void h.remove();
+            else interruptionHandle = h;
+        }).catch(() => {});
 
         return () => {
             cancelled = true;
-            if (fadeIntervalRef.current) { clearInterval(fadeIntervalRef.current); fadeIntervalRef.current = null; }
-            created.forEach(l => l.stop());
-            tracksRef.current = [];
+            void interruptionHandle?.remove();
+            releaseSessionClaim();
+            teardownLayers();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
