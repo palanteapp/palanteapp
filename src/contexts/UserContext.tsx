@@ -8,6 +8,7 @@ import { generateUserNarrative, generateMonthlyPatternInsight } from '../utils/a
 import { persistProfile, loadProfileWithFallback } from '../utils/nativeStorage';
 import { createDefaultProfile } from '../utils/defaultProfile';
 import { setAIEnabled } from '../utils/aiGate';
+import { AI_FEATURES_ENABLED } from '../constants/featureFlags';
 
 const getLocalYesterdayDate = (): string => {
     const d = new Date();
@@ -421,7 +422,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // first commit where a child could fire an AI call against a stale flag. The gate
     // defaults to off, so that window would suppress a legitimate call rather than leak
     // a disabled one: still wrong, and setting it during render closes it entirely.
-    setAIEnabled(!!user && !user.aiDisabled);
+    //
+    // AI_FEATURES_ENABLED is ANDed in ahead of the per-user setting: that setting only
+    // covers users who opted out, and defaults to AI on, so without this the app would
+    // still be generating live AI content for most users while the coach is shelved.
+    setAIEnabled(AI_FEATURES_ENABLED && !!user && !user.aiDisabled);
 
     return (
         <UserContext.Provider value={{

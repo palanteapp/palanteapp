@@ -142,7 +142,7 @@ INFORMATION WE COLLECT
 - Device data: device type, operating system version, and crash/error logs.
 
 HOW WE USE YOUR INFORMATION
-We use your information solely to operate and improve Palante: to personalize your experience, generate AI-powered guidance, and maintain your progress history. We do not sell your personal data to third parties. We do not use your data for advertising.
+We use your information solely to operate and improve Palante: to personalize your experience and maintain your progress history. We do not sell your personal data to third parties. We do not use your data for advertising.
 
 THIRD-PARTY SERVICES
 Palante uses the following third-party services, each of which may process data on our behalf:

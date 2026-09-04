@@ -16,6 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import { WidgetDataSync } from '../utils/widgetDataSync';
 import { getHealthAuthStatus, requestHealthPermissions } from '../utils/healthService';
 import { STORAGE_KEYS } from '../constants/storageKeys';
+import { AI_FEATURES_ENABLED } from '../constants/featureFlags';
 import { GardenDemoFinal as GardenMandala } from './GardenDemoFinal';
 import { MonthlyPatternCard } from './MonthlyPatternCard';
 import { AIDisclosureModal } from './AIDisclosureModal';
@@ -650,7 +651,11 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                         </div>
                     </CollapsibleSection>
 
-                    {/* Enable AI Features */}
+                    {/* Enable AI Features — hidden while AI_FEATURES_ENABLED is off (the coach is
+                        shelved): the toggle would silently do nothing, since aiGate.ts forces AI off
+                        for everyone regardless of this per-user setting. Re-appears automatically
+                        once that flag flips back on. */}
+                    {AI_FEATURES_ENABLED && (
                     <div className={`p-4 rounded-2xl border transition-all ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 border-sage/20'}`}>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
@@ -691,6 +696,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate, isDarkMode, on
                             <ChevronRight size={16} />
                         </button>
                     </div>
+                    )}
 
 
                     {/* Personal Profile Section */}

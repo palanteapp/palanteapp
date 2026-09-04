@@ -141,10 +141,6 @@ export const STORAGE_KEYS = {
   // their yearly API cost past what they pay. See utils/aiUsageBudget.ts.
   AI_USAGE: 'palante_ai_usage',
 
-  // Voice (TTS) monthly backstop: paid synth seconds { month, seconds }.
-  // Past the monthly cap, voice falls back to the free on-device iOS voice.
-  TTS_USAGE: 'palante_tts_usage',
-
   // AI disclosure: record of the user acknowledging how Palante uses AI, stored as
   // { acknowledged, timestamp, version }. Version is AI_DISCLOSURE_VERSION; bumping it
   // re-shows the screen so a material change to what we send or who we send it to is

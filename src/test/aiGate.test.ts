@@ -127,16 +127,3 @@ describe('no user text reaches the network while AI is disabled', () => {
         expect(letter.length).toBeGreaterThan(0);
     });
 });
-
-describe('text-to-speech while AI is disabled', () => {
-    it('never sends partner text to the speech provider', async () => {
-        setAIEnabled(false);
-        const { speak } = await import('../utils/ttsService');
-
-        // Falls through to the on-device voice, which is absent in jsdom. The point of
-        // the assertion is only that no request was made.
-        await speak('You showed up again today.').catch(() => {});
-
-        expect(fetchSpy).not.toHaveBeenCalled();
-    });
-});

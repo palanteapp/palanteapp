@@ -3,13 +3,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Send, Bot, Sparkles, ChevronLeft, Clock, Search, X, MessageCircle,
     Zap, Flame, Mountain, Wind, Trash2, Brain,
-    Volume2, Loader2, Flag
+    Flag
 } from 'lucide-react';
 import { PartnerMemoryPanel } from './PartnerMemoryPanel';
 import { CrisisResourceCard } from './CrisisResourceCard';
 import { detectCrisisSignal, type CrisisSignal } from '../utils/crisisDetection';
 import { chatWithCoach, chatWithCoachPillar, getMomentumState } from '../utils/aiService';
-import { speak, stopSpeaking } from '../utils/ttsService';
 import { getHealthContext } from '../utils/healthService';
 import type { HealthContext } from '../utils/healthService';
 import type { CoachPillarKey } from '../utils/aiService';
@@ -177,9 +176,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     const { persistedMemories, continuityOpener } = useContinuityOpener(user);
     const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
     const [viewportTop, setViewportTop] = useState(0);
-    // Voice playback: which message is currently speaking / loading audio.
-    const [voiceMsgId, setVoiceMsgId] = useState<string | null>(null);
-    const [voiceLoadingId, setVoiceLoadingId] = useState<string | null>(null);
     // Reporting a bad/harmful AI reply (App Store 1.4/4.3: a visible way to flag
     // AI output, distinct from the human-partner report flow in Profile). Tracks
     // every message reported so far (a Set, not a single id) so reporting one
@@ -505,29 +501,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
     };
 
 
-    // Tap-to-hear: synthesize a partner reply aloud. On-demand only, never
-    // auto-plays. Tapping the active message again stops it. Cost is bounded by
-    // the monthly TTS backstop, which silently falls back to the device voice.
-    const handleSpeak = async (msg: ChatMessage) => {
-        if (voiceMsgId === msg.id || voiceLoadingId === msg.id) {
-            stopSpeaking();
-            setVoiceMsgId(null);
-            setVoiceLoadingId(null);
-            return;
-        }
-        stopSpeaking();
-        setVoiceLoadingId(msg.id);
-        haptics.light();
-        await speak(msg.text, {
-            onStart: () => { setVoiceLoadingId(null); setVoiceMsgId(msg.id); },
-            onEnd: () => { setVoiceMsgId(null); setVoiceLoadingId(null); },
-            onError: () => { setVoiceMsgId(null); setVoiceLoadingId(null); },
-        }, user.language ?? 'en');
-    };
-
-    // Stop any audio when the view unmounts so it can't keep playing off-screen.
-    useEffect(() => () => stopSpeaking(), []);
-
     // Report a bad/harmful AI reply. Client-side/analytics-logged only, no new
     // moderation backend: logs enough to locate the message (session, message id,
     // index) without putting conversation content into analytics, then confirms
@@ -715,18 +688,6 @@ export const CoachView: React.FC<Omit<CoachViewProps, 'isDarkMode'>> = ({ user, 
                                 </div>
                                 {msg.role === 'assistant' && (
                                     <div className="mt-2 flex items-center gap-4">
-                                        <button
-                                            onClick={() => handleSpeak(msg)}
-                                            className="flex items-center gap-1.5 text-[#E5D6A7]/40 hover:text-[#E5D6A7]/80 active:scale-95 transition-all"
-                                            aria-label={voiceMsgId === msg.id ? 'Stop voice' : 'Hear this aloud'}
-                                        >
-                                            {voiceLoadingId === msg.id
-                                                ? <Loader2 size={14} className="animate-spin" />
-                                                : <Volume2 size={14} className={voiceMsgId === msg.id ? 'text-[#C96A3A]' : ''} />}
-                                            <span className="text-[11px] font-bold uppercase tracking-wider">
-                                                {voiceLoadingId === msg.id ? 'Loading' : voiceMsgId === msg.id ? 'Stop' : 'Listen'}
-                                            </span>
-                                        </button>
                                         <button
                                             onClick={() => handleReportMessage(msg)}
                                             disabled={reportedMsgId.has(msg.id)}

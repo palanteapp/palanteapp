@@ -37,20 +37,6 @@ interface UsageRecord {
   count: number;
 }
 
-/**
- * Max PAID text-to-speech minutes per user per local month. Past this, voice
- * silently falls back to the free on-device iOS voice, so the user keeps a
- * speaking partner, but the metered OpenAI bill stops. Bounds the one new cost
- * voice introduces.
- *
- * COST MATH AT THE CURRENT LIMIT (gpt-4o-mini-tts ≈ $0.015/min):
- *   45 min/mo × $0.015 × 12 = ~$8.10/yr absolute worst case per user.
- * Stacked on top of the maxed 30/day chat cap it still leaves the mythical
- * doomsday user profitable once input-trim lands. Tune this single constant to
- * trade voice generosity against the metered ceiling.
- */
-export const TTS_MONTHLY_MINUTE_LIMIT = 45;
-
 /** Local calendar day key, e.g. '2026-06-14'. Resets the count at local midnight. */
 function todayKey(): string {
   const now = new Date();
@@ -108,67 +94,6 @@ export function isChatLimitReached(): boolean {
 export function recordChatCall(): void {
   const rec = readUsage();
   writeUsage({ date: rec.date, count: rec.count + 1 });
-}
-
-// ── Voice (TTS) monthly backstop ─────────────────────────────────────────────
-
-interface TtsUsageRecord {
-  /** Local month the total applies to, 'YYYY-MM'. */
-  month: string;
-  /** Paid TTS audio seconds synthesized this month. */
-  seconds: number;
-}
-
-/** Local month key, e.g. '2026-06'. Resets the paid-voice total at month rollover. */
-function monthKey(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}`;
-}
-
-function readTtsUsage(): TtsUsageRecord {
-  const month = monthKey();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.TTS_USAGE);
-    if (raw) {
-      const parsed = JSON.parse(raw) as TtsUsageRecord;
-      if (parsed.month === month && typeof parsed.seconds === 'number') {
-        return parsed;
-      }
-    }
-  } catch {
-    // fall through to a fresh record
-  }
-  return { month, seconds: 0 };
-}
-
-function writeTtsUsage(rec: TtsUsageRecord): void {
-  try {
-    localStorage.setItem(STORAGE_KEYS.TTS_USAGE, JSON.stringify(rec));
-  } catch {
-    // Storage unavailable: voice still works, tracking degrades.
-  }
-}
-
-/** Paid TTS seconds the user has synthesized so far this month. */
-export function getTtsSecondsThisMonth(): number {
-  return readTtsUsage().seconds;
-}
-
-/**
- * True once the user has used their paid-voice ceiling this month. When true,
- * callers should fall back to the free on-device voice instead of the proxy.
- */
-export function isTtsLimitReached(): boolean {
-  return getTtsSecondsThisMonth() >= TTS_MONTHLY_MINUTE_LIMIT * 60;
-}
-
-/** Record paid TTS audio against this month's backstop (free device voice passes 0). */
-export function recordTtsUsage(seconds: number): void {
-  if (!(seconds > 0)) return;
-  const rec = readTtsUsage();
-  writeTtsUsage({ month: rec.month, seconds: rec.seconds + seconds });
 }
 
 /**

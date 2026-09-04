@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { STORAGE_KEYS, SESSION_KEYS } from './constants/storageKeys';
-import { COACH_CHAT_ENABLED } from './constants/featureFlags';
+import { COACH_CHAT_ENABLED, AI_FEATURES_ENABLED } from './constants/featureFlags';
 import { hasAcknowledgedAIDisclosure, recordAIDisclosureAcknowledgment } from './data/aiDisclosure';
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -421,7 +421,10 @@ function AppContent() {
 
   // AI disclosure: shown once, and again whenever AI_DISCLOSURE_VERSION changes, so a
   // material change to what we send or who receives it is surfaced rather than buried.
-  const [showAIDisclosure, setShowAIDisclosure] = useState(() => !hasAcknowledgedAIDisclosure());
+  // Gated behind AI_FEATURES_ENABLED: there is nothing to disclose while every AI call
+  // site is force-disabled, and showing a required "here's how we use AI, opt out
+  // anytime" step for a feature nobody can reach would just be confusing.
+  const [showAIDisclosure, setShowAIDisclosure] = useState(() => AI_FEATURES_ENABLED && !hasAcknowledgedAIDisclosure());
 
   const handleAIDisclosureAcknowledged = (aiEnabled: boolean) => {
     recordAIDisclosureAcknowledgment();
